@@ -215,11 +215,11 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
         <GlassCard className="p-8 text-center flex flex-col items-center justify-center space-y-3">
           <AlertTriangle className="h-8 w-8 text-danger-fg" />
           <div>
-            <h4 className="text-sm font-bold text-foreground">Failed to load AI employees</h4>
+            <h4 className="text-sm font-bold text-foreground">{t("agentHarness.fleetLoadError")}</h4>
             <p className="text-xs text-muted-foreground mt-1 max-w-md">{error}</p>
           </div>
           <Button variant="outline" size="sm" onClick={loadEmployees}>
-            Retry
+            {t("agentHarness.retryBtn")}
           </Button>
         </GlassCard>
       </div>
@@ -260,7 +260,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
 
       {employees.length === 0 && (
         <GlassCard className="p-8 text-center text-muted-foreground text-xs" data-testid="fleet-view-empty">
-          No AI employees deployed yet.
+          {t("agentHarness.fleetEmpty")}
         </GlassCard>
       )}
 
@@ -421,7 +421,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                 className="w-full h-24 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 value={newDirectives}
                 onChange={(e) => setNewDirectives(e.target.value)}
-                placeholder="Enter role-specific guardrails, priorities, and standing instructions…"
+                placeholder={t("agentHarness.initialDirectivesPlaceholder")}
               />
             </Field>
             <div className="flex justify-end gap-2 pt-2">

@@ -150,11 +150,11 @@ export function TasksView() {
         <GlassCard className="p-8 text-center flex flex-col items-center justify-center space-y-3">
           <AlertTriangle className="h-8 w-8 text-danger-fg" />
           <div>
-            <h4 className="text-sm font-bold text-foreground">Failed to load workforce tasks</h4>
+            <h4 className="text-sm font-bold text-foreground">{t("agentHarness.tasksLoadError")}</h4>
             <p className="text-xs text-muted-foreground mt-1 max-w-md">{error}</p>
           </div>
           <Button variant="outline" size="sm" onClick={loadTasks}>
-            Retry
+            {t("agentHarness.retryBtn")}
           </Button>
         </GlassCard>
       </div>
@@ -209,7 +209,7 @@ export function TasksView() {
 
       {tasks.length === 0 && (
         <GlassCard className="p-8 text-center text-muted-foreground text-xs" data-testid="tasks-view-empty">
-          No tasks found matching filter.
+          {t("agentHarness.tasksEmpty")}
         </GlassCard>
       )}
 
@@ -309,7 +309,7 @@ export function TasksView() {
                 className="w-full h-24 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 value={newGoal}
                 onChange={(e) => setNewGoal(e.target.value)}
-                placeholder="State success criteria, target resources, and operational constraints…"
+                placeholder={t("agentHarness.objectiveContextPlaceholder")}
               />
             </Field>
 

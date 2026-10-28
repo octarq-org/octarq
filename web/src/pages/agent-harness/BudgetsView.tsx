@@ -69,11 +69,11 @@ export function BudgetsView() {
         <GlassCard className="p-8 text-center flex flex-col items-center justify-center space-y-3">
           <AlertTriangle className="h-8 w-8 text-danger-fg" />
           <div>
-            <h4 className="text-sm font-bold text-foreground">Failed to load budget metrics</h4>
+            <h4 className="text-sm font-bold text-foreground">{t("agentHarness.budgetsLoadError")}</h4>
             <p className="text-xs text-muted-foreground mt-1 max-w-md">{error}</p>
           </div>
           <Button variant="outline" size="sm" onClick={loadOverview}>
-            Retry
+            {t("agentHarness.retryBtn")}
           </Button>
         </GlassCard>
       </div>
