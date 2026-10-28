@@ -81,9 +81,21 @@ func TestMailReadyReflectsSenderPresence(t *testing.T) {
 	if p.mailReady() {
 		t.Fatal("mailReady must be false with no senders")
 	}
-	p.db.Create(&SMTPSender{OrgID: 1, Name: "relay", Host: "smtp.example.com", Port: 587})
+	sender := SMTPSender{OrgID: 1, Name: "relay", Host: "smtp.example.com", Port: 587, FromEmail: "noreply@example.com"}
+	p.db.Create(&sender)
+	// A row alone is not readiness: system mail sends only through the
+	// explicitly selected sender, so the setting must exist too.
+	if p.mailReady() {
+		t.Fatal("mailReady must be false while mail_system_sender_id is unset")
+	}
+	p.getGlobalSetting = func(k string) string {
+		if k == "mail_system_sender_id" {
+			return fmt.Sprint(sender.ID)
+		}
+		return ""
+	}
 	if !p.mailReady() {
-		t.Fatal("mailReady must be true once a sender exists")
+		t.Fatal("mailReady must be true once the system sender is selected")
 	}
 }
 

@@ -98,7 +98,11 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
 
-	if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {
+	owned, ownErr := p.ownsProviderAccount(r, input.Body.ProviderAccountID)
+	if ownErr != nil {
+		return nil, huma.Error500InternalServerError("Could not verify the provider account. Try again.")
+	}
+	if !owned {
 		return nil, huma.Error404NotFound("Provider account not found")
 	}
 	var linkHosts, mailHosts []hostEntry
@@ -229,7 +233,11 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 		return nil, huma.Error400BadRequest("host list entry " + bad + " is outside this domain's zone")
 	}
 	if input.Body.ProviderAccountID != 0 {
-		if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {
+		owned, ownErr := p.ownsProviderAccount(r, input.Body.ProviderAccountID)
+		if ownErr != nil {
+			return nil, huma.Error500InternalServerError("Could not verify the provider account. Try again.")
+		}
+		if !owned {
 			return nil, huma.Error404NotFound("Provider account not found")
 		}
 		dom.ProviderAccountID = input.Body.ProviderAccountID

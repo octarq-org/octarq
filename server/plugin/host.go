@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -57,4 +58,38 @@ type Host interface {
 	// 返回 error 表示已发布的 harness 读不出来 —— 调用方必须 fail closed，
 	// 绝不能悄悄换一个 harness 继续跑。
 	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
+	// LookupCredential resolves and decrypts third-party integration credentials for orgID.
+	// Returns ErrCredentialNotFound when the mounted resolver has no matching
+	// credential, and ErrCredentialResolverUnavailable when no resolver is
+	// mounted at all (standalone Core OSS). Callers must keep the two apart:
+	// only "unavailable" means "use the local registry"; "not found" means the
+	// credential the caller asked for does not exist.
+	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 }
+
+// Credential represents a decrypted third-party integration credential.
+type Credential struct {
+	ID           uint            `json:"id"`
+	OrgID        uint            `json:"orgId"`
+	ProviderType string          `json:"providerType"` // dns, communication, storage, payment, llm
+	Provider     string          `json:"provider"`     // cloudflare, dnspod, smtp, resend, telegram, slack, etc.
+	Name         string          `json:"name"`
+	ConfigJSON   json.RawMessage `json:"configJson"` // Decrypted JSON configuration payload
+	IsDefault    bool            `json:"isDefault"`
+}
+
+// CredentialQuery specifies lookup criteria for integration credentials.
+type CredentialQuery struct {
+	ID           uint   `json:"id,omitempty"`           // Explicit integration ID (optional)
+	ProviderType string `json:"providerType,omitempty"` // Filter by provider type (e.g. "dns", "communication")
+	Provider     string `json:"provider,omitempty"`     // Filter by provider name (e.g. "cloudflare", "slack")
+}
+
+// ErrCredentialNotFound indicates the requested credential does not exist.
+var ErrCredentialNotFound = errors.New("credential not found")
+
+// ErrCredentialResolverUnavailable indicates no credential resolver is mounted
+// on this host (standalone Core OSS). Callers use only this sentinel to decide
+// that the local registry is authoritative; a mounted resolver that answers
+// not found must be an error, never a reason to read another registry.
+var ErrCredentialResolverUnavailable = errors.New("credential resolver unavailable")

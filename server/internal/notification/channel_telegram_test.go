@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -168,38 +169,32 @@ func TestTelegramChannel_DBLookup(t *testing.T) {
 	}
 }
 
-func TestTelegramChannel_TenantIntegrationsLookup(t *testing.T) {
+func TestTelegramChannel_HostSPILookup(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	_ = db.AutoMigrate(&models.NotificationChannel{})
 
-	if err := db.Exec(`CREATE TABLE IF NOT EXISTS tenant_integrations (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		org_id INTEGER NOT NULL,
-		name TEXT NOT NULL,
-		provider_type TEXT NOT NULL,
-		provider TEXT NOT NULL,
-		encrypted_config TEXT NOT NULL,
-		is_default BOOLEAN DEFAULT FALSE,
-		created_at DATETIME,
-		updated_at DATETIME
-	)`).Error; err != nil {
-		t.Fatalf("create table: %v", err)
-	}
-
-	SetConfigDecryptor(func(stored string) (string, bool) {
-		return strings.TrimPrefix(stored, "enc_"), true
-	})
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
-
-	integConfig := `{"botToken":"invalid-token-from-integration"}`
-	if err := db.Exec(`INSERT INTO tenant_integrations (id, org_id, name, provider_type, provider, encrypted_config, is_default) VALUES (55, 1, 'Org1 Telegram Bot', 'communication', 'telegram', ?, TRUE)`, "enc_"+integConfig).Error; err != nil {
-		t.Fatalf("insert integration: %v", err)
+	th := &plugin.TestHost{
+		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+			if orgID == 1 && query.ProviderType == "communication" && query.Provider == "telegram" {
+				if query.ID == 55 || query.ID == 0 {
+					return &plugin.Credential{
+						ID:           55,
+						OrgID:        orgID,
+						ProviderType: "communication",
+						Provider:     "telegram",
+						ConfigJSON:   json.RawMessage(`{"botToken":"invalid-token-from-integration"}`),
+					}, nil
+				}
+			}
+			return nil, plugin.ErrCredentialNotFound
+		},
 	}
 
 	ch := NewTelegramChannel(db)
+	ch.SetHost(th)
 
 	// 1. Send with explicit integrationId
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{

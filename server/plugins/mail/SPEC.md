@@ -226,9 +226,19 @@ Outbound Send Request (POST /api/emails/send or mail.send / mail.send.system)
   │      - Returns HTTP 402 Payment Required if plan lacks mail, or HTTP 429 if quota exceeded
   │
   ├── 3. SMTPSender Resolution & Credential Decryption
-  │      - Selects SMTPSender for org (or system sender for system emails)
-  │      - Decrypts sender password via p.decrypt(s.Pass)
-  │      - Enforces From header: overrides From to sender.FromEmail (prevents relay spoofing)
+  │      - The request must name both `smtpSenderId` and `smtpSenderSource`
+  │        ("local" or "integration"); an ID alone is ambiguous because the two
+  │        registries number their rows independently
+  │      - "integration": resolve via plugin.Host.LookupCredential
+  │        (provider_type=communication, provider smtp|resend). A missing
+  │        integration, a non-mail provider, or an unavailable hub fails with
+  │        HTTP 400/500. The local table is never consulted
+  │      - "local": read mail_smtp_senders (owner_id = orgID). The hub is never
+  │        consulted
+  │      - System mail (mail.send.system) uses the instance system sender
+  │        (mail_system_sender_id) and never resolves through a tenant row
+  │      - Enforces From header: overrides From to the sender's From address
+  │        (prevents relay spoofing)
   │
   ├── 4. Optional Link Tracking Wrapping (plugins/mail/send.go)
   │      - If TrackLinks=true, scans body URLs, filters out localhost/own host

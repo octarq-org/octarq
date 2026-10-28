@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -266,8 +267,8 @@ func TestProviderForErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = p.providerFor(Domain{OrgID: 1, Name: "x.com", ProviderAccountID: acc1.ID})
-	if err == nil || err.Error() != "provider account has no credentials configured" {
-		t.Fatalf("empty config: %v", err)
+	if !errors.Is(err, errProviderCredentials) {
+		t.Fatalf("empty config must be a credential fault: %v", err)
 	}
 
 	// Decryption failure.
@@ -276,9 +277,8 @@ func TestProviderForErrors(t *testing.T) {
 	if err := p.db.Create(&acc2).Error; err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.providerFor(Domain{OrgID: 1, Name: "x.com", ProviderAccountID: acc2.ID}); err == nil {
-		t.Fatal("decrypt failure must propagate")
-		return
+	if _, err := p.providerFor(Domain{OrgID: 1, Name: "x.com", ProviderAccountID: acc2.ID}); !errors.Is(err, errProviderCredentials) {
+		t.Fatalf("decrypt failure must surface as a credential fault, got %v", err)
 	}
 
 	// Unknown provider type.

@@ -75,8 +75,9 @@ type Handler struct {
 	// workspace. Nil means the built-in default applies.
 	harnessSpecProvider func(ctx context.Context, orgID uint) (harness.HarnessSpec, error)
 	// harnessStore persists the published harness versions of a workspace.
-	harnessStore *agentstore.HarnessStore
-	humaAPI      huma.API
+	harnessStore   *agentstore.HarnessStore
+	workforceStore *agentstore.WorkforceStore
+	humaAPI        huma.API
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
@@ -84,6 +85,21 @@ type Handler struct {
 	storage            *plugin.LocalStorageService
 	cronService        plugin.CronService
 	resendInviteLimits sync.Map
+}
+
+// SetWorkforceStore configures the store for AI workforce fleet and tasks.
+func (h *Handler) SetWorkforceStore(store *agentstore.WorkforceStore) {
+	h.workforceStore = store
+}
+
+func (h *Handler) getWorkforceStore() *agentstore.WorkforceStore {
+	if h.workforceStore != nil {
+		return h.workforceStore
+	}
+	if h.db != nil {
+		return agentstore.NewWorkforceStore(h.db)
+	}
+	return nil
 }
 
 func (h *Handler) Storage() *plugin.LocalStorageService {

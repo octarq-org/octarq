@@ -24,7 +24,12 @@ type SendEmailInput struct {
 	Body struct {
 		mail.Message
 		SMTPSenderID uint `json:"smtpSenderId"`
-		TrackLinks   bool `json:"trackLinks"`
+		// SMTPSenderSource names the registry that owns SMTPSenderID:
+		// "integration" (Integrations Hub credential) or "local"
+		// (mail_smtp_senders). A bare ID cannot identify a sender on its own,
+		// because both registries number their rows independently.
+		SMTPSenderSource string `json:"smtpSenderSource"`
+		TrackLinks       bool   `json:"trackLinks"`
 	}
 }
 
@@ -67,23 +72,20 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	if input.Body.SMTPSenderID == 0 {
 		return nil, huma.Error400BadRequest("No SMTP sender selected. Choose a configured SMTP sender.")
 	}
-	var s SMTPSender
-	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, p.orgID(r)).First(&s).Error; err != nil {
-		return nil, huma.Error400BadRequest("Configured SMTP sender could not be found for this workspace.")
+
+	sender, senderFrom, resolveErr := p.resolveSender(ctx, orgID, input.Body.SMTPSenderID, input.Body.SMTPSenderSource)
+	if resolveErr != nil {
+		if errors.Is(resolveErr, errSenderUnavailable) {
+			return nil, huma.Error500InternalServerError(resolveErr.Error())
+		}
+		return nil, huma.Error400BadRequest(resolveErr.Error())
 	}
-	if p.decrypt == nil {
-		return nil, huma.Error500InternalServerError("Decryption service is unavailable. Verify encryption configuration.")
-	}
-	pass, err := p.decrypt(s.Pass)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Could not decrypt SMTP sender credentials. Update sender credentials.")
-	}
+
 	// Force the From header to the sender's verified address — never trust a
 	// client-supplied From, which would let a caller spoof arbitrary senders
 	// through the relay.
 	msg := input.Body.Message
-	msg.From = s.FromEmail
-	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	msg.From = senderFrom
 
 	// Metered consumption: outbound mail is the anti-abuse-critical metric on
 	// the hosted build (a Free org sending mail would burn the sending domain
@@ -113,7 +115,7 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 		p.recordUsage(p.orgID(r), usagemetric.MailOut, int64(len(msg.To)))
 	}
 	p.upsertContacts(orgID, input.Body.To)
-	p.recordSentEmail(orgID, s.FromEmail, strings.Join(input.Body.To, ", "), msg.Subject, msg.Text, msg.HTML)
+	p.recordSentEmail(orgID, senderFrom, strings.Join(input.Body.To, ", "), msg.Subject, msg.Text, msg.HTML)
 	p.sendLimiter.recordFailure(orgKey) // count this send against the per-org cap
 	return &SendEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }

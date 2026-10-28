@@ -22,6 +22,9 @@ export function Compose({
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState(draft?.text ?? "");
   const [smtpSenderId, setSmtpSenderId] = useState<number>(0);
+  // Which registry owns smtpSenderId. The two registries number their rows
+  // independently, so the ID alone cannot identify a sender.
+  const [senderSource, setSenderSource] = useState<"local" | "integration" | null>(null);
   const [senders, setSenders] = useState<any[]>([]);
   const [loadingSenders, setLoadingSenders] = useState(true);
   const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
@@ -43,30 +46,44 @@ export function Compose({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     setLoadingSenders(true);
-    fetch("/api/integrations?provider_type=communication", {
-      credentials: "same-origin",
-    })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: any[]) => {
+    (async () => {
+      try {
+        const res = await fetch("/api/integrations?provider_type=communication", {
+          credentials: "same-origin",
+        });
+        if (res.status === 404) {
+          // No Integrations Hub on this instance: the local SMTP sender
+          // registry is the only source, so offer it instead of an empty list.
+          const list = await api.smtpSenders();
+          if (cancelled) return;
+          setSenderSource("local");
+          setSenders(list);
+          setSmtpSenderId(list.length > 0 ? list[0].id : 0);
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
         const commSenders = (Array.isArray(data) ? data : []).filter(
           (item: any) => item.provider === "smtp" || item.provider === "resend"
         );
+        if (cancelled) return;
+        setSenderSource("integration");
         setSenders(commSenders);
-        if (commSenders.length > 0) {
-          const defaultSender = commSenders.find((s: any) => s.isDefault) || commSenders[0];
-          setSmtpSenderId(defaultSender.id);
-        } else {
-          setSmtpSenderId(0);
-        }
-      })
-      .catch(() => {
+        const preferred = commSenders.find((s: any) => s.isDefault) || commSenders[0];
+        setSmtpSenderId(preferred ? preferred.id : 0);
+      } catch {
+        if (cancelled) return;
+        // Do not guess at a sender when the lookup fails: sending through the
+        // wrong registry is worse than asking the user to retry.
+        setSenderSource(null);
         setSenders([]);
         setSmtpSenderId(0);
-      })
-      .finally(() => {
-        setLoadingSenders(false);
-      });
+      } finally {
+        if (!cancelled) setLoadingSenders(false);
+      }
+    })();
 
     api.settings().then((s) => {
       if (s.autoWrapLinks) {
@@ -74,6 +91,10 @@ export function Compose({
         setTrackLinks(true);
       }
     }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -112,6 +133,7 @@ export function Compose({
         subject,
         text,
         smtpSenderId: smtpSenderId || undefined,
+        smtpSenderSource: senderSource ?? undefined,
         trackLinks: autoWrapLinksEnabled ? trackLinks : false,
       });
       if (draftId) {
@@ -151,16 +173,20 @@ export function Compose({
                     {t("settings.noSmtpSenders")}
                   </p>
                   <p className="text-muted-foreground">
-                    {t("settings.integrationsHubBanner")}
+                    {senderSource === "local"
+                      ? t("settings.smtpLocalSenderHint", "Add a local SMTP sender in Outgoing Gateways, then return here.")
+                      : t("settings.integrationsHubBanner")}
                   </p>
                 </div>
               </div>
-              <Link
-                to="/settings/integrations?category=communication"
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                {t("settings.openIntegrationsHub")} →
-              </Link>
+              {senderSource === "integration" && (
+                <Link
+                  to="/settings/integrations?category=communication"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  {t("settings.openIntegrationsHub")} →
+                </Link>
+              )}
             </div>
           ) : (
             <Field label={t("mail.smtpConnection")} hint={t("mail.smtpConnectionHint")}>

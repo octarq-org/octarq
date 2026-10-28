@@ -28,6 +28,10 @@ func (noopHost) TenantDB(uint) *TenantDB { return nil }
 // workspace behind it has none to report.
 func (noopHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) { return nil, nil }
 
+func (noopHost) LookupCredential(context.Context, uint, CredentialQuery) (*Credential, error) {
+	return nil, ErrCredentialResolverUnavailable
+}
+
 type noopSession struct{}
 
 func (noopSession) UserID(*http.Request) uint                      { return 0 }

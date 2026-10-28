@@ -270,27 +270,43 @@ func TestMailSendReply_DeclarativeContractAndHITL(t *testing.T) {
 		t.Fatal("expected suppression error when sending to blocked address")
 	}
 
-	// 4. Missing SMTP sender fails closed
+	// 4. A sender ID without a source is refused: an ID alone cannot identify
+	// a row across the local table and the Integrations Hub.
+	_, errNoSource := p.handleSendEmail(ctx1, SendEmailToolInput{
+		To:           []string{"valid@example.com"},
+		Subject:      "Test",
+		Body:         "Hello",
+		SMTPSenderID: 999,
+	})
+	if errNoSource == nil {
+		t.Fatal("expected error when the sender source is missing")
+	}
+
+	// 5. Unknown local sender fails closed
 	_, errNoSMTP := p.handleSendEmail(ctx1, SendEmailToolInput{
-		To:      []string{"valid@example.com"},
-		Subject: "Test",
-		Body:    "Hello",
+		To:               []string{"valid@example.com"},
+		Subject:          "Test",
+		Body:             "Hello",
+		SMTPSenderID:     999,
+		SMTPSenderSource: SenderSourceLocal,
 	})
 	if errNoSMTP == nil {
 		t.Fatal("expected error when no SMTP sender is configured")
 	}
 
-	// 5. Unauthorized send (no org)
+	// 6. Unauthorized send (no org)
 	if _, err := p.handleSendEmail(context.Background(), SendEmailToolInput{To: []string{"test@example.com"}}); err == nil {
 		t.Fatal("expected unauthorized error")
 	}
 
-	// 6. ToAddr comma/semicolon parsing and decryption failures
+	// 7. ToAddr comma/semicolon parsing and decryption failures
 	db.Create(&SMTPSender{OrgID: 1, Host: "127.0.0.1", Port: 2525, User: "sender", Pass: "encpass", FromEmail: "sender@example.com"})
 	_, errDecAvail := p.handleSendEmail(ctx1, SendEmailToolInput{
-		ToAddr:  "user1@test.com; user2@test.com",
-		Subject: "Test Parsed Addrs",
-		Body:    "Hello",
+		ToAddr:           "user1@test.com; user2@test.com",
+		Subject:          "Test Parsed Addrs",
+		Body:             "Hello",
+		SMTPSenderID:     1,
+		SMTPSenderSource: SenderSourceLocal,
 	})
 	if errDecAvail == nil {
 		t.Fatal("expected decryption unavailable error")
@@ -300,22 +316,26 @@ func TestMailSendReply_DeclarativeContractAndHITL(t *testing.T) {
 		return nil, errors.New("crypto failure")
 	}
 	_, errDecFail := p.handleSendEmail(ctx1, SendEmailToolInput{
-		To:      []string{"valid@example.com"},
-		Subject: "Test",
-		Body:    "Hello",
+		To:               []string{"valid@example.com"},
+		Subject:          "Test",
+		Body:             "Hello",
+		SMTPSenderID:     1,
+		SMTPSenderSource: SenderSourceLocal,
 	})
 	if errDecFail == nil {
 		t.Fatal("expected decryption failed error")
 	}
 
-	// 7. Send failed error from network dialer
+	// 8. Send failed error from network dialer
 	p.decrypt = func(encoded string) ([]byte, error) {
 		return []byte("plainpass"), nil
 	}
 	_, errSendFail := p.handleSendEmail(ctx1, SendEmailToolInput{
-		To:      []string{"valid@example.com"},
-		Subject: "Test",
-		Body:    "Hello",
+		To:               []string{"valid@example.com"},
+		Subject:          "Test",
+		Body:             "Hello",
+		SMTPSenderID:     1,
+		SMTPSenderSource: SenderSourceLocal,
 	})
 	if errSendFail == nil {
 		t.Fatal("expected send failed error")
@@ -356,5 +376,63 @@ func TestMailAITools_ReadEmailAndDraftEdgeCases(t *testing.T) {
 	// Create draft with missing recipient
 	if _, err := p.handleCreateDraft(ctx1, CreateDraftInput{Subject: "No recipient"}); err == nil {
 		t.Fatal("expected error creating draft with no recipient")
+	}
+}
+
+// The agent tool must reach the Integrations Hub when the caller names that
+// registry, and must refuse an integration that cannot send mail.
+func TestMailAITools_SendResolvesThroughIntegrationSource(t *testing.T) {
+	_, p := setupMailboxTestDB(t)
+	ctx1 := plugin.WithOrgID(context.Background(), 1)
+	p.publishEvent = func(uint, string, any) {}
+
+	host, port, got := captureSMTP(t)
+	p.host = &plugin.TestHost{
+		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+			if query.ProviderType != "communication" {
+				return nil, plugin.ErrCredentialNotFound
+			}
+			if query.ID == 9 {
+				return nil, errors.New("vault unavailable")
+			}
+			cfg, _ := json.Marshal(map[string]any{
+				"host":      host,
+				"port":      port,
+				"user":      "hub-user",
+				"fromEmail": "hub@example.com",
+			})
+			return &plugin.Credential{
+				ID:           query.ID,
+				OrgID:        orgID,
+				ProviderType: "communication",
+				Provider:     "smtp",
+				ConfigJSON:   cfg,
+			}, nil
+		},
+	}
+
+	if _, err := p.handleSendEmail(ctx1, SendEmailToolInput{
+		To:               []string{"valid@example.com"},
+		Subject:          "Hub send",
+		Body:             "Hello",
+		SMTPSenderID:     7,
+		SMTPSenderSource: SenderSourceIntegration,
+	}); err != nil {
+		t.Fatalf("send through the hub: %v", err)
+	}
+	if !strings.Contains(got(), "hub@example.com") {
+		t.Errorf("hub relay did not receive the message:\n%s", got())
+	}
+
+	// A resolver failure is not "no such sender"; it must surface as a 500.
+	_, err := p.handleSendEmail(ctx1, SendEmailToolInput{
+		To:               []string{"valid@example.com"},
+		Subject:          "Hub send",
+		Body:             "Hello",
+		SMTPSenderID:     9,
+		SMTPSenderSource: SenderSourceIntegration,
+	})
+	if err == nil {
+		t.Fatal("expected an error when the hub lookup fails")
 	}
 }

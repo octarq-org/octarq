@@ -2,6 +2,8 @@ package mail
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"net"
 	"strings"
 	"sync"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 
@@ -201,5 +204,71 @@ func TestSystemSenderResolution(t *testing.T) {
 	settings["mail_system_sender_id"] = "999"
 	if _, err := p.systemSender(); err == nil {
 		t.Fatal("stale setting must fail closed without fallback to lowest id")
+	}
+}
+
+func TestHostSPI_MailCredentialBridge(t *testing.T) {
+	p, _ := newSystemMailTestPlugin(t, func(string) string { return "" })
+
+	// 1. Initially no senders and no host -> not ready
+	if p.mailReady() {
+		t.Fatal("expected mailReady = false initially")
+	}
+
+	host, port, got := captureSMTP(t)
+
+	// 2. Wire TestHost that resolves communication credentials
+	th := &plugin.TestHost{
+		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+			if query.ProviderType == "communication" {
+				cfgJSON, _ := json.Marshal(map[string]any{
+					"host":      host,
+					"port":      port,
+					"fromEmail": "pro-sender@octarq.com",
+				})
+				return &plugin.Credential{
+					ID:           101,
+					OrgID:        orgID,
+					ProviderType: "communication",
+					Provider:     "smtp",
+					Name:         "Centralized SMTP",
+					ConfigJSON:   cfgJSON,
+				}, nil
+			}
+			return nil, plugin.ErrCredentialNotFound
+		},
+	}
+	p.host = th
+
+	// A Hub integration is not a system sender: readiness stays false until a
+	// local sender is selected, because system mail never reads the Hub.
+	if p.mailReady() {
+		t.Fatal("expected mailReady = false while only a Hub integration exists")
+	}
+
+	// 3. sendMail delivers via Host SPI
+	if err := p.sendMail(1, "recipient@example.com", "Test Subject Via SPI", "<p>Body</p>", "Body"); err != nil {
+		t.Fatalf("sendMail via Host SPI failed: %v", err)
+	}
+
+	captured := got()
+	if !strings.Contains(captured, "Test Subject Via SPI") {
+		t.Fatalf("SMTP relay did not receive expected subject: %s", captured)
+	}
+	if !strings.Contains(captured, "pro-sender@octarq.com") {
+		t.Fatalf("SMTP relay did not receive expected from address: %s", captured)
+	}
+
+	// 4. Test Resend credential resolution
+	resendCred := &plugin.Credential{
+		ID:           102,
+		OrgID:        1,
+		ProviderType: "communication",
+		Provider:     "resend",
+		ConfigJSON:   json.RawMessage(`{"apiKey":"re_123456","fromEmail":"resend@octarq.com"}`),
+	}
+	sender, from, err := p.senderFromCredential(resendCred)
+	if err != nil || sender == nil || from != "resend@octarq.com" {
+		t.Fatalf("senderFromCredential for resend failed: %v, from=%s", err, from)
 	}
 }

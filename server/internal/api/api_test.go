@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -95,11 +96,17 @@ func disableEmailVerification(t *testing.T, db *gorm.DB) {
 // promising a message that never arrives.
 func enableMail(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if err := db.Create(&mail.SMTPSender{
+	sender := mail.SMTPSender{
 		OrgID: 1, Name: "test", Host: "smtp.example.com", Port: 587,
 		User: "u", Pass: "enc", FromEmail: "noreply@example.com",
-	}).Error; err != nil {
+	}
+	if err := db.Create(&sender).Error; err != nil {
 		t.Fatalf("seed smtp sender: %v", err)
+	}
+	// System mail reads the explicitly selected sender only; readiness must
+	// answer for that same row or sign-ups are promised mail that never sends.
+	if err := db.Save(&models.Setting{Key: "mail_system_sender_id", Value: strconv.FormatUint(uint64(sender.ID), 10)}).Error; err != nil {
+		t.Fatalf("set mail_system_sender_id: %v", err)
 	}
 }
 

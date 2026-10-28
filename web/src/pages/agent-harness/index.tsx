@@ -28,6 +28,7 @@ import {
   type HarnessSpecContent,
   type HarnessSpecDetail,
   type HarnessVersionItem,
+  type WorkforceOverviewDTO,
 } from "../../api";
 import { HarnessDetailModal } from "./detail";
 import { HarnessDiffModal } from "./diff";
@@ -111,6 +112,33 @@ function AgentHarnessContent({
   const [lessonsError, setLessonsError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<HarnessLesson[]>([]);
   const [lessonsLoadedOnce, setLessonsLoadedOnce] = useState(false);
+
+  // Workforce Overview state
+  const [overview, setOverview] = useState<WorkforceOverviewDTO | null>(null);
+
+  const loadOverview = useCallback(() => {
+    let cancelled = false;
+    api.workforceOverview()
+      .then((data) => {
+        if (!cancelled) setOverview(data);
+      })
+      .catch(() => {
+        // Fail closed: leave the summary empty rather than showing invented
+        // numbers. The individual views surface their own error states.
+        if (!cancelled) setOverview(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Refresh the summary whenever the operator returns to a workforce tab, so
+  // the strip reflects agents and tasks created in the current session.
+  useEffect(() => {
+    if (activeTab === "fleet" || activeTab === "tasks" || activeTab === "budgets" || activeTab === "approvals") {
+      return loadOverview();
+    }
+  }, [activeTab, loadOverview]);
 
   // Modals state
   const [editorOpen, setEditorOpen] = useState(false);
@@ -354,28 +382,44 @@ function AgentHarnessContent({
             <Bot className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statActiveAgents", "Active AI Employees")}
           </div>
-          <div className="text-xl font-bold font-mono text-foreground">4</div>
+          <div className="text-xl font-bold font-mono text-foreground">
+            {overview ? overview.activeAgents : "—"}
+          </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <Terminal className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statRunningTasks", "Running Tasks")}
           </div>
-          <div className="text-xl font-bold font-mono text-primary">1 <span className="text-xs text-muted-foreground font-normal">{t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: 3 })}</span></div>
+          <div className="text-xl font-bold font-mono text-primary">
+            {overview ? overview.runningTasks : "—"}{" "}
+            <span className="text-xs text-muted-foreground font-normal">
+              {overview
+                ? t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: overview.queuedTasks })
+                : t("agentHarness.overviewUnavailable", "Unavailable")}
+            </span>
+          </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <ShieldAlert className="h-3.5 w-3.5 text-warning-fg" />
             {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
           </div>
-          <div className="text-xl font-bold font-mono text-warning-fg">1</div>
+          <div className="text-xl font-bold font-mono text-warning-fg">
+            {overview ? overview.pendingApprovals : "—"}
+          </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <Coins className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statBudgetUsage", "Monthly Budget Used")}
           </div>
-          <div className="text-xl font-bold font-mono text-foreground">$14.20 <span className="text-xs text-muted-foreground font-normal">/ $50</span></div>
+          <div className="text-xl font-bold font-mono text-foreground">
+            {overview ? `$${overview.monthlySpend.toFixed(2)}` : "—"}{" "}
+            <span className="text-xs text-muted-foreground font-normal">
+              / {overview ? `$${overview.monthlyLimit.toFixed(0)}` : "—"}
+            </span>
+          </div>
         </GlassCard>
       </div>
 

@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -16,10 +17,16 @@ import (
 
 // TelegramChannel delivers notifications via Telegram bot.
 type TelegramChannel struct {
-	db *gorm.DB
+	db   *gorm.DB
+	host plugin.Host
 }
 
 var _ plugin.NotificationChannel = (*TelegramChannel)(nil)
+
+// SetHost injects the host runtime SPI for credential resolution.
+func (c *TelegramChannel) SetHost(h plugin.Host) {
+	c.host = h
+}
 
 // NewTelegramChannel constructs a Telegram notification channel driver.
 func NewTelegramChannel(db ...*gorm.DB) *TelegramChannel {
@@ -138,60 +145,78 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		targetOrg = strings.TrimSpace(payload.OrgID)
 	}
 
-	// 1. Resolve botToken from centralized tenant_integrations (provider_type = 'communication', provider = 'telegram')
-	if botToken == "" && c.db != nil && targetOrg != "" {
+	// 1. Resolve botToken via Host SPI (Centralized Integrations Hub). A config
+	// that names an integration is answered by the Hub alone: falling back to
+	// the local row would send through a credential the operator did not select.
+	// A token left in a stale row must not shadow it either.
+	if reqIntegID > 0 {
+		botToken = ""
+	}
+	if botToken == "" && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
-			type tenantInteg struct {
-				EncryptedConfig string `gorm:"column:encrypted_config"`
+			host := c.host
+			if host == nil {
+				host = plugin.EnsureHost(nil)
 			}
-			var row tenantInteg
-			q := c.db.WithContext(ctx).Table("tenant_integrations").
-				Where("org_id = ? AND provider_type = ? AND provider = ?", orgNum, "communication", "telegram")
-			if reqIntegID > 0 {
-				q = q.Where("id = ?", reqIntegID)
-			} else {
-				q = q.Order("is_default DESC, id DESC")
-			}
-			if err := q.Limit(1).Take(&row).Error; err == nil && row.EncryptedConfig != "" {
-				plain, decErr := ConfigPlaintext(row.EncryptedConfig)
-				if decErr == nil {
+			cred, err := host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
+				ID:           reqIntegID,
+				ProviderType: "communication",
+				Provider:     "telegram",
+			})
+			switch {
+			case err == nil:
+				if cred == nil || cred.OrgID != uint(orgNum) {
+					if reqIntegID > 0 {
+						return fmt.Errorf("telegram: the selected integration does not exist")
+					}
+				} else if len(cred.ConfigJSON) > 0 {
 					var m struct {
 						BotToken string `json:"botToken"`
 					}
-					if json.Unmarshal([]byte(plain), &m) == nil && m.BotToken != "" {
+					if json.Unmarshal(cred.ConfigJSON, &m) == nil && m.BotToken != "" {
 						botToken = strings.TrimSpace(m.BotToken)
 					}
 				}
+				if botToken == "" && reqIntegID > 0 {
+					return fmt.Errorf("telegram: the selected integration has no bot token")
+				}
+			case errors.Is(err, plugin.ErrCredentialNotFound), errors.Is(err, plugin.ErrCredentialResolverUnavailable):
+				if reqIntegID > 0 {
+					return fmt.Errorf("telegram: the selected integration does not exist")
+				}
+			default:
+				return fmt.Errorf("telegram: resolve integration credentials: %w", err)
 			}
 		}
 	}
 
-	// 2. Fallback to database lookup if org-scoped notification channel is configured
-	if (botToken == "" || chatIDStr == "") && c.db != nil && targetOrg != "" {
+	// 2. Local channel config, only when no integration was named.
+	if (botToken == "" || chatIDStr == "") && reqIntegID == 0 && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
 			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "telegram", true).First(&ch).Error; err == nil && ch.Config != "" {
 				plain, decErr := ConfigPlaintext(ch.Config)
-				if decErr == nil {
-					var m struct {
-						BotToken string `json:"botToken"`
-						ChatID   any    `json:"chatId"`
+				if decErr != nil {
+					return fmt.Errorf("telegram: decrypt channel config: %w", decErr)
+				}
+				var m struct {
+					BotToken string `json:"botToken"`
+					ChatID   any    `json:"chatId"`
+				}
+				if json.Unmarshal([]byte(plain), &m) == nil {
+					if botToken == "" {
+						botToken = strings.TrimSpace(m.BotToken)
 					}
-					if json.Unmarshal([]byte(plain), &m) == nil {
-						if botToken == "" {
-							botToken = strings.TrimSpace(m.BotToken)
-						}
-						if chatIDStr == "" && m.ChatID != nil {
-							switch val := m.ChatID.(type) {
-							case string:
-								chatIDStr = strings.TrimSpace(val)
-							case float64:
-								chatIDStr = strconv.FormatInt(int64(val), 10)
-							case int64:
-								chatIDStr = strconv.FormatInt(val, 10)
-							case int:
-								chatIDStr = strconv.Itoa(val)
-							}
+					if chatIDStr == "" && m.ChatID != nil {
+						switch val := m.ChatID.(type) {
+						case string:
+							chatIDStr = strings.TrimSpace(val)
+						case float64:
+							chatIDStr = strconv.FormatInt(int64(val), 10)
+						case int64:
+							chatIDStr = strconv.FormatInt(val, 10)
+						case int:
+							chatIDStr = strconv.Itoa(val)
 						}
 					}
 				}

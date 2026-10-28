@@ -242,6 +242,7 @@ describe("Mail Forms", () => {
         subject: "Important System Update",
         text: "Hello team,\nPlease read https://example.com/update",
         smtpSenderId: 1,
+        smtpSenderSource: "integration",
         trackLinks: true,
       });
 
@@ -322,6 +323,47 @@ describe("Mail Forms", () => {
       await waitFor(() => {
         expect(screen.getByText("No SMTP outgoing senders configured yet. Add a sender below.")).toBeDefined();
         expect((screen.getByRole("button", { name: "Send mail" }) as HTMLButtonElement).disabled).toBe(true);
+      });
+    });
+
+    // Standalone Core has no Integrations Hub. The local sender registry must
+    // still be usable, and the send must name that registry.
+    it("falls back to local SMTP senders when the Integrations Hub is absent", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+
+        if (method === "GET" && path === "/api/integrations") return jsonResponse({ detail: "Not Found" }, 404);
+        if (method === "GET" && path === "/api/smtp-senders") return jsonResponse(mockSenders);
+        if (method === "GET" && path === "/api/settings") return jsonResponse({});
+        if (method === "POST" && path === "/api/emails/send") return jsonResponse({ ok: true });
+        throw new Error(`Unhandled fetch: ${method} ${rawUrl}`);
+      });
+
+      renderWithProviders(<Compose onClose={vi.fn()} />);
+
+      fireEvent.change(screen.getByPlaceholderText("hello@world.com"), { target: { value: "alice@example.com" } });
+      fireEvent.change(screen.getByPlaceholderText("Subject line"), { target: { value: "Local relay" } });
+
+      const sendBtn = screen.getByRole("button", { name: "Send mail" });
+      await waitFor(() => {
+        expect((sendBtn as HTMLButtonElement).disabled).toBe(false);
+      });
+      fireEvent.click(sendBtn);
+
+      await waitFor(() => {
+        const sendCall = fetchMock.mock.calls.find((c) => {
+          const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+          return url.includes("/api/emails/send");
+        });
+        expect(sendCall).toBeDefined();
+        const payload = JSON.parse(sendCall![1]?.body as string);
+        expect(payload).toMatchObject({
+          smtpSenderId: 1,
+          smtpSenderSource: "local",
+        });
       });
     });
   });
@@ -414,7 +456,7 @@ describe("Mail Forms", () => {
   });
 
   describe("SMTPSenders", () => {
-    it("renders senders, guidance banner, tests connection, and eliminates standalone CRUD", async () => {
+    it("uses the Integrations Hub when it is mounted and hides the local sender form", async () => {
       renderWithProviders(<SMTPSenders />);
 
       await waitFor(() => {
@@ -424,21 +466,24 @@ describe("Mail Forms", () => {
         expect(screen.getByText("Manage third-party credentials and cloud provider integrations centrally.")).toBeDefined();
       });
 
-      // Test connection
-      const testBtn = screen.getByRole("button", { name: "Test" });
-      fireEvent.click(testBtn);
+      // Test connection goes through the hub, not the local table.
+      fireEvent.click(screen.getByRole("button", { name: "Test" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Test" })).toBeDefined();
+        const tested = fetchMock.mock.calls.some((c) => {
+          const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+          return url.includes("/api/integrations/1/test");
+        });
+        expect(tested).toBe(true);
       });
 
-      // Standalone CRUD modal and delete buttons are eliminated
+      // The local CRUD surfaces stay absent while the hub is authoritative.
       expect(screen.queryByRole("button", { name: "Add SMTP" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Edit SMTP" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
     });
 
-    it("renders empty state with deep link when no senders configured", async () => {
+    it("renders empty state with deep link when the hub has no senders", async () => {
       fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
         const method = (init?.method ?? "GET").toUpperCase();
         const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
@@ -453,6 +498,69 @@ describe("Mail Forms", () => {
       await waitFor(() => {
         expect(screen.getByText("No SMTP outgoing senders configured yet. Add a sender below.")).toBeDefined();
         expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
+      });
+    });
+
+    // Standalone Core mounts no Integrations Hub, so the page must serve the
+    // local registry and keep its CRUD controls.
+    it("serves the local sender registry when the Integrations Hub is absent", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+
+        if (method === "GET" && path === "/api/integrations") return jsonResponse({ detail: "Not Found" }, 404);
+        if (method === "GET" && path === "/api/smtp-senders") return jsonResponse(mockSenders);
+        if (method === "POST" && path === "/api/smtp-senders/1/test") return jsonResponse({ ok: true });
+        if (method === "POST" && path === "/api/smtp-senders") {
+          const body = init?.body ? JSON.parse(init.body as string) : {};
+          return jsonResponse({ id: 2, ...body, passSet: true, createdAt: new Date().toISOString() });
+        }
+        throw new Error(`Unhandled fetch: ${method} ${rawUrl}`);
+      });
+
+      renderWithProviders(<SMTPSenders />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Corporate Mailgun")).toBeDefined();
+        expect(screen.getByText("noreply@acme.com via smtp.mailgun.org:587")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Add SMTP" })).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit SMTP" })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Test" }));
+      await waitFor(() => {
+        const tested = fetchMock.mock.calls.some((c) => {
+          const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+          return url.includes("/api/smtp-senders/1/test");
+        });
+        expect(tested).toBe(true);
+      });
+
+      // The local form is reachable and posts the password under the wire
+      // field the server reads.
+      fireEvent.click(screen.getByRole("button", { name: "Add SMTP" }));
+      await waitFor(() => {
+        expect(screen.getByText("Add SMTP Sender")).toBeDefined();
+      });
+      fireEvent.change(screen.getByPlaceholderText("e.g. Corporate SMTP"), { target: { value: "Local relay" } });
+      fireEvent.change(screen.getByPlaceholderText("smtp.mailgun.org"), { target: { value: "smtp.example.com" } });
+      fireEvent.change(screen.getByPlaceholderText("587"), { target: { value: "587" } });
+      fireEvent.change(screen.getByPlaceholderText("e.g. postmaster@domain.com"), { target: { value: "user@example.com" } });
+      fireEvent.change(screen.getByPlaceholderText("noreply@domain.com"), { target: { value: "noreply@example.com" } });
+      fireEvent.change(screen.getByPlaceholderText("••••••••"), { target: { value: "secret" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        const createCall = fetchMock.mock.calls.find((c) => {
+          const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+          const method = ((c[1] as RequestInit | undefined)?.method ?? "GET").toUpperCase();
+          return method === "POST" && url.endsWith("/api/smtp-senders");
+        });
+        expect(createCall).toBeDefined();
+        const payload = JSON.parse(createCall![1]?.body as string);
+        expect(payload).toMatchObject({ pass: "secret", host: "smtp.example.com" });
       });
     });
   });

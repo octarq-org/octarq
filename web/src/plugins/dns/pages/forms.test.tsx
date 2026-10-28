@@ -536,8 +536,62 @@ describe("DNS Forms", () => {
       renderWithProviders(<ProviderAccounts />);
 
       await waitFor(() => {
-        expect(screen.getByText("No DNS providers configured yet.")).toBeDefined();
-        expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
+        expect(screen.getByText("Could not load DNS providers. Reload the page to retry.")).toBeDefined();
+      });
+
+      // A hub that answers with an error is not "no hub": offer no fallback and
+      // claim nothing about the accounts.
+      expect(screen.queryByText("No DNS providers configured yet.")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Add Provider" })).toBeNull();
+      expect(screen.queryByText("Integrations Hub")).toBeNull();
+    });
+
+    // Standalone Core mounts no Integrations Hub: the local registry must be
+    // offered instead of an empty page.
+    it("serves the local provider registry when the Integrations Hub is absent", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+
+        if (method === "GET" && path === "/api/integrations") {
+          return { ok: false, status: 404, json: async () => ({ detail: "Not Found" }) } as unknown as Response;
+        }
+        if (method === "GET" && path === "/api/provider-accounts") return jsonResponse(mockProviderAccounts);
+        if (method === "POST" && path === "/api/provider-accounts") {
+          const body = init?.body ? JSON.parse(init.body as string) : {};
+          return jsonResponse({ id: 3, ...body, hasCredentials: true });
+        }
+        if (method === "GET" && path === "/api/dns/providers") return jsonResponse(["cloudflare", "dnspod"]);
+        throw new Error(`Unhandled fetch: ${method} ${rawUrl}`);
+      });
+
+      renderWithProviders(<ProviderAccounts />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Cloudflare Production")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Add Provider" })).toBeDefined();
+        expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Add Provider" }));
+      await waitFor(() => {
+        expect(screen.getByText("Add DNS Provider")).toBeDefined();
+      });
+      fireEvent.change(screen.getByPlaceholderText("e.g. Acme Production DNS"), { target: { value: "Local DNS" } });
+      fireEvent.change(screen.getByPlaceholderText("API token..."), { target: { value: "cf-token" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        const createCall = fetchMock.mock.calls.find((c) => {
+          const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+          const method = ((c[1] as RequestInit | undefined)?.method ?? "GET").toUpperCase();
+          return method === "POST" && url.endsWith("/api/provider-accounts");
+        });
+        expect(createCall).toBeDefined();
+        const payload = JSON.parse(createCall![1]?.body as string);
+        expect(payload).toMatchObject({ name: "Local DNS", type: "cloudflare", config: { apiToken: "cf-token" } });
       });
     });
   });

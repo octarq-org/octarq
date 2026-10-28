@@ -90,7 +90,7 @@ export const mailApi = {
       `/api/emails/read-all${mailbox ? `?mailbox=${mailbox}` : ""}`,
     ),
   rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
-  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number; trackLinks?: boolean }) =>
+  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number; smtpSenderSource?: "local" | "integration"; trackLinks?: boolean }) =>
     req("POST", "/api/emails/send", m),
   contacts: (params?: { query?: string; q?: string; limit?: number; offset?: number }) => {
     const sp = new URLSearchParams();

@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"errors"
 	"log"
 	"strings"
 
@@ -45,4 +46,19 @@ func (p *Plugin) providerErr(action string, err error) error {
 		return huma.Error400BadRequest(action + ": failed")
 	}
 	return huma.Error400BadRequest(action + ": " + cleanProviderError(err.Error()))
+}
+
+// providerResolveErr maps a credential-resolution failure to its HTTP shape.
+// A missing account is a 404, a load or decrypt fault is a sanitized 500, and
+// only a malformed credential stays a 400 the caller can fix.
+func (p *Plugin) providerResolveErr(err error) error {
+	switch {
+	case errors.Is(err, errProviderAccountNotFound), errors.Is(err, errNotFound):
+		return huma.Error404NotFound("Provider account not found")
+	case errors.Is(err, errProviderCredentials):
+		log.Printf("dns provider: credential resolution failed: %v", err)
+		return huma.Error500InternalServerError("Could not load the DNS provider credentials. Contact an administrator.")
+	default:
+		return huma.Error400BadRequest(err.Error())
+	}
 }

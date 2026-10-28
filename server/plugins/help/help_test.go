@@ -61,6 +61,9 @@ func (h *stubHelpHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
 func (h *stubHelpHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) {
 	return nil, nil
 }
+func (h *stubHelpHost) LookupCredential(context.Context, uint, plugin.CredentialQuery) (*plugin.Credential, error) {
+	return nil, plugin.ErrCredentialNotFound
+}
 
 func TestHelpDocs(t *testing.T) {
 	org1Enabled := true

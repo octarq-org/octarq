@@ -149,9 +149,10 @@ func TestSendEmailPublishesFailureEvent(t *testing.T) {
 		Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
-		}{SMTPSenderID: deadSender.ID, Message: internalmail.Message{To: []string{"to@example.com"}, Subject: "s", Text: "b"}},
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
+		}{SMTPSenderID: deadSender.ID, SMTPSenderSource: "local", Message: internalmail.Message{To: []string{"to@example.com"}, Subject: "s", Text: "b"}},
 	}
 	if _, err := p.sendEmail(ctx, input); err == nil {
 		t.Fatal("send to an unreachable relay must fail")

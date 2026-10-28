@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 var errBoom = errors.New("boom")
@@ -243,5 +245,106 @@ func TestEncryptConfig(t *testing.T) {
 	_, err = p.encryptConfig(map[string]any{"ch": make(chan int)})
 	if err == nil || !strings.Contains(err.Error(), "unsupported type") {
 		t.Errorf("encryptConfig marshal err = %v, want unsupported-type error", err)
+	}
+}
+
+func TestHostSPI_DNSCredentialBridge(t *testing.T) {
+	p, _ := setupFreshTestDB(t)
+	p.orgID = func(r *http.Request) uint { return 10 }
+
+	th := &plugin.TestHost{
+		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+			if orgID == 10 && query.ID == 88 && query.ProviderType == "dns" {
+				return &plugin.Credential{
+					ID:           88,
+					OrgID:        10,
+					ProviderType: "dns",
+					Provider:     "cloudflare",
+					Name:         "Pro CF Account",
+					ConfigJSON:   json.RawMessage(`{"apiToken":"pro-token-xyz"}`),
+				}, nil
+			}
+			return nil, plugin.ErrCredentialNotFound
+		},
+	}
+	p.host = th
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	// 1. ownsProviderAccount: ID 88 exists in Host SPI -> returns true
+	if owned, err := p.ownsProviderAccount(req, 88); !owned || err != nil {
+		t.Errorf("expected ownsProviderAccount(88) = true via Host SPI, got %v, %v", owned, err)
+	}
+
+	// 2. ownsProviderAccount: ID 999 does not exist anywhere -> returns false
+	if owned, err := p.ownsProviderAccount(req, 999); owned || err != nil {
+		t.Errorf("expected ownsProviderAccount(999) = false, got %v, %v", owned, err)
+	}
+
+	// 3. providerFor: resolves cloudflare provider via Host SPI
+	prov, err := p.providerFor(Domain{
+		OrgID:             10,
+		ProviderAccountID: 88,
+	})
+	if err != nil {
+		t.Fatalf("providerFor failed: %v", err)
+	}
+	if prov == nil {
+		t.Fatal("expected non-nil provider from Host SPI")
+	}
+
+	// 4. A mounted Hub owns the answer: the same-numbered local row is not a
+	// fallback, because the registries number their rows independently.
+	p.decrypt = func(s string) ([]byte, error) { return []byte(s), nil }
+	p.db.Create(&ProviderAccount{
+		ID:     50,
+		OrgID:  10,
+		Name:   "Local OSS Account",
+		Type:   "cloudflare",
+		Config: `{"apiToken":"oss-token-abc"}`,
+	})
+
+	if owned, err := p.ownsProviderAccount(req, 50); owned || err != nil {
+		t.Errorf("a local row must not be owned while the Hub is mounted, got %v, %v", owned, err)
+	}
+	if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50}); !errors.Is(err, errProviderAccountNotFound) {
+		t.Errorf("expected no local fallback while the Hub is mounted, got %v", err)
+	}
+
+	// 5. Standalone Core (no resolver) reads the local table.
+	p.host = nil
+	if owned, err := p.ownsProviderAccount(req, 50); !owned || err != nil {
+		t.Errorf("expected ownsProviderAccount(50) = true without a Hub, got %v, %v", owned, err)
+	}
+	provLocal, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50})
+	if err != nil {
+		t.Fatalf("standalone providerFor failed: %v", err)
+	}
+	if provLocal == nil {
+		t.Fatal("expected non-nil provider from the local table")
+	}
+
+	// 6. A Hub that fails for another reason is an error. Neither a local row
+	// nor a silent "no account" is an acceptable answer.
+	p.host = &plugin.TestHost{
+		LookupCredentialMock: func(context.Context, uint, plugin.CredentialQuery) (*plugin.Credential, error) {
+			return nil, errors.New("database is locked")
+		},
+	}
+	if owned, err := p.ownsProviderAccount(req, 50); owned || !errors.Is(err, errProviderCredentials) {
+		t.Errorf("expected a broken Hub to surface as errProviderCredentials, got %v, %v", owned, err)
+	}
+	if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50}); !errors.Is(err, errProviderCredentials) {
+		t.Errorf("expected a broken Hub to surface as errProviderCredentials, got %v", err)
+	}
+
+	// 7. An integration with no stored config is unusable and says so.
+	p.host = &plugin.TestHost{
+		LookupCredentialMock: func(_ context.Context, orgID uint, _ plugin.CredentialQuery) (*plugin.Credential, error) {
+			return &plugin.Credential{ID: 88, OrgID: orgID, Provider: "cloudflare"}, nil
+		},
+	}
+	if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 88}); !errors.Is(err, errProviderCredentials) {
+		t.Errorf("expected an empty integration to surface as errProviderCredentials, got %v", err)
 	}
 }

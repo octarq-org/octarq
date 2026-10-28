@@ -12,7 +12,32 @@ export default function MailSetupStepWidget() {
 
   useEffect(() => {
     if (!o || o.mailboxes === undefined) return;
-    api.smtpSenders().then(s => setSmtpCount(s.length)).catch(() => {});
+    let cancelled = false;
+    (async () => {
+      try {
+        // The Integrations Hub owns mail senders when it is mounted. Count the
+        // same registry the mail pages offer, not just the local table.
+        const res = await fetch("/api/integrations?provider_type=communication", {
+          credentials: "same-origin",
+        });
+        if (res.status === 404) {
+          const list = await api.smtpSenders();
+          if (!cancelled) setSmtpCount(list.length);
+          return;
+        }
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = (Array.isArray(data) ? data : []).filter(
+          (item: any) => item.provider === "smtp" || item.provider === "resend"
+        );
+        if (!cancelled) setSmtpCount(list.length);
+      } catch {
+        // Leave the step in the unknown state instead of reporting zero.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [o]);
 
   if (!o || o.mailboxes === undefined) return null;

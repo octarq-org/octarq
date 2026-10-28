@@ -15,6 +15,8 @@ type TestHost struct {
 	TenantDBMock func(orgID uint) *TenantDB
 	// HarnessSpecFn is an optional mock for the Host's HarnessSpec.
 	HarnessSpecFn func(ctx context.Context, orgID uint) (json.RawMessage, error)
+	// LookupCredentialMock is an optional mock for the Host's LookupCredential.
+	LookupCredentialMock func(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 }
 
 func (h *TestHost) Session() HostSession {
@@ -59,6 +61,15 @@ func (h *TestHost) TenantDB(orgID uint) *TenantDB {
 		return h.TenantDBMock(orgID)
 	}
 	return nil
+}
+
+func (h *TestHost) LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error) {
+	if h != nil && h.LookupCredentialMock != nil {
+		return h.LookupCredentialMock(ctx, orgID, query)
+	}
+	// No mock means no resolver is mounted, which is "standalone Core", not
+	// "the credential is missing".
+	return nil, ErrCredentialResolverUnavailable
 }
 
 var _ Host = (*TestHost)(nil)

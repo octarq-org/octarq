@@ -105,12 +105,21 @@ export default function DomainsPage() {
   }, [q]);
 
   useEffect(() => {
-    fetch("/api/integrations?provider_type=dns", { credentials: "same-origin" })
-      .then((res) => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/integrations?provider_type=dns", {
+          credentials: "same-origin",
+        });
+        if (res.status === 404) {
+          // No Integrations Hub on this instance: domain forms must offer the
+          // local provider_accounts registry instead of an empty list.
+          const local = await api.providerAccounts();
+          if (!cancelled) setAccounts(local);
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: any[]) => {
+        const data = await res.json();
         const items = Array.isArray(data) ? data : [];
         const mapped: ProviderAccount[] = items.map((i: any) => ({
           id: i.id,
@@ -121,11 +130,14 @@ export default function DomainsPage() {
           createdAt: i.createdAt || new Date().toISOString(),
           updatedAt: i.updatedAt || new Date().toISOString(),
         }));
-        setAccounts(mapped);
-      })
-      .catch(() => {
-        setAccounts([]);
-      });
+        if (!cancelled) setAccounts(mapped);
+      } catch {
+        if (!cancelled) setAccounts([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function toggleService(domain: Domain, field: "forLink" | "forMail") {

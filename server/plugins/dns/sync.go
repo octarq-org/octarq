@@ -41,19 +41,15 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	if input.Body.ProviderAccountID == 0 {
 		return nil, huma.Error400BadRequest("Provider account ID is required")
 	}
-	var acc ProviderAccount
-	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.ProviderAccountID, p.orgID(r)).First(&acc).Error; err != nil {
-		return nil, huma.Error404NotFound("Provider account not found")
-	}
-
-	creds, err := p.decrypt(acc.Config)
+	// Sync reads the same registry the rest of the page does: the Integrations
+	// Hub when mounted, the local table on standalone Core. Reading the local
+	// table directly made every hub-backed account 404 on sync.
+	prov, err := p.providerForContext(r.Context(), Domain{
+		OrgID:             p.orgID(r),
+		ProviderAccountID: input.Body.ProviderAccountID,
+	})
 	if err != nil {
-		return nil, huma.Error500InternalServerError("Stored API token could not be decrypted. Re-save this provider's API token under Settings → DNS Providers.")
-	}
-
-	prov, err := dnsprovider.New(acc.Type, creds)
-	if err != nil {
-		return nil, huma.Error400BadRequest(err.Error())
+		return nil, p.providerResolveErr(err)
 	}
 	zones, err := prov.ListZones(r.Context())
 	if err != nil {
@@ -93,14 +89,14 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 		name := strings.ToLower(z.Name)
 		if dom, exists := existingMap[name]; exists {
 			dom.ZoneID = z.ID
-			dom.ProviderAccountID = acc.ID
+			dom.ProviderAccountID = input.Body.ProviderAccountID
 			toUpdate = append(toUpdate, *dom)
 			updated++
 		} else {
 			toCreate = append(toCreate, Domain{
 				OrgID:             p.orgID(r),
 				Name:              name,
-				ProviderAccountID: acc.ID,
+				ProviderAccountID: input.Body.ProviderAccountID,
 				ZoneID:            z.ID,
 			})
 		}

@@ -12,8 +12,10 @@
 package dns
 
 import (
+	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -34,7 +36,15 @@ import (
 // compile fine after either is edited, and the wiring silently stops resolving.
 const ServiceDNSManager = plugin.ServiceDNSManager
 
-var errNotFound = errors.New("not found")
+var (
+	errNotFound = errors.New("not found")
+	// errProviderAccountNotFound means the selected account exists in neither
+	// registry: the caller's ID is stale or belongs to another workspace.
+	errProviderAccountNotFound = errors.New("provider account not found")
+	// errProviderCredentials means the account exists but its credentials could
+	// not be loaded or decrypted. That is a server-side fault, never a 400.
+	errProviderCredentials = errors.New("provider credentials unavailable")
+)
 
 // Plugin implements the octarq plugin contract for domain/DNS management.
 type Plugin struct {
@@ -254,23 +264,65 @@ func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
 	return p.db.Where("owner_id = ?", p.orgID(r))
 }
 
+// credentialHost returns the mounted Host, or a no-op host when the plugin has
+// none (unit tests build the plugin directly). The no-op host reports
+// ErrCredentialResolverUnavailable, which is exactly "no Integrations Hub here".
+func (p *Plugin) credentialHost() plugin.Host {
+	if p.host != nil {
+		return p.host
+	}
+	return plugin.EnsureHost(nil)
+}
+
 // providerFor decrypts a domain's stored credentials and builds its DNS
-// provider. Scoped to the domain's owning org as defense-in-depth.
+// provider. Exactly one registry is authoritative: an instance with the
+// Integrations Hub mounted resolves the account there and refuses a missing
+// integration, while standalone Core reads the local provider_accounts table.
+// Scoped to the domain's owning org.
 func (p *Plugin) providerFor(dom Domain) (dnsprovider.Provider, error) {
+	return p.providerForContext(context.Background(), dom)
+}
+
+func (p *Plugin) providerForContext(ctx context.Context, dom Domain) (dnsprovider.Provider, error) {
 	if dom.ProviderAccountID == 0 {
 		return nil, errors.New("domain has no provider account configured")
 	}
+
+	cred, err := p.credentialHost().LookupCredential(ctx, dom.OrgID, plugin.CredentialQuery{
+		ID:           dom.ProviderAccountID,
+		ProviderType: "dns",
+	})
+	if err == nil {
+		if cred == nil || cred.OrgID != dom.OrgID {
+			return nil, errProviderAccountNotFound
+		}
+		if len(cred.ConfigJSON) == 0 {
+			return nil, fmt.Errorf("%w: integration %d has no credentials", errProviderCredentials, dom.ProviderAccountID)
+		}
+		return dnsprovider.New(cred.Provider, cred.ConfigJSON)
+	}
+	if errors.Is(err, plugin.ErrCredentialNotFound) {
+		// The hub is mounted and owns DNS credentials: its answer is final.
+		// Falling through to a same-numbered local row would bind the domain to
+		// a different account, because the registries number rows independently.
+		return nil, errProviderAccountNotFound
+	}
+	if !errors.Is(err, plugin.ErrCredentialResolverUnavailable) {
+		return nil, fmt.Errorf("%w: %v", errProviderCredentials, err)
+	}
+
+	// Standalone Core: no Integrations Hub is mounted.
 	var acc ProviderAccount
 	if err := p.db.Where("id = ? AND owner_id = ?", dom.ProviderAccountID, dom.OrgID).
 		First(&acc).Error; err != nil {
-		return nil, errors.New("provider account not found")
+		return nil, errProviderAccountNotFound
 	}
 	if acc.Config == "" {
-		return nil, errors.New("provider account has no credentials configured")
+		return nil, fmt.Errorf("%w: provider account %d has no credentials", errProviderCredentials, acc.ID)
 	}
 	creds, err := p.decrypt(acc.Config)
 	if err != nil {
-		return nil, errors.New("stored API token could not be decrypted. Re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
+		return nil, fmt.Errorf("%w: stored API token could not be decrypted. Re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)", errProviderCredentials)
 	}
 	return dnsprovider.New(acc.Type, creds)
 }

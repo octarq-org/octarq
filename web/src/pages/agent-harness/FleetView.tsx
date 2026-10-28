@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GlassCard,
   Button,
-  Badge,
   Modal,
   Field,
   Input,
@@ -23,80 +22,17 @@ import {
   Cpu,
   Clock,
   Coins,
+  AlertTriangle,
 } from "lucide-react";
+import { api, type WorkforceAgentDTO } from "../../api";
 
-export interface AIEmployee {
-  id: string;
-  name: string;
-  role: string;
-  department: string;
-  model: string;
-  status: "active" | "executing" | "idle" | "paused";
-  heartbeat: string;
-  budgetUsed: number;
-  budgetLimit: number;
-  capabilities: string[];
-  directives: string;
-}
-
-const DEFAULT_EMPLOYEES: AIEmployee[] = [
-  {
-    id: "lead-orchestrator",
-    name: "Lead Orchestrator",
-    role: "Chief Operational Assistant",
-    department: "Executive & Routing",
-    model: "GPT-4o (OpenAI)",
-    status: "active",
-    heartbeat: "Every 15m",
-    budgetUsed: 5.8,
-    budgetLimit: 20.0,
-    capabilities: ["all-tools", "delegate", "briefing"],
-    directives: "Act as executive chief-of-staff. Coordinate workspace tasks, summarize metrics, and route issues.",
-  },
-  {
-    id: "devops-engineer",
-    name: "DevOps Specialist",
-    role: "Infrastructure & Network Engineer",
-    department: "Operations",
-    model: "Claude 3.5 Sonnet",
-    status: "executing",
-    heartbeat: "Every 10m",
-    budgetUsed: 4.5,
-    budgetLimit: 15.0,
-    capabilities: ["dns", "infra", "domains", "metrics"],
-    directives: "Continuously verify nameserver latency, detect DNS record drift, and check TLS certificate expiry.",
-  },
-  {
-    id: "security-auditor",
-    name: "Security & Compliance Auditor",
-    role: "Trust & Safety Inspector",
-    department: "Security",
-    model: "GPT-4o",
-    status: "idle",
-    heartbeat: "Every 1h",
-    budgetUsed: 2.1,
-    budgetLimit: 10.0,
-    capabilities: ["tokens", "security", "rbac", "audit"],
-    directives: "Audit API token permissions, enforce 2FA compliance, and inspect dead-letter security anomalies.",
-  },
-  {
-    id: "mail-deliverability",
-    name: "Mail Deliverability Agent",
-    role: "Inbound & Relay Specialist",
-    department: "Communications",
-    model: "DeepSeek-V3",
-    status: "active",
-    heartbeat: "Every 30m",
-    budgetUsed: 1.8,
-    budgetLimit: 5.0,
-    capabilities: ["mail", "mailstorage", "webhooks"],
-    directives: "Analyze bounce spikes, classify inbound spam, and trigger external S3/R2 storage offloading.",
-  },
-];
+export type AIEmployee = WorkforceAgentDTO;
 
 export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
   const { t } = useTranslation();
-  const [employees, setEmployees] = useState<AIEmployee[]>(DEFAULT_EMPLOYEES);
+  const [employees, setEmployees] = useState<AIEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<AIEmployee | null>(null);
   const [directivesModalOpen, setDirectivesModalOpen] = useState(false);
@@ -107,49 +43,120 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
   const [newModel, setNewModel] = useState("GPT-4o");
   const [newDirectives, setNewDirectives] = useState("");
 
-  const handleTriggerHeartbeat = (emp: AIEmployee) => {
-    toast.success(`Heartbeat triggered for ${emp.name}. Pulling active workspace tasks…`);
+  const loadEmployees = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.workforceAgents();
+      setEmployees(data || []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load workforce agents.";
+      setError(msg);
+      setEmployees([]); // Fail-closed: zero mock fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const handleTriggerHeartbeat = async (emp: AIEmployee) => {
+    const prevEmployees = employees;
+    // Optimistic mutation
     setEmployees((prev) =>
       prev.map((e) => (e.id === emp.id ? { ...e, status: "executing" as const } : e))
     );
-    setTimeout(() => {
+
+    try {
+      await api.triggerWorkforceHeartbeat(emp.id);
+      toast.success(`Heartbeat triggered for ${emp.name}.`);
+      const updated = await api.workforceAgent(emp.id);
       setEmployees((prev) =>
-        prev.map((e) => (e.id === emp.id ? { ...e, status: "active" as const } : e))
+        prev.map((e) => (e.id === emp.id ? { ...e, ...updated } : e))
       );
-    }, 3000);
+    } catch (err: unknown) {
+      // Rollback on rejection
+      setEmployees(prevEmployees);
+      const msg = err instanceof Error ? err.message : "Failed to trigger heartbeat.";
+      toast.error(msg);
+    }
   };
 
-  const handleTogglePause = (emp: AIEmployee) => {
+  const handleTogglePause = async (emp: AIEmployee) => {
+    const prevEmployees = employees;
     const nextStatus: AIEmployee["status"] = emp.status === "paused" ? "active" : "paused";
+
+    // Optimistic mutation
     setEmployees((prev) =>
       prev.map((e) => (e.id === emp.id ? { ...e, status: nextStatus } : e))
     );
-    toast.success(`${emp.name} is now ${nextStatus}.`);
+
+    try {
+      if (nextStatus === "paused") {
+        await api.pauseWorkforceAgent(emp.id);
+      } else {
+        await api.resumeWorkforceAgent(emp.id);
+      }
+      toast.success(`${emp.name} is now ${nextStatus}.`);
+    } catch (err: unknown) {
+      // Rollback on rejection
+      setEmployees(prevEmployees);
+      const msg = err instanceof Error ? err.message : "Failed to update agent status.";
+      toast.error(msg);
+    }
   };
 
-  const handleDeployAgent = () => {
+  const handleDeployAgent = async () => {
     if (!newName.trim()) {
       toast.error("Agent name is required.");
       return;
     }
-    const newEmp: AIEmployee = {
-      id: `agent-${Date.now()}`,
-      name: newName.trim(),
-      role: newRole,
-      department: "Workspace Operations",
-      model: newModel,
-      status: "active",
-      heartbeat: "Every 15m",
-      budgetUsed: 0.0,
-      budgetLimit: 10.0,
-      capabilities: ["general-ops"],
-      directives: newDirectives.trim() || "Follow workspace directives and standing orders.",
-    };
-    setEmployees((prev) => [...prev, newEmp]);
-    toast.success(`Deployed ${newEmp.name} to the workforce.`);
-    setDeployModalOpen(false);
-    setNewName("");
-    setNewDirectives("");
+
+    try {
+      const created = await api.createWorkforceAgent({
+        name: newName.trim(),
+        role: newRole,
+        department: "Workspace Operations",
+        model: newModel,
+        directives: newDirectives.trim() || "Follow workspace directives and standing orders.",
+        heartbeat: "Every 15m",
+        budgetLimit: 10.0,
+        capabilities: ["general-ops"],
+      });
+      setEmployees((prev) => [...prev, created]);
+      toast.success(`Deployed ${created.name} to the workforce.`);
+      setDeployModalOpen(false);
+      setNewName("");
+      setNewDirectives("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to deploy agent.";
+      toast.error(msg);
+    }
+  };
+
+  const handleSaveDirectives = async () => {
+    if (!selectedEmployee) return;
+    const prevEmployees = employees;
+    const targetId = selectedEmployee.id;
+    const targetDirectives = selectedEmployee.directives;
+
+    // Optimistic mutation
+    setEmployees((prev) =>
+      prev.map((e) => (e.id === targetId ? { ...e, directives: targetDirectives } : e))
+    );
+    setDirectivesModalOpen(false);
+
+    try {
+      await api.updateWorkforceAgent(targetId, { directives: targetDirectives });
+      toast.success("Directives updated successfully.");
+    } catch (err: unknown) {
+      // Rollback on rejection
+      setEmployees(prevEmployees);
+      const msg = err instanceof Error ? err.message : "Failed to update directives.";
+      toast.error(msg);
+    }
   };
 
   const getRoleIcon = (dept: string) => {
@@ -197,11 +204,44 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
             {t("agentHarness.statusPaused")}
           </span>
         );
+      default:
+        return null;
     }
   };
 
+  if (error) {
+    return (
+      <div className="space-y-6" data-testid="fleet-view-error">
+        <GlassCard className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+          <AlertTriangle className="h-8 w-8 text-danger-fg" />
+          <div>
+            <h4 className="text-sm font-bold text-foreground">{t("agentHarness.fleetLoadError")}</h4>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md">{error}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadEmployees}>
+            {t("agentHarness.retryBtn")}
+          </Button>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6" data-testid="fleet-view">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <GlassCard key={i} className="p-5 h-48 animate-pulse bg-muted/20">
+              <div />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="fleet-view">
       {/* Top action row */}
       <div className="flex items-center justify-between">
         <div>
@@ -218,10 +258,16 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
         </Button>
       </div>
 
+      {employees.length === 0 && (
+        <GlassCard className="p-8 text-center text-muted-foreground text-xs" data-testid="fleet-view-empty">
+          {t("agentHarness.fleetEmpty")}
+        </GlassCard>
+      )}
+
       {/* Grid of employee cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {employees.map((emp) => {
-          const budgetPct = Math.min(100, Math.round((emp.budgetUsed / emp.budgetLimit) * 100));
+          const budgetPct = Math.min(100, Math.round((emp.budgetUsed / (emp.budgetLimit || 1)) * 100));
           return (
             <GlassCard key={emp.id} className="p-5 flex flex-col justify-between space-y-4">
               {/* Header */}
@@ -249,170 +295,160 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Directives snippet */}
-              <div className="rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] p-2.5 text-xs text-foreground/80 italic font-mono leading-relaxed line-clamp-2">
-                "{emp.directives}"
-              </div>
-
-              {/* Capabilities chips */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {emp.capabilities.map((cap) => (
-                  <span
-                    key={cap}
-                    className="inline-flex items-center rounded-md bg-foreground/5 px-2 py-0.5 text-[10px] font-mono font-medium text-foreground/70 border border-foreground/10"
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                    onClick={() => handleTriggerHeartbeat(emp)}
+                    title={t("agentHarness.wakeAgentNow", "Trigger heartbeat now")}
                   >
-                    #{cap}
-                  </span>
-                ))}
-              </div>
-
-              {/* Budget usage gauge */}
-              <div className="space-y-1.5 pt-1 border-t border-border/40">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Coins className="h-3.5 w-3.5" />
-                    {t("agentHarness.monthlyBudget")}
-                  </span>
-                  <span className="font-mono font-medium text-foreground">
-                    ${emp.budgetUsed.toFixed(2)} / ${emp.budgetLimit.toFixed(2)} ({budgetPct}%)
-                  </span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-foreground/10 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      budgetPct > 80 ? "bg-warning-fg" : "bg-primary"
-                    }`}
-                    style={{ width: `${budgetPct}%` }}
-                  />
+                    <Play className="h-3.5 w-3.5 text-primary mr-1" />
+                    {t("agentHarness.heartbeatBtn", "Heartbeat")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-8 w-8 p-0 ${emp.status === "paused" ? "text-success-fg hover:text-success-fg" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => handleTogglePause(emp)}
+                    title={emp.status === "paused" ? t("agentHarness.resumeBtn", "Resume") : t("agentHarness.pauseBtn", "Pause")}
+                  >
+                    {emp.status === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
 
-              {/* Actions footer */}
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => {
-                    setSelectedEmployee(emp);
-                    setDirectivesModalOpen(true);
-                  }}
-                >
-                  <Sliders className="h-3.5 w-3.5 mr-1" />
-                  {t("agentHarness.directivesBtn")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => handleTogglePause(emp)}
-                >
-                  {emp.status === "paused" ? (
-                    <>
-                      <Play className="h-3.5 w-3.5 mr-1" />
-                      {t("agentHarness.resumeBtn")}
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="h-3.5 w-3.5 mr-1" />
-                      {t("agentHarness.pauseBtn")}
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  className="text-xs"
-                  disabled={emp.status === "paused"}
-                  onClick={() => handleTriggerHeartbeat(emp)}
-                >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  {t("agentHarness.heartbeatBtn")}
-                </Button>
+              {/* Core Directives / Behavioral Rules snippet */}
+              <div className="bg-well/60 rounded-lg p-3 text-xs border border-border/40">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3 text-primary" />
+                    {t("agentHarness.coreDirectives", "Core Directives")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setDirectivesModalOpen(true);
+                    }}
+                    className="text-primary hover:underline flex items-center gap-1 font-normal cursor-pointer"
+                  >
+                    <Sliders className="h-3 w-3" />
+                    {t("agentHarness.tuneDirectives", "Tune Directives")}
+                  </button>
+                </div>
+                <p className="text-foreground/90 font-mono text-[11.5px] leading-relaxed line-clamp-2">
+                  {emp.directives}
+                </p>
+              </div>
+
+              {/* Capabilities & Monthly Budget Footer */}
+              <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-4 text-xs">
+                {/* Capabilities pills */}
+                <div className="flex flex-wrap gap-1">
+                  {emp.capabilities.map((cap) => (
+                    <span
+                      key={cap}
+                      className="px-2 py-0.5 rounded-md bg-foreground/5 border border-border/50 text-[10px] font-mono text-muted-foreground"
+                    >
+                      {cap}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Budget usage progress */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right">
+                    <div className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
+                      <Coins className="h-3 w-3" />
+                      <span>{t("agentHarness.cycleSpend")}</span>
+                    </div>
+                    <div className="text-xs font-mono font-semibold text-foreground">
+                      ${emp.budgetUsed.toFixed(2)}{" "}
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        / ${emp.budgetLimit.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-12 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${budgetPct > 90 ? "bg-danger-fg" : "bg-primary"}`}
+                      style={{ width: `${budgetPct}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </GlassCard>
           );
         })}
       </div>
 
-      {/* Deploy Agent Modal */}
+      {/* Deploy AI Employee Modal */}
       {deployModalOpen && (
         <Modal
           onClose={() => setDeployModalOpen(false)}
           title={t("agentHarness.hireAgent", "Deploy AI Employee")}
         >
-          <div className="space-y-4 p-4 text-xs">
-            <Field label={t("agentHarness.agentNameLabel")}>
+          <div className="space-y-4 pt-2">
+            <Field label={t("agentHarness.agentName")}>
               <Input
                 value={newName}
-                onChange={(e: any) => setNewName(e.target.value)}
-                placeholder="e.g. Domain Reliability Specialist"
-                className="text-xs"
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. SRE Incident Commander"
               />
             </Field>
-            <Field label={t("agentHarness.roleDeptLabel")}>
-              <Select
+            <Field label={t("agentHarness.agentRole")}>
+              <Input
                 value={newRole}
-                onValueChange={setNewRole}
-                options={[
-                  { value: "Operations Assistant", label: "Operations Assistant (General)" },
-                  { value: "DNS & Traffic Specialist", label: "DNS & Traffic Specialist" },
-                  { value: "Security Inspector", label: "Security & Secret Inspector" },
-                  { value: "Mail Deliverability Specialist", label: "Mail Deliverability Specialist" },
-                ]}
+                onChange={(e) => setNewRole(e.target.value)}
+                placeholder="e.g. Site Reliability Engineer"
               />
             </Field>
-            <Field label={t("agentHarness.modelProviderLabel")}>
+            <Field label={t("agentHarness.assignedModel")}>
               <Select
                 value={newModel}
-                onValueChange={setNewModel}
+                onValueChange={(val) => setNewModel(val)}
                 options={[
-                  { value: "GPT-4o", label: "OpenAI: GPT-4o (Default)" },
-                  { value: "Claude 3.5 Sonnet", label: "Anthropic: Claude 3.5 Sonnet" },
-                  { value: "DeepSeek-V3", label: "DeepSeek: DeepSeek-V3" },
+                  { value: "GPT-4o", label: "GPT-4o (OpenAI)" },
+                  { value: "Claude 3.5 Sonnet", label: "Claude 3.5 Sonnet (Anthropic)" },
+                  { value: "DeepSeek-V3", label: "DeepSeek-V3" },
                 ]}
               />
             </Field>
-            <Field label={t("agentHarness.standingDirectivesLabel")}>
+            <Field label={t("agentHarness.initialDirectives")}>
               <textarea
-                className="w-full h-24 rounded-lg border border-border bg-background p-2 font-mono text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                className="w-full h-24 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 value={newDirectives}
                 onChange={(e) => setNewDirectives(e.target.value)}
-                placeholder={t("agentHarness.directivesPlaceholder")}
+                placeholder={t("agentHarness.initialDirectivesPlaceholder")}
               />
             </Field>
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-              <Button variant="ghost" onClick={() => setDeployModalOpen(false)}>
-                {t("agentHarness.cancelBtn")}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setDeployModalOpen(false)}>
+                {t("common.cancel")}
               </Button>
-              <Button variant="primary" onClick={handleDeployAgent}>
-                {t("agentHarness.deployAgentBtn")}
+              <Button variant="primary" size="sm" onClick={handleDeployAgent}>
+                {t("agentHarness.confirmHire")}
               </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Directives Modal */}
+      {/* Directives Tuning Modal */}
       {directivesModalOpen && selectedEmployee && (
         <Modal
           onClose={() => setDirectivesModalOpen(false)}
-          title={`${selectedEmployee.name} — Directives`}
+          title={`${t("agentHarness.tuneDirectives", "Tune Directives")}: ${selectedEmployee.name}`}
         >
-          <div className="space-y-4 p-4 text-xs">
-            <div>
-              <span className="text-muted-foreground">{t("agentHarness.assignedRoleLabel")} </span>
-              <strong className="text-foreground">{selectedEmployee.role}</strong>
+          <div className="space-y-4 pt-2">
+            <div className="text-xs text-muted-foreground">
+              {t("agentHarness.directivesModalHint", "Standing directives shape how this agent evaluates goals, executes tools, and interacts with teammates.")}
             </div>
-            <div>
-              <span className="text-muted-foreground">{t("agentHarness.modelProviderText")} </span>
-              <strong className="text-foreground">{selectedEmployee.model}</strong>
-            </div>
-            <Field label={t("agentHarness.standingDirectivesLabel")}>
+            <Field label={t("agentHarness.standingDirectives", "Standing Directives")}>
               <textarea
-                className="w-full h-28 rounded-lg border border-border bg-background p-2.5 font-mono text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                className="w-full h-36 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary"
                 value={selectedEmployee.directives}
                 onChange={(e) =>
                   setSelectedEmployee({ ...selectedEmployee, directives: e.target.value })
@@ -428,20 +464,14 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                   onOpenEditor?.();
                 }}
               >
-                {t("agentHarness.openVersionEditor")}
+                {t("agentHarness.openVersionEditor", "Open Version Editor")}
               </Button>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => {
-                  setEmployees((prev) =>
-                    prev.map((e) => (e.id === selectedEmployee.id ? selectedEmployee : e))
-                  );
-                  toast.success("Directives updated.");
-                  setDirectivesModalOpen(false);
-                }}
+                onClick={handleSaveDirectives}
               >
-                {t("agentHarness.saveDirectives")}
+                {t("agentHarness.saveDirectives", "Save Directives")}
               </Button>
             </div>
           </div>
