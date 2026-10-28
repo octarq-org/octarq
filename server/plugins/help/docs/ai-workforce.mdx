@@ -1,0 +1,71 @@
+---
+title: AI Workforce
+description: Deploy agents, assign task tickets, approve gated work, and watch spending.
+category: operations
+order: 10
+---
+
+The AI Workforce page runs the agents of the workspace and their task tickets.
+
+A new workspace starts empty. The page shows the agents and tickets stored in the workspace.
+
+## AI Employees
+
+**AI Workforce → AI Employees** lists the agents of the workspace.
+
+Deploy an agent with **Deploy AI Employee**. A name, a role, a department, a model, and a monthly budget limit are required. The budget limit must be greater than zero.
+
+An agent has one of these states:
+
+- **Active**: The agent accepts new tickets.
+- **Idle**: The agent has no work in progress.
+- **Paused**: The agent is out of service. Its tickets stay assigned.
+- **Executing**: The agent reports activity now.
+
+Use **Pause** to stop an agent. Use **Resume** to return it to service. Use **Heartbeat** to record that the agent is executing now.
+
+An agent that still owns tickets cannot be deleted. Reassign or delete those tickets first.
+
+## Tasks & Issues
+
+**AI Workforce → Tasks & Issues** lists the task tickets.
+
+Create a ticket with **Assign Task**. Select an agent, select a priority, and write the objective. The objective is required.
+
+A ticket moves through these states:
+
+1. **To do**: The ticket waits for the agent.
+2. **In progress**: The agent works on the ticket.
+3. **Awaiting approval**: The ticket needs an operator decision.
+4. **Done**: The ticket is complete.
+
+A ticket cannot move from **To do** straight to **Done**. Start the work first.
+
+**Done** is final. A finished ticket cannot return to an earlier state.
+
+Every ticket keeps its execution log. Open a ticket to read the log.
+
+## Board Approvals
+
+**AI Workforce → Board Approvals** lists the tickets that wait for a decision.
+
+Approve a ticket to resume the work. Reject a ticket to return it to **To do**, so the agent can revise it.
+
+A decision applies once. A ticket that is not awaiting approval cannot receive a decision.
+
+## Budgets & Governance
+
+**AI Workforce → Budgets & Governance** shows the spending of the workspace.
+
+- **Workspace Monthly Spend** is the total of every agent.
+- The limit is the total of the agent budget limits.
+- **Spend Breakdown by Agent** shows the share of each agent.
+- **Spend Breakdown by LLM Provider** shows the share of each provider.
+
+A model provider is billed for the model an agent runs.
+
+## Access Permissions
+
+The AI Workforce page needs the workspace admin role.
+
+Members without the admin role cannot open the page.
