@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 var errBoom = errors.New("boom")
@@ -243,5 +245,75 @@ func TestEncryptConfig(t *testing.T) {
 	_, err = p.encryptConfig(map[string]any{"ch": make(chan int)})
 	if err == nil || !strings.Contains(err.Error(), "unsupported type") {
 		t.Errorf("encryptConfig marshal err = %v, want unsupported-type error", err)
+	}
+}
+
+func TestHostSPI_DNSCredentialBridge(t *testing.T) {
+	p, _ := setupFreshTestDB(t)
+	p.orgID = func(r *http.Request) uint { return 10 }
+
+	th := &plugin.TestHost{
+		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+			if orgID == 10 && query.ID == 88 && query.ProviderType == "dns" {
+				return &plugin.Credential{
+					ID:           88,
+					OrgID:        10,
+					ProviderType: "dns",
+					Provider:     "cloudflare",
+					Name:         "Pro CF Account",
+					ConfigJSON:   json.RawMessage(`{"apiToken":"pro-token-xyz"}`),
+				}, nil
+			}
+			return nil, plugin.ErrCredentialNotFound
+		},
+	}
+	p.host = th
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	// 1. ownsProviderAccount: ID 88 exists in Host SPI -> returns true
+	if !p.ownsProviderAccount(req, 88) {
+		t.Errorf("expected ownsProviderAccount(88) = true via Host SPI")
+	}
+
+	// 2. ownsProviderAccount: ID 999 does not exist anywhere -> returns false
+	if p.ownsProviderAccount(req, 999) {
+		t.Errorf("expected ownsProviderAccount(999) = false")
+	}
+
+	// 3. providerFor: resolves cloudflare provider via Host SPI
+	prov, err := p.providerFor(Domain{
+		OrgID:             10,
+		ProviderAccountID: 88,
+	})
+	if err != nil {
+		t.Fatalf("providerFor failed: %v", err)
+	}
+	if prov == nil {
+		t.Fatal("expected non-nil provider from Host SPI")
+	}
+
+	// 4. Fallback to local table when Host SPI returns ErrCredentialNotFound
+	p.decrypt = func(s string) ([]byte, error) { return []byte(s), nil }
+	p.db.Create(&ProviderAccount{
+		ID:     50,
+		OrgID:  10,
+		Name:   "Local OSS Account",
+		Type:   "cloudflare",
+		Config: `{"apiToken":"oss-token-abc"}`,
+	})
+
+	if !p.ownsProviderAccount(req, 50) {
+		t.Errorf("expected ownsProviderAccount(50) = true via local table fallback")
+	}
+	provFallback, err := p.providerFor(Domain{
+		OrgID:             10,
+		ProviderAccountID: 50,
+	})
+	if err != nil {
+		t.Fatalf("providerFor fallback failed: %v", err)
+	}
+	if provFallback == nil {
+		t.Fatal("expected non-nil provider from local table fallback")
 	}
 }

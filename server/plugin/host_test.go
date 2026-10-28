@@ -99,6 +99,9 @@ func (m *mockHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
 func (m *mockHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) {
 	return nil, nil
 }
+func (m *mockHost) LookupCredential(context.Context, uint, plugin.CredentialQuery) (*plugin.Credential, error) {
+	return nil, plugin.ErrCredentialNotFound
+}
 
 var _ plugin.Host = (*mockHost)(nil)
 

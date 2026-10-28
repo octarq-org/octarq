@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -123,5 +124,49 @@ func TestSlackChannel_MissingWebhookURL(t *testing.T) {
 	err := ch.Send(context.Background(), plugin.NotificationRecipient{}, plugin.NotificationPayload{Body: "hi"})
 	if err == nil {
 		t.Fatal("expected error on missing webhook url, got nil")
+	}
+}
+
+func TestSlackChannel_HostSPILookup(t *testing.T) {
+	var receivedBody string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		receivedBody = string(b)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	th := &plugin.TestHost{
+		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+			if orgID == 1 && query.ProviderType == "communication" && query.Provider == "slack" {
+				return &plugin.Credential{
+					ID:           42,
+					OrgID:        orgID,
+					ProviderType: "communication",
+					Provider:     "slack",
+					ConfigJSON:   json.RawMessage(`{"webhookUrl":"` + ts.URL + `"}`),
+				}, nil
+			}
+			return nil, plugin.ErrCredentialNotFound
+		},
+	}
+
+	ch := NewSlackChannel()
+	ch.client = ts.Client()
+	ch.SetHost(th)
+
+	rec := plugin.NotificationRecipient{
+		OrgID: "1",
+	}
+	payload := plugin.NotificationPayload{
+		Title: "Slack SPI Alert",
+		Body:  "Delivered via Host SPI credential",
+	}
+
+	if err := ch.Send(context.Background(), rec, payload); err != nil {
+		t.Fatalf("Send via Host SPI failed: %v", err)
+	}
+	if !strings.Contains(receivedBody, "Delivered via Host SPI credential") {
+		t.Fatalf("expected payload delivered to mock server, got %s", receivedBody)
 	}
 }

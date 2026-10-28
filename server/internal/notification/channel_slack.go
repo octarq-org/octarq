@@ -25,9 +25,15 @@ type SlackChannel struct {
 	db      *gorm.DB
 	client  *http.Client
 	timeout time.Duration
+	host    plugin.Host
 }
 
 var _ plugin.NotificationChannel = (*SlackChannel)(nil)
+
+// SetHost injects the host runtime SPI for credential resolution.
+func (c *SlackChannel) SetHost(h plugin.Host) {
+	c.host = h
+}
 
 // NewSlackChannel constructs a Slack notification channel driver.
 func NewSlackChannel(db ...*gorm.DB) *SlackChannel {
@@ -124,34 +130,25 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		}
 	}
 
-	// 2. Resolve from centralized tenant_integrations (provider_type = 'communication', provider = 'slack')
-	if webhookURL == "" && c.db != nil && targetOrg != "" {
+	// 2. Resolve webhookURL via Host SPI (Centralized Integrations Hub)
+	if webhookURL == "" && c.host != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
-			type tenantInteg struct {
-				EncryptedConfig string `gorm:"column:encrypted_config"`
-			}
-			var row tenantInteg
-			q := c.db.WithContext(ctx).Table("tenant_integrations").
-				Where("org_id = ? AND provider_type = ? AND provider = ?", orgNum, "communication", "slack")
-			if reqIntegID > 0 {
-				q = q.Where("id = ?", reqIntegID)
-			} else {
-				q = q.Order("is_default DESC, id DESC")
-			}
-			err := q.Limit(1).Take(&row).Error
-			if err == nil && row.EncryptedConfig != "" {
-				plain, decErr := ConfigPlaintext(row.EncryptedConfig)
-				if decErr == nil {
-					var m struct {
-						WebhookURL    string `json:"webhookUrl"`
-						WebhookURLAlt string `json:"webhook_url"`
-					}
-					if json.Unmarshal([]byte(plain), &m) == nil {
-						if m.WebhookURL != "" {
-							webhookURL = strings.TrimSpace(m.WebhookURL)
-						} else if m.WebhookURLAlt != "" {
-							webhookURL = strings.TrimSpace(m.WebhookURLAlt)
-						}
+			cred, err := c.host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
+				ID:           reqIntegID,
+				ProviderType: "communication",
+				Provider:     "slack",
+			})
+			if err == nil && cred != nil && len(cred.ConfigJSON) > 0 {
+				var m struct {
+					WebhookURL    string `json:"webhookUrl"`
+					WebhookURLAlt string `json:"webhook_url"`
+					BotToken      string `json:"botToken"`
+				}
+				if json.Unmarshal(cred.ConfigJSON, &m) == nil {
+					if m.WebhookURL != "" {
+						webhookURL = strings.TrimSpace(m.WebhookURL)
+					} else if m.WebhookURLAlt != "" {
+						webhookURL = strings.TrimSpace(m.WebhookURLAlt)
 					}
 				}
 			}

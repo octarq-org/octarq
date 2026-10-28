@@ -33,6 +33,7 @@ type Router struct {
 	descriptors map[string]Descriptor
 	chMu        sync.RWMutex
 	dispatcher  *Dispatcher
+	host        plugin.Host
 }
 
 // RouterOption configures a Router instance.
@@ -133,9 +134,29 @@ func (r *Router) RegisterChannelWithDescriptor(ch plugin.NotificationChannel, de
 
 	r.chMu.Lock()
 	defer r.chMu.Unlock()
+	if r.host != nil {
+		if setter, ok := ch.(interface{ SetHost(plugin.Host) }); ok {
+			setter.SetHost(r.host)
+		}
+	}
 	r.channels[name] = ch
 	r.descriptors[name] = desc
 	return nil
+}
+
+// SetHost injects the host into the router and propagates it to all registered channels.
+func (r *Router) SetHost(h plugin.Host) {
+	if r == nil {
+		return
+	}
+	r.chMu.Lock()
+	defer r.chMu.Unlock()
+	r.host = h
+	for _, ch := range r.channels {
+		if setter, ok := ch.(interface{ SetHost(plugin.Host) }); ok {
+			setter.SetHost(h)
+		}
+	}
 }
 
 // GetChannel looks up a registered channel by identifier name.

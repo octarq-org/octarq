@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GlassCard,
   Button,
@@ -23,92 +23,17 @@ import {
   ShieldCheck,
   ChevronRight,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
+import { api, type WorkforceTaskDTO } from "../../api";
 
-export interface WorkforceTask {
-  id: string;
-  title: string;
-  assignee: string;
-  assigneeRole: string;
-  priority: "urgent" | "high" | "normal" | "low";
-  status: "todo" | "in_progress" | "awaiting_approval" | "done";
-  createdAt: string;
-  lastHeartbeat: string;
-  summary: string;
-  executionSteps?: string[];
-}
-
-const DEFAULT_TASKS: WorkforceTask[] = [
-  {
-    id: "AGT-101",
-    title: "Diagnose DNS resolution latency on managed nameservers",
-    assignee: "DevOps Specialist",
-    assigneeRole: "Infrastructure & Network",
-    priority: "urgent",
-    status: "in_progress",
-    createdAt: "15 mins ago",
-    lastHeartbeat: "Just now",
-    summary: "Probed root latency across 4 geographic regions. Detected 120ms DNS spike on secondary NS.",
-    executionSteps: [
-      "query_dns_records(domain='api.octarq.com')",
-      "measure_ns_latency(targets=['1.1.1.1', '8.8.8.8'])",
-      "flag_record_drift(expected='192.0.2.1', actual='192.0.2.1')",
-    ],
-  },
-  {
-    id: "AGT-102",
-    title: "Audit 2FA keys and purge expired API access tokens",
-    assignee: "Security & Compliance Auditor",
-    assigneeRole: "Trust & Safety",
-    priority: "high",
-    status: "awaiting_approval",
-    createdAt: "1 hour ago",
-    lastHeartbeat: "10 mins ago",
-    summary: "Found 2 unused API tokens with expired grants. Awaiting Board approval before revocation.",
-    executionSteps: [
-      "scan_workspace_tokens(scope='all')",
-      "filter_unused_credentials(threshold_days=90)",
-      "propose_token_revocation(token_ids=[42, 45]) -> awaiting_approval",
-    ],
-  },
-  {
-    id: "AGT-103",
-    title: "Inspect dead-letter queue and reclassify unhandled webhooks",
-    assignee: "DevOps Specialist",
-    assigneeRole: "Infrastructure & Network",
-    priority: "normal",
-    status: "done",
-    createdAt: "3 hours ago",
-    lastHeartbeat: "2 hours ago",
-    summary: "Replayed 4 failed dead letters with updated HMAC signature. All delivered with HTTP 200.",
-    executionSteps: [
-      "list_dead_letters() -> 4 records",
-      "verify_relay_endpoint(id=2)",
-      "replay_dead_letter(id=101) -> 200 OK",
-      "replay_dead_letter(id=102) -> 200 OK",
-    ],
-  },
-  {
-    id: "AGT-104",
-    title: "Review 24-hour inbound email deliverability & bounce trends",
-    assignee: "Mail Deliverability Agent",
-    assigneeRole: "Communications",
-    priority: "low",
-    status: "done",
-    createdAt: "5 hours ago",
-    lastHeartbeat: "4 hours ago",
-    summary: "Generated daily deliverability digest. Spam complaint rate is 0.01% (well below 0.1% threshold).",
-    executionSteps: [
-      "fetch_mail_metrics(window='24h')",
-      "aggregate_bounce_reasons()",
-      "publish_deliverability_summary()",
-    ],
-  },
-];
+export type WorkforceTask = WorkforceTaskDTO;
 
 export function TasksView() {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<WorkforceTask[]>(DEFAULT_TASKS);
+  const [tasks, setTasks] = useState<WorkforceTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTask, setSelectedTask] = useState<WorkforceTask | null>(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -119,10 +44,34 @@ export function TasksView() {
   const [newPriority, setNewPriority] = useState<WorkforceTask["priority"]>("normal");
   const [newGoal, setNewGoal] = useState("");
 
-  const filteredTasks = tasks.filter((t) => {
-    if (statusFilter === "all") return true;
-    return t.status === statusFilter;
-  });
+  const loadTasks = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.workforceTasks({ status: statusFilter });
+      setTasks(data || []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load workforce tasks.";
+      setError(msg);
+      setTasks([]); // Fail-closed: zero mock fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, [statusFilter]);
+
+  const handleOpenTask = async (task: WorkforceTask) => {
+    setSelectedTask(task);
+    try {
+      const detailed = await api.workforceTask(task.id);
+      setSelectedTask(detailed);
+    } catch {
+      // Keep existing task summary if step fetch fails
+    }
+  };
 
   const getPriorityBadge = (p: WorkforceTask["priority"]) => {
     switch (p) {
@@ -170,32 +119,64 @@ export function TasksView() {
     }
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!newTitle.trim()) {
       toast.error("Task title is required.");
       return;
     }
-    const created: WorkforceTask = {
-      id: `AGT-${Math.floor(100 + Math.random() * 900)}`,
-      title: newTitle.trim(),
-      assignee: newAssignee,
-      assigneeRole: "Assigned Agent",
-      priority: newPriority,
-      status: "in_progress",
-      createdAt: "Just now",
-      lastHeartbeat: "Just now",
-      summary: newGoal.trim() || "Autonomous task dispatched to agent workforce.",
-      executionSteps: [`dispatch_task(goal="${newTitle}")`, "agent_executing_plan()"],
-    };
-    setTasks((prev) => [created, ...prev]);
-    toast.success(`Task ${created.id} assigned to ${newAssignee}.`);
-    setAssignModalOpen(false);
-    setNewTitle("");
-    setNewGoal("");
+
+    try {
+      const created = await api.createWorkforceTask({
+        title: newTitle.trim(),
+        assignee: newAssignee,
+        assigneeRole: "Assigned Agent",
+        priority: newPriority,
+        summary: newGoal.trim() || "Autonomous task dispatched to agent workforce.",
+      });
+      setTasks((prev) => [created, ...prev]);
+      toast.success(`Task ${created.id} assigned to ${newAssignee}.`);
+      setAssignModalOpen(false);
+      setNewTitle("");
+      setNewGoal("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create task.";
+      toast.error(msg);
+    }
   };
 
+  if (error) {
+    return (
+      <div className="space-y-6" data-testid="tasks-view-error">
+        <GlassCard className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+          <AlertTriangle className="h-8 w-8 text-danger-fg" />
+          <div>
+            <h4 className="text-sm font-bold text-foreground">Failed to load workforce tasks</h4>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md">{error}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadTasks}>
+            Retry
+          </Button>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6" data-testid="tasks-view">
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <GlassCard key={i} className="p-4 h-24 animate-pulse bg-muted/20">
+              <div />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="tasks-view">
       {/* Header and filter bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-1 rounded-xl bg-foreground/5 p-1 border border-border/50">
@@ -209,7 +190,7 @@ export function TasksView() {
               key={tab.id}
               type="button"
               onClick={() => setStatusFilter(tab.id)}
-              className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
                 statusFilter === tab.id
                   ? "bg-background text-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -222,130 +203,135 @@ export function TasksView() {
 
         <Button variant="primary" size="sm" onClick={() => setAssignModalOpen(true)}>
           <Plus className="h-4 w-4 mr-1.5" />
-          {t("agentHarness.assignTask", "Assign Task")}
+          {t("agentHarness.assignTask", "Assign Task Ticket")}
         </Button>
       </div>
 
+      {tasks.length === 0 && (
+        <GlassCard className="p-8 text-center text-muted-foreground text-xs" data-testid="tasks-view-empty">
+          No tasks found matching filter.
+        </GlassCard>
+      )}
+
       {/* Task tickets list */}
       <div className="space-y-3">
-        {filteredTasks.length === 0 ? (
-          <GlassCard className="p-8 text-center text-xs text-muted-foreground">
-            {t("agentHarness.noTasksFilter")}
-          </GlassCard>
-        ) : (
-          filteredTasks.map((task) => (
-            <div
-              key={task.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedTask(task)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") setSelectedTask(task);
-              }}
-              className="cursor-pointer"
-            >
-              <GlassCard className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-primary/40 transition-all">
-                <div className="flex items-start gap-3">
-                  <span className="font-mono text-xs font-semibold text-primary shrink-0 mt-0.5">
-                    {task.id}
-                  </span>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-foreground hover:text-primary transition-colors">
-                        {task.title}
-                      </span>
-                      {getPriorityBadge(task.priority)}
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-3">
-                      <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                        <Bot className="h-3 w-3 text-primary" />
-                        {task.assignee}
-                      </span>
-                      <span>•</span>
-                      <span>{t("agentHarness.heartbeatPrefix", "Heartbeat:")} {task.lastHeartbeat}</span>
-                    </div>
-                    <div className="text-xs text-foreground/70 line-clamp-1">
-                      {task.summary}
-                    </div>
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            onClick={() => handleOpenTask(task)}
+            className="cursor-pointer"
+          >
+            <GlassCard className="p-4 transition-all hover:border-primary/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Left meta & title */}
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-foreground">
+                      {task.id}
+                    </span>
+                    {getPriorityBadge(task.priority)}
+                    {getStatusBadge(task.status)}
                   </div>
+                  <h4 className="text-sm font-semibold text-foreground truncate">
+                    {task.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {task.summary}
+                  </p>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
-                  {getStatusBadge(task.status)}
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                {/* Right assignee & heartbeat */}
+                <div className="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40 justify-between sm:justify-end">
+                  <div className="flex items-center gap-2 text-right">
+                    <div className="h-8 w-8 rounded-lg bg-foreground/5 border border-border/60 flex items-center justify-center shrink-0">
+                      <Bot className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-foreground">{task.assignee}</div>
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{task.lastHeartbeat}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
                 </div>
-              </GlassCard>
-            </div>
-          ))
-        )}
+              </div>
+            </GlassCard>
+          </div>
+        ))}
       </div>
 
       {/* Assign Task Modal */}
       {assignModalOpen && (
         <Modal
           onClose={() => setAssignModalOpen(false)}
-          title={t("agentHarness.assignTaskModalTitle", "Assign Autonomous Task")}
+          title={t("agentHarness.assignTask", "Assign Autonomous Task")}
         >
-          <div className="space-y-4 p-4 text-xs">
-            <Field label={t("agentHarness.taskGoalLabel", "Task Goal / Title")}>
+          <div className="space-y-4 pt-2">
+            <Field label={t("agentHarness.taskTitle")}>
               <Input
                 value={newTitle}
-                onChange={(e: any) => setNewTitle(e.target.value)}
-                placeholder="e.g. Audit SSL certificates and identify upcoming expirations"
-                className="text-xs"
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="e.g. Audit TLS certificates and renew expiring nameserver SANs"
               />
             </Field>
-            <Field label={t("agentHarness.assigneeAgentLabel", "Assignee Agent")}>
+
+            <Field label={t("agentHarness.assignedAgent")}>
               <Select
                 value={newAssignee}
-                onValueChange={setNewAssignee}
+                onValueChange={(val) => setNewAssignee(val)}
                 options={[
                   { value: "DevOps Specialist", label: "DevOps Specialist (Infrastructure)" },
-                  { value: "Security & Compliance Auditor", label: "Security & Compliance Auditor (Security)" },
+                  { value: "Security & Compliance Auditor", label: "Security & Compliance Auditor (Trust & Safety)" },
+                  { value: "Mail Deliverability Agent", label: "Mail Deliverability Agent (Communications)" },
                   { value: "Lead Orchestrator", label: "Lead Orchestrator (Executive)" },
-                  { value: "Mail Deliverability Agent", label: "Mail Deliverability Agent (Email)" },
                 ]}
               />
             </Field>
-            <Field label={t("agentHarness.priorityLevelLabel", "Priority Level")}>
+
+            <Field label={t("agentHarness.priority")}>
               <Select
                 value={newPriority}
-                onValueChange={(val: any) => setNewPriority(val)}
+                onValueChange={(val) => setNewPriority(val as WorkforceTask["priority"])}
                 options={[
-                  { value: "urgent", label: "Urgent (Run immediately)" },
-                  { value: "high", label: "High (Next heartbeat)" },
-                  { value: "normal", label: "Normal (Standard schedule)" },
-                  { value: "low", label: "Low (Background backlog)" },
+                  { value: "urgent", label: "Urgent" },
+                  { value: "high", label: "High" },
+                  { value: "normal", label: "Normal" },
+                  { value: "low", label: "Low" },
                 ]}
               />
             </Field>
-            <Field label={t("agentHarness.taskInstructionsLabel", "Detailed Instructions & Context")}>
+
+            <Field label={t("agentHarness.objectiveContext")}>
               <textarea
-                className="w-full h-24 rounded-lg border border-border bg-background p-2 font-mono text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                className="w-full h-24 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 value={newGoal}
                 onChange={(e) => setNewGoal(e.target.value)}
-                placeholder={t("agentHarness.taskInstructionsPlaceholder", "Provide exact domain names, limits, or parameters for the agent…")}
+                placeholder="State success criteria, target resources, and operational constraints…"
               />
             </Field>
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-              <Button variant="ghost" onClick={() => setAssignModalOpen(false)}>
-                {t("agentHarness.cancelBtn", "Cancel")}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setAssignModalOpen(false)}>
+                {t("common.cancel")}
               </Button>
-              <Button variant="primary" onClick={handleCreateTask}>
-                {t("agentHarness.assignKickOffBtn", "Assign & Kick Off")}
+              <Button variant="primary" size="sm" onClick={handleCreateTask}>
+                {t("agentHarness.dispatchTask")}
               </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Task Detail Modal */}
+      {/* Task Details & Tool Log Modal */}
       {selectedTask && (
         <Modal
           onClose={() => setSelectedTask(null)}
-          title={`${selectedTask.id} — ${t("agentHarness.taskDetailModalTitle", "Task Execution Detail")}`}
+          title={`${t("agentHarness.taskDetails")}: ${selectedTask.id}`}
         >
-          <div className="space-y-4 p-4 text-xs">
+          <div className="space-y-4 pt-1 text-xs">
             <div>
               <h4 className="text-sm font-bold text-foreground">{selectedTask.title}</h4>
               <div className="flex items-center gap-3 mt-1 text-muted-foreground">

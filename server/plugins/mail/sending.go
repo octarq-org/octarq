@@ -1,6 +1,9 @@
 package mail
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	netmail "net/mail"
@@ -102,6 +105,67 @@ func (p *Plugin) anySuppressed(orgID uint, addrs []string) (string, error) {
 	return "", nil
 }
 
+// senderFromCredential builds a mail.Sender and sender from-address from a
+// decrypted Credential (supporting SMTP relays and Resend).
+func (p *Plugin) senderFromCredential(cred *plugin.Credential) (mail.Sender, string, error) {
+	if cred == nil || len(cred.ConfigJSON) == 0 {
+		return nil, "", errors.New("empty credential configuration")
+	}
+
+	var m struct {
+		Host      string `json:"host"`
+		SMTPHost  string `json:"smtpHost"`
+		Port      int    `json:"port"`
+		User      string `json:"user"`
+		APIKey    string `json:"apiKey"`
+		Pass      string `json:"pass"`
+		SecretKey string `json:"secretKey"`
+		FromEmail string `json:"fromEmail"`
+	}
+	if err := json.Unmarshal(cred.ConfigJSON, &m); err != nil {
+		return nil, "", fmt.Errorf("malformed credential configuration: %w", err)
+	}
+
+	from := strings.TrimSpace(m.FromEmail)
+	if from == "" {
+		from = "no-reply@octarq.local"
+	}
+
+	if cred.Provider == "resend" {
+		apiKey := m.APIKey
+		if apiKey == "" {
+			apiKey = m.SecretKey
+		}
+		if apiKey == "" {
+			return nil, "", errors.New("resend API key is required")
+		}
+		return mail.NewResendSender(apiKey, from), from, nil
+	}
+
+	// Default to SMTP
+	host := m.SMTPHost
+	if host == "" {
+		host = m.Host
+	}
+	if host == "" {
+		return nil, "", errors.New("smtp host is required")
+	}
+	port := m.Port
+	if port == 0 {
+		port = 587
+	}
+	user := m.User
+	if user == "" {
+		user = m.APIKey
+	}
+	pass := m.Pass
+	if pass == "" {
+		pass = m.SecretKey
+	}
+
+	return mail.NewCustomSender(host, fmt.Sprint(port), user, pass, from), from, nil
+}
+
 // mailReady reports whether the instance's SYSTEM sender is available: at
 // least one SMTP sender exists somewhere on the instance, which is exactly
 // when sendSystemMail (via the mail.send.system service) can deliver.
@@ -111,7 +175,18 @@ func (p *Plugin) anySuppressed(orgID uint, addrs []string) (string, error) {
 func (p *Plugin) mailReady() bool {
 	var n int64
 	p.db.Model(&SMTPSender{}).Count(&n)
-	return n > 0
+	if n > 0 {
+		return true
+	}
+	if p.host != nil {
+		cred, err := p.host.LookupCredential(context.Background(), 0, plugin.CredentialQuery{
+			ProviderType: "communication",
+		})
+		if err == nil && cred != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // systemSender resolves the instance's system sender: the one explicitly
@@ -172,6 +247,30 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 	if p.isSuppressed(orgID, to) {
 		return fmt.Errorf("recipient address %s is in suppression list", to)
 	}
+
+	// 1. Try resolving sender via Host SPI (Centralized Integrations Hub)
+	if p.host != nil {
+		cred, err := p.host.LookupCredential(context.Background(), orgID, plugin.CredentialQuery{
+			ProviderType: "communication",
+		})
+		if err == nil && cred != nil {
+			sender, from, sErr := p.senderFromCredential(cred)
+			if sErr == nil && sender != nil {
+				if err := sender.Send(mail.Message{From: from, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
+					if p.publishEvent != nil {
+						p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
+					}
+					return err
+				}
+				if p.recordUsage != nil {
+					p.recordUsage(orgID, usagemetric.MailOut, 1)
+				}
+				return nil
+			}
+		}
+	}
+
+	// 2. Fallback to local SMTPSender table
 	tdb := p.tenantDB(orgID)
 	if tdb == nil {
 		return fmt.Errorf("database unavailable for org %d", orgID)

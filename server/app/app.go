@@ -268,6 +268,8 @@ func (a *App) Run(ctx context.Context) error {
 	harnessStore := agentstore.NewHarnessStore(a.gdb)
 	apiHandler.SetHarnessStore(harnessStore)
 	apiHandler.SetHarnessSpecProvider(harnessStore.Spec)
+	workforceStore := agentstore.NewWorkforceStore(a.gdb)
+	apiHandler.SetWorkforceStore(workforceStore)
 	a.Setup(pctx, apiHandler)
 	healthCollector := monitor.NewCollector(30*time.Second,
 		monitor.NewRuntimeProvider(),

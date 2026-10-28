@@ -67,23 +67,47 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	if input.Body.SMTPSenderID == 0 {
 		return nil, huma.Error400BadRequest("No SMTP sender selected. Choose a configured SMTP sender.")
 	}
-	var s SMTPSender
-	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, p.orgID(r)).First(&s).Error; err != nil {
-		return nil, huma.Error400BadRequest("Configured SMTP sender could not be found for this workspace.")
+
+	var sender mail.Sender
+	var senderFrom string
+
+	// 1. Try resolving sender via Host SPI (Centralized Integrations Hub)
+	if p.host != nil {
+		cred, err := p.host.LookupCredential(ctx, orgID, plugin.CredentialQuery{
+			ID:           input.Body.SMTPSenderID,
+			ProviderType: "communication",
+		})
+		if err == nil && cred != nil {
+			s, fromAddr, sErr := p.senderFromCredential(cred)
+			if sErr == nil && s != nil {
+				sender = s
+				senderFrom = fromAddr
+			}
+		}
 	}
-	if p.decrypt == nil {
-		return nil, huma.Error500InternalServerError("Decryption service is unavailable. Verify encryption configuration.")
+
+	// 2. Fallback to local SMTPSender table
+	if sender == nil {
+		var s SMTPSender
+		if err := p.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, orgID).First(&s).Error; err != nil {
+			return nil, huma.Error400BadRequest("Configured SMTP sender could not be found for this workspace.")
+		}
+		if p.decrypt == nil {
+			return nil, huma.Error500InternalServerError("Decryption service is unavailable. Verify encryption configuration.")
+		}
+		pass, err := p.decrypt(s.Pass)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Could not decrypt SMTP sender credentials. Update sender credentials.")
+		}
+		sender = mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+		senderFrom = s.FromEmail
 	}
-	pass, err := p.decrypt(s.Pass)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Could not decrypt SMTP sender credentials. Update sender credentials.")
-	}
+
 	// Force the From header to the sender's verified address — never trust a
 	// client-supplied From, which would let a caller spoof arbitrary senders
 	// through the relay.
 	msg := input.Body.Message
-	msg.From = s.FromEmail
-	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	msg.From = senderFrom
 
 	// Metered consumption: outbound mail is the anti-abuse-critical metric on
 	// the hosted build (a Free org sending mail would burn the sending domain
@@ -113,7 +137,7 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 		p.recordUsage(p.orgID(r), usagemetric.MailOut, int64(len(msg.To)))
 	}
 	p.upsertContacts(orgID, input.Body.To)
-	p.recordSentEmail(orgID, s.FromEmail, strings.Join(input.Body.To, ", "), msg.Subject, msg.Text, msg.HTML)
+	p.recordSentEmail(orgID, senderFrom, strings.Join(input.Body.To, ", "), msg.Subject, msg.Text, msg.HTML)
 	p.sendLimiter.recordFailure(orgKey) // count this send against the per-org cap
 	return &SendEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }

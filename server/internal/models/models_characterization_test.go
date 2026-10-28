@@ -17,8 +17,8 @@ func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 	t.Parallel()
 
 	models := AllModels()
-	if len(models) != 20 {
-		t.Fatalf("AllModels() must return exactly 20 registered models, got %d", len(models))
+	if len(models) != 23 {
+		t.Fatalf("AllModels() must return exactly 23 registered models, got %d", len(models))
 	}
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
@@ -40,6 +40,9 @@ func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 		"files":                    File{}.TableName(),
 		"agent_harness_specs":      AgentHarnessSpec{}.TableName(),
 		"agent_harness_lessons":    AgentHarnessLesson{}.TableName(),
+		"workforce_agents":         WorkforceAgent{}.TableName(),
+		"workforce_tasks":          WorkforceTask{}.TableName(),
+		"workforce_task_steps":     WorkforceTaskStep{}.TableName(),
 	}
 
 	for expected, actual := range customTableNames {

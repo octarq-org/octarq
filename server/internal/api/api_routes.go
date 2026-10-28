@@ -314,6 +314,23 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/lessons", Summary: "Create Agent Harness Lesson", Tags: []string{"Agent Harness"}, DefaultStatus: 201}, h.createAgentHarnessLesson)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/lessons/{id}/dismiss", Summary: "Dismiss Agent Harness Lesson", Tags: []string{"Agent Harness"}}, h.dismissAgentHarnessLesson)
 
+	// AI Workforce: real backend persistence for agents, tasks, and governance.
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/agents", Summary: "List Workforce Agents", Tags: []string{"Workforce"}}, h.listWorkforceAgents)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/agents", Summary: "Deploy Workforce Agent", Tags: []string{"Workforce"}, DefaultStatus: 201}, h.createWorkforceAgent)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/agents/{id}", Summary: "Get Workforce Agent", Tags: []string{"Workforce"}}, h.getWorkforceAgent)
+	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/workforce/agents/{id}", Summary: "Update Workforce Agent", Tags: []string{"Workforce"}}, h.updateWorkforceAgent)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/agents/{id}/pause", Summary: "Pause Workforce Agent", Tags: []string{"Workforce"}}, h.pauseWorkforceAgent)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/agents/{id}/resume", Summary: "Resume Workforce Agent", Tags: []string{"Workforce"}}, h.resumeWorkforceAgent)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/agents/{id}/heartbeat", Summary: "Trigger Agent Heartbeat", Tags: []string{"Workforce"}}, h.triggerWorkforceHeartbeat)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/workforce/agents/{id}", Summary: "Delete Workforce Agent", Tags: []string{"Workforce"}}, h.deleteWorkforceAgent)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/tasks", Summary: "List Workforce Tasks", Tags: []string{"Workforce"}}, h.listWorkforceTasks)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/tasks", Summary: "Create Workforce Task", Tags: []string{"Workforce"}, DefaultStatus: 201}, h.createWorkforceTask)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/tasks/{id}", Summary: "Get Workforce Task", Tags: []string{"Workforce"}}, h.getWorkforceTask)
+	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/workforce/tasks/{id}", Summary: "Update Workforce Task", Tags: []string{"Workforce"}}, h.updateWorkforceTask)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/tasks/{id}/steps", Summary: "Append Task Step Log", Tags: []string{"Workforce"}, DefaultStatus: 201}, h.appendWorkforceTaskStep)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/overview", Summary: "Get Workforce Overview", Tags: []string{"Workforce"}}, h.getWorkforceOverview)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/budgets/auto-halt", Summary: "Toggle Budget Auto-Halt", Tags: []string{"Workforce"}}, h.toggleWorkforceAutoHalt)
+
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/switch-org", Summary: "Switch Org", Tags: []string{"Org Management"}}, h.switchOrg)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/orgs", Summary: "List Orgs", Tags: []string{"Org Management"}}, h.listOrgs)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/orgs", Summary: "Create Org", Tags: []string{"Org Management"}, DefaultStatus: 201}, h.createOrg)

@@ -51,6 +51,13 @@ import type {
   Token,
   Webhook,
   WebhookEventGroup,
+  WorkforceAgentDTO,
+  CreateWorkforceAgentInput,
+  UpdateWorkforceAgentInput,
+  WorkforceTaskDTO,
+  CreateWorkforceTaskInput,
+  UpdateWorkforceTaskInput,
+  WorkforceOverviewDTO,
 } from "./types";
 
 export class ApiError extends Error {
@@ -430,4 +437,52 @@ export const api = {
     req<HarnessLesson>("POST", "/api/agent-harness/lessons", input),
   dismissAgentHarnessLesson: (id: number) =>
     req<{ ok: boolean }>("POST", `/api/agent-harness/lessons/${id}/dismiss`),
+
+  // AI Workforce - Fleet
+  workforceAgents: async (): Promise<WorkforceAgentDTO[]> => {
+    const res = await req<{ items?: WorkforceAgentDTO[]; agents?: WorkforceAgentDTO[] }>(
+      "GET",
+      "/api/workforce/agents"
+    );
+    return res.items ?? res.agents ?? (Array.isArray(res) ? res : []);
+  },
+  workforceAgent: (id: string): Promise<WorkforceAgentDTO> =>
+    req<WorkforceAgentDTO>("GET", `/api/workforce/agents/${encodeURIComponent(id)}`),
+  createWorkforceAgent: (input: CreateWorkforceAgentInput): Promise<WorkforceAgentDTO> =>
+    req<WorkforceAgentDTO>("POST", "/api/workforce/agents", input),
+  updateWorkforceAgent: (id: string, input: UpdateWorkforceAgentInput): Promise<WorkforceAgentDTO> =>
+    req<WorkforceAgentDTO>("PATCH", `/api/workforce/agents/${encodeURIComponent(id)}`, input),
+  pauseWorkforceAgent: (id: string): Promise<WorkforceAgentDTO> =>
+    req<WorkforceAgentDTO>("POST", `/api/workforce/agents/${encodeURIComponent(id)}/pause`),
+  resumeWorkforceAgent: (id: string): Promise<WorkforceAgentDTO> =>
+    req<WorkforceAgentDTO>("POST", `/api/workforce/agents/${encodeURIComponent(id)}/resume`),
+  triggerWorkforceHeartbeat: (id: string): Promise<WorkforceAgentDTO> =>
+    req<WorkforceAgentDTO>("POST", `/api/workforce/agents/${encodeURIComponent(id)}/heartbeat`),
+  deleteWorkforceAgent: (id: string): Promise<{ ok: boolean }> =>
+    req<{ ok: boolean }>("DELETE", `/api/workforce/agents/${encodeURIComponent(id)}`),
+
+  // AI Workforce - Tasks
+  workforceTasks: async (params?: { status?: string; assignee?: string }): Promise<WorkforceTaskDTO[]> => {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== "all") q.set("status", params.status);
+    if (params?.assignee) q.set("assignee", params.assignee);
+    const qs = q.toString();
+    const res = await req<{ items?: WorkforceTaskDTO[]; tasks?: WorkforceTaskDTO[] }>(
+      "GET",
+      qs ? `/api/workforce/tasks?${qs}` : "/api/workforce/tasks"
+    );
+    return res.items ?? res.tasks ?? (Array.isArray(res) ? res : []);
+  },
+  workforceTask: (id: string): Promise<WorkforceTaskDTO> =>
+    req<WorkforceTaskDTO>("GET", `/api/workforce/tasks/${encodeURIComponent(id)}`),
+  createWorkforceTask: (input: CreateWorkforceTaskInput): Promise<WorkforceTaskDTO> =>
+    req<WorkforceTaskDTO>("POST", "/api/workforce/tasks", input),
+  updateWorkforceTask: (id: string, input: UpdateWorkforceTaskInput): Promise<WorkforceTaskDTO> =>
+    req<WorkforceTaskDTO>("PATCH", `/api/workforce/tasks/${encodeURIComponent(id)}`, input),
+
+  // AI Workforce - Governance & Overview
+  workforceOverview: (): Promise<WorkforceOverviewDTO> =>
+    req<WorkforceOverviewDTO>("GET", "/api/workforce/overview"),
+  toggleWorkforceAutoHalt: (autoHalt: boolean): Promise<{ autoHalt: boolean }> =>
+    req<{ autoHalt: boolean }>("POST", "/api/workforce/budgets/auto-halt", { autoHalt }),
 };

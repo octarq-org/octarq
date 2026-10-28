@@ -1,12 +1,16 @@
 package mail
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime"
 	"net"
+	"net/http"
 	"net/smtp"
 	"strings"
 	"time"
@@ -132,4 +136,58 @@ func (s *SMTPSender) Send(m Message) error {
 		return err
 	}
 	return c.Quit()
+}
+
+// ResendSender delivers outbound mail via Resend transactional email API.
+type ResendSender struct {
+	apiKey string
+	from   string
+	client *http.Client
+}
+
+// NewResendSender builds a Sender targeting Resend REST API.
+func NewResendSender(apiKey, from string) Sender {
+	return &ResendSender{
+		apiKey: apiKey,
+		from:   from,
+		client: safehttp.NewClient(10 * time.Second),
+	}
+}
+
+func (s *ResendSender) Send(m Message) error {
+	from := m.From
+	if from == "" {
+		from = s.from
+	}
+	payload := map[string]any{
+		"from":    stripCRLF(from),
+		"to":      m.To,
+		"subject": m.Subject,
+	}
+	if m.HTML != "" {
+		payload["html"] = m.HTML
+	} else {
+		payload["text"] = m.Text
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("resend: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resend error (%d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
 }

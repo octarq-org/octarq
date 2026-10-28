@@ -16,10 +16,16 @@ import (
 
 // TelegramChannel delivers notifications via Telegram bot.
 type TelegramChannel struct {
-	db *gorm.DB
+	db   *gorm.DB
+	host plugin.Host
 }
 
 var _ plugin.NotificationChannel = (*TelegramChannel)(nil)
+
+// SetHost injects the host runtime SPI for credential resolution.
+func (c *TelegramChannel) SetHost(h plugin.Host) {
+	c.host = h
+}
 
 // NewTelegramChannel constructs a Telegram notification channel driver.
 func NewTelegramChannel(db ...*gorm.DB) *TelegramChannel {
@@ -138,29 +144,20 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		targetOrg = strings.TrimSpace(payload.OrgID)
 	}
 
-	// 1. Resolve botToken from centralized tenant_integrations (provider_type = 'communication', provider = 'telegram')
-	if botToken == "" && c.db != nil && targetOrg != "" {
+	// 1. Resolve botToken via Host SPI (Centralized Integrations Hub)
+	if botToken == "" && c.host != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
-			type tenantInteg struct {
-				EncryptedConfig string `gorm:"column:encrypted_config"`
-			}
-			var row tenantInteg
-			q := c.db.WithContext(ctx).Table("tenant_integrations").
-				Where("org_id = ? AND provider_type = ? AND provider = ?", orgNum, "communication", "telegram")
-			if reqIntegID > 0 {
-				q = q.Where("id = ?", reqIntegID)
-			} else {
-				q = q.Order("is_default DESC, id DESC")
-			}
-			if err := q.Limit(1).Take(&row).Error; err == nil && row.EncryptedConfig != "" {
-				plain, decErr := ConfigPlaintext(row.EncryptedConfig)
-				if decErr == nil {
-					var m struct {
-						BotToken string `json:"botToken"`
-					}
-					if json.Unmarshal([]byte(plain), &m) == nil && m.BotToken != "" {
-						botToken = strings.TrimSpace(m.BotToken)
-					}
+			cred, err := c.host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
+				ID:           reqIntegID,
+				ProviderType: "communication",
+				Provider:     "telegram",
+			})
+			if err == nil && cred != nil && len(cred.ConfigJSON) > 0 {
+				var m struct {
+					BotToken string `json:"botToken"`
+				}
+				if json.Unmarshal(cred.ConfigJSON, &m) == nil && m.BotToken != "" {
+					botToken = strings.TrimSpace(m.BotToken)
 				}
 			}
 		}

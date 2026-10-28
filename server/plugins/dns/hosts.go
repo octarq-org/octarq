@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/internal/dnsprovider"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 
@@ -101,13 +102,25 @@ func normalizeHosts(hosts []hostEntry) models.HostList {
 }
 
 // ownsProviderAccount reports whether the given provider account id belongs to
-// the caller's org. Guards against binding another tenant's DNS credentials.
+// the caller's org. Resolves through Host SPI when available, falling back to
+// the local provider_accounts table.
 func (p *Plugin) ownsProviderAccount(r *http.Request, id uint) bool {
 	if id == 0 {
 		return false
 	}
+	orgID := p.orgID(r)
+	if p.host != nil {
+		cred, err := p.host.LookupCredential(r.Context(), orgID, plugin.CredentialQuery{
+			ID:           id,
+			ProviderType: "dns",
+		})
+		if err == nil && cred != nil && cred.OrgID == orgID {
+			return true
+		}
+	}
+
 	var acc ProviderAccount
-	return p.db.Where("id = ? AND owner_id = ?", id, p.orgID(r)).First(&acc).Error == nil
+	return p.db.Where("id = ? AND owner_id = ?", id, orgID).First(&acc).Error == nil
 }
 
 type DNSProvidersInput struct {

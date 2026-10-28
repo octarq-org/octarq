@@ -12,8 +12,10 @@
 package dns
 
 import (
+	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -255,11 +257,28 @@ func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
 }
 
 // providerFor decrypts a domain's stored credentials and builds its DNS
-// provider. Scoped to the domain's owning org as defense-in-depth.
+// provider. Resolves through Host SPI when available, falling back to
+// the local provider_accounts table. Scoped to the domain's owning org.
 func (p *Plugin) providerFor(dom Domain) (dnsprovider.Provider, error) {
 	if dom.ProviderAccountID == 0 {
 		return nil, errors.New("domain has no provider account configured")
 	}
+
+	// 1. Resolve through Host SPI (Centralized Integrations Hub)
+	if p.host != nil {
+		cred, err := p.host.LookupCredential(context.Background(), dom.OrgID, plugin.CredentialQuery{
+			ID:           dom.ProviderAccountID,
+			ProviderType: "dns",
+		})
+		if err == nil && cred != nil && len(cred.ConfigJSON) > 0 {
+			return dnsprovider.New(cred.Provider, cred.ConfigJSON)
+		}
+		if err != nil && !errors.Is(err, plugin.ErrCredentialNotFound) {
+			return nil, fmt.Errorf("failed to load dns provider credentials: %w", err)
+		}
+	}
+
+	// 2. Fallback to local OSS provider_accounts table
 	var acc ProviderAccount
 	if err := p.db.Where("id = ? AND owner_id = ?", dom.ProviderAccountID, dom.OrgID).
 		First(&acc).Error; err != nil {

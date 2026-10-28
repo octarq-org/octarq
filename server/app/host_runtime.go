@@ -44,6 +44,7 @@ type hostRuntime struct {
 	// what lets a plugin's agent run on the same harness the dashboard
 	// publishes, instead of a second, hand-written prompt.
 	harnessStore *agentstore.HarnessStore
+	services     *plugin.Registry
 }
 
 func (h *hostRuntime) Session() plugin.HostSession    { return h.session }
@@ -79,6 +80,20 @@ func (h *hostRuntime) HarnessSpec(ctx context.Context, orgID uint) (json.RawMess
 		return nil, err
 	}
 	return json.RawMessage(row.SpecJSON), nil
+}
+
+// LookupCredential resolves third-party integration credentials via the
+// ServiceCredentialResolver SPI (registered by the Pro integrations module).
+// Returns ErrCredentialNotFound if no resolver is registered (e.g. standalone Core OSS).
+func (h *hostRuntime) LookupCredential(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
+	if h == nil || h.services == nil {
+		return nil, plugin.ErrCredentialNotFound
+	}
+	resolver, ok := plugin.LookupServiceAs[plugin.CredentialResolver](h.services.Lookup, plugin.ServiceCredentialResolver)
+	if !ok || resolver == nil {
+		return nil, plugin.ErrCredentialNotFound
+	}
+	return resolver.LookupCredential(ctx, orgID, query)
 }
 
 var _ plugin.Host = (*hostRuntime)(nil)
@@ -164,9 +179,13 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		settings: settings,
 		events:   events,
 		db:       db,
+		services: params.services,
 	}
 	if db != nil {
 		host.harnessStore = agentstore.NewHarnessStore(db)
+	}
+	if params.notifRouter != nil {
+		params.notifRouter.SetHost(host)
 	}
 
 	var apiHuma huma.API

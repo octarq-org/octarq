@@ -8,6 +8,9 @@ import {
   type HarnessLessonsResponse,
   type HarnessSpecDetail,
   type HarnessSpecsListResponse,
+  type WorkforceAgentDTO,
+  type WorkforceTaskDTO,
+  type WorkforceOverviewDTO,
 } from "../../api";
 import { I18nProvider } from "../../i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -29,6 +32,20 @@ vi.mock("../../api", async (importOriginal) => {
       agentHarnessLessons: vi.fn(),
       createAgentHarnessLesson: vi.fn(),
       dismissAgentHarnessLesson: vi.fn(),
+      workforceAgents: vi.fn(),
+      workforceAgent: vi.fn(),
+      createWorkforceAgent: vi.fn(),
+      updateWorkforceAgent: vi.fn(),
+      pauseWorkforceAgent: vi.fn(),
+      resumeWorkforceAgent: vi.fn(),
+      triggerWorkforceHeartbeat: vi.fn(),
+      deleteWorkforceAgent: vi.fn(),
+      workforceTasks: vi.fn(),
+      workforceTask: vi.fn(),
+      createWorkforceTask: vi.fn(),
+      updateWorkforceTask: vi.fn(),
+      workforceOverview: vi.fn(),
+      toggleWorkforceAutoHalt: vi.fn(),
     },
   };
 });
@@ -213,8 +230,104 @@ describe("AgentHarnessPage", () => {
     ],
   };
 
+  const mockAgentsResponse: WorkforceAgentDTO[] = [
+    {
+      id: "agent-01",
+      name: "Atlas",
+      role: "Lead Orchestrator",
+      department: "Executive & Planning",
+      model: "claude-3-7-sonnet",
+      status: "active",
+      heartbeat: "Every 5m",
+      budgetUsed: 3.42,
+      budgetLimit: 15.0,
+      capabilities: ["task-dispatch", "fleet-monitoring", "issue-triage"],
+      directives: "Decompose inbound goals into discrete tasks.",
+    },
+    {
+      id: "agent-02",
+      name: "Sentinel",
+      role: "Security & Compliance Auditor",
+      department: "Security & Governance",
+      model: "gpt-4o",
+      status: "executing",
+      heartbeat: "Every 15m",
+      budgetUsed: 5.18,
+      budgetLimit: 20.0,
+      capabilities: ["token-audit", "secret-scanning", "sandbox-enforcement"],
+      directives: "Never execute destructive mutations without operator approval.",
+    },
+  ];
+
+  const mockTasksResponse: WorkforceTaskDTO[] = [
+    {
+      id: "task-101",
+      title: "Verify DNS record propagation across primary edge nodes",
+      assigneeAgentId: "agent-01",
+      assignee: "Atlas",
+      assigneeRole: "Lead Orchestrator",
+      priority: "urgent",
+      status: "in_progress",
+      createdAt: "2026-10-27T08:00:00Z",
+      lastHeartbeat: "2m ago",
+      summary: "Polling nameservers for recent TXT token verification.",
+      context: "Workspace DNS edge verification.",
+    },
+  ];
+
+  const mockOverviewResponse: WorkforceOverviewDTO = {
+    activeAgents: 2,
+    runningTasks: 1,
+    queuedTasks: 0,
+    pendingApprovals: 0,
+    monthlySpend: 8.6,
+    monthlyLimit: 50.0,
+    autoHalt: true,
+    spendByAgent: [
+      { name: "Atlas", model: "claude-3-7-sonnet", spend: 3.42, pct: 39.8 },
+      { name: "Sentinel", model: "gpt-4o", spend: 5.18, pct: 60.2 },
+    ],
+    spendByProvider: [
+      { provider: "Anthropic", spend: 3.42, pct: 39.8 },
+      { provider: "OpenAI", spend: 5.18, pct: 60.2 },
+    ],
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.agentHarnessSpecs).mockResolvedValue(mockSpecsResponse);
+    vi.mocked(api.agentHarnessSpec).mockResolvedValue(mockDetail12);
+    vi.mocked(api.workforceAgents).mockResolvedValue(mockAgentsResponse);
+    vi.mocked(api.workforceTasks).mockResolvedValue(mockTasksResponse);
+    vi.mocked(api.workforceOverview).mockResolvedValue(mockOverviewResponse);
+    vi.mocked(api.workforceAgent).mockImplementation(async (id: string) => {
+      const found = mockAgentsResponse.find((a) => a.id === id);
+      if (!found) throw new Error("Agent not found");
+      return found;
+    });
+    vi.mocked(api.workforceTask).mockImplementation(async (id: string) => {
+      const found = mockTasksResponse.find((t) => t.id === id);
+      if (!found) throw new Error("Task not found");
+      return found;
+    });
+    vi.mocked(api.pauseWorkforceAgent).mockImplementation(async (id: string) => {
+      const found = mockAgentsResponse.find((a) => a.id === id);
+      if (!found) throw new Error("Agent not found");
+      return { ...found, status: "paused" };
+    });
+    vi.mocked(api.resumeWorkforceAgent).mockImplementation(async (id: string) => {
+      const found = mockAgentsResponse.find((a) => a.id === id);
+      if (!found) throw new Error("Agent not found");
+      return { ...found, status: "active" };
+    });
+    vi.mocked(api.updateWorkforceAgent).mockImplementation(async (id: string, input) => {
+      const found = mockAgentsResponse.find((a) => a.id === id);
+      if (!found) throw new Error("Agent not found");
+      return { ...found, ...input } as WorkforceAgentDTO;
+    });
+    vi.mocked(api.toggleWorkforceAutoHalt).mockImplementation(async (enabled: boolean) => ({
+      autoHalt: enabled,
+    }));
   });
 
   // 1. Loading state
@@ -724,7 +837,9 @@ describe("AgentHarnessPage", () => {
     renderPage("/workforce");
 
     // Fleet view is rendered by default with employee cards
-    expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+    });
     expect(screen.getByTestId("workforce-prototype-callout")).toBeDefined();
     // Specs view is not shown by default
     expect(screen.queryByTestId("agent-harness-ready")).toBeNull();
@@ -738,13 +853,17 @@ describe("AgentHarnessPage", () => {
 
     // Tasks tab
     const { unmount: unmount1 } = renderPage("/workforce?tab=tasks");
-    expect(screen.getByText(/All Tasks/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText(/All Tasks/i)).toBeDefined();
+    });
     expect(screen.getByTestId("workforce-prototype-callout")).toBeDefined();
     unmount1();
 
     // Budgets tab
     const { unmount: unmount2 } = renderPage("/workforce?tab=budgets");
-    expect(screen.getByText(/Workspace Monthly Spend/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText(/Workspace Monthly Spend/i)).toBeDefined();
+    });
     expect(screen.getByTestId("workforce-prototype-callout")).toBeDefined();
     unmount2();
 
@@ -823,18 +942,135 @@ describe("AgentHarnessPage", () => {
     renderPage("/workforce");
 
     // Starts on Fleet tab
-    expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+    });
 
     // Click Tasks tab
     const tasksTabBtn = screen.getByRole("button", { name: /tasks & issues|任务工单/i });
     fireEvent.click(tasksTabBtn);
 
-    expect(screen.getByText(/All Tasks/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText(/All Tasks/i)).toBeDefined();
+    });
 
     // Click Budgets tab
     const budgetsTabBtn = screen.getByRole("button", { name: /budgets & governance|预算开销/i });
     fireEvent.click(budgetsTabBtn);
 
-    expect(screen.getByText(/Workspace Monthly Spend/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText(/Workspace Monthly Spend/i)).toBeDefined();
+    });
+  });
+
+  // 21. FleetView renders fail-closed error card when workforceAgents fails
+  it("renders fail-closed error state in FleetView when api.workforceAgents fails and recovers on retry", async () => {
+    vi.mocked(api.workforceAgents).mockRejectedValue(new Error("Database connection pool exhausted"));
+
+    renderPage("/workforce");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fleet-view-error")).toBeDefined();
+      expect(screen.getByText("Database connection pool exhausted")).toBeDefined();
+    });
+
+    // Ensure mock employee cards are NOT shown
+    expect(screen.queryByText("Lead Orchestrator")).toBeNull();
+
+    // Reset mock and click retry
+    vi.mocked(api.workforceAgents).mockResolvedValue(mockAgentsResponse);
+    const retryBtn = screen.getByRole("button", { name: /retry|重试/i });
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("fleet-view-error")).toBeNull();
+      expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+    });
+  });
+
+  // 22. TasksView renders fail-closed error card when workforceTasks fails
+  it("renders fail-closed error state in TasksView when api.workforceTasks fails and recovers on retry", async () => {
+    vi.mocked(api.workforceTasks).mockRejectedValue(new Error("Failed to query tasks"));
+
+    renderPage("/workforce?tab=tasks");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("tasks-view-error")).toBeDefined();
+      expect(screen.getByText("Failed to query tasks")).toBeDefined();
+    });
+
+    // Ensure tasks are not rendered
+    expect(screen.queryByText("Verify DNS record propagation across primary edge nodes")).toBeNull();
+
+    // Reset mock and click retry
+    vi.mocked(api.workforceTasks).mockResolvedValue(mockTasksResponse);
+    const retryBtn = screen.getByRole("button", { name: /retry|重试/i });
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("tasks-view-error")).toBeNull();
+      expect(screen.getByText("Verify DNS record propagation across primary edge nodes")).toBeDefined();
+    });
+  });
+
+  // 23. Optimistic pause toggle with rollback on rejection
+  it("rolls back optimistic status toggle in FleetView when pause API call fails", async () => {
+    vi.mocked(api.pauseWorkforceAgent).mockRejectedValue(new Error("Permission denied for agent state modification"));
+    const toastErrorSpy = vi.spyOn(sdk.toast, "error").mockImplementation(() => "" as any);
+
+    renderPage("/workforce");
+
+    await waitFor(() => {
+      expect(screen.getByText("Atlas")).toBeDefined();
+    });
+
+    // Find the pause button for Atlas (first employee, currently active)
+    const pauseBtn = screen.getAllByTitle(/pause|暂停/i)[0];
+    fireEvent.click(pauseBtn);
+
+    await waitFor(() => {
+      expect(api.pauseWorkforceAgent).toHaveBeenCalledWith("agent-01");
+      expect(toastErrorSpy).toHaveBeenCalledWith("Permission denied for agent state modification");
+    });
+
+    // Since it rolled back, the button title should still be "Pause" (status restored to active)
+    await waitFor(() => {
+      expect(screen.getAllByTitle(/pause|暂停/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  // 24. Optimistic directives editing with rollback on rejection
+  it("rolls back optimistic directives update when updateWorkforceAgent fails", async () => {
+    vi.mocked(api.updateWorkforceAgent).mockRejectedValue(new Error("Failed to persist agent directives"));
+    const toastErrorSpy = vi.spyOn(sdk.toast, "error").mockImplementation(() => "" as any);
+
+    renderPage("/workforce");
+
+    await waitFor(() => {
+      expect(screen.getByText("Atlas")).toBeDefined();
+    });
+
+    const tuneBtns = screen.getAllByRole("button", { name: /^tune directives/i });
+    fireEvent.click(tuneBtns[0]);
+
+    // Modal opens
+    const textarea = await screen.findByDisplayValue("Decompose inbound goals into discrete tasks.");
+    fireEvent.change(textarea, { target: { value: "Malicious unapproved directive" } });
+
+    const saveBtn = screen.getByRole("button", { name: /save directives|保存指令/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(api.updateWorkforceAgent).toHaveBeenCalledWith("agent-01", {
+        directives: "Malicious unapproved directive",
+      });
+      expect(toastErrorSpy).toHaveBeenCalledWith("Failed to persist agent directives");
+    });
+
+    // Rolled back to original directives
+    await waitFor(() => {
+      expect(screen.getByText("Decompose inbound goals into discrete tasks.")).toBeDefined();
+      expect(screen.queryByText("Malicious unapproved directive")).toBeNull();
+    });
   });
 });

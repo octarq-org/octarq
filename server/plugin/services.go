@@ -78,6 +78,11 @@ const ServiceMailEmailGet = "mail.email.get"
 // service SPI is provided (contract type StorageService).
 const ServiceStorage = "storage.service"
 
+// ServiceCredentialResolver is the well-known service name under which the
+// centralized integration credential resolver SPI is registered (contract type
+// CredentialResolver).
+const ServiceCredentialResolver = "credential.resolver"
+
 // ServiceNotificationRouter is the well-known service name under which the
 // notification router SPI is provided.
 const ServiceNotificationRouter = "notification.router"
@@ -392,4 +397,10 @@ type LinkCreator interface {
 	// workspace on the default host with a random slug, and returns the slug.
 	// targetURL must be an http(s) URL.
 	CreateLink(ctx context.Context, orgID uint, targetURL string) (slug string, err error)
+}
+
+// CredentialResolver is the cross-plugin contract for resolving and decrypting
+// third-party integration credentials. Provided by Pro's integrations module.
+type CredentialResolver interface {
+	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 }

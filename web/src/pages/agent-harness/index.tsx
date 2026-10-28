@@ -28,6 +28,7 @@ import {
   type HarnessSpecContent,
   type HarnessSpecDetail,
   type HarnessVersionItem,
+  type WorkforceOverviewDTO,
 } from "../../api";
 import { HarnessDetailModal } from "./detail";
 import { HarnessDiffModal } from "./diff";
@@ -111,6 +112,23 @@ function AgentHarnessContent({
   const [lessonsError, setLessonsError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<HarnessLesson[]>([]);
   const [lessonsLoadedOnce, setLessonsLoadedOnce] = useState(false);
+
+  // Workforce Overview state
+  const [overview, setOverview] = useState<WorkforceOverviewDTO | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.workforceOverview()
+      .then((data) => {
+        if (mounted) setOverview(data);
+      })
+      .catch(() => {
+        // Keep initial metrics if overview fetch fails
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Modals state
   const [editorOpen, setEditorOpen] = useState(false);
@@ -354,28 +372,42 @@ function AgentHarnessContent({
             <Bot className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statActiveAgents", "Active AI Employees")}
           </div>
-          <div className="text-xl font-bold font-mono text-foreground">4</div>
+          <div className="text-xl font-bold font-mono text-foreground">
+            {overview ? overview.activeAgents : 4}
+          </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <Terminal className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statRunningTasks", "Running Tasks")}
           </div>
-          <div className="text-xl font-bold font-mono text-primary">1 <span className="text-xs text-muted-foreground font-normal">{t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: 3 })}</span></div>
+          <div className="text-xl font-bold font-mono text-primary">
+            {overview ? overview.runningTasks : 1}{" "}
+            <span className="text-xs text-muted-foreground font-normal">
+              {t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: overview ? overview.queuedTasks : 3 })}
+            </span>
+          </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <ShieldAlert className="h-3.5 w-3.5 text-warning-fg" />
             {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
           </div>
-          <div className="text-xl font-bold font-mono text-warning-fg">1</div>
+          <div className="text-xl font-bold font-mono text-warning-fg">
+            {overview ? overview.pendingApprovals : 1}
+          </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <Coins className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statBudgetUsage", "Monthly Budget Used")}
           </div>
-          <div className="text-xl font-bold font-mono text-foreground">$14.20 <span className="text-xs text-muted-foreground font-normal">/ $50</span></div>
+          <div className="text-xl font-bold font-mono text-foreground">
+            ${(overview ? overview.monthlySpend : 14.2).toFixed(2)}{" "}
+            <span className="text-xs text-muted-foreground font-normal">
+              / ${(overview ? overview.monthlyLimit : 50).toFixed(0)}
+            </span>
+          </div>
         </GlassCard>
       </div>
 

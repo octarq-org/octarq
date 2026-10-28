@@ -453,3 +453,118 @@ export interface CreateHarnessLessonInput {
   evidence?: unknown;
 }
 
+// AI Workforce
+export type WorkforceAgentStatus = "active" | "executing" | "idle" | "paused";
+export type WorkforceTaskPriority = "urgent" | "high" | "normal" | "low";
+export type WorkforceTaskStatus = "todo" | "in_progress" | "awaiting_approval" | "done";
+
+export interface WorkforceAgentDTO {
+  id: string;
+  orgId?: number;
+  name: string;
+  role: string;
+  department: string;
+  model: string;
+  status: WorkforceAgentStatus;
+  heartbeat: string;
+  budgetUsed: number;
+  budgetLimit: number;
+  capabilities: string[];
+  directives: string;
+  lastHeartbeatAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateWorkforceAgentInput {
+  name: string;
+  role: string;
+  department?: string;
+  model: string;
+  directives?: string;
+  heartbeat?: string;
+  budgetLimit?: number;
+  capabilities?: string[];
+}
+
+export interface UpdateWorkforceAgentInput {
+  name?: string;
+  role?: string;
+  department?: string;
+  model?: string;
+  directives?: string;
+  heartbeat?: string;
+  budgetLimit?: number;
+  status?: WorkforceAgentStatus;
+  capabilities?: string[];
+}
+
+export interface WorkforceTaskStepDTO {
+  id: number;
+  taskId: string;
+  stepNumber: number;
+  stepText: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface WorkforceTaskDTO {
+  id: string;
+  orgId?: number;
+  title: string;
+  assigneeAgentId?: string;
+  assignee: string;
+  assigneeRole: string;
+  priority: WorkforceTaskPriority;
+  status: WorkforceTaskStatus;
+  createdAt: string;
+  lastHeartbeat: string;
+  lastHeartbeatAt?: string;
+  summary: string;
+  context?: string;
+  executionSteps?: string[];
+}
+
+export interface CreateWorkforceTaskInput {
+  title: string;
+  assigneeAgentId?: string;
+  assignee?: string;
+  assigneeRole?: string;
+  priority?: WorkforceTaskPriority;
+  summary: string;
+  context?: string;
+}
+
+export interface UpdateWorkforceTaskInput {
+  title?: string;
+  status?: WorkforceTaskStatus;
+  priority?: WorkforceTaskPriority;
+  summary?: string;
+  context?: string;
+}
+
+export interface WorkforceSpendAgentItem {
+  name: string;
+  model: string;
+  spend: number;
+  pct: number;
+}
+
+export interface WorkforceSpendProviderItem {
+  provider: string;
+  spend: number;
+  pct: number;
+}
+
+export interface WorkforceOverviewDTO {
+  activeAgents: number;
+  runningTasks: number;
+  queuedTasks: number;
+  pendingApprovals: number;
+  monthlySpend: number;
+  monthlyLimit: number;
+  autoHalt: boolean;
+  spendByAgent?: WorkforceSpendAgentItem[];
+  spendByProvider?: WorkforceSpendProviderItem[];
+}
+
