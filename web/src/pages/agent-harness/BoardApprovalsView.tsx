@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { fetchApprovals, decideApproval } from "../../copilot/api";
+import { api, type WorkforceTaskDTO } from "../../api";
 import type { ActionDiff } from "../../copilot/types";
 
 export function BoardApprovalsView() {
@@ -25,6 +26,47 @@ export function BoardApprovalsView() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Task approvals are the workforce domain's awaiting_approval gate. They are
+  // a different object from a staged tool action, so they get their own list
+  // and their own failure state.
+  const [taskApprovals, setTaskApprovals] = useState<WorkforceTaskDTO[]>([]);
+  const [taskLoading, setTaskLoading] = useState(true);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [processingTaskId, setProcessingTaskId] = useState<string | null>(null);
+
+  const loadTasks = async () => {
+    setTaskLoading(true);
+    setTaskError(null);
+    try {
+      const data = await api.workforceApprovals();
+      setTaskApprovals(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("agentHarness.loadError");
+      setTaskError(message);
+      setTaskApprovals([]);
+    } finally {
+      setTaskLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTasks();
+  }, []);
+
+  const handleTaskDecision = async (id: string, decision: "approve" | "reject") => {
+    setProcessingTaskId(id);
+    try {
+      await api.decideWorkforceApproval(id, decision);
+      toast.success(decision === "approve" ? t("agentHarness.taskApproved", "Task approved and resumed.") : t("agentHarness.taskRejected", "Task rejected and returned to the queue."));
+      setTaskApprovals((prev) => prev.filter((a) => a.id !== id));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Action failed.";
+      toast.error(message);
+    } finally {
+      setProcessingTaskId(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -70,9 +112,85 @@ export function BoardApprovalsView() {
             <strong>{t("agentHarness.boardGovernanceTitle")}</strong>: {t("agentHarness.boardGovernanceDesc")}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void load();
+            void loadTasks();
+          }}
+          disabled={loading || taskLoading}
+        >
           {t("agentHarness.refreshQueue")}
         </Button>
+      </div>
+
+      {/* Task approvals: the workforce awaiting_approval gate */}
+      <div data-testid="board-task-approvals" className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">
+          {t("agentHarness.taskApprovalsTitle", "Task Approvals")}
+        </h3>
+        {taskLoading ? (
+          <div className="text-center py-4 text-xs text-muted-foreground">
+            {t("agentHarness.checkingQueue")}
+          </div>
+        ) : taskError ? (
+          <div data-testid="board-task-approvals-error" className="text-xs text-danger-fg">
+            {taskError}{" "}
+            <Button variant="ghost" size="sm" onClick={() => void loadTasks()}>
+              {t("agentHarness.retry")}
+            </Button>
+          </div>
+        ) : taskApprovals.length === 0 ? (
+          <div className="text-xs text-muted-foreground">
+            {t("agentHarness.taskApprovalsEmpty", "No task is awaiting approval.")}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {taskApprovals.map((taskItem) => (
+              <GlassCard key={taskItem.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-warning-fg">{taskItem.id}</span>
+                    <h4 className="text-sm font-bold text-foreground">{taskItem.title}</h4>
+                    <Badge variant="warning" className="text-[10px] uppercase font-mono">
+                      {taskItem.priority}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <Bot className="h-3 w-3 text-primary" />
+                      {taskItem.assignee || taskItem.assigneeAgentId}
+                    </span>
+                  </div>
+                  {taskItem.summary && (
+                    <p className="text-xs text-foreground/80 max-w-xl">{taskItem.summary}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={processingTaskId === taskItem.id}
+                    onClick={() => handleTaskDecision(taskItem.id, "reject")}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    {t("agentHarness.rejectAction")}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={processingTaskId === taskItem.id}
+                    onClick={() => handleTaskDecision(taskItem.id, "approve")}
+                  >
+                    <Check className="h-3.5 w-3.5 mr-1" />
+                    {t("agentHarness.approveExecute")}
+                  </Button>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading ? (

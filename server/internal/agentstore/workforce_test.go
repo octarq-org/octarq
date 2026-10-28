@@ -32,42 +32,37 @@ func newTestWorkforceStore(t *testing.T) (*WorkforceStore, *gorm.DB) {
 	return NewWorkforceStore(db), db
 }
 
-func TestWorkforceStore_AutoSeedsDefaultAgentsAndTasks(t *testing.T) {
+// TestWorkforceStore_NewWorkspaceStartsEmpty pins the fail-closed contract: a
+// new workspace has no fabricated fleet and no fabricated task history. Every
+// row the dashboard shows was created through the API.
+func TestWorkforceStore_NewWorkspaceStartsEmpty(t *testing.T) {
 	t.Parallel()
 	store, _ := newTestWorkforceStore(t)
 	ctx := context.Background()
 	orgID := uint(10)
 
-	// ListAgents triggers auto-seeding
 	agents, err := store.ListAgents(ctx, orgID)
 	if err != nil {
 		t.Fatalf("ListAgents: %v", err)
 	}
-	if len(agents) != 4 {
-		t.Fatalf("expected 4 seeded agents, got %d", len(agents))
+	if len(agents) != 0 {
+		t.Fatalf("expected an empty new workspace, got %d agents", len(agents))
 	}
 
-	agentIDs := map[string]bool{}
-	for _, a := range agents {
-		agentIDs[a.ID] = true
-		if a.OrgID != orgID {
-			t.Errorf("expected OrgID %d, got %d", orgID, a.OrgID)
-		}
-	}
-	expectedIDs := []string{"lead-orchestrator", "devops-engineer", "security-auditor", "mail-deliverability"}
-	for _, id := range expectedIDs {
-		if !agentIDs[id] {
-			t.Errorf("missing expected agent %q", id)
-		}
-	}
-
-	// ListTasks returns seeded tasks
 	tasks, err := store.ListTasks(ctx, orgID, "all", "")
 	if err != nil {
 		t.Fatalf("ListTasks: %v", err)
 	}
-	if len(tasks) != 4 {
-		t.Fatalf("expected 4 seeded tasks, got %d", len(tasks))
+	if len(tasks) != 0 {
+		t.Fatalf("expected an empty new workspace, got %d tasks", len(tasks))
+	}
+
+	overview, err := store.GetOverview(ctx, orgID)
+	if err != nil {
+		t.Fatalf("GetOverview: %v", err)
+	}
+	if overview.ActiveAgents != 0 || overview.MonthlySpend != 0 || overview.MonthlyLimit != 0 {
+		t.Fatalf("expected zeroed overview for an empty workspace, got %+v", overview)
 	}
 }
 
@@ -77,12 +72,6 @@ func TestWorkforceStore_TenantIsolation(t *testing.T) {
 	ctx := context.Background()
 	org1 := uint(1)
 	org2 := uint(2)
-
-	// Trigger seeding in org1
-	_, err := store.ListAgents(ctx, org1)
-	if err != nil {
-		t.Fatalf("ListAgents org1: %v", err)
-	}
 
 	// Create custom agent in org1
 	customAgent := models.WorkforceAgent{
@@ -95,7 +84,7 @@ func TestWorkforceStore_TenantIsolation(t *testing.T) {
 		Capabilities: models.StringList{"test"},
 		Directives:   "Run tests.",
 	}
-	_, err = store.CreateAgent(ctx, org1, customAgent)
+	_, err := store.CreateAgent(ctx, org1, customAgent)
 	if err != nil {
 		t.Fatalf("CreateAgent org1: %v", err)
 	}
@@ -138,14 +127,24 @@ func TestWorkforceStore_AgentLifecycleAndMutations(t *testing.T) {
 	ctx := context.Background()
 	orgID := uint(42)
 
-	// Seed agents
-	_, err := store.ListAgents(ctx, orgID)
+	created, err := store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name:         "Lead Orchestrator",
+		Role:         "Chief Operational Assistant",
+		Department:   "Executive & Routing",
+		Model:        "GPT-4o",
+		Directives:   "Coordinate workspace tasks.",
+		BudgetLimit:  20,
+		Capabilities: models.StringList{"all-tools"},
+	})
 	if err != nil {
-		t.Fatalf("ListAgents: %v", err)
+		t.Fatalf("CreateAgent: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected a generated agent ID")
 	}
 
 	// Pause agent
-	agent, err := store.PauseAgent(ctx, orgID, "lead-orchestrator")
+	agent, err := store.PauseAgent(ctx, orgID, created.ID)
 	if err != nil {
 		t.Fatalf("PauseAgent: %v", err)
 	}
@@ -154,7 +153,7 @@ func TestWorkforceStore_AgentLifecycleAndMutations(t *testing.T) {
 	}
 
 	// Resume agent
-	agent, err = store.ResumeAgent(ctx, orgID, "lead-orchestrator")
+	agent, err = store.ResumeAgent(ctx, orgID, created.ID)
 	if err != nil {
 		t.Fatalf("ResumeAgent: %v", err)
 	}
@@ -163,7 +162,7 @@ func TestWorkforceStore_AgentLifecycleAndMutations(t *testing.T) {
 	}
 
 	// Trigger heartbeat
-	agent, err = store.TriggerHeartbeat(ctx, orgID, "lead-orchestrator")
+	agent, err = store.TriggerHeartbeat(ctx, orgID, created.ID)
 	if err != nil {
 		t.Fatalf("TriggerHeartbeat: %v", err)
 	}
@@ -176,7 +175,7 @@ func TestWorkforceStore_AgentLifecycleAndMutations(t *testing.T) {
 
 	// Update directives
 	newDirectives := "Updated operational directives for testing."
-	agent, err = store.UpdateAgent(ctx, orgID, "lead-orchestrator", map[string]any{
+	agent, err = store.UpdateAgent(ctx, orgID, created.ID, map[string]any{
 		"directives": newDirectives,
 	})
 	if err != nil {
@@ -187,11 +186,11 @@ func TestWorkforceStore_AgentLifecycleAndMutations(t *testing.T) {
 	}
 
 	// Delete agent
-	err = store.DeleteAgent(ctx, orgID, "lead-orchestrator")
+	err = store.DeleteAgent(ctx, orgID, created.ID)
 	if err != nil {
 		t.Fatalf("DeleteAgent: %v", err)
 	}
-	_, err = store.GetAgent(ctx, orgID, "lead-orchestrator")
+	_, err = store.GetAgent(ctx, orgID, created.ID)
 	if !errors.Is(err, ErrAgentNotFound) {
 		t.Fatalf("expected ErrAgentNotFound after delete, got %v", err)
 	}
@@ -203,35 +202,38 @@ func TestWorkforceStore_TaskLifecycleAndStepAppending(t *testing.T) {
 	ctx := context.Background()
 	orgID := uint(99)
 
-	// Seed tasks
-	_, err := store.ListTasks(ctx, orgID, "all", "")
+	created, err := store.CreateTask(ctx, orgID, models.WorkforceTask{
+		Title:           "Diagnose DNS resolution latency",
+		AssigneeAgentID: "devops-engineer",
+		AssigneeName:    "DevOps Specialist",
+		AssigneeRole:    "Infrastructure & Network Engineer",
+		Summary:         "Investigate ping spikes.",
+	})
 	if err != nil {
-		t.Fatalf("ListTasks: %v", err)
+		t.Fatalf("CreateTask: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected a generated task ID")
 	}
 
-	// Get AGT-101 and its steps
-	task, steps, err := store.GetTask(ctx, orgID, "AGT-101")
+	// Append steps; numbering starts at 1.
+	step1, err := store.AppendTaskStep(ctx, orgID, created.ID, "Checked primary nameserver latency", "completed")
 	if err != nil {
-		t.Fatalf("GetTask AGT-101: %v", err)
+		t.Fatalf("AppendTaskStep 1: %v", err)
 	}
-	if task.ID != "AGT-101" {
-		t.Errorf("expected AGT-101, got %s", task.ID)
+	if step1.StepNumber != 1 {
+		t.Errorf("expected step number 1, got %d", step1.StepNumber)
 	}
-	if len(steps) != 3 {
-		t.Errorf("expected 3 steps for AGT-101, got %d", len(steps))
-	}
-
-	// Append step
-	step, err := store.AppendTaskStep(ctx, orgID, "AGT-101", "Step 4: Latency stabilized to 15ms", "completed")
+	step2, err := store.AppendTaskStep(ctx, orgID, created.ID, "Detected packet drop on secondary node", "completed")
 	if err != nil {
-		t.Fatalf("AppendTaskStep: %v", err)
+		t.Fatalf("AppendTaskStep 2: %v", err)
 	}
-	if step.StepNumber != 4 {
-		t.Errorf("expected step number 4, got %d", step.StepNumber)
+	if step2.StepNumber != 2 {
+		t.Errorf("expected step number 2, got %d", step2.StepNumber)
 	}
 
 	// Update task status to done
-	updatedTask, err := store.UpdateTask(ctx, orgID, "AGT-101", map[string]any{
+	updatedTask, err := store.UpdateTask(ctx, orgID, created.ID, map[string]any{
 		"status": "done",
 	})
 	if err != nil {
@@ -246,9 +248,17 @@ func TestWorkforceStore_TaskLifecycleAndStepAppending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTasks status=done: %v", err)
 	}
-	// AGT-104 was seeded as done, now AGT-101 is also done -> 2 tasks
-	if len(doneTasks) != 2 {
-		t.Errorf("expected 2 done tasks, got %d", len(doneTasks))
+	if len(doneTasks) != 1 {
+		t.Errorf("expected 1 done task, got %d", len(doneTasks))
+	}
+
+	// The task detail carries both steps in order.
+	_, steps, err := store.GetTask(ctx, orgID, created.ID)
+	if err != nil {
+		t.Fatalf("GetTask: %v", err)
+	}
+	if len(steps) != 2 {
+		t.Errorf("expected 2 steps, got %d", len(steps))
 	}
 }
 
@@ -258,26 +268,58 @@ func TestWorkforceStore_OverviewAndAutoHalt(t *testing.T) {
 	ctx := context.Background()
 	orgID := uint(55)
 
+	_, err := store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name: "Lead Orchestrator", Role: "Chief Operational Assistant", Department: "Executive",
+		Model: "GPT-4o", Status: "active", BudgetLimit: 20, BudgetUsed: 5.80,
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent 1: %v", err)
+	}
+	_, err = store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name: "DevOps Specialist", Role: "Infrastructure Engineer", Department: "Operations",
+		Model: "Claude 3.5 Sonnet", Status: "executing", BudgetLimit: 15, BudgetUsed: 4.50,
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent 2: %v", err)
+	}
+	// A paused agent does not count as active.
+	_, err = store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name: "Paused Auditor", Role: "Auditor", Department: "Security",
+		Model: "DeepSeek-V3", Status: "paused", BudgetLimit: 5, BudgetUsed: 1.80,
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent 3: %v", err)
+	}
+
 	overview, err := store.GetOverview(ctx, orgID)
 	if err != nil {
 		t.Fatalf("GetOverview: %v", err)
 	}
 
-	// Initial seeded defaults:
-	// Agents: 4 (lead-orchestrator: active, devops-engineer: executing, security-auditor: idle, mail-deliverability: active)
-	// None paused -> 4 active
-	if overview.ActiveAgents != 4 {
-		t.Errorf("expected 4 active agents, got %d", overview.ActiveAgents)
+	if overview.ActiveAgents != 2 {
+		t.Errorf("expected 2 active agents, got %d", overview.ActiveAgents)
+	}
+	if math.Abs(overview.MonthlySpend-12.10) > 0.001 {
+		t.Errorf("expected spend 12.10, got %f", overview.MonthlySpend)
+	}
+	if math.Abs(overview.MonthlyLimit-40.00) > 0.001 {
+		t.Errorf("expected limit 40.00, got %f", overview.MonthlyLimit)
 	}
 
-	// Spend: 5.80 + 4.50 + 2.10 + 1.80 = 14.20
-	if math.Abs(overview.MonthlySpend-14.20) > 0.001 {
-		t.Errorf("expected spend 14.20, got %f", overview.MonthlySpend)
+	// The breakdown is derived from the same rows, never fabricated.
+	if len(overview.SpendByAgent) != 3 {
+		t.Fatalf("expected 3 spend-by-agent rows, got %d", len(overview.SpendByAgent))
 	}
-
-	// Limit: 20.00 + 15.00 + 10.00 + 5.00 = 50.00
-	if math.Abs(overview.MonthlyLimit-50.00) > 0.001 {
-		t.Errorf("expected limit 50.00, got %f", overview.MonthlyLimit)
+	if overview.SpendByAgent[0].Name != "Lead Orchestrator" {
+		t.Errorf("expected the top spender first, got %q", overview.SpendByAgent[0].Name)
+	}
+	if got := overview.SpendByAgent[0].Pct; got != 48 { // 5.80 / 12.10
+		t.Errorf("expected top spender at 48%%, got %d", got)
+	}
+	for _, p := range overview.SpendByProvider {
+		if p.Provider == "" {
+			t.Errorf("expected every provider row to name a provider")
+		}
 	}
 
 	// Default autoHalt should be true
@@ -325,4 +367,63 @@ func TestWorkforceStore_ConcurrentAccessRaceSafe(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+// TestRandomSuffixUniqueUnderConcurrency proves the generated IDs come from a
+// random source, not the clock: two creates in the same instant cannot collide.
+func TestRandomSuffixUniqueUnderConcurrency(t *testing.T) {
+	t.Parallel()
+
+	const n = 512
+	ids := make([]string, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			s, err := randomSuffix(12)
+			if err != nil {
+				t.Errorf("randomSuffix: %v", err)
+				return
+			}
+			ids[idx] = s
+		}(i)
+	}
+	wg.Wait()
+
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if len(id) != 12 {
+			t.Fatalf("expected a 12-character suffix, got %q", id)
+		}
+		if seen[id] {
+			t.Fatalf("duplicate generated suffix %q", id)
+		}
+		seen[id] = true
+	}
+}
+
+func TestWorkforceStore_GeneratedIDsAreNotClockDerived(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(88)
+
+	agent, err := store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name: "Bot", Role: "Tester", Department: "QA", Model: "GPT-4o",
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+	if len(agent.ID) != len("agent-")+12 {
+		t.Errorf("unexpected agent ID shape: %q", agent.ID)
+	}
+
+	task, err := store.CreateTask(ctx, orgID, models.WorkforceTask{Title: "T", Summary: "S"})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	if len(task.ID) != len("AGT-")+10 {
+		t.Errorf("unexpected task ID shape: %q", task.ID)
+	}
 }

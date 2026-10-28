@@ -44,6 +44,8 @@ vi.mock("../../api", async (importOriginal) => {
       workforceTask: vi.fn(),
       createWorkforceTask: vi.fn(),
       updateWorkforceTask: vi.fn(),
+      workforceApprovals: vi.fn(),
+      decideWorkforceApproval: vi.fn(),
       workforceOverview: vi.fn(),
       toggleWorkforceAutoHalt: vi.fn(),
     },
@@ -328,6 +330,7 @@ describe("AgentHarnessPage", () => {
     vi.mocked(api.toggleWorkforceAutoHalt).mockImplementation(async (enabled: boolean) => ({
       autoHalt: enabled,
     }));
+    vi.mocked(api.workforceApprovals).mockResolvedValue([]);
   });
 
   // 1. Loading state
@@ -1072,5 +1075,87 @@ describe("AgentHarnessPage", () => {
       expect(screen.getByText("Decompose inbound goals into discrete tasks.")).toBeDefined();
       expect(screen.queryByText("Malicious unapproved directive")).toBeNull();
     });
+  });
+
+  // 25. Task approvals are a separate gate from staged tool actions
+  it("lists awaiting_approval tasks and resumes them through the decision endpoint", async () => {
+    vi.mocked(fetchApprovals).mockResolvedValue([]);
+    vi.mocked(api.workforceApprovals).mockResolvedValue([
+      {
+        id: "AGT-9f2c1a4b7e",
+        title: "Rotate production DNS keys",
+        assignee: "Sentinel",
+        assigneeAgentId: "agent-7c1e9b2f4a8d",
+        assigneeRole: "Security Auditor",
+        priority: "urgent",
+        status: "awaiting_approval",
+        createdAt: "2026-10-27T08:00:00Z",
+        lastHeartbeat: "1m ago",
+        summary: "Prepared a key rotation batch for sign-off.",
+      },
+    ]);
+    vi.mocked(api.decideWorkforceApproval).mockResolvedValue({
+      id: "AGT-9f2c1a4b7e",
+      title: "Rotate production DNS keys",
+      assignee: "Sentinel",
+      assigneeAgentId: "agent-7c1e9b2f4a8d",
+      assigneeRole: "Security Auditor",
+      priority: "urgent",
+      status: "in_progress",
+      createdAt: "2026-10-27T08:00:00Z",
+      lastHeartbeat: "1m ago",
+      summary: "Prepared a key rotation batch for sign-off.",
+    });
+
+    renderPage("/workforce?tab=approvals");
+
+    await waitFor(() => {
+      expect(screen.getByText("Rotate production DNS keys")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /approve/i }));
+
+    await waitFor(() => {
+      expect(api.decideWorkforceApproval).toHaveBeenCalledWith("AGT-9f2c1a4b7e", "approve");
+      expect(screen.queryByText("Rotate production DNS keys")).toBeNull();
+    });
+  });
+
+  // 26. Task approvals fail closed without hiding the tool approval state
+  it("shows a task approval error without mocking a pending decision", async () => {
+    vi.mocked(fetchApprovals).mockResolvedValue([]);
+    vi.mocked(api.workforceApprovals).mockRejectedValue(new Error("Approval queue unavailable"));
+
+    renderPage("/workforce?tab=approvals");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("board-task-approvals-error")).toBeDefined();
+      expect(screen.getByText("Approval queue unavailable")).toBeDefined();
+    });
+    expect(screen.getByTestId("board-approvals-empty")).toBeDefined();
+    expect(api.decideWorkforceApproval).not.toHaveBeenCalled();
+  });
+
+  // 27. Budgets render only real spend; an empty breakdown shows the empty state
+  it("renders the spend empty state instead of fabricated agent rows", async () => {
+    vi.mocked(api.workforceOverview).mockResolvedValue({
+      activeAgents: 0,
+      runningTasks: 0,
+      queuedTasks: 0,
+      pendingApprovals: 0,
+      monthlySpend: 0,
+      monthlyLimit: 0,
+      autoHalt: true,
+      spendByAgent: [],
+      spendByProvider: [],
+    });
+
+    renderPage("/workforce?tab=budgets");
+
+    await waitFor(() => {
+      expect(screen.getAllByText("No agent has accrued spend yet.").length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText("Atlas")).toBeNull();
+    expect(screen.queryByText("Sentinel")).toBeNull();
   });
 });

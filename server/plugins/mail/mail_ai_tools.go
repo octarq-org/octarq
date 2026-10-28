@@ -81,13 +81,14 @@ type CreateDraftOutput struct {
 
 // SendEmailToolInput is the argument contract for mail_send_reply / send_email.
 type SendEmailToolInput struct {
-	SMTPSenderID uint     `json:"smtp_sender_id,omitempty" jsonschema:"Optional SMTP sender ID to use"`
-	To           []string `json:"to,omitempty" jsonschema:"List of recipient email addresses"`
-	ToAddr       string   `json:"to_addr,omitempty" jsonschema:"Single recipient or comma-separated addresses"`
-	CC           []string `json:"cc,omitempty" jsonschema:"Optional list of CC addresses"`
-	Subject      string   `json:"subject" jsonschema:"Subject of the email"`
-	Body         string   `json:"body" jsonschema:"Plain text body of the email"`
-	InReplyToID  uint     `json:"in_reply_to_id,omitempty" jsonschema:"Optional email ID being replied to"`
+	SMTPSenderID     uint     `json:"smtp_sender_id,omitempty" jsonschema:"ID of the sender to use"`
+	SMTPSenderSource string   `json:"smtp_sender_source,omitempty" jsonschema:"Registry that owns the sender ID: local or integration"`
+	To               []string `json:"to,omitempty" jsonschema:"List of recipient email addresses"`
+	ToAddr           string   `json:"to_addr,omitempty" jsonschema:"Single recipient or comma-separated addresses"`
+	CC               []string `json:"cc,omitempty" jsonschema:"Optional list of CC addresses"`
+	Subject          string   `json:"subject" jsonschema:"Subject of the email"`
+	Body             string   `json:"body" jsonschema:"Plain text body of the email"`
+	InReplyToID      uint     `json:"in_reply_to_id,omitempty" jsonschema:"Optional email ID being replied to"`
 }
 
 // SendEmailToolOutput reports result of the outbound email delivery.
@@ -283,23 +284,19 @@ func (p *Plugin) handleSendEmail(ctx context.Context, in SendEmailToolInput) (*S
 		return nil, plugin.NewAgentError(429, "RATE_LIMIT_EXCEEDED", "outbound send rate limit exceeded", "Wait before sending more emails.", false)
 	}
 
-	var senderConfig SMTPSender
-	q := p.db.WithContext(ctx).Where("owner_id = ?", orgID)
-	if in.SMTPSenderID != 0 {
-		q = q.Where("id = ?", in.SMTPSenderID)
-	} else {
-		q = q.Order("id ASC")
-	}
-	if err := q.First(&senderConfig).Error; err != nil {
-		return nil, plugin.NewAgentError(400, "SMTP_SENDER_NOT_FOUND", "no configured SMTP sender found for this workspace", "Configure an SMTP sender in workspace settings.", false)
-	}
-
-	if p.decrypt == nil {
-		return nil, plugin.NewAgentError(500, "DECRYPTION_UNAVAILABLE", "decryption service unavailable", "Verify encryption configuration.", false)
-	}
-	pass, err := p.decrypt(senderConfig.Pass)
-	if err != nil {
-		return nil, plugin.NewAgentError(500, "DECRYPTION_FAILED", "could not decrypt SMTP sender credentials", "Update sender credentials.", false)
+	sender, senderFrom, resolveErr := p.resolveSender(ctx, orgID, in.SMTPSenderID, in.SMTPSenderSource)
+	if resolveErr != nil {
+		code := 400
+		errCode := "SMTP_SENDER_UNAVAILABLE"
+		if errors.Is(resolveErr, errSenderUnavailable) {
+			code = 500
+			errCode = "SMTP_SENDER_UNAVAILABLE"
+		} else if errors.Is(resolveErr, errSenderSourceRequired) {
+			errCode = "SMTP_SENDER_SOURCE_REQUIRED"
+		} else if errors.Is(resolveErr, errSenderNotFound) {
+			errCode = "SMTP_SENDER_NOT_FOUND"
+		}
+		return nil, plugin.NewAgentError(code, errCode, resolveErr.Error(), "Select a configured sender and pass its source.", false)
 	}
 
 	if err := plugin.CheckQuota(p.ctx, ctx, orgID, "mailOutPerMonth", int64(len(toAddrs))); err != nil {
@@ -328,13 +325,12 @@ func (p *Plugin) handleSendEmail(ctx context.Context, in SendEmailToolInput) (*S
 	}
 
 	msg := mail.Message{
-		From:    senderConfig.FromEmail,
+		From:    senderFrom,
 		To:      allRecipients,
 		Subject: subject,
 		Text:    in.Body,
 	}
 
-	sender := mail.NewCustomSender(senderConfig.Host, fmt.Sprint(senderConfig.Port), senderConfig.User, string(pass), senderConfig.FromEmail)
 	if err := sender.Send(msg); err != nil {
 		if p.publishEvent != nil {
 			p.publishEvent(orgID, "email.send_failed", map[string]any{"to": msg.To, "subject": msg.Subject, "error": err.Error()})
@@ -346,7 +342,7 @@ func (p *Plugin) handleSendEmail(ctx context.Context, in SendEmailToolInput) (*S
 		p.recordUsage(orgID, usagemetric.MailOut, int64(len(msg.To)))
 	}
 	p.upsertContacts(orgID, toAddrs)
-	p.recordSentEmail(orgID, senderConfig.FromEmail, strings.Join(toAddrs, ", "), msg.Subject, msg.Text, msg.HTML)
+	p.recordSentEmail(orgID, senderFrom, strings.Join(toAddrs, ", "), msg.Subject, msg.Text, msg.HTML)
 	if p.sendLimiter != nil {
 		p.sendLimiter.recordFailure(orgKey)
 	}

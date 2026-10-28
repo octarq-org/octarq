@@ -31,9 +31,10 @@ func TestSendEmailEdgeBranches(t *testing.T) {
 			Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 			Body: struct {
 				internalmail.Message
-				SMTPSenderID uint `json:"smtpSenderId"`
-				TrackLinks   bool `json:"trackLinks"`
-			}{SMTPSenderID: sender.ID, Message: internalmail.Message{To: []string{"to@example.com"}, Subject: "s", Text: "b"}},
+				SMTPSenderID     uint   `json:"smtpSenderId"`
+				SMTPSenderSource string `json:"smtpSenderSource"`
+				TrackLinks       bool   `json:"trackLinks"`
+			}{SMTPSenderID: sender.ID, SMTPSenderSource: "local", Message: internalmail.Message{To: []string{"to@example.com"}, Subject: "s", Text: "b"}},
 		}
 	}
 	_ = send
@@ -111,11 +112,13 @@ func TestSendEmailTrackLinksWraps(t *testing.T) {
 		Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: tlSender.ID,
-			TrackLinks:   true,
+			SMTPSenderID:     tlSender.ID,
+			SMTPSenderSource: "local",
+			TrackLinks:       true,
 			Message: internalmail.Message{
 				To:      []string{"to@example.com"},
 				Subject: "links",
@@ -169,9 +172,10 @@ func TestSendEmailSucceedsWithoutLinkTracking(t *testing.T) {
 		Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
-		}{SMTPSenderID: plainSender.ID, Message: internalmail.Message{To: []string{"to@example.com"}, Subject: "s", Text: "b"}},
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
+		}{SMTPSenderID: plainSender.ID, SMTPSenderSource: "local", Message: internalmail.Message{To: []string{"to@example.com"}, Subject: "s", Text: "b"}},
 	}
 	if _, err := p.sendEmail(ctx, input); err != nil {
 		t.Fatalf("sendEmail: %v", err)

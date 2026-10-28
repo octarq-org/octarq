@@ -480,6 +480,14 @@ export const api = {
   updateWorkforceTask: (id: string, input: UpdateWorkforceTaskInput): Promise<WorkforceTaskDTO> =>
     req<WorkforceTaskDTO>("PATCH", `/api/workforce/tasks/${encodeURIComponent(id)}`, input),
 
+  // AI Workforce - Task Approvals (the awaiting_approval gate)
+  workforceApprovals: async (): Promise<WorkforceTaskDTO[]> => {
+    const res = await req<{ items?: WorkforceTaskDTO[] }>("GET", "/api/workforce/approvals");
+    return res.items ?? (Array.isArray(res) ? res : []);
+  },
+  decideWorkforceApproval: (id: string, decision: "approve" | "reject"): Promise<WorkforceTaskDTO> =>
+    req<WorkforceTaskDTO>("POST", `/api/workforce/approvals/${encodeURIComponent(id)}`, { decision }),
+
   // AI Workforce - Governance & Overview
   workforceOverview: (): Promise<WorkforceOverviewDTO> =>
     req<WorkforceOverviewDTO>("GET", "/api/workforce/overview"),

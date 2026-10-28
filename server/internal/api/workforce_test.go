@@ -16,24 +16,39 @@ func newWorkforceTestHandler(t *testing.T) (http.Handler, *Handler) {
 	return srv, h
 }
 
-func TestWorkforce_ListAgentsAutoSeeded(t *testing.T) {
+func TestWorkforce_ListAgentsStartsEmptyAndReturnsCreated(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
 
+	// A new workspace has no fabricated fleet.
 	rec := do(srv, "GET", "/api/workforce/agents", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
+	var empty struct {
+		Items []WorkforceAgentDTO `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &empty); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(empty.Items) != 0 {
+		t.Fatalf("expected 0 agents in a new workspace, got %d", len(empty.Items))
+	}
 
+	// A created agent is persisted and listed.
+	rec = do(srv, "POST", "/api/workforce/agents", cookies, `{"name":"Ops Bot","role":"Operator","model":"GPT-4o"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	rec = do(srv, "GET", "/api/workforce/agents", cookies, "")
 	var res struct {
 		Items []WorkforceAgentDTO `json:"items"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-
-	if len(res.Items) != 4 {
-		t.Fatalf("expected 4 seeded agents, got %d", len(res.Items))
+	if len(res.Items) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(res.Items))
 	}
 }
 
@@ -88,11 +103,15 @@ func TestWorkforce_AgentStateTransitions(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// Trigger seeding
-	_ = do(srv, "GET", "/api/workforce/agents", cookies, "")
+	rec := do(srv, "POST", "/api/workforce/agents", cookies, `{"name":"Lead Orchestrator","role":"Chief Operational Assistant","model":"GPT-4o"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create agent: %d (%s)", rec.Code, rec.Body.String())
+	}
+	var created WorkforceAgentDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
 
-	// Pause lead-orchestrator
-	rec := do(srv, "POST", "/api/workforce/agents/lead-orchestrator/pause", cookies, "")
+	// Pause the agent
+	rec = do(srv, "POST", "/api/workforce/agents/"+created.ID+"/pause", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
@@ -102,8 +121,8 @@ func TestWorkforce_AgentStateTransitions(t *testing.T) {
 		t.Errorf("expected paused, got %s", paused.Status)
 	}
 
-	// Resume lead-orchestrator
-	rec = do(srv, "POST", "/api/workforce/agents/lead-orchestrator/resume", cookies, "")
+	// Resume the agent
+	rec = do(srv, "POST", "/api/workforce/agents/"+created.ID+"/resume", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
@@ -114,7 +133,7 @@ func TestWorkforce_AgentStateTransitions(t *testing.T) {
 	}
 
 	// Trigger heartbeat
-	rec = do(srv, "POST", "/api/workforce/agents/lead-orchestrator/heartbeat", cookies, "")
+	rec = do(srv, "POST", "/api/workforce/agents/"+created.ID+"/heartbeat", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
@@ -129,7 +148,7 @@ func TestWorkforce_TaskLifecycleAndStepLogs(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// List seeded tasks
+	// A new workspace has no fabricated task history.
 	rec := do(srv, "GET", "/api/workforce/tasks", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
@@ -138,8 +157,8 @@ func TestWorkforce_TaskLifecycleAndStepLogs(t *testing.T) {
 		Items []WorkforceTaskDTO `json:"items"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &listRes)
-	if len(listRes.Items) != 4 {
-		t.Fatalf("expected 4 seeded tasks, got %d", len(listRes.Items))
+	if len(listRes.Items) != 0 {
+		t.Fatalf("expected 0 tasks in a new workspace, got %d", len(listRes.Items))
 	}
 
 	// Create custom task
@@ -186,18 +205,43 @@ func TestWorkforce_OverviewAndAutoHaltEndpoints(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// Get overview
+	// A new workspace reports no agents and no spend.
 	rec := do(srv, "GET", "/api/workforce/overview", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 	var overview WorkforceOverviewDTO
 	_ = json.Unmarshal(rec.Body.Bytes(), &overview)
-	if overview.ActiveAgents != 4 {
-		t.Errorf("expected 4 active agents, got %d", overview.ActiveAgents)
+	if overview.ActiveAgents != 0 || overview.MonthlySpend != 0 {
+		t.Errorf("expected a zeroed overview for a new workspace, got %+v", overview)
 	}
 	if !overview.AutoHalt {
 		t.Errorf("expected default autoHalt to be true")
+	}
+
+	// Two agents give the overview real numbers to aggregate.
+	for _, body := range []string{
+		`{"name":"Ops Bot","role":"Operator","model":"GPT-4o","budgetLimit":20}`,
+		`{"name":"Audit Bot","role":"Auditor","model":"Claude 3.5 Sonnet","budgetLimit":10}`,
+	} {
+		if rec := do(srv, "POST", "/api/workforce/agents", cookies, body); rec.Code != http.StatusCreated {
+			t.Fatalf("create agent: %d (%s)", rec.Code, rec.Body.String())
+		}
+	}
+
+	rec = do(srv, "GET", "/api/workforce/overview", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &overview)
+	if overview.ActiveAgents != 2 {
+		t.Errorf("expected 2 active agents, got %d", overview.ActiveAgents)
+	}
+	if overview.MonthlyLimit != 30 {
+		t.Errorf("expected 30 monthly limit, got %f", overview.MonthlyLimit)
+	}
+	if len(overview.SpendByAgent) != 2 || len(overview.SpendByProvider) == 0 {
+		t.Errorf("expected real spend breakdown, got agents=%d providers=%d", len(overview.SpendByAgent), len(overview.SpendByProvider))
 	}
 
 	// Toggle auto-halt
@@ -238,6 +282,74 @@ func TestWorkforce_UnauthenticatedFailClosed(t *testing.T) {
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("expected 401 for %s %s, got %d", ep.method, ep.path, rec.Code)
 		}
+	}
+}
+
+func TestWorkforce_TaskApprovalGate(t *testing.T) {
+	srv, _ := newWorkforceTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	// A task that is not gated cannot be decided.
+	rec := do(srv, "POST", "/api/workforce/tasks", cookies, `{"title":"Revoke stale tokens","summary":"Prepared revocation batch."}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create task: %d (%s)", rec.Code, rec.Body.String())
+	}
+	var task WorkforceTaskDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &task)
+
+	rec = do(srv, "POST", "/api/workforce/approvals/"+task.ID, cookies, `{"decision":"approve"}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for an ungated task, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// Gate it.
+	rec = do(srv, "PATCH", "/api/workforce/tasks/"+task.ID, cookies, `{"status":"awaiting_approval"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("gate task: %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	rec = do(srv, "GET", "/api/workforce/approvals", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list approvals: %d (%s)", rec.Code, rec.Body.String())
+	}
+	var list struct {
+		Items []WorkforceTaskDTO `json:"items"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &list)
+	if len(list.Items) != 1 || list.Items[0].ID != task.ID {
+		t.Fatalf("expected the gated task in the approvals list, got %+v", list.Items)
+	}
+
+	// Approve resumes the work.
+	rec = do(srv, "POST", "/api/workforce/approvals/"+task.ID, cookies, `{"decision":"approve"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("approve: %d (%s)", rec.Code, rec.Body.String())
+	}
+	var approved WorkforceTaskDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &approved)
+	if approved.Status != "in_progress" {
+		t.Errorf("expected in_progress after approval, got %s", approved.Status)
+	}
+
+	// A replayed decision is refused.
+	rec = do(srv, "POST", "/api/workforce/approvals/"+task.ID, cookies, `{"decision":"approve"}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for a replayed decision, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// Rejection returns a gated task to the queue.
+	rec = do(srv, "POST", "/api/workforce/tasks", cookies, `{"title":"Rotate DNS keys","summary":"Awaiting sign-off."}`)
+	var second WorkforceTaskDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &second)
+	_ = do(srv, "PATCH", "/api/workforce/tasks/"+second.ID, cookies, `{"status":"awaiting_approval"}`)
+	rec = do(srv, "POST", "/api/workforce/approvals/"+second.ID, cookies, `{"decision":"reject"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("reject: %d (%s)", rec.Code, rec.Body.String())
+	}
+	var rejected WorkforceTaskDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &rejected)
+	if rejected.Status != "todo" {
+		t.Errorf("expected todo after rejection, got %s", rejected.Status)
 	}
 }
 

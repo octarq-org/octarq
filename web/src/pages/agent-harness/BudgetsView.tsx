@@ -95,9 +95,11 @@ export function BudgetsView() {
   }
 
   const currentSpend = overview.monthlySpend;
-  const monthlyLimit = overview.monthlyLimit > 0 ? overview.monthlyLimit : 50.0;
-  const pct = Math.min(100, Math.round((currentSpend / monthlyLimit) * 100));
+  const monthlyLimit = overview.monthlyLimit;
+  const pct = monthlyLimit > 0 ? Math.min(100, Math.round((currentSpend / monthlyLimit) * 100)) : 0;
   const autoHalt = overview.autoHalt;
+  const spendByAgent = overview.spendByAgent ?? [];
+  const spendByProvider = overview.spendByProvider ?? [];
 
   return (
     <div className="space-y-6" data-testid="budgets-view">
@@ -179,12 +181,12 @@ export function BudgetsView() {
             {t("agentHarness.spendByAgent", "Spend by Agent")}
           </h4>
           <div className="space-y-3 pt-2 text-xs">
-            {(overview.spendByAgent || [
-              { name: "Lead Orchestrator", model: "GPT-4o", spend: 5.80, pct: 41 },
-              { name: "DevOps Specialist", model: "Claude 3.5 Sonnet", spend: 4.50, pct: 32 },
-              { name: "Security Auditor", model: "GPT-4o", spend: 2.10, pct: 15 },
-              { name: "Mail Deliverability Agent", model: "DeepSeek-V3", spend: 1.80, pct: 12 },
-            ]).map((row) => (
+            {spendByAgent.length === 0 && (
+              <div className="py-4 text-center text-muted-foreground">
+                {t("agentHarness.noSpendRecorded", "No agent has accrued spend yet.")}
+              </div>
+            )}
+            {spendByAgent.map((row) => (
               <div key={row.name} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">{row.name}</span>
@@ -209,11 +211,12 @@ export function BudgetsView() {
             {t("agentHarness.spendByProvider", "Spend by Model Provider")}
           </h4>
           <div className="space-y-3 pt-2 text-xs">
-            {(overview.spendByProvider || [
-              { provider: "OpenAI (GPT-4o)", spend: 7.90, pct: 56 },
-              { provider: "Anthropic (Claude 3.5 Sonnet)", spend: 4.50, pct: 32 },
-              { provider: "DeepSeek (DeepSeek-V3)", spend: 1.80, pct: 12 },
-            ]).map((row) => (
+            {spendByProvider.length === 0 && (
+              <div className="py-4 text-center text-muted-foreground">
+                {t("agentHarness.noSpendRecorded", "No agent has accrued spend yet.")}
+              </div>
+            )}
+            {spendByProvider.map((row) => (
               <div key={row.provider} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">{row.provider}</span>

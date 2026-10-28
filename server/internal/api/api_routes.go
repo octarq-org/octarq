@@ -328,6 +328,8 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/tasks/{id}", Summary: "Get Workforce Task", Tags: []string{"Workforce"}}, h.getWorkforceTask)
 	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/workforce/tasks/{id}", Summary: "Update Workforce Task", Tags: []string{"Workforce"}}, h.updateWorkforceTask)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/tasks/{id}/steps", Summary: "Append Task Step Log", Tags: []string{"Workforce"}, DefaultStatus: 201}, h.appendWorkforceTaskStep)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/approvals", Summary: "List Pending Task Approvals", Tags: []string{"Workforce"}}, h.listWorkforceApprovals)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/approvals/{id}", Summary: "Decide Task Approval", Tags: []string{"Workforce"}}, h.decideWorkforceApproval)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/overview", Summary: "Get Workforce Overview", Tags: []string{"Workforce"}}, h.getWorkforceOverview)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/budgets/auto-halt", Summary: "Toggle Budget Auto-Halt", Tags: []string{"Workforce"}}, h.toggleWorkforceAutoHalt)
 

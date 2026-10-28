@@ -149,10 +149,12 @@ func sendEmailInput() *SendEmailInput {
 		Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 1,
+			SMTPSenderID:     1,
+			SMTPSenderSource: "local",
 			Message: internalmail.Message{
 				To:      []string{"a@example.com"},
 				Subject: "test",

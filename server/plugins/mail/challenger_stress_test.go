@@ -76,10 +76,12 @@ func TestChallenger_MailCrossTenantIsolation(t *testing.T) {
 		Ctx: mkCtx(reqOrg20),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 101, // Org 10's ID
+			SMTPSenderID:     101, // Org 10's ID
+			SMTPSenderSource: "local",
 			Message: internalmail.Message{
 				To:      []string{"victim@example.com"},
 				Subject: "Cross Tenant Attack",
@@ -164,10 +166,12 @@ func TestChallenger_MailFallbackHierarchy(t *testing.T) {
 		Ctx: mkCtx(req),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 100,
+			SMTPSenderID:     100,
+			SMTPSenderSource: "integration",
 			Message: internalmail.Message{
 				To:      []string{"recipient1@example.com"},
 				Subject: "SPI Subject",
@@ -185,10 +189,12 @@ func TestChallenger_MailFallbackHierarchy(t *testing.T) {
 		Ctx: mkCtx(req),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 50,
+			SMTPSenderID:     50,
+			SMTPSenderSource: "local",
 			Message: internalmail.Message{
 				To:      []string{"recipient2@example.com"},
 				Subject: "Local Subject",
@@ -206,10 +212,12 @@ func TestChallenger_MailFallbackHierarchy(t *testing.T) {
 		Ctx: mkCtx(req),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 9999,
+			SMTPSenderID:     9999,
+			SMTPSenderSource: "local",
 			Message: internalmail.Message{
 				To:      []string{"recipient3@example.com"},
 				Subject: "Absent",
@@ -283,10 +291,12 @@ func TestChallenger_MailInvalidConfigurationAndDualTrackTrap(t *testing.T) {
 		Ctx: mkCtx(req),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 301,
+			SMTPSenderID:     301,
+			SMTPSenderSource: "integration",
 			Message: internalmail.Message{
 				To:      []string{"customer@example.com"},
 				Subject: "Dual Track Test",

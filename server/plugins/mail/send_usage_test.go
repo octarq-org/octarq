@@ -143,10 +143,12 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 		Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 1,
+			SMTPSenderID:     1,
+			SMTPSenderSource: "local",
 			Message: internalmail.Message{
 				To:      []string{"a@example.com", "b@example.com"},
 				Subject: "test",
@@ -177,10 +179,12 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 		Ctx: humago.NewContext(nil, req, httptest.NewRecorder()),
 		Body: struct {
 			internalmail.Message
-			SMTPSenderID uint `json:"smtpSenderId"`
-			TrackLinks   bool `json:"trackLinks"`
+			SMTPSenderID     uint   `json:"smtpSenderId"`
+			SMTPSenderSource string `json:"smtpSenderSource"`
+			TrackLinks       bool   `json:"trackLinks"`
 		}{
-			SMTPSenderID: 2,
+			SMTPSenderID:     2,
+			SMTPSenderSource: "local",
 			Message: internalmail.Message{
 				To:      []string{"c@example.com"},
 				Subject: "test",

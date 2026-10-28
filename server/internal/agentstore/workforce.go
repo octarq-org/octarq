@@ -3,8 +3,10 @@ package agentstore
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
-	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,17 +21,48 @@ var (
 	ErrAgentNotFound = errors.New("agentstore: workforce agent not found")
 	// ErrTaskNotFound is returned when a task is not found in the workspace.
 	ErrTaskNotFound = errors.New("agentstore: workforce task not found")
+	// ErrNotAwaitingApproval is returned when a decision targets a task that is
+	// not currently gated. A concurrent or replayed decision lands here.
+	ErrNotAwaitingApproval = errors.New("agentstore: task is not awaiting approval")
 )
+
+// WorkforceSpendAgent is one agent's spend share in the dashboard breakdown.
+type WorkforceSpendAgent struct {
+	Name  string  `json:"name"`
+	Model string  `json:"model"`
+	Spend float64 `json:"spend"`
+	Pct   int     `json:"pct"`
+}
+
+// WorkforceSpendProvider is one model provider's spend share in the dashboard breakdown.
+type WorkforceSpendProvider struct {
+	Provider string  `json:"provider"`
+	Spend    float64 `json:"spend"`
+	Pct      int     `json:"pct"`
+}
 
 // WorkforceOverview represents aggregated metrics for the AI Workforce dashboard.
 type WorkforceOverview struct {
-	ActiveAgents     int     `json:"activeAgents"`
-	RunningTasks     int     `json:"runningTasks"`
-	QueuedTasks      int     `json:"queuedTasks"`
-	PendingApprovals int     `json:"pendingApprovals"`
-	MonthlySpend     float64 `json:"monthlySpend"`
-	MonthlyLimit     float64 `json:"monthlyLimit"`
-	AutoHalt         bool    `json:"autoHalt"`
+	ActiveAgents     int                      `json:"activeAgents"`
+	RunningTasks     int                      `json:"runningTasks"`
+	QueuedTasks      int                      `json:"queuedTasks"`
+	PendingApprovals int                      `json:"pendingApprovals"`
+	MonthlySpend     float64                  `json:"monthlySpend"`
+	MonthlyLimit     float64                  `json:"monthlyLimit"`
+	AutoHalt         bool                     `json:"autoHalt"`
+	SpendByAgent     []WorkforceSpendAgent    `json:"spendByAgent"`
+	SpendByProvider  []WorkforceSpendProvider `json:"spendByProvider"`
+}
+
+// randomSuffix returns n hex characters from a cryptographically random source.
+// Entity IDs must not be derived from the clock: two creates in the same
+// millisecond would collide on the composite primary key and fail the insert.
+func randomSuffix(n int) (string, error) {
+	buf := make([]byte, (n+1)/2)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf)[:n], nil
 }
 
 // WorkforceStore manages persistence for workforce agents, tasks, and governance.
@@ -42,216 +75,12 @@ func NewWorkforceStore(db *gorm.DB) *WorkforceStore {
 	return &WorkforceStore{db: db}
 }
 
-// ensureSeeded idempotently populates default agents and tasks for a new workspace.
-func (s *WorkforceStore) ensureSeeded(ctx context.Context, orgID uint) error {
-	if s == nil || s.db == nil {
-		return errors.New("agentstore: workforce store is not configured")
-	}
-
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var agentCount int64
-		if err := tx.Model(&models.WorkforceAgent{}).Where("owner_id = ?", orgID).Count(&agentCount).Error; err != nil {
-			return err
-		}
-
-		now := time.Now().UTC()
-		if agentCount == 0 {
-			defaultAgents := []models.WorkforceAgent{
-				{
-					ID:           "lead-orchestrator",
-					OrgID:        orgID,
-					Name:         "Lead Orchestrator",
-					Role:         "Chief Operational Assistant",
-					Department:   "Executive & Routing",
-					Model:        "GPT-4o (OpenAI)",
-					Status:       "active",
-					Heartbeat:    "Every 15m",
-					BudgetLimit:  20.00,
-					BudgetUsed:   5.80,
-					Capabilities: models.StringList{"all-tools", "delegate", "briefing"},
-					Directives:   "Act as executive chief-of-staff. Coordinate workspace tasks, summarize metrics, and route issues.",
-					CreatedAt:    now,
-					UpdatedAt:    now,
-				},
-				{
-					ID:           "devops-engineer",
-					OrgID:        orgID,
-					Name:         "DevOps Specialist",
-					Role:         "Infrastructure & Network Engineer",
-					Department:   "Operations",
-					Model:        "Claude 3.5 Sonnet",
-					Status:       "executing",
-					Heartbeat:    "Every 10m",
-					BudgetLimit:  15.00,
-					BudgetUsed:   4.50,
-					Capabilities: models.StringList{"dns", "infra", "domains", "metrics"},
-					Directives:   "Continuously verify nameserver latency, detect DNS record drift, and check TLS certificate expiry.",
-					CreatedAt:    now,
-					UpdatedAt:    now,
-				},
-				{
-					ID:           "security-auditor",
-					OrgID:        orgID,
-					Name:         "Security & Compliance Auditor",
-					Role:         "Trust & Safety Inspector",
-					Department:   "Security",
-					Model:        "GPT-4o",
-					Status:       "idle",
-					Heartbeat:    "Every 1h",
-					BudgetLimit:  10.00,
-					BudgetUsed:   2.10,
-					Capabilities: models.StringList{"tokens", "security", "rbac", "audit"},
-					Directives:   "Audit API token permissions, enforce 2FA compliance, and inspect dead-letter security anomalies.",
-					CreatedAt:    now,
-					UpdatedAt:    now,
-				},
-				{
-					ID:           "mail-deliverability",
-					OrgID:        orgID,
-					Name:         "Mail Deliverability Agent",
-					Role:         "Inbound & Relay Specialist",
-					Department:   "Communications",
-					Model:        "DeepSeek-V3",
-					Status:       "active",
-					Heartbeat:    "Every 30m",
-					BudgetLimit:  5.00,
-					BudgetUsed:   1.80,
-					Capabilities: models.StringList{"mail", "mailstorage", "webhooks"},
-					Directives:   "Analyze bounce spikes, classify inbound spam, and trigger external S3/R2 storage offloading.",
-					CreatedAt:    now,
-					UpdatedAt:    now,
-				},
-			}
-
-			for _, agent := range defaultAgents {
-				if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&agent).Error; err != nil {
-					return err
-				}
-			}
-		}
-
-		var taskCount int64
-		if err := tx.Model(&models.WorkforceTask{}).Where("owner_id = ?", orgID).Count(&taskCount).Error; err != nil {
-			return err
-		}
-
-		if taskCount == 0 {
-			defaultTasks := []struct {
-				task  models.WorkforceTask
-				steps []models.WorkforceTaskStep
-			}{
-				{
-					task: models.WorkforceTask{
-						ID:              "AGT-101",
-						OrgID:           orgID,
-						Title:           "Diagnose DNS resolution latency on managed nameservers",
-						AssigneeAgentID: "devops-engineer",
-						AssigneeName:    "DevOps Specialist",
-						AssigneeRole:    "Infrastructure & Network Engineer",
-						Priority:        "urgent",
-						Status:          "in_progress",
-						Summary:         "Identified intermittent DNS resolution timeout on NS2 secondary node; testing route failover.",
-						Context:         "Investigate ping spikes and fallback routing for edge nameservers.",
-						LastHeartbeat:   "2m ago",
-						CreatedAt:       now,
-						UpdatedAt:       now,
-					},
-					steps: []models.WorkforceTaskStep{
-						{OrgID: orgID, TaskID: "AGT-101", StepNumber: 1, StepText: "Checked primary ns1.octarq.io latency (12ms average across 8 regions)", Status: "completed", CreatedAt: now},
-						{OrgID: orgID, TaskID: "AGT-101", StepNumber: 2, StepText: "Detected packet drop on ns2.octarq.io Frankfurt edge node", Status: "completed", CreatedAt: now},
-						{OrgID: orgID, TaskID: "AGT-101", StepNumber: 3, StepText: "Executing automated fallback route propagation via Anycast health check", Status: "running", CreatedAt: now},
-					},
-				},
-				{
-					task: models.WorkforceTask{
-						ID:              "AGT-102",
-						OrgID:           orgID,
-						Title:           "Audit 2FA keys and purge expired API access tokens",
-						AssigneeAgentID: "security-auditor",
-						AssigneeName:    "Security & Compliance Auditor",
-						AssigneeRole:    "Trust & Safety Inspector",
-						Priority:        "high",
-						Status:          "awaiting_approval",
-						Summary:         "Detected 2 inactive API tokens exceeding 90-day idle policy. Prepared revocation batch.",
-						Context:         "Routine quarterly credential hygiene scan.",
-						LastHeartbeat:   "14m ago",
-						CreatedAt:       now,
-						UpdatedAt:       now,
-					},
-					steps: []models.WorkforceTaskStep{
-						{OrgID: orgID, TaskID: "AGT-102", StepNumber: 1, StepText: "Scanned all workspace tokens against last-used timestamps", Status: "completed", CreatedAt: now},
-						{OrgID: orgID, TaskID: "AGT-102", StepNumber: 2, StepText: "Identified 2 unrotated service tokens with admin scope", Status: "completed", CreatedAt: now},
-						{OrgID: orgID, TaskID: "AGT-102", StepNumber: 3, StepText: "Awaiting administrator approval to revoke identified tokens", Status: "awaiting_approval", CreatedAt: now},
-					},
-				},
-				{
-					task: models.WorkforceTask{
-						ID:              "AGT-103",
-						OrgID:           orgID,
-						Title:           "Inspect dead-letter queue and reclassify unhandled webhooks",
-						AssigneeAgentID: "devops-engineer",
-						AssigneeName:    "DevOps Specialist",
-						AssigneeRole:    "Infrastructure & Network Engineer",
-						Priority:        "normal",
-						Status:          "todo",
-						Summary:         "3 failed inbound payloads queued for inspection; replaying delivery against updated parser.",
-						Context:         "Process unprocessed webhook relay DLQ events.",
-						LastHeartbeat:   "45m ago",
-						CreatedAt:       now,
-						UpdatedAt:       now,
-					},
-					steps: []models.WorkforceTaskStep{
-						{OrgID: orgID, TaskID: "AGT-103", StepNumber: 1, StepText: "Captured 3 dead-letter event payloads from relay queue", Status: "completed", CreatedAt: now},
-					},
-				},
-				{
-					task: models.WorkforceTask{
-						ID:              "AGT-104",
-						OrgID:           orgID,
-						Title:           "Review 24-hour inbound email deliverability & bounce trends",
-						AssigneeAgentID: "mail-deliverability",
-						AssigneeName:    "Mail Deliverability Agent",
-						AssigneeRole:    "Inbound & Relay Specialist",
-						Priority:        "low",
-						Status:          "done",
-						Summary:         "Reputation score 99.4%; 0 spam traps triggered; bounce rate well within normal baseline (0.08%).",
-						Context:         "Daily morning deliverability diagnostic.",
-						LastHeartbeat:   "1h ago",
-						CreatedAt:       now,
-						UpdatedAt:       now,
-					},
-					steps: []models.WorkforceTaskStep{
-						{OrgID: orgID, TaskID: "AGT-104", StepNumber: 1, StepText: "Aggregated bounce and delivery rates from inbound logs", Status: "completed", CreatedAt: now},
-						{OrgID: orgID, TaskID: "AGT-104", StepNumber: 2, StepText: "Verified SPF/DKIM alignment scores across active sending domains", Status: "completed", CreatedAt: now},
-						{OrgID: orgID, TaskID: "AGT-104", StepNumber: 3, StepText: "Generated deliverability health scorecard with 99.4% reputation", Status: "completed", CreatedAt: now},
-					},
-				},
-			}
-
-			for _, dt := range defaultTasks {
-				if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&dt.task).Error; err != nil {
-					return err
-				}
-				for _, step := range dt.steps {
-					if err := tx.Create(&step).Error; err != nil {
-						return err
-					}
-				}
-			}
-		}
-
-		return nil
-	})
-}
-
-// ListAgents retrieves all agents for the workspace, seeding defaults if none exist.
+// ListAgents retrieves all agents for the workspace. A new workspace starts
+// empty; there is no fabricated demo fleet. Every row returned here was
+// created through CreateAgent and is real.
 func (s *WorkforceStore) ListAgents(ctx context.Context, orgID uint) ([]models.WorkforceAgent, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("agentstore: workforce store is not configured")
-	}
-
-	if err := s.ensureSeeded(ctx, orgID); err != nil {
-		return nil, err
 	}
 
 	var agents []models.WorkforceAgent
@@ -292,7 +121,11 @@ func (s *WorkforceStore) CreateAgent(ctx context.Context, orgID uint, agent mode
 	}
 
 	if agent.ID == "" {
-		agent.ID = fmt.Sprintf("agent-%d", time.Now().UnixNano()%1000000)
+		suffix, err := randomSuffix(12)
+		if err != nil {
+			return nil, err
+		}
+		agent.ID = "agent-" + suffix
 	}
 	agent.OrgID = orgID
 	if agent.Status == "" {
@@ -371,14 +204,11 @@ func (s *WorkforceStore) DeleteAgent(ctx context.Context, orgID uint, id string)
 	return nil
 }
 
-// ListTasks retrieves tasks for the workspace, with optional filtering.
+// ListTasks retrieves tasks for the workspace, with optional filtering. A new
+// workspace starts empty; no demo tickets are fabricated.
 func (s *WorkforceStore) ListTasks(ctx context.Context, orgID uint, status, assignee string) ([]models.WorkforceTask, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("agentstore: workforce store is not configured")
-	}
-
-	if err := s.ensureSeeded(ctx, orgID); err != nil {
-		return nil, err
 	}
 
 	query := s.db.WithContext(ctx).Where("owner_id = ?", orgID)
@@ -432,7 +262,11 @@ func (s *WorkforceStore) CreateTask(ctx context.Context, orgID uint, task models
 	}
 
 	if task.ID == "" {
-		task.ID = fmt.Sprintf("AGT-%d", time.Now().UnixNano()%100000)
+		suffix, err := randomSuffix(10)
+		if err != nil {
+			return nil, err
+		}
+		task.ID = "AGT-" + suffix
 	}
 	task.OrgID = orgID
 	if task.Priority == "" {
@@ -522,10 +356,6 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 		return nil, errors.New("agentstore: workforce store is not configured")
 	}
 
-	if err := s.ensureSeeded(ctx, orgID); err != nil {
-		return nil, err
-	}
-
 	var activeAgents int64
 	if err := s.db.WithContext(ctx).Model(&models.WorkforceAgent{}).
 		Where("owner_id = ? AND status != 'paused'", orgID).
@@ -554,16 +384,39 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 		return nil, err
 	}
 
-	type SpendResult struct {
-		TotalSpend float64
-		TotalLimit float64
+	// The breakdown is computed from the same agent rows the fleet view shows,
+	// so the budget page can never display numbers no agent ever accrued.
+	var agents []models.WorkforceAgent
+	if err := s.db.WithContext(ctx).Where("owner_id = ?", orgID).Find(&agents).Error; err != nil {
+		return nil, err
 	}
-	var spend SpendResult
-	row := s.db.WithContext(ctx).Model(&models.WorkforceAgent{}).
-		Where("owner_id = ?", orgID).
-		Select("COALESCE(SUM(budget_used), 0) as total_spend, COALESCE(SUM(budget_limit), 0) as total_limit").
-		Row()
-	_ = row.Scan(&spend.TotalSpend, &spend.TotalLimit)
+
+	var totalSpend, totalLimit float64
+	byAgent := make([]WorkforceSpendAgent, 0, len(agents))
+	providerSpend := map[string]float64{}
+	for _, a := range agents {
+		totalSpend += a.BudgetUsed
+		totalLimit += a.BudgetLimit
+		byAgent = append(byAgent, WorkforceSpendAgent{Name: a.Name, Model: a.Model, Spend: a.BudgetUsed})
+		providerSpend[providerForModel(a.Model)] += a.BudgetUsed
+	}
+
+	pctOf := func(v, total float64) int {
+		if total <= 0 {
+			return 0
+		}
+		return int(v/total*100 + 0.5)
+	}
+	for i := range byAgent {
+		byAgent[i].Pct = pctOf(byAgent[i].Spend, totalSpend)
+	}
+	sort.SliceStable(byAgent, func(i, j int) bool { return byAgent[i].Spend > byAgent[j].Spend })
+
+	byProvider := make([]WorkforceSpendProvider, 0, len(providerSpend))
+	for name, spend := range providerSpend {
+		byProvider = append(byProvider, WorkforceSpendProvider{Provider: name, Spend: spend, Pct: pctOf(spend, totalSpend)})
+	}
+	sort.SliceStable(byProvider, func(i, j int) bool { return byProvider[i].Spend > byProvider[j].Spend })
 
 	autoHalt, err := s.GetAutoHalt(ctx, orgID)
 	if err != nil {
@@ -575,10 +428,66 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 		RunningTasks:     int(runningTasks),
 		QueuedTasks:      int(queuedTasks),
 		PendingApprovals: int(pendingApprovals),
-		MonthlySpend:     spend.TotalSpend,
-		MonthlyLimit:     spend.TotalLimit,
+		MonthlySpend:     totalSpend,
+		MonthlyLimit:     totalLimit,
 		AutoHalt:         autoHalt,
+		SpendByAgent:     byAgent,
+		SpendByProvider:  byProvider,
 	}, nil
+}
+
+// providerForModel maps a model label to the provider that bills for it.
+func providerForModel(model string) string {
+	m := strings.ToLower(model)
+	switch {
+	case strings.Contains(m, "claude") || strings.Contains(m, "anthropic"):
+		return "Anthropic"
+	case strings.Contains(m, "gpt") || strings.Contains(m, "openai") || strings.Contains(m, "o1") || strings.Contains(m, "o3"):
+		return "OpenAI"
+	case strings.Contains(m, "deepseek"):
+		return "DeepSeek"
+	case strings.Contains(m, "gemini") || strings.Contains(m, "google"):
+		return "Google"
+	case strings.Contains(m, "llama") || strings.Contains(m, "meta"):
+		return "Meta"
+	default:
+		return "Other"
+	}
+}
+
+// DecideApproval resolves a task's approval gate. Approving resumes the work
+// (in_progress); rejecting returns the ticket to the queue (todo) so the agent
+// can revise it. The transition is a compare-and-swap on the current status, so
+// a concurrent or replayed decision fails with ErrNotAwaitingApproval instead
+// of silently flipping an already-resolved task.
+func (s *WorkforceStore) DecideApproval(ctx context.Context, orgID uint, taskID string, approve bool) (*models.WorkforceTask, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("agentstore: workforce store is not configured")
+	}
+
+	next := "in_progress"
+	if !approve {
+		next = "todo"
+	}
+
+	res := s.db.WithContext(ctx).
+		Model(&models.WorkforceTask{}).
+		Where("id = ? AND owner_id = ? AND status = ?", taskID, orgID, "awaiting_approval").
+		Updates(map[string]any{"status": next, "updated_at": time.Now().UTC()})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		// Either the task does not exist or it is not gated. Distinguish the
+		// two so a caller gets a truthful 404 or 409.
+		if _, _, err := s.GetTask(ctx, orgID, taskID); err != nil {
+			return nil, err
+		}
+		return nil, ErrNotAwaitingApproval
+	}
+
+	task, _, err := s.GetTask(ctx, orgID, taskID)
+	return task, err
 }
 
 // GetAutoHalt returns the auto-halt setting for a workspace. Defaults to true.

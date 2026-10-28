@@ -61,15 +61,32 @@ type WorkforceTaskStepDTO struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
+// WorkforceSpendAgentDTO is one agent's spend share in the budget breakdown.
+type WorkforceSpendAgentDTO struct {
+	Name  string  `json:"name"`
+	Model string  `json:"model"`
+	Spend float64 `json:"spend"`
+	Pct   int     `json:"pct"`
+}
+
+// WorkforceSpendProviderDTO is one model provider's spend share.
+type WorkforceSpendProviderDTO struct {
+	Provider string  `json:"provider"`
+	Spend    float64 `json:"spend"`
+	Pct      int     `json:"pct"`
+}
+
 // WorkforceOverviewDTO represents executive summary metrics.
 type WorkforceOverviewDTO struct {
-	ActiveAgents     int     `json:"activeAgents"`
-	RunningTasks     int     `json:"runningTasks"`
-	QueuedTasks      int     `json:"queuedTasks"`
-	PendingApprovals int     `json:"pendingApprovals"`
-	MonthlySpend     float64 `json:"monthlySpend"`
-	MonthlyLimit     float64 `json:"monthlyLimit"`
-	AutoHalt         bool    `json:"autoHalt"`
+	ActiveAgents     int                         `json:"activeAgents"`
+	RunningTasks     int                         `json:"runningTasks"`
+	QueuedTasks      int                         `json:"queuedTasks"`
+	PendingApprovals int                         `json:"pendingApprovals"`
+	MonthlySpend     float64                     `json:"monthlySpend"`
+	MonthlyLimit     float64                     `json:"monthlyLimit"`
+	AutoHalt         bool                        `json:"autoHalt"`
+	SpendByAgent     []WorkforceSpendAgentDTO    `json:"spendByAgent"`
+	SpendByProvider  []WorkforceSpendProviderDTO `json:"spendByProvider"`
 }
 
 func toAgentDTO(a models.WorkforceAgent) WorkforceAgentDTO {
@@ -717,6 +734,92 @@ func (h *Handler) appendWorkforceTaskStep(ctx context.Context, input *AppendWork
 	return out, nil
 }
 
+// ListWorkforceApprovalsInput input for listing gated tasks.
+type ListWorkforceApprovalsInput struct {
+	Ctx huma.Context `json:"-"`
+}
+
+func (i *ListWorkforceApprovalsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+// ListWorkforceApprovalsOutput output for pending task approvals.
+type ListWorkforceApprovalsOutput struct {
+	Body struct {
+		Items []WorkforceTaskDTO `json:"items"`
+	}
+}
+
+func (h *Handler) listWorkforceApprovals(ctx context.Context, input *ListWorkforceApprovalsInput) (*ListWorkforceApprovalsOutput, error) {
+	r, orgID, store, err := h.workforceCaller(input.Ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks, err := store.ListTasks(r.Context(), orgID, "awaiting_approval", "")
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Could not read workforce approvals; retry the request")
+	}
+
+	out := &ListWorkforceApprovalsOutput{}
+	out.Body.Items = make([]WorkforceTaskDTO, 0, len(tasks))
+	for _, t := range tasks {
+		out.Body.Items = append(out.Body.Items, toTaskDTO(t, nil))
+	}
+	return out, nil
+}
+
+// DecideWorkforceApprovalInput input for resolving a task approval.
+type DecideWorkforceApprovalInput struct {
+	Ctx  huma.Context `json:"-"`
+	ID   string       `path:"id"`
+	Body struct {
+		Decision string `json:"decision"` // "approve" | "reject"
+	}
+}
+
+func (i *DecideWorkforceApprovalInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+// DecideWorkforceApprovalOutput output for a resolved approval.
+type DecideWorkforceApprovalOutput struct {
+	Body WorkforceTaskDTO
+}
+
+func (h *Handler) decideWorkforceApproval(ctx context.Context, input *DecideWorkforceApprovalInput) (*DecideWorkforceApprovalOutput, error) {
+	r, orgID, store, err := h.workforceCaller(input.Ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var approve bool
+	switch input.Body.Decision {
+	case "approve":
+		approve = true
+	case "reject":
+		approve = false
+	default:
+		return nil, huma.Error400BadRequest("Decision must be 'approve' or 'reject'.")
+	}
+
+	task, err := store.DecideApproval(r.Context(), orgID, input.ID, approve)
+	if err != nil {
+		switch {
+		case errors.Is(err, agentstore.ErrTaskNotFound):
+			return nil, huma.Error404NotFound("No such workforce task found in this workspace.")
+		case errors.Is(err, agentstore.ErrNotAwaitingApproval):
+			return nil, huma.Error409Conflict("This task is not awaiting approval; it may have been resolved already.")
+		default:
+			return nil, huma.Error500InternalServerError("Could not resolve workforce approval; retry the request")
+		}
+	}
+
+	return &DecideWorkforceApprovalOutput{Body: toTaskDTO(*task, nil)}, nil
+}
+
 // GetWorkforceOverviewInput input for executive overview.
 type GetWorkforceOverviewInput struct {
 	Ctx huma.Context `json:"-"`
@@ -743,6 +846,15 @@ func (h *Handler) getWorkforceOverview(ctx context.Context, input *GetWorkforceO
 		return nil, huma.Error500InternalServerError("Could not calculate workforce overview; retry the request")
 	}
 
+	spendByAgent := make([]WorkforceSpendAgentDTO, 0, len(overview.SpendByAgent))
+	for _, a := range overview.SpendByAgent {
+		spendByAgent = append(spendByAgent, WorkforceSpendAgentDTO{Name: a.Name, Model: a.Model, Spend: a.Spend, Pct: a.Pct})
+	}
+	spendByProvider := make([]WorkforceSpendProviderDTO, 0, len(overview.SpendByProvider))
+	for _, p := range overview.SpendByProvider {
+		spendByProvider = append(spendByProvider, WorkforceSpendProviderDTO{Provider: p.Provider, Spend: p.Spend, Pct: p.Pct})
+	}
+
 	out := &GetWorkforceOverviewOutput{
 		Body: WorkforceOverviewDTO{
 			ActiveAgents:     overview.ActiveAgents,
@@ -752,6 +864,8 @@ func (h *Handler) getWorkforceOverview(ctx context.Context, input *GetWorkforceO
 			MonthlySpend:     overview.MonthlySpend,
 			MonthlyLimit:     overview.MonthlyLimit,
 			AutoHalt:         overview.AutoHalt,
+			SpendByAgent:     spendByAgent,
+			SpendByProvider:  spendByProvider,
 		},
 	}
 	return out, nil

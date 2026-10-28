@@ -56,7 +56,8 @@ export interface SMTPSenderInput {
   port: number;
   user: string;
   fromEmail: string;
-  password?: string;
+  /** Wire field is `pass`; the server encrypts it at rest. */
+  pass?: string;
 }
 
 export interface NotificationChannel {

@@ -24,7 +24,12 @@ type SendEmailInput struct {
 	Body struct {
 		mail.Message
 		SMTPSenderID uint `json:"smtpSenderId"`
-		TrackLinks   bool `json:"trackLinks"`
+		// SMTPSenderSource names the registry that owns SMTPSenderID:
+		// "integration" (Integrations Hub credential) or "local"
+		// (mail_smtp_senders). A bare ID cannot identify a sender on its own,
+		// because both registries number their rows independently.
+		SMTPSenderSource string `json:"smtpSenderSource"`
+		TrackLinks       bool   `json:"trackLinks"`
 	}
 }
 
@@ -68,39 +73,12 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 		return nil, huma.Error400BadRequest("No SMTP sender selected. Choose a configured SMTP sender.")
 	}
 
-	var sender mail.Sender
-	var senderFrom string
-
-	// 1. Try resolving sender via Host SPI (Centralized Integrations Hub)
-	if p.host != nil {
-		cred, err := p.host.LookupCredential(ctx, orgID, plugin.CredentialQuery{
-			ID:           input.Body.SMTPSenderID,
-			ProviderType: "communication",
-		})
-		if err == nil && cred != nil {
-			s, fromAddr, sErr := p.senderFromCredential(cred)
-			if sErr == nil && s != nil {
-				sender = s
-				senderFrom = fromAddr
-			}
+	sender, senderFrom, resolveErr := p.resolveSender(ctx, orgID, input.Body.SMTPSenderID, input.Body.SMTPSenderSource)
+	if resolveErr != nil {
+		if errors.Is(resolveErr, errSenderUnavailable) {
+			return nil, huma.Error500InternalServerError(resolveErr.Error())
 		}
-	}
-
-	// 2. Fallback to local SMTPSender table
-	if sender == nil {
-		var s SMTPSender
-		if err := p.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, orgID).First(&s).Error; err != nil {
-			return nil, huma.Error400BadRequest("Configured SMTP sender could not be found for this workspace.")
-		}
-		if p.decrypt == nil {
-			return nil, huma.Error500InternalServerError("Decryption service is unavailable. Verify encryption configuration.")
-		}
-		pass, err := p.decrypt(s.Pass)
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Could not decrypt SMTP sender credentials. Update sender credentials.")
-		}
-		sender = mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
-		senderFrom = s.FromEmail
+		return nil, huma.Error400BadRequest(resolveErr.Error())
 	}
 
 	// Force the From header to the sender's verified address — never trust a

@@ -179,11 +179,14 @@ func (p *Plugin) mailReady() bool {
 		return true
 	}
 	if p.host != nil {
-		cred, err := p.host.LookupCredential(context.Background(), 0, plugin.CredentialQuery{
-			ProviderType: "communication",
-		})
-		if err == nil && cred != nil {
-			return true
+		for _, provider := range []string{"smtp", "resend"} {
+			cred, err := p.host.LookupCredential(context.Background(), 0, plugin.CredentialQuery{
+				ProviderType: "communication",
+				Provider:     provider,
+			})
+			if err == nil && cred != nil {
+				return true
+			}
 		}
 	}
 	return false
@@ -248,25 +251,39 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 		return fmt.Errorf("recipient address %s is in suppression list", to)
 	}
 
-	// 1. Try resolving sender via Host SPI (Centralized Integrations Hub)
+	// 1. Try resolving a mail-capable sender via Host SPI (Centralized
+	// Integrations Hub). Query the mail providers explicitly: a bare
+	// provider_type=communication lookup can return a Telegram or Slack
+	// integration, which cannot send email.
 	if p.host != nil {
-		cred, err := p.host.LookupCredential(context.Background(), orgID, plugin.CredentialQuery{
-			ProviderType: "communication",
-		})
-		if err == nil && cred != nil {
-			sender, from, sErr := p.senderFromCredential(cred)
-			if sErr == nil && sender != nil {
-				if err := sender.Send(mail.Message{From: from, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
-					if p.publishEvent != nil {
-						p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
-					}
-					return err
+		for _, provider := range []string{"smtp", "resend"} {
+			cred, err := p.host.LookupCredential(context.Background(), orgID, plugin.CredentialQuery{
+				ProviderType: "communication",
+				Provider:     provider,
+			})
+			if err != nil {
+				if errors.Is(err, plugin.ErrCredentialNotFound) {
+					continue
 				}
-				if p.recordUsage != nil {
-					p.recordUsage(orgID, usagemetric.MailOut, 1)
-				}
-				return nil
+				return fmt.Errorf("resolve %s integration for org %d: %w", provider, orgID, err)
 			}
+			if cred == nil {
+				continue
+			}
+			sender, from, sErr := p.senderFromCredential(cred)
+			if sErr != nil {
+				return fmt.Errorf("invalid %s integration for org %d: %w", provider, orgID, sErr)
+			}
+			if err := sender.Send(mail.Message{From: from, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
+				if p.publishEvent != nil {
+					p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
+				}
+				return err
+			}
+			if p.recordUsage != nil {
+				p.recordUsage(orgID, usagemetric.MailOut, 1)
+			}
+			return nil
 		}
 	}
 

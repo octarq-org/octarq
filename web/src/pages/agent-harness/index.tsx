@@ -116,19 +116,29 @@ function AgentHarnessContent({
   // Workforce Overview state
   const [overview, setOverview] = useState<WorkforceOverviewDTO | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadOverview = useCallback(() => {
+    let cancelled = false;
     api.workforceOverview()
       .then((data) => {
-        if (mounted) setOverview(data);
+        if (!cancelled) setOverview(data);
       })
       .catch(() => {
-        // Keep initial metrics if overview fetch fails
+        // Fail closed: leave the summary empty rather than showing invented
+        // numbers. The individual views surface their own error states.
+        if (!cancelled) setOverview(null);
       });
     return () => {
-      mounted = false;
+      cancelled = true;
     };
   }, []);
+
+  // Refresh the summary whenever the operator returns to a workforce tab, so
+  // the strip reflects agents and tasks created in the current session.
+  useEffect(() => {
+    if (activeTab === "fleet" || activeTab === "tasks" || activeTab === "budgets" || activeTab === "approvals") {
+      return loadOverview();
+    }
+  }, [activeTab, loadOverview]);
 
   // Modals state
   const [editorOpen, setEditorOpen] = useState(false);
@@ -373,7 +383,7 @@ function AgentHarnessContent({
             {t("agentHarness.statActiveAgents", "Active AI Employees")}
           </div>
           <div className="text-xl font-bold font-mono text-foreground">
-            {overview ? overview.activeAgents : 4}
+            {overview ? overview.activeAgents : "—"}
           </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
@@ -382,9 +392,11 @@ function AgentHarnessContent({
             {t("agentHarness.statRunningTasks", "Running Tasks")}
           </div>
           <div className="text-xl font-bold font-mono text-primary">
-            {overview ? overview.runningTasks : 1}{" "}
+            {overview ? overview.runningTasks : "—"}{" "}
             <span className="text-xs text-muted-foreground font-normal">
-              {t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: overview ? overview.queuedTasks : 3 })}
+              {overview
+                ? t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: overview.queuedTasks })
+                : t("agentHarness.overviewUnavailable", "Unavailable")}
             </span>
           </div>
         </GlassCard>
@@ -394,7 +406,7 @@ function AgentHarnessContent({
             {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
           </div>
           <div className="text-xl font-bold font-mono text-warning-fg">
-            {overview ? overview.pendingApprovals : 1}
+            {overview ? overview.pendingApprovals : "—"}
           </div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
@@ -403,9 +415,9 @@ function AgentHarnessContent({
             {t("agentHarness.statBudgetUsage", "Monthly Budget Used")}
           </div>
           <div className="text-xl font-bold font-mono text-foreground">
-            ${(overview ? overview.monthlySpend : 14.2).toFixed(2)}{" "}
+            {overview ? `$${overview.monthlySpend.toFixed(2)}` : "—"}{" "}
             <span className="text-xs text-muted-foreground font-normal">
-              / ${(overview ? overview.monthlyLimit : 50).toFixed(0)}
+              / {overview ? `$${overview.monthlyLimit.toFixed(0)}` : "—"}
             </span>
           </div>
         </GlassCard>
