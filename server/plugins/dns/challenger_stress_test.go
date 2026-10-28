@@ -25,7 +25,8 @@ func TestChallenger_DNSCredentialBridgeStress(t *testing.T) {
 			if query.ProviderType != "dns" && query.ProviderType != "" {
 				return nil, plugin.ErrCredentialNotFound
 			}
-			if orgID == 10 {
+			switch orgID {
+			case 10:
 				switch query.ID {
 				case 88:
 					return &plugin.Credential{
@@ -67,7 +68,7 @@ func TestChallenger_DNSCredentialBridgeStress(t *testing.T) {
 						ConfigJSON:   nil,
 					}, nil
 				}
-			} else if orgID == 20 {
+			case 20:
 				if query.ID == 77 {
 					return &plugin.Credential{
 						ID:           77,

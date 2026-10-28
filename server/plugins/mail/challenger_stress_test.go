@@ -28,7 +28,8 @@ func TestChallenger_MailCrossTenantIsolation(t *testing.T) {
 			if query.ProviderType != "communication" && query.ProviderType != "" {
 				return nil, plugin.ErrCredentialNotFound
 			}
-			if orgID == 10 {
+			switch orgID {
+			case 10:
 				if query.ID == 101 || (query.ID == 0 && query.ProviderType == "communication") {
 					cfgJSON, _ := json.Marshal(map[string]any{
 						"host":      host,
@@ -45,7 +46,7 @@ func TestChallenger_MailCrossTenantIsolation(t *testing.T) {
 						ConfigJSON:   cfgJSON,
 					}, nil
 				}
-			} else if orgID == 20 {
+			case 20:
 				if query.ID == 201 || (query.ID == 0 && query.ProviderType == "communication") {
 					cfgJSON, _ := json.Marshal(map[string]any{
 						"host":      host,
