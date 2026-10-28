@@ -2,6 +2,8 @@ package dns
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -102,25 +104,35 @@ func normalizeHosts(hosts []hostEntry) models.HostList {
 }
 
 // ownsProviderAccount reports whether the given provider account id belongs to
-// the caller's org. Resolves through Host SPI when available, falling back to
-// the local provider_accounts table.
-func (p *Plugin) ownsProviderAccount(r *http.Request, id uint) bool {
+// the caller's org. Exactly one registry answers: the Integrations Hub when
+// mounted, the local provider_accounts table on standalone Core. The second
+// return reports a resolution failure (500-class), which is never "not owned".
+func (p *Plugin) ownsProviderAccount(r *http.Request, id uint) (bool, error) {
 	if id == 0 {
-		return false
+		return false, nil
 	}
 	orgID := p.orgID(r)
-	if p.host != nil {
-		cred, err := p.host.LookupCredential(r.Context(), orgID, plugin.CredentialQuery{
-			ID:           id,
-			ProviderType: "dns",
-		})
-		if err == nil && cred != nil && cred.OrgID == orgID {
-			return true
-		}
+	cred, err := p.credentialHost().LookupCredential(r.Context(), orgID, plugin.CredentialQuery{
+		ID:           id,
+		ProviderType: "dns",
+	})
+	switch {
+	case err == nil:
+		return cred != nil && cred.OrgID == orgID, nil
+	case errors.Is(err, plugin.ErrCredentialNotFound):
+		return false, nil
+	case !errors.Is(err, plugin.ErrCredentialResolverUnavailable):
+		return false, fmt.Errorf("%w: %v", errProviderCredentials, err)
 	}
 
 	var acc ProviderAccount
-	return p.db.Where("id = ? AND owner_id = ?", id, orgID).First(&acc).Error == nil
+	if err := p.db.Where("id = ? AND owner_id = ?", id, orgID).First(&acc).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("%w: %v", errProviderCredentials, err)
+	}
+	return true, nil
 }
 
 type DNSProvidersInput struct {

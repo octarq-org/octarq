@@ -59,8 +59,11 @@ type Host interface {
 	// 绝不能悄悄换一个 harness 继续跑。
 	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
 	// LookupCredential resolves and decrypts third-party integration credentials for orgID.
-	// Returns ErrCredentialNotFound if no credential matches the query or if no credential
-	// provider is mounted on the host (e.g. standalone Core OSS).
+	// Returns ErrCredentialNotFound when the mounted resolver has no matching
+	// credential, and ErrCredentialResolverUnavailable when no resolver is
+	// mounted at all (standalone Core OSS). Callers must keep the two apart:
+	// only "unavailable" means "use the local registry"; "not found" means the
+	// credential the caller asked for does not exist.
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 }
 
@@ -84,3 +87,9 @@ type CredentialQuery struct {
 
 // ErrCredentialNotFound indicates the requested credential does not exist.
 var ErrCredentialNotFound = errors.New("credential not found")
+
+// ErrCredentialResolverUnavailable indicates no credential resolver is mounted
+// on this host (standalone Core OSS). Callers use only this sentinel to decide
+// that the local registry is authoritative; a mounted resolver that answers
+// not found must be an error, never a reason to read another registry.
+var ErrCredentialResolverUnavailable = errors.New("credential resolver unavailable")

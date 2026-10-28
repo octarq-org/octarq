@@ -25,7 +25,7 @@ import {
   Sparkles,
   AlertTriangle,
 } from "lucide-react";
-import { api, type WorkforceTaskDTO } from "../../api";
+import { api, type WorkforceAgentDTO, type WorkforceTaskDTO } from "../../api";
 
 export type WorkforceTask = WorkforceTaskDTO;
 
@@ -40,15 +40,39 @@ export function TasksView() {
 
   // New task form state
   const [newTitle, setNewTitle] = useState("");
-  const [newAssignee, setNewAssignee] = useState("DevOps Specialist");
+  const [newAssigneeId, setNewAssigneeId] = useState("");
   const [newPriority, setNewPriority] = useState<WorkforceTask["priority"]>("normal");
   const [newGoal, setNewGoal] = useState("");
+
+  // Assignees come from the workspace fleet. A ticket cannot be created while
+  // the fleet is unknown or empty: there is no agent to own the work.
+  const [agents, setAgents] = useState<WorkforceAgentDTO[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
+  const [agentsError, setAgentsError] = useState<string | null>(null);
+
+  const loadAgents = async () => {
+    setAgentsLoading(true);
+    setAgentsError(null);
+    try {
+      const list = await api.workforceAgents();
+      setAgents(list || []);
+      setNewAssigneeId((prev) => (prev && list?.some((a) => a.id === prev) ? prev : list?.[0]?.id ?? ""));
+    } catch (err: unknown) {
+      setAgentsError(err instanceof Error ? err.message : "Failed to load the workforce.");
+      setAgents([]);
+      setNewAssigneeId("");
+    } finally {
+      setAgentsLoading(false);
+    }
+  };
 
   const loadTasks = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.workforceTasks({ status: statusFilter });
+      const data = await api.workforceTasks({
+        status: statusFilter === "all" ? undefined : statusFilter,
+      });
       setTasks(data || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load workforce tasks.";
@@ -62,6 +86,10 @@ export function TasksView() {
   useEffect(() => {
     loadTasks();
   }, [statusFilter]);
+
+  useEffect(() => {
+    loadAgents();
+  }, []);
 
   const handleOpenTask = async (task: WorkforceTask) => {
     setSelectedTask(task);
@@ -124,17 +152,24 @@ export function TasksView() {
       toast.error("Task title is required.");
       return;
     }
+    if (!newAssigneeId) {
+      toast.error("Select an agent for the task.");
+      return;
+    }
+    if (!newGoal.trim()) {
+      toast.error(t("agentHarness.taskObjectiveRequired", "Describe what the task must achieve."));
+      return;
+    }
 
     try {
       const created = await api.createWorkforceTask({
         title: newTitle.trim(),
-        assignee: newAssignee,
-        assigneeRole: "Assigned Agent",
+        assigneeAgentId: newAssigneeId,
         priority: newPriority,
-        summary: newGoal.trim() || "Autonomous task dispatched to agent workforce.",
+        summary: newGoal.trim(),
       });
       setTasks((prev) => [created, ...prev]);
-      toast.success(`Task ${created.id} assigned to ${newAssignee}.`);
+      toast.success(`Task ${created.id} assigned to ${created.assignee}.`);
       setAssignModalOpen(false);
       setNewTitle("");
       setNewGoal("");
@@ -279,16 +314,29 @@ export function TasksView() {
             </Field>
 
             <Field label={t("agentHarness.assignedAgent")}>
-              <Select
-                value={newAssignee}
-                onValueChange={(val) => setNewAssignee(val)}
-                options={[
-                  { value: "DevOps Specialist", label: "DevOps Specialist (Infrastructure)" },
-                  { value: "Security & Compliance Auditor", label: "Security & Compliance Auditor (Trust & Safety)" },
-                  { value: "Mail Deliverability Agent", label: "Mail Deliverability Agent (Communications)" },
-                  { value: "Lead Orchestrator", label: "Lead Orchestrator (Executive)" },
-                ]}
-              />
+              {agentsLoading ? (
+                <div className="text-xs text-muted-foreground py-2">{t("agentHarness.loadingAgents", "Loading agents…")}</div>
+              ) : agentsError ? (
+                <div className="text-xs text-danger-fg py-2">
+                  {agentsError}
+                  <Button variant="ghost" size="sm" className="ml-2" onClick={loadAgents}>
+                    {t("agentHarness.retryBtn")}
+                  </Button>
+                </div>
+              ) : agents.length === 0 ? (
+                <div className="text-xs text-muted-foreground py-2" data-testid="tasks-no-agents">
+                  {t("agentHarness.noAgentsForTask", "Deploy an agent first. A task must belong to an agent in this workspace.")}
+                </div>
+              ) : (
+                <Select
+                  value={newAssigneeId}
+                  onValueChange={(val) => setNewAssigneeId(val)}
+                  options={agents.map((a) => ({
+                    value: a.id,
+                    label: `${a.name} (${a.department})`,
+                  }))}
+                />
+              )}
             </Field>
 
             <Field label={t("agentHarness.priority")}>
@@ -317,7 +365,12 @@ export function TasksView() {
               <Button variant="ghost" size="sm" onClick={() => setAssignModalOpen(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button variant="primary" size="sm" onClick={handleCreateTask}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCreateTask}
+                disabled={agentsLoading || agents.length === 0}
+              >
                 {t("agentHarness.dispatchTask")}
               </Button>
             </div>

@@ -140,7 +140,7 @@ func (p *Plugin) emailBlueprint(ctx context.Context, input *EmailBlueprintInput)
 
 	prov, err := p.providerFor(dom)
 	if err != nil {
-		return nil, huma.Error400BadRequest("This domain has no DNS provider configured. Connect a provider in domain settings.")
+		return nil, p.providerResolveErr(err)
 	}
 
 	live, err := prov.ListRecords(r.Context(), dom.ZoneID)
@@ -198,7 +198,7 @@ func (p *Plugin) applyEmailBlueprint(ctx context.Context, input *ApplyEmailBluep
 
 	prov, err := p.providerFor(dom)
 	if err != nil {
-		return nil, huma.Error400BadRequest("This domain has no DNS provider configured. Connect a provider in domain settings.")
+		return nil, p.providerResolveErr(err)
 	}
 
 	live, err := prov.ListRecords(r.Context(), dom.ZoneID)

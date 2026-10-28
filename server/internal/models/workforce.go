@@ -89,3 +89,28 @@ type WorkforceTaskStep struct {
 func (WorkforceTaskStep) TableName() string {
 	return "workforce_task_steps"
 }
+
+// Closed vocabularies. The API validates every inbound status and priority
+// against these sets: an unknown value would seed a row that no dashboard query
+// or state machine ever matches.
+var (
+	// WorkforceAgentStatuses are the states an agent can be set to directly.
+	// "executing" is written only by a heartbeat, never by a caller.
+	WorkforceAgentStatuses = []string{"active", "idle", "paused"}
+	// WorkforceTaskStatuses follow the ticket state machine.
+	WorkforceTaskStatuses = []string{"todo", "in_progress", "awaiting_approval", "done"}
+	// WorkforceTaskPriorities are the supported ticket priorities.
+	WorkforceTaskPriorities = []string{"urgent", "high", "normal", "low"}
+	// WorkforceTaskStepStatuses are the supported execution-log states.
+	WorkforceTaskStepStatuses = []string{"completed", "running", "failed", "awaiting_approval"}
+)
+
+// InStatusSet reports whether value belongs to the given closed vocabulary.
+func InStatusSet(value string, set []string) bool {
+	for _, v := range set {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}

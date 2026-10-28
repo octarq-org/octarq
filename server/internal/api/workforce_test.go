@@ -16,6 +16,21 @@ func newWorkforceTestHandler(t *testing.T) (http.Handler, *Handler) {
 	return srv, h
 }
 
+// seedWorkforceAgent creates one agent so tasks have a real assignee.
+func seedWorkforceAgent(t *testing.T, srv http.Handler, cookies []*http.Cookie) WorkforceAgentDTO {
+	t.Helper()
+	rec := do(srv, "POST", "/api/workforce/agents", cookies,
+		`{"name":"Ops Bot","role":"Operator","department":"Operations","model":"GPT-4o","budgetLimit":10}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("seed agent: %d (%s)", rec.Code, rec.Body.String())
+	}
+	var agent WorkforceAgentDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &agent); err != nil {
+		t.Fatalf("decode seeded agent: %v", err)
+	}
+	return agent
+}
+
 func TestWorkforce_ListAgentsStartsEmptyAndReturnsCreated(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
@@ -36,7 +51,7 @@ func TestWorkforce_ListAgentsStartsEmptyAndReturnsCreated(t *testing.T) {
 	}
 
 	// A created agent is persisted and listed.
-	rec = do(srv, "POST", "/api/workforce/agents", cookies, `{"name":"Ops Bot","role":"Operator","model":"GPT-4o"}`)
+	rec = do(srv, "POST", "/api/workforce/agents", cookies, `{"name":"Ops Bot","role":"Operator","department":"Operations","model":"GPT-4o","budgetLimit":10}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
 	}
@@ -57,7 +72,7 @@ func TestWorkforce_CreateAndUpdateAgent(t *testing.T) {
 	cookies := loginCookies(t, srv)
 
 	// Create Agent
-	createPayload := `{"name":"QA Automation Specialist","role":"Test Engineer","department":"Quality Assurance","model":"Claude 3.5 Sonnet","directives":"Run regression test suite on build."}`
+	createPayload := `{"name":"QA Automation Specialist","role":"Test Engineer","department":"Quality Assurance","model":"Claude 3.5 Sonnet","budgetLimit":15,"directives":"Run regression test suite on build."}`
 	rec := do(srv, "POST", "/api/workforce/agents", cookies, createPayload)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
@@ -103,7 +118,7 @@ func TestWorkforce_AgentStateTransitions(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	rec := do(srv, "POST", "/api/workforce/agents", cookies, `{"name":"Lead Orchestrator","role":"Chief Operational Assistant","model":"GPT-4o"}`)
+	rec := do(srv, "POST", "/api/workforce/agents", cookies, `{"name":"Lead Orchestrator","role":"Chief Operational Assistant","department":"Executive","model":"GPT-4o","budgetLimit":10}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create agent: %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -161,8 +176,10 @@ func TestWorkforce_TaskLifecycleAndStepLogs(t *testing.T) {
 		t.Fatalf("expected 0 tasks in a new workspace, got %d", len(listRes.Items))
 	}
 
+	agent := seedWorkforceAgent(t, srv, cookies)
+
 	// Create custom task
-	taskPayload := `{"title":"Optimize SQLite query plan for agentstore","summary":"Add composite index and analyze query plan.","priority":"high"}`
+	taskPayload := `{"title":"Optimize SQLite query plan for agentstore","summary":"Add composite index and analyze query plan.","priority":"high","assigneeAgentId":"` + agent.ID + `"}`
 	rec = do(srv, "POST", "/api/workforce/tasks", cookies, taskPayload)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
@@ -188,7 +205,19 @@ func TestWorkforce_TaskLifecycleAndStepLogs(t *testing.T) {
 		t.Errorf("expected 1 execution step, got %d", len(fetchedTask.ExecutionSteps))
 	}
 
-	// Update task status
+	// A ticket must be worked before it can be finished, and the assignee
+	// shown on it comes from the agent row.
+	if createdTask.AssigneeAgentID != agent.ID || createdTask.Assignee != agent.Name {
+		t.Errorf("task must carry the resolved assignee, got %q / %q", createdTask.AssigneeAgentID, createdTask.Assignee)
+	}
+	rec = do(srv, "PATCH", "/api/workforce/tasks/"+createdTask.ID, cookies, `{"status":"done"}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("todo -> done must conflict, got %d: %s", rec.Code, rec.Body.String())
+	}
+	rec = do(srv, "PATCH", "/api/workforce/tasks/"+createdTask.ID, cookies, `{"status":"in_progress"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("start task: %d: %s", rec.Code, rec.Body.String())
+	}
 	updateTaskPayload := `{"status":"done"}`
 	rec = do(srv, "PATCH", "/api/workforce/tasks/"+createdTask.ID, cookies, updateTaskPayload)
 	if rec.Code != http.StatusOK {
@@ -221,8 +250,8 @@ func TestWorkforce_OverviewAndAutoHaltEndpoints(t *testing.T) {
 
 	// Two agents give the overview real numbers to aggregate.
 	for _, body := range []string{
-		`{"name":"Ops Bot","role":"Operator","model":"GPT-4o","budgetLimit":20}`,
-		`{"name":"Audit Bot","role":"Auditor","model":"Claude 3.5 Sonnet","budgetLimit":10}`,
+		`{"name":"Ops Bot","role":"Operator","department":"Operations","model":"GPT-4o","budgetLimit":20}`,
+		`{"name":"Audit Bot","role":"Auditor","department":"Security","model":"Claude 3.5 Sonnet","budgetLimit":10}`,
 	} {
 		if rec := do(srv, "POST", "/api/workforce/agents", cookies, body); rec.Code != http.StatusCreated {
 			t.Fatalf("create agent: %d (%s)", rec.Code, rec.Body.String())
@@ -289,8 +318,10 @@ func TestWorkforce_TaskApprovalGate(t *testing.T) {
 	srv, _ := newWorkforceTestHandler(t)
 	cookies := loginCookies(t, srv)
 
+	agent := seedWorkforceAgent(t, srv, cookies)
+
 	// A task that is not gated cannot be decided.
-	rec := do(srv, "POST", "/api/workforce/tasks", cookies, `{"title":"Revoke stale tokens","summary":"Prepared revocation batch."}`)
+	rec := do(srv, "POST", "/api/workforce/tasks", cookies, `{"title":"Revoke stale tokens","summary":"Prepared revocation batch.","assigneeAgentId":"`+agent.ID+`"}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create task: %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -338,7 +369,7 @@ func TestWorkforce_TaskApprovalGate(t *testing.T) {
 	}
 
 	// Rejection returns a gated task to the queue.
-	rec = do(srv, "POST", "/api/workforce/tasks", cookies, `{"title":"Rotate DNS keys","summary":"Awaiting sign-off."}`)
+	rec = do(srv, "POST", "/api/workforce/tasks", cookies, `{"title":"Rotate DNS keys","summary":"Awaiting sign-off.","assigneeAgentId":"`+agent.ID+`"}`)
 	var second WorkforceTaskDTO
 	_ = json.Unmarshal(rec.Body.Bytes(), &second)
 	_ = do(srv, "PATCH", "/api/workforce/tasks/"+second.ID, cookies, `{"status":"awaiting_approval"}`)
@@ -360,7 +391,7 @@ func TestOrgIsolation_Workforce(t *testing.T) {
 	cookiesOrg2 := sessionCookies(t, 2, 2)
 
 	// Org 1 creates an agent
-	createAgentPayload := `{"name":"Org1 Agent","role":"Specialist","model":"GPT-4o","directives":"Strictly org 1 only."}`
+	createAgentPayload := `{"name":"Org1 Agent","role":"Specialist","department":"Operations","model":"GPT-4o","budgetLimit":10,"directives":"Strictly org 1 only."}`
 	rec := do(srv, "POST", "/api/workforce/agents", cookiesOrg1, createAgentPayload)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create agent in org 1: %d (%s)", rec.Code, rec.Body.String())
@@ -369,7 +400,7 @@ func TestOrgIsolation_Workforce(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &org1Agent)
 
 	// Org 1 creates a task
-	createTaskPayload := `{"title":"Org1 Secret Task","summary":"Confidential payload"}`
+	createTaskPayload := `{"title":"Org1 Secret Task","summary":"Confidential payload","assigneeAgentId":"` + org1Agent.ID + `"}`
 	rec = do(srv, "POST", "/api/workforce/tasks", cookiesOrg1, createTaskPayload)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create task in org 1: %d (%s)", rec.Code, rec.Body.String())

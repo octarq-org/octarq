@@ -8,7 +8,6 @@ import (
 
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/models"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 // instanceReadinessBody is the decoded wire shape of GET /api/instance/readiness.
@@ -92,9 +91,7 @@ func TestInstanceReadinessBlockedWithoutSystemSender(t *testing.T) {
 // configured, registration must read ok.
 func TestInstanceReadinessOKWithSystemSender(t *testing.T) {
 	srv, db := newTestHandler(t)
-	if err := db.Create(&mailmodels.SMTPSender{OrgID: 1, Name: "test", Host: "smtp.example.com", Port: 587, User: "u", Pass: "enc", FromEmail: "noreply@example.com"}).Error; err != nil {
-		t.Fatalf("seed sender: %v", err)
-	}
+	enableMail(t, db)
 
 	code, checks := getReadiness(t, srv, loginCookies(t, srv))
 	if code != http.StatusOK {

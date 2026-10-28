@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -144,51 +145,74 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		targetOrg = strings.TrimSpace(payload.OrgID)
 	}
 
-	// 1. Resolve botToken via Host SPI (Centralized Integrations Hub)
-	if botToken == "" && c.host != nil && targetOrg != "" {
+	// 1. Resolve botToken via Host SPI (Centralized Integrations Hub). A config
+	// that names an integration is answered by the Hub alone: falling back to
+	// the local row would send through a credential the operator did not select.
+	if botToken == "" && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
-			cred, err := c.host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
+			host := c.host
+			if host == nil {
+				host = plugin.EnsureHost(nil)
+			}
+			cred, err := host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
 				ID:           reqIntegID,
 				ProviderType: "communication",
 				Provider:     "telegram",
 			})
-			if err == nil && cred != nil && len(cred.ConfigJSON) > 0 {
-				var m struct {
-					BotToken string `json:"botToken"`
+			switch {
+			case err == nil:
+				if cred == nil || cred.OrgID != uint(orgNum) {
+					if reqIntegID > 0 {
+						return fmt.Errorf("telegram: the selected integration does not exist")
+					}
+				} else if len(cred.ConfigJSON) > 0 {
+					var m struct {
+						BotToken string `json:"botToken"`
+					}
+					if json.Unmarshal(cred.ConfigJSON, &m) == nil && m.BotToken != "" {
+						botToken = strings.TrimSpace(m.BotToken)
+					}
 				}
-				if json.Unmarshal(cred.ConfigJSON, &m) == nil && m.BotToken != "" {
-					botToken = strings.TrimSpace(m.BotToken)
+				if botToken == "" && reqIntegID > 0 {
+					return fmt.Errorf("telegram: the selected integration has no bot token")
 				}
+			case errors.Is(err, plugin.ErrCredentialNotFound), errors.Is(err, plugin.ErrCredentialResolverUnavailable):
+				if reqIntegID > 0 {
+					return fmt.Errorf("telegram: the selected integration does not exist")
+				}
+			default:
+				return fmt.Errorf("telegram: resolve integration credentials: %w", err)
 			}
 		}
 	}
 
-	// 2. Fallback to database lookup if org-scoped notification channel is configured
-	if (botToken == "" || chatIDStr == "") && c.db != nil && targetOrg != "" {
+	// 2. Local channel config, only when no integration was named.
+	if (botToken == "" || chatIDStr == "") && reqIntegID == 0 && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
 			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "telegram", true).First(&ch).Error; err == nil && ch.Config != "" {
 				plain, decErr := ConfigPlaintext(ch.Config)
-				if decErr == nil {
-					var m struct {
-						BotToken string `json:"botToken"`
-						ChatID   any    `json:"chatId"`
+				if decErr != nil {
+					return fmt.Errorf("telegram: decrypt channel config: %w", decErr)
+				}
+				var m struct {
+					BotToken string `json:"botToken"`
+					ChatID   any    `json:"chatId"`
+				}
+				if json.Unmarshal([]byte(plain), &m) == nil {
+					if botToken == "" {
+						botToken = strings.TrimSpace(m.BotToken)
 					}
-					if json.Unmarshal([]byte(plain), &m) == nil {
-						if botToken == "" {
-							botToken = strings.TrimSpace(m.BotToken)
-						}
-						if chatIDStr == "" && m.ChatID != nil {
-							switch val := m.ChatID.(type) {
-							case string:
-								chatIDStr = strings.TrimSpace(val)
-							case float64:
-								chatIDStr = strconv.FormatInt(int64(val), 10)
-							case int64:
-								chatIDStr = strconv.FormatInt(val, 10)
-							case int:
-								chatIDStr = strconv.Itoa(val)
-							}
+					if chatIDStr == "" && m.ChatID != nil {
+						switch val := m.ChatID.(type) {
+						case string:
+							chatIDStr = strings.TrimSpace(val)
+						case float64:
+							chatIDStr = strconv.FormatInt(int64(val), 10)
+						case int64:
+							chatIDStr = strconv.FormatInt(val, 10)
+						case int:
+							chatIDStr = strconv.Itoa(val)
 						}
 					}
 				}

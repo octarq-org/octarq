@@ -315,12 +315,15 @@ func (p *Plugin) handleSendEmail(ctx context.Context, in SendEmailToolInput) (*S
 	}
 
 	subject := in.Subject
-	if in.InReplyToID != 0 && !strings.HasPrefix(strings.ToLower(subject), "re:") {
-		var orig Email
-		if err := p.db.WithContext(ctx).Where("id = ?", in.InReplyToID).First(&orig).Error; err == nil && orig.Subject != "" {
-			if subject == "" {
-				subject = "Re: " + orig.Subject
-			}
+	if in.InReplyToID != 0 && subject == "" {
+		// The reply subject comes from the original message, so the lookup must
+		// be tenant-scoped: a bare ID would read another workspace's subject.
+		orig, origErr := p.getEmailForOrg(ctx, in.InReplyToID, orgID)
+		if origErr != nil {
+			return nil, origErr
+		}
+		if orig.Subject != "" {
+			subject = "Re: " + orig.Subject
 		}
 	}
 

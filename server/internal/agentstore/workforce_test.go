@@ -101,13 +101,20 @@ func TestWorkforceStore_TenantIsolation(t *testing.T) {
 		t.Fatalf("expected ErrAgentNotFound when deleting across tenant, got %v", err)
 	}
 
+	// A task can only be assigned to a real agent from the same workspace.
+	if _, err := store.CreateTask(ctx, org1, models.WorkforceTask{
+		Title:           "Ghost task",
+		AssigneeAgentID: "lead-orchestrator",
+		Summary:         "No such agent exists.",
+	}); !errors.Is(err, ErrAgentNotFound) {
+		t.Fatalf("expected ErrAgentNotFound for an unknown assignee, got %v", err)
+	}
+
 	// Creating a task in org1
 	task1, err := store.CreateTask(ctx, org1, models.WorkforceTask{
 		ID:              "ORG1-TASK",
 		Title:           "Org 1 Secret Task",
-		AssigneeAgentID: "lead-orchestrator",
-		AssigneeName:    "Lead Orchestrator",
-		AssigneeRole:    "Chief Operational Assistant",
+		AssigneeAgentID: "org1-custom-bot",
 		Summary:         "Confidential",
 	})
 	if err != nil {
@@ -202,11 +209,17 @@ func TestWorkforceStore_TaskLifecycleAndStepAppending(t *testing.T) {
 	ctx := context.Background()
 	orgID := uint(99)
 
+	agent, err := store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name: "DevOps Specialist", Role: "Infrastructure & Network Engineer",
+		Department: "Operations", Model: "GPT-4o",
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+
 	created, err := store.CreateTask(ctx, orgID, models.WorkforceTask{
 		Title:           "Diagnose DNS resolution latency",
-		AssigneeAgentID: "devops-engineer",
-		AssigneeName:    "DevOps Specialist",
-		AssigneeRole:    "Infrastructure & Network Engineer",
+		AssigneeAgentID: agent.ID,
 		Summary:         "Investigate ping spikes.",
 	})
 	if err != nil {
@@ -232,13 +245,22 @@ func TestWorkforceStore_TaskLifecycleAndStepAppending(t *testing.T) {
 		t.Errorf("expected step number 2, got %d", step2.StepNumber)
 	}
 
-	// Update task status to done
-	updatedTask, err := store.UpdateTask(ctx, orgID, created.ID, map[string]any{
-		"status": "done",
-	})
-	if err != nil {
-		t.Fatalf("UpdateTask: %v", err)
+	// The assignee name and role are copied from the agent row, never supplied.
+	if created.AssigneeName != "DevOps Specialist" || created.AssigneeRole != "Infrastructure & Network Engineer" {
+		t.Errorf("assignee identity must come from the agent row, got %q / %q", created.AssigneeName, created.AssigneeRole)
 	}
+
+	// Status moves through the state machine, not UpdateTask.
+	if _, err := store.UpdateTask(ctx, orgID, created.ID, map[string]any{"status": "done"}); !errors.Is(err, ErrInvalidTaskTransition) {
+		t.Fatalf("UpdateTask must refuse status changes, got %v", err)
+	}
+	if _, err := store.SetTaskStatus(ctx, orgID, created.ID, "done"); !errors.Is(err, ErrInvalidTaskTransition) {
+		t.Fatalf("todo -> done must be refused, got %v", err)
+	}
+	if _, err := store.SetTaskStatus(ctx, orgID, created.ID, "in_progress"); err != nil {
+		t.Fatalf("todo -> in_progress: %v", err)
+	}
+	updatedTask, err := store.SetTaskStatus(ctx, orgID, created.ID, "done")
 	if updatedTask.Status != "done" {
 		t.Errorf("expected status done, got %s", updatedTask.Status)
 	}
@@ -419,7 +441,7 @@ func TestWorkforceStore_GeneratedIDsAreNotClockDerived(t *testing.T) {
 		t.Errorf("unexpected agent ID shape: %q", agent.ID)
 	}
 
-	task, err := store.CreateTask(ctx, orgID, models.WorkforceTask{Title: "T", Summary: "S"})
+	task, err := store.CreateTask(ctx, orgID, models.WorkforceTask{Title: "T", Summary: "S", AssigneeAgentID: agent.ID})
 	if err != nil {
 		t.Fatalf("CreateTask: %v", err)
 	}

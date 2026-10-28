@@ -480,11 +480,11 @@ export interface WorkforceAgentDTO {
 export interface CreateWorkforceAgentInput {
   name: string;
   role: string;
-  department?: string;
+  department: string;
   model: string;
   directives?: string;
   heartbeat?: string;
-  budgetLimit?: number;
+  budgetLimit: number;
   capabilities?: string[];
 }
 
@@ -528,9 +528,9 @@ export interface WorkforceTaskDTO {
 
 export interface CreateWorkforceTaskInput {
   title: string;
-  assigneeAgentId?: string;
-  assignee?: string;
-  assigneeRole?: string;
+  // The assignee is a real agent from this workspace; the server copies its
+  // name and role onto the ticket.
+  assigneeAgentId: string;
   priority?: WorkforceTaskPriority;
   summary: string;
   context?: string;

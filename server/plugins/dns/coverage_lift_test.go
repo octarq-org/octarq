@@ -48,8 +48,8 @@ func TestCoverageLift_DNS_ErrorsAndHelpers(t *testing.T) {
 
 	// ownsProviderAccount with id == 0
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	if p.ownsProviderAccount(r, 0) {
-		t.Fatalf("expected false for id=0")
+	if owned, err := p.ownsProviderAccount(r, 0); owned || err != nil {
+		t.Fatalf("expected false for id=0, got %v, %v", owned, err)
 	}
 }
 

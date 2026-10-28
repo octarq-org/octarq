@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -108,8 +109,8 @@ func TestChallenger_MailCrossTenantIsolation(t *testing.T) {
 	if err == nil {
 		t.Fatalf("CRITICAL SECURITY VULNERABILITY: sendMail succeeded for Org 30 with no configured senders!")
 	}
-	if !strings.Contains(err.Error(), "no SMTP sender configured for org 30") {
-		t.Errorf("expected 'no SMTP sender configured for org 30', got: %v", err)
+	if !strings.Contains(err.Error(), "no SMTP or Resend integration is configured for org 30") {
+		t.Errorf("expected 'no SMTP or Resend integration is configured for org 30', got: %v", err)
 	}
 }
 
@@ -315,17 +316,19 @@ func TestChallenger_MailInvalidConfigurationAndDualTrackTrap(t *testing.T) {
 	}
 }
 
-// TestChallenger_MailReadyCheck tests mailReady behavior with SPI vs local.
+// TestChallenger_MailReadyCheck tests mailReady against the registry system
+// mail actually uses: the explicitly selected local sender.
 func TestChallenger_MailReadyCheck(t *testing.T) {
 	p, _ := setupFullMailTestDB(t)
 	wipeMailTables(t, p)
 
-	// 1. Initial state: no local senders, no Host SPI -> mailReady = false
+	// 1. Initial state: no system sender -> mailReady = false
 	if p.mailReady() {
 		t.Errorf("expected mailReady = false with no senders")
 	}
 
-	// 2. Wire Host SPI returning communication credential -> mailReady = true
+	// 2. A Hub credential does not answer for system mail: verification and
+	// password-reset flows have no org and only read the local sender.
 	p.host = &plugin.TestHost{
 		LookupCredentialMock: func(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
 			if query.ProviderType == "communication" {
@@ -340,20 +343,27 @@ func TestChallenger_MailReadyCheck(t *testing.T) {
 			return nil, plugin.ErrCredentialNotFound
 		},
 	}
-	if !p.mailReady() {
-		t.Errorf("expected mailReady = true when Host SPI has communication credential")
+	if p.mailReady() {
+		t.Errorf("expected mailReady = false when only a Hub integration exists")
 	}
 
-	// 3. Remove Host SPI, add local sender -> mailReady = true
+	// 3. Selecting a local sender makes system mail deliverable.
 	p.host = nil
-	p.db.Create(&SMTPSender{
+	sender := SMTPSender{
 		OrgID:     1,
 		Name:      "Local",
 		Host:      "localhost",
 		Port:      25,
 		FromEmail: "test@octarq.com",
-	})
+	}
+	p.db.Create(&sender)
+	p.getGlobalSetting = func(k string) string {
+		if k == "mail_system_sender_id" {
+			return fmt.Sprint(sender.ID)
+		}
+		return ""
+	}
 	if !p.mailReady() {
-		t.Errorf("expected mailReady = true when local table has sender")
+		t.Errorf("expected mailReady = true when the system sender is selected")
 	}
 }

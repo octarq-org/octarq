@@ -1016,7 +1016,67 @@ describe("AgentHarnessPage", () => {
     });
   });
 
-  // 23. Optimistic pause toggle with rollback on rejection
+  // 23. A dispatched ticket names a real agent and stores the stated objective
+  it("creates a task for the selected agent and sends its real id", async () => {
+    vi.mocked(api.createWorkforceTask).mockResolvedValue({
+      id: "task-999",
+      title: "Rotate stale DNS keys",
+      assigneeAgentId: "agent-01",
+      assignee: "Atlas",
+      assigneeRole: "Lead Orchestrator",
+      priority: "normal",
+      status: "todo",
+      summary: "Rotate every key older than 90 days.",
+      createdAt: "2026-10-28T00:00:00Z",
+      lastHeartbeat: "Just now",
+    } as WorkforceTaskDTO);
+
+    renderPage("/workforce?tab=tasks");
+
+    await waitFor(() => {
+      expect(screen.getByText("Verify DNS record propagation across primary edge nodes")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign Task" }));
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Audit TLS certificates/i), {
+      target: { value: "Rotate stale DNS keys" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/State success criteria/i), {
+      target: { value: "Rotate every key older than 90 days." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Dispatch Task" }));
+
+    await waitFor(() => {
+      expect(api.createWorkforceTask).toHaveBeenCalledWith({
+        title: "Rotate stale DNS keys",
+        assigneeAgentId: "agent-01",
+        priority: "normal",
+        summary: "Rotate every key older than 90 days.",
+      });
+    });
+  });
+
+  // 24. Without a fleet there is nobody to own a ticket, so dispatch is refused
+  it("disables dispatch and explains why when the workspace has no agents", async () => {
+    vi.mocked(api.workforceAgents).mockResolvedValue([]);
+
+    renderPage("/workforce?tab=tasks");
+
+    await waitFor(() => {
+      expect(screen.getByText("Verify DNS record propagation across primary edge nodes")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign Task" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("tasks-no-agents")).toBeDefined();
+    });
+    const dispatch = screen.getByRole("button", { name: "Dispatch Task" }) as HTMLButtonElement;
+    expect(dispatch.disabled).toBe(true);
+    expect(api.createWorkforceTask).not.toHaveBeenCalled();
+  });
+
+  // 25. Optimistic pause toggle with rollback on rejection
   it("rolls back optimistic status toggle in FleetView when pause API call fails", async () => {
     vi.mocked(api.pauseWorkforceAgent).mockRejectedValue(new Error("Permission denied for agent state modification"));
     const toastErrorSpy = vi.spyOn(sdk.toast, "error").mockImplementation(() => "" as any);

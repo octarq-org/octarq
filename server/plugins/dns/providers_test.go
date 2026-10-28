@@ -272,13 +272,13 @@ func TestHostSPI_DNSCredentialBridge(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	// 1. ownsProviderAccount: ID 88 exists in Host SPI -> returns true
-	if !p.ownsProviderAccount(req, 88) {
-		t.Errorf("expected ownsProviderAccount(88) = true via Host SPI")
+	if owned, err := p.ownsProviderAccount(req, 88); !owned || err != nil {
+		t.Errorf("expected ownsProviderAccount(88) = true via Host SPI, got %v, %v", owned, err)
 	}
 
 	// 2. ownsProviderAccount: ID 999 does not exist anywhere -> returns false
-	if p.ownsProviderAccount(req, 999) {
-		t.Errorf("expected ownsProviderAccount(999) = false")
+	if owned, err := p.ownsProviderAccount(req, 999); owned || err != nil {
+		t.Errorf("expected ownsProviderAccount(999) = false, got %v, %v", owned, err)
 	}
 
 	// 3. providerFor: resolves cloudflare provider via Host SPI
@@ -293,7 +293,8 @@ func TestHostSPI_DNSCredentialBridge(t *testing.T) {
 		t.Fatal("expected non-nil provider from Host SPI")
 	}
 
-	// 4. Fallback to local table when Host SPI returns ErrCredentialNotFound
+	// 4. A mounted Hub owns the answer: the same-numbered local row is not a
+	// fallback, because the registries number their rows independently.
 	p.decrypt = func(s string) ([]byte, error) { return []byte(s), nil }
 	p.db.Create(&ProviderAccount{
 		ID:     50,
@@ -303,17 +304,47 @@ func TestHostSPI_DNSCredentialBridge(t *testing.T) {
 		Config: `{"apiToken":"oss-token-abc"}`,
 	})
 
-	if !p.ownsProviderAccount(req, 50) {
-		t.Errorf("expected ownsProviderAccount(50) = true via local table fallback")
+	if owned, err := p.ownsProviderAccount(req, 50); owned || err != nil {
+		t.Errorf("a local row must not be owned while the Hub is mounted, got %v, %v", owned, err)
 	}
-	provFallback, err := p.providerFor(Domain{
-		OrgID:             10,
-		ProviderAccountID: 50,
-	})
+	if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50}); !errors.Is(err, errProviderAccountNotFound) {
+		t.Errorf("expected no local fallback while the Hub is mounted, got %v", err)
+	}
+
+	// 5. Standalone Core (no resolver) reads the local table.
+	p.host = nil
+	if owned, err := p.ownsProviderAccount(req, 50); !owned || err != nil {
+		t.Errorf("expected ownsProviderAccount(50) = true without a Hub, got %v, %v", owned, err)
+	}
+	provLocal, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50})
 	if err != nil {
-		t.Fatalf("providerFor fallback failed: %v", err)
+		t.Fatalf("standalone providerFor failed: %v", err)
 	}
-	if provFallback == nil {
-		t.Fatal("expected non-nil provider from local table fallback")
+	if provLocal == nil {
+		t.Fatal("expected non-nil provider from the local table")
+	}
+
+	// 6. A Hub that fails for another reason is an error. Neither a local row
+	// nor a silent "no account" is an acceptable answer.
+	p.host = &plugin.TestHost{
+		LookupCredentialMock: func(context.Context, uint, plugin.CredentialQuery) (*plugin.Credential, error) {
+			return nil, errors.New("database is locked")
+		},
+	}
+	if owned, err := p.ownsProviderAccount(req, 50); owned || !errors.Is(err, errProviderCredentials) {
+		t.Errorf("expected a broken Hub to surface as errProviderCredentials, got %v, %v", owned, err)
+	}
+	if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50}); !errors.Is(err, errProviderCredentials) {
+		t.Errorf("expected a broken Hub to surface as errProviderCredentials, got %v", err)
+	}
+
+	// 7. An integration with no stored config is unusable and says so.
+	p.host = &plugin.TestHost{
+		LookupCredentialMock: func(_ context.Context, orgID uint, _ plugin.CredentialQuery) (*plugin.Credential, error) {
+			return &plugin.Credential{ID: 88, OrgID: orgID, Provider: "cloudflare"}, nil
+		},
+	}
+	if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 88}); !errors.Is(err, errProviderCredentials) {
+		t.Errorf("expected an empty integration to surface as errProviderCredentials, got %v", err)
 	}
 }

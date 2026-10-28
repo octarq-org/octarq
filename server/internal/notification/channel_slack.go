@@ -130,48 +130,71 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		}
 	}
 
-	// 2. Resolve webhookURL via Host SPI (Centralized Integrations Hub)
-	if webhookURL == "" && c.host != nil && targetOrg != "" {
+	// 2. Resolve webhookURL via Host SPI (Centralized Integrations Hub). A
+	// config that names an integration is answered by the Hub alone: falling
+	// back to the local row would deliver to a destination the operator did not
+	// select.
+	if webhookURL == "" && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
-			cred, err := c.host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
+			host := c.host
+			if host == nil {
+				host = plugin.EnsureHost(nil)
+			}
+			cred, err := host.LookupCredential(ctx, uint(orgNum), plugin.CredentialQuery{
 				ID:           reqIntegID,
 				ProviderType: "communication",
 				Provider:     "slack",
 			})
-			if err == nil && cred != nil && len(cred.ConfigJSON) > 0 {
-				var m struct {
-					WebhookURL    string `json:"webhookUrl"`
-					WebhookURLAlt string `json:"webhook_url"`
-					BotToken      string `json:"botToken"`
-				}
-				if json.Unmarshal(cred.ConfigJSON, &m) == nil {
-					if m.WebhookURL != "" {
-						webhookURL = strings.TrimSpace(m.WebhookURL)
-					} else if m.WebhookURLAlt != "" {
-						webhookURL = strings.TrimSpace(m.WebhookURLAlt)
+			switch {
+			case err == nil:
+				if cred == nil || cred.OrgID != uint(orgNum) {
+					if reqIntegID > 0 {
+						return errors.New("slack: the selected integration does not exist")
 					}
-				}
-			}
-		}
-	}
-
-	// 3. Fallback to notification_channels table
-	if webhookURL == "" && c.db != nil && targetOrg != "" {
-		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
-			var ch models.NotificationChannel
-			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "slack", true).First(&ch).Error; err == nil && ch.Config != "" {
-				plain, decErr := ConfigPlaintext(ch.Config)
-				if decErr == nil {
+				} else if len(cred.ConfigJSON) > 0 {
 					var m struct {
 						WebhookURL    string `json:"webhookUrl"`
 						WebhookURLAlt string `json:"webhook_url"`
 					}
-					if json.Unmarshal([]byte(plain), &m) == nil {
+					if json.Unmarshal(cred.ConfigJSON, &m) == nil {
 						if m.WebhookURL != "" {
 							webhookURL = strings.TrimSpace(m.WebhookURL)
 						} else if m.WebhookURLAlt != "" {
 							webhookURL = strings.TrimSpace(m.WebhookURLAlt)
 						}
+					}
+				}
+				if webhookURL == "" && reqIntegID > 0 {
+					return errors.New("slack: the selected integration has no webhook url")
+				}
+			case errors.Is(err, plugin.ErrCredentialNotFound), errors.Is(err, plugin.ErrCredentialResolverUnavailable):
+				if reqIntegID > 0 {
+					return errors.New("slack: the selected integration does not exist")
+				}
+			default:
+				return fmt.Errorf("slack: resolve integration credentials: %w", err)
+			}
+		}
+	}
+
+	// 3. Local channel config, only when no integration was named.
+	if webhookURL == "" && reqIntegID == 0 && c.db != nil && targetOrg != "" {
+		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
+			var ch models.NotificationChannel
+			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "slack", true).First(&ch).Error; err == nil && ch.Config != "" {
+				plain, decErr := ConfigPlaintext(ch.Config)
+				if decErr != nil {
+					return fmt.Errorf("slack: decrypt channel config: %w", decErr)
+				}
+				var m struct {
+					WebhookURL    string `json:"webhookUrl"`
+					WebhookURLAlt string `json:"webhook_url"`
+				}
+				if json.Unmarshal([]byte(plain), &m) == nil {
+					if m.WebhookURL != "" {
+						webhookURL = strings.TrimSpace(m.WebhookURL)
+					} else if m.WebhookURLAlt != "" {
+						webhookURL = strings.TrimSpace(m.WebhookURLAlt)
 					}
 				}
 			}

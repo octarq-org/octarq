@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -110,23 +111,29 @@ func TestChallenger_DNSCredentialBridgeStress(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 
 		// Org 20 attempts to own Org 10's SPI account (ID 88)
-		if p.ownsProviderAccount(req, 88) {
-			t.Errorf("CRITICAL SECURITY FAILURE: ownsProviderAccount(88) returned true for Org 20")
-		}
-
-		// Org 20 attempts to own Org 10's local account (ID 50)
-		if p.ownsProviderAccount(req, 50) {
-			t.Errorf("CRITICAL SECURITY FAILURE: ownsProviderAccount(50) returned true for Org 20")
+		if owned, err := p.ownsProviderAccount(req, 88); owned || err != nil {
+			t.Errorf("CRITICAL SECURITY FAILURE: ownsProviderAccount(88) returned %v, %v for Org 20", owned, err)
 		}
 
 		// Org 20 owns its own SPI account (ID 77)
-		if !p.ownsProviderAccount(req, 77) {
-			t.Errorf("ownsProviderAccount(77) failed for Org 20")
+		if owned, err := p.ownsProviderAccount(req, 77); !owned || err != nil {
+			t.Errorf("ownsProviderAccount(77) = %v, %v for Org 20", owned, err)
 		}
 
-		// Org 20 owns its own local account (ID 60)
-		if !p.ownsProviderAccount(req, 60) {
-			t.Errorf("ownsProviderAccount(60) failed for Org 20")
+		// A mounted Hub is the only registry: local rows are not addressable,
+		// because both registries number their rows independently.
+		if owned, err := p.ownsProviderAccount(req, 60); owned || err != nil {
+			t.Errorf("a local row must not be owned while the Hub is mounted, got %v, %v", owned, err)
+		}
+
+		// Without a mounted resolver the local table is authoritative.
+		p.host = nil
+		defer func() { p.host = th }()
+		if owned, err := p.ownsProviderAccount(req, 60); !owned || err != nil {
+			t.Errorf("standalone ownsProviderAccount(60) = %v, %v", owned, err)
+		}
+		if owned, err := p.ownsProviderAccount(req, 77); owned || err != nil {
+			t.Errorf("standalone must not own a Hub-only account, got %v, %v", owned, err)
 		}
 	})
 
@@ -156,10 +163,10 @@ func TestChallenger_DNSCredentialBridgeStress(t *testing.T) {
 			t.Fatalf("expected SPI resolution to succeed, err=%v", err)
 		}
 
-		// Scenario B: Host SPI returns ErrCredentialNotFound -> resolved from local table
-		provLocal, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50})
-		if err != nil || provLocal == nil {
-			t.Fatalf("expected fallback to local table to succeed, err=%v", err)
+		// Scenario B: the Hub is mounted, so a local-only ID is refused rather
+		// than silently bound to a same-numbered integration.
+		if _, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 50}); !errors.Is(err, errProviderAccountNotFound) {
+			t.Fatalf("expected no local fallback while the Hub is mounted, got %v", err)
 		}
 
 		// Scenario C: Absent everywhere -> fails closed
@@ -219,15 +226,11 @@ func TestChallenger_DNSCredentialBridgeStress(t *testing.T) {
 	})
 
 	t.Run("InvalidConfigurations_EmptyConfigJSON", func(t *testing.T) {
-		// ID 91 has empty ConfigJSON (len == 0).
-		// In providerFor:
-		// if err == nil && cred != nil && len(cred.ConfigJSON) > 0 { return ... }
-		// Because len(cred.ConfigJSON) == 0, it falls through to local table!
-		// Since ID 91 does not exist in local table, it returns "provider account not found".
+		// ID 91 exists with no credentials. That is a server-side fault, not
+		// "not found", and it must never fall through to another registry.
 		_, err := p.providerFor(Domain{OrgID: 10, ProviderAccountID: 91})
-		if err == nil {
-			t.Fatalf("expected error for empty ConfigJSON in providerFor, got nil")
+		if !errors.Is(err, errProviderCredentials) {
+			t.Fatalf("expected errProviderCredentials for an empty integration, got %v", err)
 		}
-		t.Logf("Empty ConfigJSON behavior: err=%v", err)
 	})
 }

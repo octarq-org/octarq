@@ -24,7 +24,32 @@ var (
 	// ErrNotAwaitingApproval is returned when a decision targets a task that is
 	// not currently gated. A concurrent or replayed decision lands here.
 	ErrNotAwaitingApproval = errors.New("agentstore: task is not awaiting approval")
+	// ErrInvalidTaskTransition is returned for a status change the ticket state
+	// machine does not allow, including any change made through UpdateTask.
+	ErrInvalidTaskTransition = errors.New("agentstore: task transition not allowed")
+	// ErrTaskChanged is returned when a compare-and-swap loses a race: the task
+	// moved to another status while the caller was deciding.
+	ErrTaskChanged = errors.New("agentstore: task changed during the update")
+	// ErrAgentInUse is returned when deleting an agent that still owns tasks.
+	ErrAgentInUse = errors.New("agentstore: agent still owns tasks")
+	// ErrAssigneeRequired is returned when a task is created without a real
+	// assignee from the same workspace.
+	ErrAssigneeRequired = errors.New("agentstore: assignee agent is required")
 )
+
+// taskTransitions is the ticket state machine. A gated task leaves
+// awaiting_approval only through DecideApproval, and done is terminal, so a
+// status update can never bypass a recorded decision or reopen finished work.
+var taskTransitions = map[string]map[string]bool{
+	"todo":              {"in_progress": true, "awaiting_approval": true},
+	"in_progress":       {"todo": true, "done": true, "awaiting_approval": true},
+	"awaiting_approval": {},
+	"done":              {},
+}
+
+func canTransition(from, to string) bool {
+	return taskTransitions[from][to]
+}
 
 // WorkforceSpendAgent is one agent's spend share in the dashboard breakdown.
 type WorkforceSpendAgent struct {
@@ -186,10 +211,26 @@ func (s *WorkforceStore) TriggerHeartbeat(ctx context.Context, orgID uint, id st
 	})
 }
 
-// DeleteAgent permanently removes an agent from the workspace.
+// DeleteAgent permanently removes an agent from the workspace. An agent that
+// still owns tasks is refused: deleting it would leave assignee references that
+// no longer resolve.
 func (s *WorkforceStore) DeleteAgent(ctx context.Context, orgID uint, id string) error {
 	if s == nil || s.db == nil {
 		return errors.New("agentstore: workforce store is not configured")
+	}
+
+	if _, err := s.GetAgent(ctx, orgID, id); err != nil {
+		return err
+	}
+
+	var assigned int64
+	if err := s.db.WithContext(ctx).Model(&models.WorkforceTask{}).
+		Where("owner_id = ? AND assignee_agent_id = ?", orgID, id).
+		Count(&assigned).Error; err != nil {
+		return err
+	}
+	if assigned > 0 {
+		return ErrAgentInUse
 	}
 
 	res := s.db.WithContext(ctx).
@@ -212,7 +253,7 @@ func (s *WorkforceStore) ListTasks(ctx context.Context, orgID uint, status, assi
 	}
 
 	query := s.db.WithContext(ctx).Where("owner_id = ?", orgID)
-	if status != "" && status != "all" {
+	if status != "" {
 		query = query.Where("status = ?", status)
 	}
 	if assignee != "" {
@@ -255,11 +296,22 @@ func (s *WorkforceStore) GetTask(ctx context.Context, orgID uint, id string) (*m
 	return &task, steps, nil
 }
 
-// CreateTask adds a new task to the workspace.
+// CreateTask adds a new task to the workspace. The assignee must be a real
+// agent from the same workspace: the display name and role are copied from that
+// row, never supplied by the caller.
 func (s *WorkforceStore) CreateTask(ctx context.Context, orgID uint, task models.WorkforceTask) (*models.WorkforceTask, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("agentstore: workforce store is not configured")
 	}
+	if task.AssigneeAgentID == "" {
+		return nil, ErrAssigneeRequired
+	}
+	assignee, err := s.GetAgent(ctx, orgID, task.AssigneeAgentID)
+	if err != nil {
+		return nil, err
+	}
+	task.AssigneeName = assignee.Name
+	task.AssigneeRole = assignee.Role
 
 	if task.ID == "" {
 		suffix, err := randomSuffix(10)
@@ -289,10 +341,15 @@ func (s *WorkforceStore) CreateTask(ctx context.Context, orgID uint, task models
 	return &task, nil
 }
 
-// UpdateTask updates attributes on an existing task.
+// UpdateTask updates attributes on an existing task. Status is not one of
+// them: a status change goes through SetTaskStatus or DecideApproval so the
+// state machine and its compare-and-swap always apply.
 func (s *WorkforceStore) UpdateTask(ctx context.Context, orgID uint, id string, updates map[string]any) (*models.WorkforceTask, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("agentstore: workforce store is not configured")
+	}
+	if _, ok := updates["status"]; ok {
+		return nil, ErrInvalidTaskTransition
 	}
 
 	task, _, err := s.GetTask(ctx, orgID, id)
@@ -312,7 +369,41 @@ func (s *WorkforceStore) UpdateTask(ctx context.Context, orgID uint, id string, 
 	return updatedTask, err
 }
 
-// AppendTaskStep appends a step to a task's execution trajectory.
+// SetTaskStatus applies one step of the ticket state machine as a compare-and-
+// swap on the status the caller was shown. A concurrent writer that moved the
+// task first makes the update match no rows, which surfaces as ErrTaskChanged
+// instead of silently overwriting.
+func (s *WorkforceStore) SetTaskStatus(ctx context.Context, orgID uint, id, next string) (*models.WorkforceTask, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("agentstore: workforce store is not configured")
+	}
+
+	task, _, err := s.GetTask(ctx, orgID, id)
+	if err != nil {
+		return nil, err
+	}
+	if !canTransition(task.Status, next) {
+		return nil, ErrInvalidTaskTransition
+	}
+
+	res := s.db.WithContext(ctx).
+		Model(&models.WorkforceTask{}).
+		Where("id = ? AND owner_id = ? AND status = ?", id, orgID, task.Status).
+		Updates(map[string]any{"status": next, "updated_at": time.Now().UTC()})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, ErrTaskChanged
+	}
+
+	updated, _, err := s.GetTask(ctx, orgID, id)
+	return updated, err
+}
+
+// AppendTaskStep appends a step to a task's execution trajectory. The step
+// number is allocated inside the insert transaction so two concurrent writers
+// cannot claim the same number.
 func (s *WorkforceStore) AppendTaskStep(ctx context.Context, orgID uint, taskID string, stepText string, status string) (*models.WorkforceTaskStep, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("agentstore: workforce store is not configured")
@@ -324,26 +415,29 @@ func (s *WorkforceStore) AppendTaskStep(ctx context.Context, orgID uint, taskID 
 		return nil, err
 	}
 
-	var maxStep int
-	row := s.db.WithContext(ctx).Model(&models.WorkforceTaskStep{}).
-		Where("task_id = ? AND owner_id = ?", taskID, orgID).
-		Select("COALESCE(MAX(step_number), 0)").Row()
-	_ = row.Scan(&maxStep)
-
 	if status == "" {
 		status = "completed"
 	}
 
 	step := models.WorkforceTaskStep{
-		OrgID:      orgID,
-		TaskID:     taskID,
-		StepNumber: maxStep + 1,
-		StepText:   stepText,
-		Status:     status,
-		CreatedAt:  time.Now().UTC(),
+		OrgID:     orgID,
+		TaskID:    taskID,
+		StepText:  stepText,
+		Status:    status,
+		CreatedAt: time.Now().UTC(),
 	}
 
-	if err := s.db.WithContext(ctx).Create(&step).Error; err != nil {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var maxStep int
+		if err := tx.Model(&models.WorkforceTaskStep{}).
+			Where("task_id = ? AND owner_id = ?", taskID, orgID).
+			Select("COALESCE(MAX(step_number), 0)").Row().Scan(&maxStep); err != nil {
+			return err
+		}
+		step.StepNumber = maxStep + 1
+		return tx.Create(&step).Error
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -420,7 +514,9 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 
 	autoHalt, err := s.GetAutoHalt(ctx, orgID)
 	if err != nil {
-		autoHalt = true
+		// "Halt is off" and "governance state is unreadable" are different
+		// answers; the caller must not receive metrics that hide the second.
+		return nil, err
 	}
 
 	return &WorkforceOverview{

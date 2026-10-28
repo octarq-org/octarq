@@ -29,7 +29,7 @@ func (noopHost) TenantDB(uint) *TenantDB { return nil }
 func (noopHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) { return nil, nil }
 
 func (noopHost) LookupCredential(context.Context, uint, CredentialQuery) (*Credential, error) {
-	return nil, ErrCredentialNotFound
+	return nil, ErrCredentialResolverUnavailable
 }
 
 type noopSession struct{}

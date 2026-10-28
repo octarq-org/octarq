@@ -50,20 +50,20 @@ func (p *Plugin) resolveSender(ctx context.Context, orgID, id uint, source strin
 
 	switch source {
 	case SenderSourceIntegration:
-		if p.host == nil {
-			return nil, "", senderErr(errSenderNotFound, "The Integrations Hub is not available on this instance. Select a local SMTP sender.")
-		}
-		cred, err := p.host.LookupCredential(ctx, orgID, plugin.CredentialQuery{
+		cred, err := p.credentialHost().LookupCredential(ctx, orgID, plugin.CredentialQuery{
 			ID:           id,
 			ProviderType: "communication",
 		})
+		if errors.Is(err, plugin.ErrCredentialResolverUnavailable) {
+			return nil, "", senderErr(errSenderNotFound, "The Integrations Hub is not available on this instance. Select a local SMTP sender.")
+		}
 		if err != nil {
 			if errors.Is(err, plugin.ErrCredentialNotFound) {
 				return nil, "", senderErr(errSenderNotFound, "The selected integration does not exist. Select a sender from the Integrations Hub.")
 			}
 			return nil, "", senderErr(errSenderUnavailable, "Could not resolve SMTP sender credentials. Try again later.")
 		}
-		if cred == nil {
+		if cred == nil || cred.OrgID != orgID {
 			return nil, "", senderErr(errSenderNotFound, "The selected integration does not exist. Select a sender from the Integrations Hub.")
 		}
 		// Only a communication integration that actually carries mail

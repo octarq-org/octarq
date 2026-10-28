@@ -67,7 +67,9 @@ func (h *TestHost) LookupCredential(ctx context.Context, orgID uint, query Crede
 	if h != nil && h.LookupCredentialMock != nil {
 		return h.LookupCredentialMock(ctx, orgID, query)
 	}
-	return nil, ErrCredentialNotFound
+	// No mock means no resolver is mounted, which is "standalone Core", not
+	// "the credential is missing".
+	return nil, ErrCredentialResolverUnavailable
 }
 
 var _ Host = (*TestHost)(nil)

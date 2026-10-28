@@ -240,9 +240,10 @@ func TestHostSPI_MailCredentialBridge(t *testing.T) {
 	}
 	p.host = th
 
-	// mailReady becomes true via Host SPI
-	if !p.mailReady() {
-		t.Fatal("expected mailReady = true via Host SPI")
+	// A Hub integration is not a system sender: readiness stays false until a
+	// local sender is selected, because system mail never reads the Hub.
+	if p.mailReady() {
+		t.Fatal("expected mailReady = false while only a Hub integration exists")
 	}
 
 	// 3. sendMail delivers via Host SPI

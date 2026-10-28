@@ -227,8 +227,11 @@ func (h *Handler) createWorkforceAgent(ctx context.Context, input *CreateWorkfor
 		return nil, err
 	}
 
-	if input.Body.Name == "" || input.Body.Role == "" || input.Body.Model == "" {
-		return nil, huma.Error400BadRequest("Agent name, role, and model are required.")
+	if input.Body.Name == "" || input.Body.Role == "" || input.Body.Department == "" || input.Body.Model == "" {
+		return nil, huma.Error400BadRequest("Agent name, role, department, and model are required.")
+	}
+	if input.Body.BudgetLimit <= 0 {
+		return nil, huma.Error400BadRequest("Budget limit must be greater than zero.")
 	}
 
 	agent := models.WorkforceAgent{
@@ -241,17 +244,12 @@ func (h *Handler) createWorkforceAgent(ctx context.Context, input *CreateWorkfor
 		BudgetLimit:  input.Body.BudgetLimit,
 		Capabilities: models.StringList(input.Body.Capabilities),
 	}
-	if agent.Department == "" {
-		agent.Department = "Operations"
-	}
-	if agent.BudgetLimit <= 0 {
-		agent.BudgetLimit = 10.0
-	}
 
 	created, err := store.CreateAgent(r.Context(), orgID, agent)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Could not deploy workforce agent; retry the request")
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.agent.create", "workforce_agent", 0, map[string]any{"agentId": created.ID, "name": created.Name})
 
 	return &CreateWorkforceAgentOutput{Body: toAgentDTO(*created)}, nil
 }
@@ -324,15 +322,27 @@ func (h *Handler) updateWorkforceAgent(ctx context.Context, input *UpdateWorkfor
 
 	updates := make(map[string]any)
 	if input.Body.Name != nil {
+		if *input.Body.Name == "" {
+			return nil, huma.Error400BadRequest("Agent name cannot be empty.")
+		}
 		updates["name"] = *input.Body.Name
 	}
 	if input.Body.Role != nil {
+		if *input.Body.Role == "" {
+			return nil, huma.Error400BadRequest("Agent role cannot be empty.")
+		}
 		updates["role"] = *input.Body.Role
 	}
 	if input.Body.Department != nil {
+		if *input.Body.Department == "" {
+			return nil, huma.Error400BadRequest("Agent department cannot be empty.")
+		}
 		updates["department"] = *input.Body.Department
 	}
 	if input.Body.Model != nil {
+		if *input.Body.Model == "" {
+			return nil, huma.Error400BadRequest("Agent model cannot be empty.")
+		}
 		updates["model"] = *input.Body.Model
 	}
 	if input.Body.Directives != nil {
@@ -342,9 +352,15 @@ func (h *Handler) updateWorkforceAgent(ctx context.Context, input *UpdateWorkfor
 		updates["heartbeat"] = *input.Body.Heartbeat
 	}
 	if input.Body.BudgetLimit != nil {
+		if *input.Body.BudgetLimit <= 0 {
+			return nil, huma.Error400BadRequest("Budget limit must be greater than zero.")
+		}
 		updates["budget_limit"] = *input.Body.BudgetLimit
 	}
 	if input.Body.Status != nil {
+		if !models.InStatusSet(*input.Body.Status, models.WorkforceAgentStatuses) {
+			return nil, huma.Error400BadRequest("Agent status must be active, idle, or paused.")
+		}
 		updates["status"] = *input.Body.Status
 	}
 	if input.Body.Capabilities != nil {
@@ -391,6 +407,7 @@ func (h *Handler) pauseWorkforceAgent(ctx context.Context, input *PauseWorkforce
 		}
 		return nil, huma.Error500InternalServerError("Could not pause workforce agent; retry the request")
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.agent.pause", "workforce_agent", 0, map[string]any{"agentId": agent.ID})
 
 	return &PauseWorkforceAgentOutput{Body: toAgentDTO(*agent)}, nil
 }
@@ -424,6 +441,7 @@ func (h *Handler) resumeWorkforceAgent(ctx context.Context, input *ResumeWorkfor
 		}
 		return nil, huma.Error500InternalServerError("Could not resume workforce agent; retry the request")
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.agent.resume", "workforce_agent", 0, map[string]any{"agentId": agent.ID})
 
 	return &ResumeWorkforceAgentOutput{Body: toAgentDTO(*agent)}, nil
 }
@@ -487,11 +505,16 @@ func (h *Handler) deleteWorkforceAgent(ctx context.Context, input *DeleteWorkfor
 
 	err = store.DeleteAgent(r.Context(), orgID, input.ID)
 	if err != nil {
-		if errors.Is(err, agentstore.ErrAgentNotFound) {
+		switch {
+		case errors.Is(err, agentstore.ErrAgentNotFound):
 			return nil, huma.Error404NotFound("No such workforce agent found in this workspace.")
+		case errors.Is(err, agentstore.ErrAgentInUse):
+			return nil, huma.Error409Conflict("This agent still owns tasks. Reassign or delete those tasks first.")
+		default:
+			return nil, huma.Error500InternalServerError("Could not delete workforce agent; retry the request")
 		}
-		return nil, huma.Error500InternalServerError("Could not delete workforce agent; retry the request")
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.agent.delete", "workforce_agent", 0, map[string]any{"agentId": input.ID})
 
 	out := &DeleteWorkforceAgentOutput{}
 	out.Body.Ok = true
@@ -523,6 +546,10 @@ func (h *Handler) listWorkforceTasks(ctx context.Context, input *ListWorkforceTa
 		return nil, err
 	}
 
+	if input.Status != "" && !models.InStatusSet(input.Status, models.WorkforceTaskStatuses) {
+		return nil, huma.Error400BadRequest("Task status filter must be todo, in_progress, awaiting_approval, or done.")
+	}
+
 	tasks, err := store.ListTasks(r.Context(), orgID, input.Status, input.Assignee)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Could not read workforce tasks; retry the request")
@@ -541,9 +568,7 @@ type CreateWorkforceTaskInput struct {
 	Ctx  huma.Context `json:"-"`
 	Body struct {
 		Title           string `json:"title"`
-		AssigneeAgentID string `json:"assigneeAgentId,omitempty"`
-		Assignee        string `json:"assignee,omitempty"`
-		AssigneeRole    string `json:"assigneeRole,omitempty"`
+		AssigneeAgentID string `json:"assigneeAgentId"`
 		Priority        string `json:"priority,omitempty"`
 		Summary         string `json:"summary"`
 		Context         string `json:"context,omitempty"`
@@ -569,26 +594,29 @@ func (h *Handler) createWorkforceTask(ctx context.Context, input *CreateWorkforc
 	if input.Body.Title == "" || input.Body.Summary == "" {
 		return nil, huma.Error400BadRequest("Task title and summary are required.")
 	}
+	if input.Body.AssigneeAgentID == "" {
+		return nil, huma.Error400BadRequest("Assign the task to an agent from this workspace.")
+	}
+	if input.Body.Priority != "" && !models.InStatusSet(input.Body.Priority, models.WorkforceTaskPriorities) {
+		return nil, huma.Error400BadRequest("Priority must be urgent, high, normal, or low.")
+	}
 
 	task := models.WorkforceTask{
 		Title:           input.Body.Title,
 		AssigneeAgentID: input.Body.AssigneeAgentID,
-		AssigneeName:    input.Body.Assignee,
-		AssigneeRole:    input.Body.AssigneeRole,
 		Priority:        input.Body.Priority,
 		Summary:         input.Body.Summary,
 		Context:         input.Body.Context,
 	}
-	if task.AssigneeAgentID == "" {
-		task.AssigneeAgentID = "lead-orchestrator"
-		task.AssigneeName = "Lead Orchestrator"
-		task.AssigneeRole = "Chief Operational Assistant"
-	}
 
 	created, err := store.CreateTask(r.Context(), orgID, task)
 	if err != nil {
+		if errors.Is(err, agentstore.ErrAgentNotFound) {
+			return nil, huma.Error400BadRequest("Assign the task to an agent from this workspace.")
+		}
 		return nil, huma.Error500InternalServerError("Could not create workforce task; retry the request")
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.task.create", "workforce_task", 0, map[string]any{"taskId": created.ID, "assigneeAgentId": created.AssigneeAgentID})
 
 	return &CreateWorkforceTaskOutput{Body: toTaskDTO(*created, nil)}, nil
 }
@@ -657,28 +685,61 @@ func (h *Handler) updateWorkforceTask(ctx context.Context, input *UpdateWorkforc
 
 	updates := make(map[string]any)
 	if input.Body.Title != nil {
+		if *input.Body.Title == "" {
+			return nil, huma.Error400BadRequest("Task title cannot be empty.")
+		}
 		updates["title"] = *input.Body.Title
 	}
-	if input.Body.Status != nil {
-		updates["status"] = *input.Body.Status
-	}
 	if input.Body.Priority != nil {
+		if !models.InStatusSet(*input.Body.Priority, models.WorkforceTaskPriorities) {
+			return nil, huma.Error400BadRequest("Priority must be urgent, high, normal, or low.")
+		}
 		updates["priority"] = *input.Body.Priority
 	}
 	if input.Body.Summary != nil {
+		if *input.Body.Summary == "" {
+			return nil, huma.Error400BadRequest("Task summary cannot be empty.")
+		}
 		updates["summary"] = *input.Body.Summary
 	}
 	if input.Body.Context != nil {
 		updates["context"] = *input.Body.Context
 	}
 
-	task, err := store.UpdateTask(r.Context(), orgID, input.ID, updates)
-	if err != nil {
-		if errors.Is(err, agentstore.ErrTaskNotFound) {
-			return nil, huma.Error404NotFound("No such workforce task found in this workspace.")
+	var task *models.WorkforceTask
+	if len(updates) > 0 {
+		task, err = store.UpdateTask(r.Context(), orgID, input.ID, updates)
+		if err != nil {
+			if errors.Is(err, agentstore.ErrTaskNotFound) {
+				return nil, huma.Error404NotFound("No such workforce task found in this workspace.")
+			}
+			return nil, huma.Error500InternalServerError("Could not update workforce task; retry the request")
 		}
-		return nil, huma.Error500InternalServerError("Could not update workforce task; retry the request")
 	}
+
+	if input.Body.Status != nil {
+		if !models.InStatusSet(*input.Body.Status, models.WorkforceTaskStatuses) {
+			return nil, huma.Error400BadRequest("Task status must be todo, in_progress, awaiting_approval, or done.")
+		}
+		task, err = store.SetTaskStatus(r.Context(), orgID, input.ID, *input.Body.Status)
+		if err != nil {
+			switch {
+			case errors.Is(err, agentstore.ErrTaskNotFound):
+				return nil, huma.Error404NotFound("No such workforce task found in this workspace.")
+			case errors.Is(err, agentstore.ErrInvalidTaskTransition):
+				return nil, huma.Error409Conflict("That status change is not allowed. Gated tasks are resolved through approvals, and completed tasks are final.")
+			case errors.Is(err, agentstore.ErrTaskChanged):
+				return nil, huma.Error409Conflict("The task changed while you were updating it. Reload and try again.")
+			default:
+				return nil, huma.Error500InternalServerError("Could not update workforce task; retry the request")
+			}
+		}
+	}
+	// An empty body leaves task nil, and there is nothing to audit or return.
+	if task == nil {
+		return nil, huma.Error400BadRequest("Provide at least one field to update.")
+	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.task.update", "workforce_task", 0, map[string]any{"taskId": input.ID, "status": task.Status})
 
 	return &UpdateWorkforceTaskOutput{Body: toTaskDTO(*task, nil)}, nil
 }
@@ -711,6 +772,9 @@ func (h *Handler) appendWorkforceTaskStep(ctx context.Context, input *AppendWork
 
 	if input.Body.StepText == "" {
 		return nil, huma.Error400BadRequest("Step log text is required.")
+	}
+	if input.Body.Status != "" && !models.InStatusSet(input.Body.Status, models.WorkforceTaskStepStatuses) {
+		return nil, huma.Error400BadRequest("Step status must be completed, running, failed, or awaiting_approval.")
 	}
 
 	step, err := store.AppendTaskStep(r.Context(), orgID, input.ID, input.Body.StepText, input.Body.Status)
@@ -816,6 +880,7 @@ func (h *Handler) decideWorkforceApproval(ctx context.Context, input *DecideWork
 			return nil, huma.Error500InternalServerError("Could not resolve workforce approval; retry the request")
 		}
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.approval.decide", "workforce_task", 0, map[string]any{"taskId": task.ID, "decision": input.Body.Decision})
 
 	return &DecideWorkforceApprovalOutput{Body: toTaskDTO(*task, nil)}, nil
 }
@@ -875,7 +940,9 @@ func (h *Handler) getWorkforceOverview(ctx context.Context, input *GetWorkforceO
 type ToggleWorkforceAutoHaltInput struct {
 	Ctx  huma.Context `json:"-"`
 	Body struct {
-		AutoHalt bool `json:"autoHalt"`
+		// AutoHalt is a pointer so an absent field is refused: decoding a
+		// missing switch into false would silently disable the spend guard.
+		AutoHalt *bool `json:"autoHalt"`
 	}
 }
 
@@ -897,11 +964,15 @@ func (h *Handler) toggleWorkforceAutoHalt(ctx context.Context, input *ToggleWork
 		return nil, err
 	}
 
-	if err := store.SetAutoHalt(r.Context(), orgID, input.Body.AutoHalt); err != nil {
+	if input.Body.AutoHalt == nil {
+		return nil, huma.Error400BadRequest("autoHalt is required.")
+	}
+	if err := store.SetAutoHalt(r.Context(), orgID, *input.Body.AutoHalt); err != nil {
 		return nil, huma.Error500InternalServerError("Could not save auto-halt setting; retry the request")
 	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.auto_halt.set", "workspace_setting", 0, map[string]any{"autoHalt": *input.Body.AutoHalt})
 
 	out := &ToggleWorkforceAutoHaltOutput{}
-	out.Body.AutoHalt = input.Body.AutoHalt
+	out.Body.AutoHalt = *input.Body.AutoHalt
 	return out, nil
 }

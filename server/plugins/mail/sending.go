@@ -52,6 +52,16 @@ func (p *Plugin) getBackendConfig() string {
 	return "database"
 }
 
+// credentialHost returns the mounted Host, or a no-op host when the plugin has
+// none (unit tests build the plugin directly). The no-op host reports
+// ErrCredentialResolverUnavailable, which is exactly "no Integrations Hub here".
+func (p *Plugin) credentialHost() plugin.Host {
+	if p.host != nil {
+		return p.host
+	}
+	return plugin.EnsureHost(nil)
+}
+
 func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 	if addr == "" || orgID == 0 {
 		return false
@@ -128,7 +138,9 @@ func (p *Plugin) senderFromCredential(cred *plugin.Credential) (mail.Sender, str
 
 	from := strings.TrimSpace(m.FromEmail)
 	if from == "" {
-		from = "no-reply@octarq.local"
+		// A sender without a From address is not usable: the relay would reject
+		// it, or deliver as no-reply@octarq.local and burn the sending domain.
+		return nil, "", errors.New("sender From address is not configured")
 	}
 
 	if cred.Provider == "resend" {
@@ -166,30 +178,14 @@ func (p *Plugin) senderFromCredential(cred *plugin.Credential) (mail.Sender, str
 	return mail.NewCustomSender(host, fmt.Sprint(port), user, pass, from), from, nil
 }
 
-// mailReady reports whether the instance's SYSTEM sender is available: at
-// least one SMTP sender exists somewhere on the instance, which is exactly
-// when sendSystemMail (via the mail.send.system service) can deliver.
-// Consumed through the mail.ready service by the registration verification
-// gate and both readiness reports: "plugin mounted" is not the same question
-// as "can this instance deliver a system message".
+// mailReady reports whether this instance can deliver a SYSTEM message
+// (verification, password reset, invite). Those flows have no org, so they go
+// through the instance-level system sender and never through the Integrations
+// Hub; readiness must therefore answer for the same registry sendSystemMail
+// reads, or the signup gate promises mail that cannot be sent.
 func (p *Plugin) mailReady() bool {
-	var n int64
-	p.db.Model(&SMTPSender{}).Count(&n)
-	if n > 0 {
-		return true
-	}
-	if p.host != nil {
-		for _, provider := range []string{"smtp", "resend"} {
-			cred, err := p.host.LookupCredential(context.Background(), 0, plugin.CredentialQuery{
-				ProviderType: "communication",
-				Provider:     provider,
-			})
-			if err == nil && cred != nil {
-				return true
-			}
-		}
-	}
-	return false
+	_, err := p.systemSender()
+	return err == nil
 }
 
 // systemSender resolves the instance's system sender: the one explicitly
@@ -246,48 +242,58 @@ func (p *Plugin) sendSystemMail(to, subject, htmlBody, textBody string) error {
 	return p.deliverVia(s, to, subject, htmlBody, textBody)
 }
 
+// sendMail delivers an org-level message. Exactly one registry is
+// authoritative: an instance with the Integrations Hub mounted sends through
+// the org's hub integration and refuses when none exists; standalone Core
+// sends through the org's local mail_smtp_senders row.
 func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
 	if p.isSuppressed(orgID, to) {
 		return fmt.Errorf("recipient address %s is in suppression list", to)
 	}
 
-	// 1. Try resolving a mail-capable sender via Host SPI (Centralized
-	// Integrations Hub). Query the mail providers explicitly: a bare
-	// provider_type=communication lookup can return a Telegram or Slack
-	// integration, which cannot send email.
-	if p.host != nil {
-		for _, provider := range []string{"smtp", "resend"} {
-			cred, err := p.host.LookupCredential(context.Background(), orgID, plugin.CredentialQuery{
-				ProviderType: "communication",
-				Provider:     provider,
-			})
-			if err != nil {
-				if errors.Is(err, plugin.ErrCredentialNotFound) {
-					continue
-				}
-				return fmt.Errorf("resolve %s integration for org %d: %w", provider, orgID, err)
-			}
-			if cred == nil {
+	host := p.credentialHost()
+	hubMounted := true
+
+	// Query the mail providers explicitly: a bare provider_type=communication
+	// lookup can return a Telegram or Slack integration, which cannot send mail.
+	for _, provider := range []string{"smtp", "resend"} {
+		cred, err := host.LookupCredential(context.Background(), orgID, plugin.CredentialQuery{
+			ProviderType: "communication",
+			Provider:     provider,
+		})
+		if errors.Is(err, plugin.ErrCredentialResolverUnavailable) {
+			hubMounted = false
+			break
+		}
+		if err != nil {
+			if errors.Is(err, plugin.ErrCredentialNotFound) {
 				continue
 			}
-			sender, from, sErr := p.senderFromCredential(cred)
-			if sErr != nil {
-				return fmt.Errorf("invalid %s integration for org %d: %w", provider, orgID, sErr)
-			}
-			if err := sender.Send(mail.Message{From: from, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
-				if p.publishEvent != nil {
-					p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
-				}
-				return err
-			}
-			if p.recordUsage != nil {
-				p.recordUsage(orgID, usagemetric.MailOut, 1)
-			}
-			return nil
+			return fmt.Errorf("resolve %s integration for org %d: %w", provider, orgID, err)
 		}
+		if cred == nil {
+			continue
+		}
+		sender, from, sErr := p.senderFromCredential(cred)
+		if sErr != nil {
+			return fmt.Errorf("invalid %s integration for org %d: %w", provider, orgID, sErr)
+		}
+		if err := sender.Send(mail.Message{From: from, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
+			if p.publishEvent != nil {
+				p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
+			}
+			return err
+		}
+		if p.recordUsage != nil {
+			p.recordUsage(orgID, usagemetric.MailOut, 1)
+		}
+		return nil
 	}
 
-	// 2. Fallback to local SMTPSender table
+	if hubMounted {
+		return fmt.Errorf("no SMTP or Resend integration is configured for org %d", orgID)
+	}
+
 	tdb := p.tenantDB(orgID)
 	if tdb == nil {
 		return fmt.Errorf("database unavailable for org %d", orgID)

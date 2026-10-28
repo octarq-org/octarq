@@ -84,14 +84,16 @@ func (h *hostRuntime) HarnessSpec(ctx context.Context, orgID uint) (json.RawMess
 
 // LookupCredential resolves third-party integration credentials via the
 // ServiceCredentialResolver SPI (registered by the Pro integrations module).
-// Returns ErrCredentialNotFound if no resolver is registered (e.g. standalone Core OSS).
+// Returns ErrCredentialResolverUnavailable when no resolver is registered
+// (standalone Core OSS) and ErrCredentialNotFound when the resolver has no
+// matching credential.
 func (h *hostRuntime) LookupCredential(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
 	if h == nil || h.services == nil {
-		return nil, plugin.ErrCredentialNotFound
+		return nil, plugin.ErrCredentialResolverUnavailable
 	}
 	resolver, ok := plugin.LookupServiceAs[plugin.CredentialResolver](h.services.Lookup, plugin.ServiceCredentialResolver)
 	if !ok || resolver == nil {
-		return nil, plugin.ErrCredentialNotFound
+		return nil, plugin.ErrCredentialResolverUnavailable
 	}
 	return resolver.LookupCredential(ctx, orgID, query)
 }

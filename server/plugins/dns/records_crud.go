@@ -71,7 +71,7 @@ func (p *Plugin) listRecords(ctx context.Context, input *ListRecordsInput) (*Lis
 		if errors.Is(err, errNotFound) {
 			return nil, huma.Error404NotFound("Domain not found")
 		}
-		return nil, huma.Error400BadRequest(err.Error())
+		return nil, p.providerResolveErr(err)
 	}
 	if dom.ZoneID == "" {
 		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
@@ -114,7 +114,7 @@ func (p *Plugin) createRecord(ctx context.Context, input *CreateRecordInput) (*C
 		if errors.Is(err, errNotFound) {
 			return nil, huma.Error404NotFound("Domain not found")
 		}
-		return nil, huma.Error400BadRequest(err.Error())
+		return nil, p.providerResolveErr(err)
 	}
 	if dom.ZoneID == "" {
 		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
@@ -161,7 +161,7 @@ func (p *Plugin) updateRecord(ctx context.Context, input *UpdateRecordInput) (*U
 		if errors.Is(err, errNotFound) {
 			return nil, huma.Error404NotFound("Domain not found")
 		}
-		return nil, huma.Error400BadRequest(err.Error())
+		return nil, p.providerResolveErr(err)
 	}
 	if dom.ZoneID == "" {
 		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
@@ -209,7 +209,7 @@ func (p *Plugin) deleteRecord(ctx context.Context, input *DeleteRecordInput) (*D
 		if errors.Is(err, errNotFound) {
 			return nil, huma.Error404NotFound("Domain not found")
 		}
-		return nil, huma.Error400BadRequest(err.Error())
+		return nil, p.providerResolveErr(err)
 	}
 	if dom.ZoneID == "" {
 		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
