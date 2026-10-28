@@ -106,8 +106,13 @@ func TestSlackChannel_NamedIntegrationNeverFallsBackToLocalRow(t *testing.T) {
 		ch := NewSlackChannel(db)
 		ch.SetHost(tc.host)
 		err := ch.Send(context.Background(), plugin.NotificationRecipient{
-			OrgID:  "1",
-			Config: map[string]any{"integration_id": float64(7)},
+			OrgID: "1",
+			// The stale inline URL must not be used: the named integration owns
+			// the destination.
+			Config: map[string]any{
+				"integration_id": float64(7),
+				"webhook_url":    "https://hooks.slack.com/services/stale-inline",
+			},
 		}, plugin.NotificationPayload{Body: "alert"})
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: expected %q, got %v", tc.name, tc.want, err)
@@ -131,8 +136,11 @@ func TestSlackChannel_NamedIntegrationUsesHubCredential(t *testing.T) {
 	ch.client = srv.Client()
 
 	if err := ch.Send(context.Background(), plugin.NotificationRecipient{
-		OrgID:  "1",
-		Config: map[string]any{"integration_id": float64(7)},
+		OrgID: "1",
+		Config: map[string]any{
+			"integration_id": float64(7),
+			"webhook_url":    "https://hooks.slack.com/services/stale-inline",
+		},
 	}, plugin.NotificationPayload{Body: "alert"}); err != nil {
 		t.Fatalf("send: %v", err)
 	}
@@ -192,8 +200,13 @@ func TestTelegramChannel_NamedIntegrationNeverFallsBackToLocalRow(t *testing.T) 
 		ch := NewTelegramChannel(db)
 		ch.SetHost(tc.host)
 		err := ch.Send(context.Background(), plugin.NotificationRecipient{
-			OrgID:  "1",
-			Config: map[string]any{"integrationId": 7, "chatId": "12345"},
+			OrgID: "1",
+			// The stale inline token must not be used either.
+			Config: map[string]any{
+				"integrationId": 7,
+				"chatId":        "12345",
+				"botToken":      "stale-inline-token",
+			},
 		}, plugin.NotificationPayload{Body: "alert"})
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: expected %q, got %v", tc.name, tc.want, err)

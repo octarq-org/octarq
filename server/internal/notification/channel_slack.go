@@ -133,7 +133,10 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 	// 2. Resolve webhookURL via Host SPI (Centralized Integrations Hub). A
 	// config that names an integration is answered by the Hub alone: falling
 	// back to the local row would deliver to a destination the operator did not
-	// select.
+	// select. An inline URL left in a stale row must not shadow it either.
+	if reqIntegID > 0 {
+		webhookURL = ""
+	}
 	if webhookURL == "" && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			host := c.host

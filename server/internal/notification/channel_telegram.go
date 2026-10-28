@@ -148,6 +148,10 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 	// 1. Resolve botToken via Host SPI (Centralized Integrations Hub). A config
 	// that names an integration is answered by the Hub alone: falling back to
 	// the local row would send through a credential the operator did not select.
+	// A token left in a stale row must not shadow it either.
+	if reqIntegID > 0 {
+		botToken = ""
+	}
 	if botToken == "" && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			host := c.host
