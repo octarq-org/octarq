@@ -62,7 +62,28 @@ A decision applies once. A ticket that is not awaiting approval cannot receive a
 - **Spend Breakdown by Agent** shows the share of each agent.
 - **Spend Breakdown by LLM Provider** shows the share of each provider.
 
-A model provider is billed for the model an agent runs.
+The platform bills each agent turn at the price of the model in that turn.
+
+### Model Prices
+
+**Model Prices** sets the cost of each model that agents use.
+
+The platform bills an agent turn at the price of its model. The platform refuses a turn on a model without a price. Add the price before you call the model.
+
+Use **Save Price** to add or replace a price. Enter the model identifier that the provider uses. Enter the input price and the output price per one million tokens. A price of zero marks a model with no token cost.
+
+Use **Delete price** to remove a price.
+
+### Spend and Limits
+
+Each agent counts its spend for the current calendar month. The counter starts again at the beginning of a month in UTC.
+
+**Runaway Spend Guard (Fail-Closed)** decides whether the limit stops an agent.
+
+- When the switch is on, an agent pauses at the limit. A paused agent does not run a turn.
+- When the switch is off, spend is recorded and shown, but the limit stops nothing.
+
+Raise the budget limit to continue work after a stop. Then resume the agent.
 
 ## Access Permissions
 

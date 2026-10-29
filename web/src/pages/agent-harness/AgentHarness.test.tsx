@@ -48,6 +48,11 @@ vi.mock("../../api", async (importOriginal) => {
       decideWorkforceApproval: vi.fn(),
       workforceOverview: vi.fn(),
       toggleWorkforceAutoHalt: vi.fn(),
+      workforceModelPrices: vi.fn(),
+      setWorkforceModelPrice: vi.fn(),
+      deleteWorkforceModelPrice: vi.fn(),
+      workforceAgentSpend: vi.fn(),
+      recordWorkforceAgentSpend: vi.fn(),
     },
   };
 });
@@ -331,6 +336,7 @@ describe("AgentHarnessPage", () => {
       autoHalt: enabled,
     }));
     vi.mocked(api.workforceApprovals).mockResolvedValue([]);
+    vi.mocked(api.workforceModelPrices).mockResolvedValue([]);
   });
 
   // 1. Loading state
@@ -1217,5 +1223,28 @@ describe("AgentHarnessPage", () => {
     });
     expect(screen.queryByText("Atlas")).toBeNull();
     expect(screen.queryByText("Sentinel")).toBeNull();
+  });
+
+  // 28. Model prices are the billing source: configured prices render, and an
+  // empty table states that turns are not billed.
+  it("renders configured model prices and the not-billed empty state", async () => {
+    vi.mocked(api.workforceModelPrices).mockResolvedValue([
+      { model: "claude-opus-4-8", inputPerMTok: 3, outputPerMTok: 15 },
+    ]);
+
+    const { unmount } = renderPage("/workforce?tab=budgets");
+    await waitFor(() => {
+      expect(screen.getByText("Model Prices")).toBeDefined();
+      expect(screen.getByText("claude-opus-4-8")).toBeDefined();
+      expect(screen.getByText("$3")).toBeDefined();
+      expect(screen.getByText("$15")).toBeDefined();
+    });
+    unmount();
+
+    vi.mocked(api.workforceModelPrices).mockResolvedValue([]);
+    renderPage("/workforce?tab=budgets");
+    await waitFor(() => {
+      expect(screen.getByText("No model price is set. Agent turns are not billed.")).toBeDefined();
+    });
   });
 });

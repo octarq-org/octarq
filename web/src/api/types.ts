@@ -470,6 +470,8 @@ export interface WorkforceAgentDTO {
   heartbeat: string;
   budgetUsed: number;
   budgetLimit: number;
+  // budgetPeriodStart stamps the calendar month budgetUsed covers.
+  budgetPeriodStart?: string;
   capabilities: string[];
   directives: string;
   lastHeartbeatAt?: string;
@@ -555,6 +557,44 @@ export interface WorkforceSpendProviderItem {
   provider: string;
   spend: number;
   pct: number;
+}
+
+// Prices are per million tokens in US dollars. A model with no price cannot
+// bill a turn.
+export interface WorkforceModelPriceDTO {
+  model: string;
+  inputPerMTok: number;
+  outputPerMTok: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SetWorkforceModelPriceInput {
+  model: string;
+  inputPerMTok: number;
+  outputPerMTok: number;
+}
+
+export type WorkforceSpendSource = "chat" | "runtime";
+
+export interface WorkforceSpendEventDTO {
+  id: number;
+  agentId: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  costUsd: number;
+  source: WorkforceSpendSource;
+  sessionId?: string;
+  createdAt: string;
+}
+
+export interface RecordWorkforceSpendInput {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens?: number;
 }
 
 export interface WorkforceOverviewDTO {

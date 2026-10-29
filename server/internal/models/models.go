@@ -476,5 +476,6 @@ func AllModels() []any {
 		&Notification{}, &NotificationPreference{}, &File{},
 		&AgentHarnessSpec{}, &AgentHarnessLesson{},
 		&WorkforceAgent{}, &WorkforceTask{}, &WorkforceTaskStep{},
+		&WorkforceModelPrice{}, &WorkforceSpendEvent{},
 	}
 }

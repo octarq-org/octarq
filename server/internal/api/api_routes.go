@@ -332,6 +332,12 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/approvals/{id}", Summary: "Decide Task Approval", Tags: []string{"Workforce"}}, h.decideWorkforceApproval)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/overview", Summary: "Get Workforce Overview", Tags: []string{"Workforce"}}, h.getWorkforceOverview)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/budgets/auto-halt", Summary: "Toggle Budget Auto-Halt", Tags: []string{"Workforce"}}, h.toggleWorkforceAutoHalt)
+	// Billing: model prices and the spend ledger that accrues agent budgets.
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/model-prices", Summary: "List Model Prices", Tags: []string{"Workforce"}}, h.listModelPrices)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/workforce/model-prices", Summary: "Set Model Price", Tags: []string{"Workforce"}}, h.setModelPrice)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/workforce/model-prices", Summary: "Delete Model Price", Tags: []string{"Workforce"}}, h.deleteModelPrice)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/agents/{id}/spend", Summary: "List Agent Spend", Tags: []string{"Workforce"}}, h.listAgentSpend)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/agents/{id}/spend", Summary: "Record Agent Spend", Tags: []string{"Workforce"}, DefaultStatus: 201}, h.recordAgentSpend)
 
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/switch-org", Summary: "Switch Org", Tags: []string{"Org Management"}}, h.switchOrg)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/orgs", Summary: "List Orgs", Tags: []string{"Org Management"}}, h.listOrgs)

@@ -26,6 +26,8 @@ func newTestWorkforceStore(t *testing.T) (*WorkforceStore, *gorm.DB) {
 		&models.WorkforceTask{},
 		&models.WorkforceTaskStep{},
 		&models.WorkspaceSetting{},
+		&models.WorkforceModelPrice{},
+		&models.WorkforceSpendEvent{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
