@@ -94,7 +94,7 @@ export function TopBar({
         aria-label={t("app.collapseMenu")}
         aria-pressed={!panelCollapsed}
         title={t("app.collapseMenu")}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:hidden"
+        className="tap-expand flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:hidden"
       >
         <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </button>
@@ -183,7 +183,7 @@ export function TopBar({
           <Menu.Trigger
             aria-label={t("topbar.create", "Create")}
             title={t("topbar.create", "Create")}
-            className={cn(ACTION_BUTTON, "flex h-9 w-9 items-center justify-center")}
+            className={cn(ACTION_BUTTON, "tap-expand flex h-9 w-9 items-center justify-center")}
           >
             <Plus className="h-4 w-4" strokeWidth={1.75} />
           </Menu.Trigger>
@@ -239,7 +239,7 @@ export function TopBar({
         onClick={toggleTheme}
         aria-label={theme === "dark" ? t("topbar.lightMode", "Light mode") : t("topbar.darkMode", "Dark mode")}
         title={theme === "dark" ? t("topbar.lightMode", "Light mode") : t("topbar.darkMode", "Dark mode")}
-        className="hidden h-9 w-9 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border sm:flex"
+        className="tap-expand hidden h-9 w-9 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border sm:flex"
       >
         {theme === "dark" ? <Sun className="h-5 w-5" strokeWidth={1.75} /> : <Moon className="h-5 w-5" strokeWidth={1.75} />}
       </button>
@@ -249,7 +249,7 @@ export function TopBar({
         <Menu.Trigger
           aria-label={t("common.language")}
           title={t("common.language")}
-          className={cn(ACTION_BUTTON, "hidden h-9 items-center gap-1.5 px-2.5 text-xs font-semibold data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground sm:flex")}
+          className={cn(ACTION_BUTTON, "tap-expand hidden h-9 items-center gap-1.5 px-2.5 text-xs font-semibold data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground sm:flex")}
         >
           <Globe className="h-4 w-4 stroke-[1.75]" />
           <span className="uppercase">{lang}</span>
@@ -292,7 +292,7 @@ export function TopBar({
         onClick={onOpenSettings}
         aria-label={t("topbar.settings")}
         title={t("topbar.settings")}
-        className={`hidden h-9 w-9 items-center justify-center rounded-[var(--radius)] transition-colors sm:flex ${
+        className={`tap-expand hidden h-9 w-9 items-center justify-center rounded-[var(--radius)] transition-colors sm:flex ${
           settingsActive ? "border border-border bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.05)]" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
         }`}
       >
@@ -303,7 +303,7 @@ export function TopBar({
       <Menu.Root>
         <Menu.Trigger
           aria-label={t("topbar.account")}
-          className="flex h-9 w-9 items-center justify-center rounded-full brand-gradient text-[11px] font-semibold text-white shadow-[0_2px_8px_-2px_rgb(0_0_0/0.35)] ring-1 ring-inset ring-white/25 transition hover:brightness-110 data-[popup-open]:brightness-110"
+          className="tap-expand flex h-9 w-9 items-center justify-center rounded-full brand-gradient text-[11px] font-semibold text-white shadow-[0_2px_8px_-2px_rgb(0_0_0/0.35)] ring-1 ring-inset ring-white/25 transition hover:brightness-110 data-[popup-open]:brightness-110"
         >
           {userInitials}
         </Menu.Trigger>

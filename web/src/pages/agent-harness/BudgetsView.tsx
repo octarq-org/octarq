@@ -248,7 +248,7 @@ export function BudgetsView() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Switch checked={autoHalt} onCheckedChange={handleToggleAutoHalt} />
+            <Switch checked={autoHalt} onCheckedChange={handleToggleAutoHalt} aria-label={t("agentHarness.runawayGuard", "Runaway Spending Protection")} />
             <span className="text-xs font-semibold text-foreground">
               {autoHalt
                 ? t("agentHarness.statusActive", "Active")

@@ -78,7 +78,7 @@ export function ChatView({
                 {msg.role === "user" ? t("command.chat.user") : t("command.chat.assistant")}
               </div>
               {msg.role === "user" ? (
-                <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+                <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary-solid px-3.5 py-2 text-sm text-primary-foreground">
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                 </div>
               ) : (
@@ -160,7 +160,7 @@ export function ChatView({
               onClick={onSend}
               disabled={!chatInput.trim()}
               aria-label={t("command.chat.send")}
-              className="shrink-0 flex items-center justify-center rounded-lg bg-primary p-2 text-primary-foreground transition-opacity disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              className="shrink-0 flex items-center justify-center rounded-lg bg-primary-solid p-2 text-primary-foreground transition-opacity disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
             >
               <ArrowUp className="h-4 w-4" />
             </button>

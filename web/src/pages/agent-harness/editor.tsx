@@ -233,6 +233,7 @@ export function HarnessEditorModal({
                 checked={isUnrestrictedTools}
                 onCheckedChange={setIsUnrestrictedTools}
                 disabled={submitting}
+                aria-label={t("agentHarness.toolAllowUnrestricted")}
               />
             </div>
           </div>

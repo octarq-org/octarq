@@ -235,14 +235,16 @@ describe("PreferencesPage", () => {
 
     renderWithProviders(<PreferencesPage />);
 
-    expect(await screen.findByText("系统事件")).toBeTruthy();
-    expect(screen.getByText("安全与审计")).toBeTruthy();
-    expect(screen.getByText("定时任务")).toBeTruthy();
+    // The phone list and the desktop matrix both render, so each label appears
+    // more than once in the DOM.
+    expect((await screen.findAllByText("System events")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Security and audit").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Scheduled jobs").length).toBeGreaterThan(0);
 
     // Check dynamic channel columns
-    expect(screen.getByText("In-App Inbox")).toBeTruthy();
-    expect(screen.getByText("Email Service")).toBeTruthy();
-    expect(screen.getByText("Telegram Bot")).toBeTruthy();
+    expect(screen.getAllByText("In-App Inbox").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Email Service").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Telegram Bot").length).toBeGreaterThan(0);
   });
 
   it("saves updated preferences to API", async () => {
@@ -252,7 +254,7 @@ describe("PreferencesPage", () => {
 
     renderWithProviders(<PreferencesPage />);
 
-    await screen.findByText("系统事件");
+    await screen.findAllByText("System events");
     const saveBtn = screen.getByRole("button", { name: /保存配置|Save preferences/i });
 
     fireEvent.click(saveBtn);
@@ -271,7 +273,7 @@ describe("PreferencesPage", () => {
 
     renderWithProviders(<PreferencesPage />);
 
-    await screen.findByText("系统事件");
+    await screen.findAllByText("System events");
     const resetBtn = screen.getByRole("button", { name: /重置默认|Reset to default/i });
 
     fireEvent.click(resetBtn);

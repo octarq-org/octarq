@@ -114,14 +114,14 @@ export function MailSettings() {
         </>
       )}
       <div className="flex items-center gap-3 border-t border-border pt-4">
-        <Switch checked={catchAll} onCheckedChange={setCatchAll} />
+        <Switch checked={catchAll} onCheckedChange={setCatchAll} aria-label={t("settings.enableCatchAll")} />
         <div>
           <span className="block select-none text-xs font-semibold text-muted-foreground">{t("settings.enableCatchAll")}</span>
           <span className="select-none text-[10px] text-muted-foreground">{t("settings.enableCatchAllDesc")}</span>
         </div>
       </div>
       <div className="flex items-center gap-3 border-t border-border pt-4">
-        <Switch checked={autoWrap} onCheckedChange={setAutoWrap} />
+        <Switch checked={autoWrap} onCheckedChange={setAutoWrap} aria-label={t("settings.autoWrapLinks")} />
         <div>
           <span className="block select-none text-xs font-semibold text-muted-foreground">{t("settings.autoWrapLinks")}</span>
           <span className="select-none text-[10px] text-muted-foreground">{t("settings.autoWrapLinksDesc")}</span>

@@ -41,6 +41,7 @@ export function EmailListPane({
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           className="!pl-10"
+          aria-label={t("mail.searchPlaceholder")}
           placeholder={t("mail.searchPlaceholder")}
           value={q}
           onChange={(e) => onSearchChange(e.target.value)}

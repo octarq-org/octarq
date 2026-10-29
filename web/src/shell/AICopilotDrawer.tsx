@@ -97,7 +97,7 @@ export function AICopilotButton({ className }: { className?: string }) {
       <span className="hidden sm:inline font-medium group-hover:text-foreground">
         {t("copilot.drawerTitle", "AI Copilot")}
       </span>
-      <kbd className="hidden rounded-md border border-border bg-muted px-1 py-0.5 text-[9px] font-mono font-medium text-muted-foreground md:block">
+      <kbd className="hidden rounded-md border border-border bg-muted px-1 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">
         {t("copilot.shortcutKey", "⌘J")}
       </kbd>
     </button>
@@ -399,7 +399,7 @@ export function AICopilotDrawer() {
                   className={cn(
                     "max-w-[88%] rounded-2xl p-3 text-xs leading-relaxed transition-colors",
                     msg.role === "user"
-                      ? "rounded-2xl rounded-tr-md bg-primary px-3 py-2 text-xs font-medium leading-relaxed text-primary-foreground"
+                      ? "rounded-2xl rounded-tr-md bg-primary-solid px-3 py-2 text-xs font-medium leading-relaxed text-primary-foreground"
                       : "rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2 text-xs leading-relaxed text-foreground",
                   )}
                 >
@@ -479,7 +479,7 @@ export function AICopilotDrawer() {
                   type="button"
                   onClick={() => handleSend()}
                   disabled={!input.trim()}
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-accent)] transition-colors hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-primary-solid text-primary-foreground shadow-[var(--shadow-accent)] transition-colors hover:bg-primary-solid-hover disabled:pointer-events-none disabled:opacity-40"
                   title={t("copilot.send", "Send")}
                   aria-label={t("copilot.send", "Send")}
                 >

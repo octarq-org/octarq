@@ -311,12 +311,12 @@ export function WebhooksSettings() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-foreground">{w.name}</span>
                       {w.events === "*" ? (
-                        <span className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground">{t("settings.allEvents")}</span>
+                        <span className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">{t("settings.allEvents")}</span>
                       ) : (
                         String(w.events).split(",").filter(Boolean).map((key: string) => {
                           const def = defByKey.get(key.trim());
                           return (
-                            <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                            <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                               {key.trim()}
                             </span>
                           );
@@ -328,7 +328,7 @@ export function WebhooksSettings() {
                   </div>
                   {canManage && (
                     <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
-                      <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} />
+                      <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} aria-label={`${t("settings.enabled")} — ${w.name || w.url}`} />
                       <Button
                         variant="ghost"
                         onClick={() => test(w)}
@@ -495,7 +495,7 @@ export function WebhooksSettings() {
             <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
-                  <Switch checked={all} onCheckedChange={setAll} />
+                  <Switch checked={all} onCheckedChange={setAll} aria-label={t("settings.allEventsStar")} />
                   <span>{all ? t("settings.allEventsStar") : t("settings.customEvents")}</span>
                 </label>
                 {!all && (
@@ -518,7 +518,7 @@ export function WebhooksSettings() {
                                   <span className="min-w-0">
                                     <span className="flex flex-wrap items-center gap-1.5">
                                       <span>{ev.title}</span>
-                                      <span className="rounded border border-border bg-well px-1 py-px font-mono text-[9px] text-muted-foreground">{ev.key}</span>
+                                      <span className="rounded border border-border bg-well px-1 py-px font-mono text-[10px] text-muted-foreground">{ev.key}</span>
                                     </span>
                                     <span className="block text-[10px] text-muted-foreground">{ev.description}</span>
                                   </span>

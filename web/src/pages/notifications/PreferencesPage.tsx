@@ -1,7 +1,23 @@
-import { Button, GlassCard, PageHeader, ScreenWrap, Table, THead, TBody, TR, TH, TD, cn, toast } from "@octarq/plugin-sdk";
-import React, { useEffect, useState } from "react";
-import { Plus, RotateCcw, Save, Trash2, Sliders, Check } from "lucide-react";
-import { useTranslation } from "../../i18n";
+import {
+  Button,
+  Field,
+  GlassCard,
+  Input,
+  Modal,
+  PageHeader,
+  ScreenWrap,
+  Switch,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  toast,
+} from "@octarq/plugin-sdk";
+import React, { useEffect, useMemo, useState } from "react";
+import { Plus, RotateCcw, Save, Trash2, Sliders } from "lucide-react";
+import { useTranslation, type TFunc } from "../../i18n";
 import {
   useNotificationPreferencesQuery,
   useRegisteredChannelsQuery,
@@ -10,38 +26,56 @@ import {
 } from "./api";
 import { PreferenceRouteRow } from "./types";
 
-const DEFAULT_CATEGORIES: PreferenceRouteRow[] = [
+// The categories the matrix always shows. Labels and descriptions come from the
+// page dictionary at render time; only the routing pattern is fixed here.
+const DEFAULT_CATEGORIES = [
   {
-    key: "system",
-    label: "系统事件",
-    description: "系统升级、维护公告及实例运行状态通知",
     pattern: "system.*",
+    labelKey: "notifications.catSystemLabel",
+    descKey: "notifications.catSystemDesc",
+    fallbackLabel: "System events",
+    fallbackDesc: "Upgrades, maintenance notices, and instance status.",
   },
   {
-    key: "security",
-    label: "安全与审计",
-    description: "异地登录、密码重置、双因素认证与凭证变更",
     pattern: "security.*",
+    labelKey: "notifications.catSecurityLabel",
+    descKey: "notifications.catSecurityDesc",
+    fallbackLabel: "Security and audit",
+    fallbackDesc: "Remote sign-in, password reset, two-factor, and credential changes.",
   },
   {
-    key: "cron",
-    label: "定时任务",
-    description: "Cron 调度失败、周期作业异常及重试告警",
     pattern: "cron.*",
+    labelKey: "notifications.catCronLabel",
+    descKey: "notifications.catCronDesc",
+    fallbackLabel: "Scheduled jobs",
+    fallbackDesc: "Cron failures, recurring job errors, and retry alerts.",
   },
   {
-    key: "storage",
-    label: "存储与备份",
-    description: "存储容量上限警告、临时 Token 生成与备份快照",
     pattern: "storage.*",
+    labelKey: "notifications.catStorageLabel",
+    descKey: "notifications.catStorageDesc",
+    fallbackLabel: "Storage and backup",
+    fallbackDesc: "Capacity limits, temporary tokens, and backup snapshots.",
   },
   {
-    key: "fallback",
-    label: "默认通用兜底",
-    description: "未命中上述规则的所有事件默认通知渠道",
     pattern: "*",
+    labelKey: "notifications.catFallbackLabel",
+    descKey: "notifications.catFallbackDesc",
+    fallbackLabel: "Everything else",
+    fallbackDesc: "Default channels for events that match no other rule.",
   },
-];
+] as const;
+
+const DEFAULT_PATTERNS: string[] = DEFAULT_CATEGORIES.map((c) => c.pattern);
+
+function defaultRows(t: TFunc): PreferenceRouteRow[] {
+  return DEFAULT_CATEGORIES.map((c) => ({
+    key: c.pattern,
+    pattern: c.pattern,
+    label: t(c.labelKey, c.fallbackLabel),
+    description: t(c.descKey, c.fallbackDesc),
+  }));
+}
 
 export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
@@ -54,9 +88,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
   // Local editable state: Record<eventPattern, string[] (channels)>
   const [matrix, setMatrix] = useState<Record<string, string[]>>(() => {
     const init: Record<string, string[]> = {};
-    for (const cat of DEFAULT_CATEGORIES) {
-      init[cat.pattern] = ["in_app", "email"];
-    }
+    for (const pattern of DEFAULT_PATTERNS) init[pattern] = ["in_app", "email"];
     return init;
   });
   const [customRows, setCustomRows] = useState<PreferenceRouteRow[]>([]);
@@ -71,22 +103,21 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     const nextMatrix: Record<string, string[]> = {};
     const extraRows: PreferenceRouteRow[] = [];
 
-    // Initialize defaults with ["in_app", "email"]
-    for (const cat of DEFAULT_CATEGORIES) {
-      nextMatrix[cat.pattern] = ["in_app", "email"];
-    }
+    for (const pattern of DEFAULT_PATTERNS) nextMatrix[pattern] = ["in_app", "email"];
 
     // Apply saved server preferences
     for (const pref of savedPreferences) {
       nextMatrix[pref.eventPattern] = [...pref.channels];
 
       // If it's a custom pattern not in standard categories, add to customRows
-      const isKnown = DEFAULT_CATEGORIES.some((c) => c.pattern === pref.eventPattern);
+      const isKnown = DEFAULT_PATTERNS.includes(pref.eventPattern);
       if (!isKnown && pref.eventPattern) {
         extraRows.push({
           key: pref.eventPattern,
           label: pref.eventPattern,
-          description: `自定义规则 (${pref.eventPattern})`,
+          description: t("notifications.customRuleDesc", "Custom rule ({{pattern}})", {
+            pattern: pref.eventPattern,
+          }),
           pattern: pref.eventPattern,
           isCustom: true,
         });
@@ -94,21 +125,17 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     }
 
     setMatrix(nextMatrix);
-    if (extraRows.length > 0) {
-      setCustomRows(extraRows);
-    }
-  }, [savedPreferences]);
+    if (extraRows.length > 0) setCustomRows(extraRows);
+  }, [savedPreferences, t]);
 
-  const allRows = [...DEFAULT_CATEGORIES, ...customRows];
+  const allRows = useMemo(() => [...defaultRows(t), ...customRows], [t, customRows]);
 
   // Toggle a channel for a specific pattern
   const toggleChannel = (pattern: string, channelName: string) => {
     setMatrix((prev) => {
       const current = prev[pattern] || [];
       const has = current.includes(channelName);
-      const updated = has
-        ? current.filter((c) => c !== channelName)
-        : [...current, channelName];
+      const updated = has ? current.filter((c) => c !== channelName) : [...current, channelName];
       return { ...prev, [pattern]: updated };
     });
   };
@@ -118,14 +145,14 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     const pat = newPattern.trim();
     if (!pat) return;
     if (allRows.some((r) => r.pattern === pat)) {
-      toast.error(t("notifications.patternExists", "该规则已存在"));
+      toast.error(t("notifications.patternExists", "This event pattern already exists"));
       return;
     }
 
     const row: PreferenceRouteRow = {
       key: pat,
       label: newLabel.trim() || pat,
-      description: `自定义规则 (${pat})`,
+      description: t("notifications.customRuleDesc", "Custom rule ({{pattern}})", { pattern: pat }),
       pattern: pat,
       isCustom: true,
     };
@@ -156,9 +183,9 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
     try {
       await updateMutation.mutateAsync(payload);
-      toast.success(t("notifications.preferencesSaved", "通知偏好设置已保存"));
+      toast.success(t("notifications.preferencesSaved", "Notification preferences saved"));
     } catch (err: any) {
-      toast.error(err.message || t("notifications.saveFailed", "保存失败"));
+      toast.error(err.message || t("notifications.saveFailed", "Could not save notification preferences. Try again."));
     }
   };
 
@@ -167,18 +194,28 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     try {
       await resetMutation.mutateAsync();
       const defaultState: Record<string, string[]> = {};
-      for (const cat of DEFAULT_CATEGORIES) {
-        defaultState[cat.pattern] = ["in_app", "email"];
-      }
+      for (const pattern of DEFAULT_PATTERNS) defaultState[pattern] = ["in_app", "email"];
       setMatrix(defaultState);
       setCustomRows([]);
-      toast.success(t("notifications.preferencesReset", "已重置为默认通知偏好"));
+      toast.success(t("notifications.preferencesReset", "Notification preferences reset to defaults"));
     } catch (err: any) {
-      toast.error(err.message || t("notifications.resetFailed", "重置失败"));
+      toast.error(err.message || t("notifications.resetFailed", "Could not reset notification preferences. Try again."));
     }
   };
 
   const isLoading = loadingPrefs || loadingChannels;
+
+  const deleteRuleButton = (row: PreferenceRouteRow) =>
+    row.isCustom && (
+      <button
+        type="button"
+        onClick={() => handleRemoveCustomRow(row.pattern)}
+        aria-label={`${t("notifications.delete", "Delete")} — ${row.label}`}
+        className="tap-expand-sm flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-danger-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
+      >
+        <Trash2 className="h-4 w-4" aria-hidden="true" />
+      </button>
+    );
 
   const actionButtons = (
     <div className="flex flex-wrap items-center gap-2.5">
@@ -190,7 +227,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
         className="flex items-center gap-1.5 text-xs"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        <span>{t("notifications.resetDefaults", "重置默认")}</span>
+        <span>{t("notifications.resetDefaults", "Reset to default")}</span>
       </Button>
 
       <Button
@@ -201,7 +238,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
         className="flex items-center gap-1.5 text-xs"
       >
         <Save className="h-3.5 w-3.5" />
-        <span>{t("notifications.savePreferences", "保存配置")}</span>
+        <span>{t("notifications.savePreferences", "Save preferences")}</span>
       </Button>
     </div>
   );
@@ -218,7 +255,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
           action={actionButtons}
         />
       ) : (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <p className="text-xs text-muted-foreground">
             {t(
               "personal.notificationsDesc",
@@ -230,173 +267,165 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
       )}
 
       {/* Matrix Card */}
-        <GlassCard className="overflow-hidden !p-0">
-          <div className="border-b border-border bg-well px-4 py-3 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Sliders className="h-4 w-4 text-accent-fg" />
-                  {t("notifications.matrixTitle", "事件渠道路由矩阵")}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("notifications.matrixHint", "每一行代表一类通知事件，勾选对应渠道即可自动投递。")}
-                </p>
-              </div>
-
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 text-xs self-start sm:self-auto"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>{t("notifications.addRule", "添加规则")}</span>
-              </Button>
+      <GlassCard className="overflow-hidden !p-0">
+        <div className="border-b border-border bg-well px-4 py-3 sm:px-6">
+          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Sliders className="h-4 w-4 text-accent-fg" aria-hidden="true" />
+                {t("notifications.matrixTitle", "Event Route Matrix")}
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("notifications.matrixHint", "Each row represents an event category. Toggle channels to enable delivery.")}
+              </p>
             </div>
+
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1.5 self-start text-xs sm:self-auto"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>{t("notifications.addRule", "Add rule")}</span>
+            </Button>
           </div>
+        </div>
 
-          {/* Matrix Table */}
-          <Table className="text-xs sm:text-sm">
-            <THead className="border-b border-border bg-well text-muted-foreground font-medium">
-              <TR>
-                <TH className="py-3 px-4 sm:px-6 w-1/3 text-left">
-                  {t("notifications.colEventType", "事件分类 / 规则")}
-                </TH>
-                {channels.map((ch) => (
-                  <TH key={ch.name} className="py-3 px-4 text-center min-w-[100px]">
-                    <div className="flex flex-col items-center">
-                      <span className="font-semibold text-foreground">{ch.displayName || ch.name}</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">({ch.name})</span>
-                    </div>
-                  </TH>
-                ))}
-                <TH className="py-3 px-4 w-12 text-center" />
-              </TR>
-            </THead>
-
-            <TBody className="divide-y divide-border">
-              {isLoading ? (
-                <TR>
-                  <TD colSpan={channels.length + 2} className="py-12 text-center text-muted-foreground">
-                    {t("notifications.loading", "加载中...")}
-                  </TD>
-                </TR>
-              ) : (
-                allRows.map((row) => {
-                  const rowChannels = matrix[row.pattern] || [];
-                  return (
-                    <TR key={row.pattern} className="hover:bg-surface-hover/40 transition-colors">
-                      <TD className="py-3.5 px-4 sm:px-6">
-                        <div className="flex items-center gap-2">
+        {isLoading ? (
+          <p className="py-12 text-center text-xs text-muted-foreground">{t("notifications.loading", "Loading…")}</p>
+        ) : (
+          <>
+            {/* Phone: one card per event, so the channel columns never scroll
+                sideways inside the card. */}
+            <ul className="divide-y divide-border sm:hidden">
+              {allRows.map((row) => {
+                const rowChannels = matrix[row.pattern] || [];
+                return (
+                  <li key={row.pattern} className="px-4 py-3.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium text-foreground">{row.label}</span>
-                          <code className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground">
+                          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
                             {row.pattern}
                           </code>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{row.description}</p>
-                      </TD>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{row.description}</p>
+                      </div>
+                      {deleteRuleButton(row)}
+                    </div>
 
-                      {channels.map((ch) => {
-                        const isEnabled = rowChannels.includes(ch.name);
-                        return (
-                          <TD key={ch.name} className="py-3.5 px-4 text-center">
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={isEnabled}
-                              onClick={() => toggleChannel(row.pattern, ch.name)}
-                              className={cn(
-                                "inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-border focus:ring-offset-2",
-                                isEnabled ? "bg-primary" : "bg-muted-foreground/25",
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
-                                  isEnabled ? "translate-x-5" : "translate-x-0",
-                                )}
-                              />
-                            </button>
+                    <div className="mt-3 space-y-2">
+                      {channels.map((ch) => (
+                        <div key={ch.name} className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            {ch.displayName || ch.name}
+                          </span>
+                          <Switch
+                            checked={rowChannels.includes(ch.name)}
+                            onCheckedChange={() => toggleChannel(row.pattern, ch.name)}
+                            aria-label={`${row.label} — ${ch.displayName || ch.name}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Tablet and up: the matrix. */}
+            <div className="hidden sm:block">
+              <Table className="text-xs sm:text-sm">
+                <THead className="border-b border-border bg-well font-medium text-muted-foreground">
+                  <TR>
+                    <TH className="w-1/3 px-4 py-3 text-left sm:px-6">
+                      {t("notifications.colEventType", "Event Category / Pattern")}
+                    </TH>
+                    {channels.map((ch) => (
+                      <TH key={ch.name} className="min-w-[100px] px-4 py-3 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-semibold text-foreground">{ch.displayName || ch.name}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">({ch.name})</span>
+                        </div>
+                      </TH>
+                    ))}
+                    <TH className="w-12 px-4 py-3 text-center" />
+                  </TR>
+                </THead>
+
+                <TBody className="divide-y divide-border">
+                  {allRows.map((row) => {
+                    const rowChannels = matrix[row.pattern] || [];
+                    return (
+                      <TR key={row.pattern} className="transition-colors hover:bg-surface-hover/40">
+                        <TD className="px-4 py-3.5 sm:px-6">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{row.label}</span>
+                            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                              {row.pattern}
+                            </code>
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{row.description}</p>
+                        </TD>
+
+                        {channels.map((ch) => (
+                          <TD key={ch.name} className="px-4 py-3.5 text-center">
+                            <Switch
+                              checked={rowChannels.includes(ch.name)}
+                              onCheckedChange={() => toggleChannel(row.pattern, ch.name)}
+                              aria-label={`${row.label} — ${ch.displayName || ch.name}`}
+                            />
                           </TD>
-                        );
-                      })}
+                        ))}
 
-                      <TD className="py-3.5 px-4 text-center">
-                        {row.isCustom && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCustomRow(row.pattern)}
-                            className="text-muted-foreground hover:text-danger-fg transition-colors p-1"
-                            title={t("notifications.delete", "删除")}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </TD>
-                    </TR>
-                  );
-                })
-              )}
-            </TBody>
-          </Table>
-        </GlassCard>
+                        <TD className="px-4 py-3.5 text-center">{deleteRuleButton(row)}</TD>
+                      </TR>
+                    );
+                  })}
+                </TBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </GlassCard>
 
-        {/* Add custom rule dialog */}
-        {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-            <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl space-y-4 animate-in zoom-in-95">
-              <h3 className="text-base font-semibold text-foreground">
-                {t("notifications.addRuleTitle", "添加自定义通知路由规则")}
-              </h3>
+      {showAddModal && (
+        <Modal title={t("notifications.addRuleTitle", "Add Custom Event Rule")} onClose={() => setShowAddModal(false)}>
+          <div className="space-y-4">
+            <Field label={t("notifications.ruleName", "Rule Name")}>
+              <Input
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder={t("notifications.ruleNamePlaceholder", "e.g. Payment notices")}
+              />
+            </Field>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    {t("notifications.ruleName", "规则名称")}
-                  </label>
-                  <input
-                    type="text"
-                    value={newLabel}
-                    onChange={(e) => setNewLabel(e.target.value)}
-                    placeholder={t("notifications.ruleNamePlaceholder", "如：支付结算通知")}
-                    className="w-full rounded-xl border border-border bg-surface-hover/30 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-border"
-                  />
-                </div>
+            <Field
+              label={t("notifications.rulePattern", "Event Pattern Wildcard")}
+              hint={t("notifications.rulePatternHelp", "Supports patterns like billing.*, *.failed, or exact event names.")}
+            >
+              <Input
+                className="font-mono"
+                value={newPattern}
+                onChange={(e) => setNewPattern(e.target.value)}
+                placeholder={t("notifications.rulePatternPlaceholder", "e.g. billing.* or webhook.failed")}
+              />
+            </Field>
 
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    {t("notifications.rulePattern", "事件模式匹配通配符")}
-                  </label>
-                  <input
-                    type="text"
-                    value={newPattern}
-                    onChange={(e) => setNewPattern(e.target.value)}
-                    placeholder={t("notifications.rulePatternPlaceholder", "如：billing.* 或 webhook.failed")}
-                    className="w-full rounded-xl border border-border bg-surface-hover/30 px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-accent-border"
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {t("notifications.rulePatternHelp", "支持如 billing.*、*.failed 或精确事件名称。")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
-                  {t("common.cancel", "取消")}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={!newPattern.trim()}
-                  onClick={handleAddCustomPattern}
-                >
-                  {t("common.confirm", "添加")}
-                </Button>
-              </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button variant="primary" size="sm" disabled={!newPattern.trim()} onClick={handleAddCustomPattern}>
+                {t("notifications.addRule", "Add rule")}
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+        </Modal>
+      )}
+    </div>
   );
 
   if (embedded) return mainContent;

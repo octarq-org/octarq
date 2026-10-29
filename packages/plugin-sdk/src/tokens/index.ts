@@ -60,6 +60,8 @@ export const TOKENS: TokenDef[] = [
   { name: "--accent-violet", group: "accent", root: true, dark: false, themed: true, seed: true },
   { name: "--primary-foreground", group: "accent", root: true, dark: false, themed: true, seed: true },
   { name: "--primary-hover", group: "accent", root: true, dark: true, themed: true },
+  { name: "--primary-solid", group: "accent", root: true, dark: true, themed: true },
+  { name: "--primary-solid-hover", group: "accent", root: true, dark: true, themed: true },
   { name: "--accent-indigo", group: "accent", root: true, dark: false, themed: true },
   { name: "--accent-fg", group: "accent", root: true, dark: true, themed: true },
   { name: "--accent-soft", group: "accent", root: true, dark: true, themed: true },

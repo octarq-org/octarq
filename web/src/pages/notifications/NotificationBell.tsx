@@ -26,7 +26,7 @@ function NotificationBellConnected() {
       aria-expanded={isDrawerOpen}
       className={cn(
         ACTION_BUTTON,
-        "relative flex h-9 w-9 items-center justify-center transition-colors hover:text-foreground",
+        "tap-expand relative flex h-9 w-9 items-center justify-center transition-colors hover:text-foreground",
         isDrawerOpen && "bg-surface-hover text-foreground ring-1 ring-inset ring-border",
       )}
     >

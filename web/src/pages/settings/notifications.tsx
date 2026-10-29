@@ -255,7 +255,7 @@ function EditChannelModal({
         </NotificationChannelFormContext.Provider>
 
         <div className="flex items-center gap-3 pt-2">
-          <Switch checked={enabled} onCheckedChange={setEnabled} />
+          <Switch checked={enabled} onCheckedChange={setEnabled} aria-label={t("settings.channelEnabled")} />
           <span className="text-sm text-muted-foreground select-none">{t("settings.channelEnabled")}</span>
         </div>
 
@@ -377,7 +377,7 @@ export function NotificationChannels() {
             </div>
             <NavLink
               to="/settings/integrations?category=communication"
-              className="text-accent-fg hover:underline font-medium text-xs whitespace-nowrap ml-3"
+              className="ml-3 inline-flex min-h-8 items-center whitespace-nowrap text-xs font-medium text-accent-fg hover:underline"
             >
               {t("settings.openIntegrationsHub")} →
             </NavLink>

@@ -24,7 +24,7 @@ export function CopilotButton({ className }: CopilotButtonProps) {
       title={t("copilot.buttonTitle", "AI Copilot (⌘+J)")}
       aria-pressed={isOpen}
       className={cn(
-        "group relative flex h-9 items-center gap-1.5 rounded-xl border border-border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
+        "group tap-expand relative flex h-9 items-center gap-1.5 rounded-xl border border-border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
         isOpen
           ? "bg-accent-soft text-accent-fg border-primary/30 ring-1 ring-accent-border/20"
           : "bg-surface-hover/50 text-muted-foreground hover:bg-surface-hover hover:text-foreground",
@@ -51,7 +51,7 @@ export function CopilotButton({ className }: CopilotButtonProps) {
           {pendingCount}
         </span>
       ) : (
-        <kbd className="hidden rounded-md border border-border bg-muted px-1 py-0.5 text-[9px] font-mono font-medium text-muted-foreground md:block">
+        <kbd className="hidden rounded-md border border-border bg-muted px-1 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">
           {t("copilot.shortcutKey", "⌘J")}
         </kbd>
       )}
