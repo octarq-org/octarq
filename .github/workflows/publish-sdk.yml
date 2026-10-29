@@ -17,8 +17,15 @@ name: Publish SDK
 # "Version Packages" PR when unconsumed changesets exist, and publishes once that
 # PR is merged. Also runnable via manual dispatch and sdk-v* tags.
 #
-# Prerequisite: an `NPM_TOKEN` repo secret with publish rights to the public
-# `@octarq` npm scope, or the publish half fails (the version PR still opens).
+# Publishing authenticates with npm trusted publishing (OIDC), not a token.
+# The package's Trusted Publisher on npmjs.com names this workflow file; the
+# job's `id-token: write` permission is what mints the credential. Never add an
+# NPM_TOKEN back: npm returns 404 for a token that may not publish, and npm is
+# dropping token publishing in 2027.
+#
+# Prerequisite: the Trusted Publisher entry for @octarq/plugin-sdk must list
+# `octarq-org/octarq` and `publish-sdk.yml`, with the `npm publish` action
+# allowed. A new entry expires if it does not publish within two days.
 on:
   workflow_dispatch:
   push:
@@ -49,6 +56,7 @@ jobs:
     permissions:
       contents: write        # commit version bumps / push tags
       pull-requests: write   # open the "Version Packages" PR
+      id-token: write        # trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,8 +71,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-          scope: "@octarq"
 
       - run: pnpm install --frozen-lockfile
 
@@ -78,15 +84,15 @@ jobs:
           publish: pnpm run release
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
-          # setup-node wrote ~/.npmrc; changeset publish -> pnpm publish reads
-          # NODE_AUTH_TOKEN for //npm.pkg.github.com/:_authToken.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ── One-shot publish on an sdk-v* tag ────────────────────────────────────
   tag-publish:
     name: Publish on sdk-v* tag
     if: startsWith(github.ref, 'refs/tags/sdk-v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write        # trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -98,8 +104,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-          scope: "@octarq"
 
       - run: pnpm install --frozen-lockfile
 
@@ -108,5 +112,3 @@ jobs:
 
       - name: Publish
         run: pnpm publish --filter @octarq/plugin-sdk --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
