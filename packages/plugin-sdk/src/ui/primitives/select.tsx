@@ -21,10 +21,13 @@ export interface SelectProps {
   className?: string;
   id?: string;
   name?: string;
+  // The trigger is a <button>, which <label for> cannot name, so a visible
+  // sibling label has to be repeated here.
+  "aria-label"?: string;
 }
 
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(
-  ({ value, onValueChange, options, placeholder, disabled, className, id, name }, ref) => {
+  ({ value, onValueChange, options, placeholder, disabled, className, id, name, "aria-label": ariaLabel }, ref) => {
     return (
       <BaseSelect.Root
         items={options}
@@ -34,7 +37,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         id={id}
         name={name}
       >
-        <BaseSelect.Trigger ref={ref}className={cn(
+        <BaseSelect.Trigger
+          ref={ref}
+          aria-label={ariaLabel}
+          className={cn(
             "flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius)] border border-input bg-card px-3.5 text-[13.5px] text-foreground shadow-[inset_0_1px_1px_rgb(0_0_0/0.02)] outline-none transition-all duration-[var(--dur-fast)] ease-[var(--ease-out)]",
             "h-10 py-0",
             "hover:border-border-strong focus-visible:border-accent-border focus-visible:ring-2 focus-visible:ring-accent-soft",

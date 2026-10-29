@@ -172,7 +172,9 @@ export function HarnessEditorModal({
         {/* Extra rules */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="label">{t("agentHarness.extraRules")}</label>
+            {/* A group heading, not a label for one control: each rule input
+                below carries its own name. */}
+            <span className="label">{t("agentHarness.extraRules")}</span>
             <Button
               type="button"
               variant="outline"
@@ -190,6 +192,7 @@ export function HarnessEditorModal({
                 <Input
                   value={rule}
                   onChange={(e) => handleRuleChange(idx, e.target.value)}
+                  aria-label={`${t("agentHarness.extraRules")} ${idx + 1}`}
                   placeholder={t("agentHarness.rulePlaceholder")}
                   className="font-mono text-xs flex-1"
                   disabled={submitting}

@@ -84,9 +84,10 @@ export default function ResetPasswordPage() {
             )}
 
             <div>
-              <label className="label">{t("reset.newPasswordLabel")}</label>
+              <label htmlFor="reset-new-password" className="label">{t("reset.newPasswordLabel")}</label>
               <div className="relative mt-1">
                 <Input
+                  id="reset-new-password"
                   type="password"
                   required
                   className="pl-9 text-sm animate-none"
@@ -99,9 +100,10 @@ export default function ResetPasswordPage() {
             </div>
 
             <div>
-              <label className="label">{t("reset.confirmPasswordLabel")}</label>
+              <label htmlFor="reset-confirm-password" className="label">{t("reset.confirmPasswordLabel")}</label>
               <div className="relative mt-1">
                 <Input
+                  id="reset-confirm-password"
                   type="password"
                   required
                   className="pl-9 text-sm animate-none"

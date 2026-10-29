@@ -268,18 +268,25 @@ func (h *Handler) updateNotificationPreferences(ctx context.Context, input *Upda
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 
-	items := input.Body.Preferences
-	if len(items) == 0 && input.Body.EventPattern != "" {
-		items = []notification.PreferenceItem{
-			{
-				EventPattern: input.Body.EventPattern,
-				Channels:     input.Body.Channels,
-			},
+	if len(input.Body.Preferences) > 0 {
+		// A full matrix save: the submitted rows are the user's whole routing
+		// table, so a rule the user deleted in the page must disappear here too.
+		if err := notification.ReplacePreferences(ctx, h.db, uidStr, input.Body.Preferences); err != nil {
+			return nil, huma.Error500InternalServerError("Could not save notification preferences; retry the request")
 		}
-	}
-
-	if err := notification.SavePreferences(ctx, h.db, uidStr, items); err != nil {
-		return nil, huma.Error500InternalServerError("Could not save notification preferences; retry the request")
+	} else {
+		items := input.Body.Preferences
+		if input.Body.EventPattern != "" {
+			items = []notification.PreferenceItem{
+				{
+					EventPattern: input.Body.EventPattern,
+					Channels:     input.Body.Channels,
+				},
+			}
+		}
+		if err := notification.SavePreferences(ctx, h.db, uidStr, items); err != nil {
+			return nil, huma.Error500InternalServerError("Could not save notification preferences; retry the request")
+		}
 	}
 
 	prefs, err := notification.GetPreferences(ctx, h.db, uidStr)

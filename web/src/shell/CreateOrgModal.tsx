@@ -24,8 +24,9 @@ export function CreateOrgModal({
     <Modal title={t("app.createWorkspace")} onClose={onClose}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="label">{t("app.workspaceName")}</label>
+          <label htmlFor="create-org-name" className="label">{t("app.workspaceName")}</label>
           <Input
+            id="create-org-name"
             value={newOrgName}
             onChange={(e) => onNewOrgNameChange(e.target.value)}
             placeholder={t("app.workspaceNamePlaceholder")}

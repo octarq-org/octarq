@@ -136,9 +136,10 @@ export function OrgMembersManager() {
           </Field>
         </div>
         <div className="sm:w-32">
-          <label className="label text-xs">{t("settings.accessRole")}</label>
+          <span className="label text-xs">{t("settings.accessRole")}</span>
           <Select
             className="mt-1 text-xs"
+            aria-label={t("settings.accessRole")}
             value={role}
             onValueChange={setRole}
             options={[

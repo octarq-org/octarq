@@ -93,7 +93,9 @@ body,
   --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.06, 0.55) c h);  /* accent text/icons on surface */
   --accent-soft: color-mix(in oklab, var(--primary) 11%, transparent);   /* tinted fill */
   --accent-border: color-mix(in oklab, var(--primary) 26%, transparent); /* tinted hairline */
-  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent-violet) 100%);
+  /* The mark and the account avatar paint white text on this gradient, so the
+     seed stop uses the filled-surface fill, not the raw seed (4.47:1 in dark). */
+  --gradient-primary: linear-gradient(135deg, var(--primary-solid) 0%, var(--accent-violet) 100%);
 
   /* Status accents — readable on the current surface (600-weight on light).
      Info is the brand-tinted one: it mixes from --primary so it follows a
@@ -597,7 +599,12 @@ h1, h2, h3, h4, h5, h6 {
 /* ─── Touch targets ──────────────────────────────────────────────────────────
    HIG asks for a 44×44 pt target. Compact controls keep their visual size and
    grow an invisible one on touch screens, so desktop density does not change.
-   `.tap-expand` covers 36px controls, `.tap-expand-sm` covers 32px ones. */
+   `.tap-expand` covers 36px controls, `.tap-expand-sm` covers 32px ones.
+
+   The expanded box is invisible but it still takes taps, and a later sibling
+   paints over an earlier one. Two expanded controls therefore need at least a
+   44px pitch between them, or the lower one eats taps meant for the upper one.
+   Rows and gaps that carry these controls size for that pitch. */
 @media (pointer: coarse) {
   .tap-expand,
   .tap-expand-sm {

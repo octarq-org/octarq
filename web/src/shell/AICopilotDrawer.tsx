@@ -116,7 +116,7 @@ export function AICopilotButton({ className }: { className?: string }) {
       title={`${t("copilot.drawerTitle", "AI Copilot")} (⌘J)`}
       aria-pressed={isOpen}
       className={cn(
-        "group relative flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
+        "group tap-expand relative flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
         isOpen
           ? "border-primary/40 bg-accent-soft text-accent-fg ring-1 ring-accent-border/30"
           : "border-border bg-surface-hover/50 hover:bg-surface-hover hover:border-border-strong text-muted-foreground hover:text-foreground",

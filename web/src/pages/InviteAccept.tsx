@@ -78,9 +78,10 @@ export default function InviteAcceptPage() {
             )}
 
             <div>
-              <label className="label">{t("invite.newPasswordLabel")}</label>
+              <label htmlFor="invite-new-password" className="label">{t("invite.newPasswordLabel")}</label>
               <div className="relative mt-1">
                 <Input
+                  id="invite-new-password"
                   type="password"
                   required
                   className="pl-9 text-sm animate-none"
@@ -93,9 +94,10 @@ export default function InviteAcceptPage() {
             </div>
 
             <div>
-              <label className="label">{t("invite.confirmPasswordLabel")}</label>
+              <label htmlFor="invite-confirm-password" className="label">{t("invite.confirmPasswordLabel")}</label>
               <div className="relative mt-1">
                 <Input
+                  id="invite-confirm-password"
                   type="password"
                   required
                   className="pl-9 text-sm animate-none"
