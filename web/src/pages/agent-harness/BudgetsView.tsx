@@ -19,6 +19,7 @@ import {
   Plus,
 } from "lucide-react";
 import { api, type WorkforceOverviewDTO, type WorkforceModelPriceDTO } from "../../api";
+import { SpendLedger } from "./SpendLedger";
 
 // fmtPrice renders a per-million-token price without trailing zeros.
 function fmtPrice(v: number): string {
@@ -231,7 +232,7 @@ export function BudgetsView() {
             <TrendingUp className="h-4 w-4 text-accent-fg" />
           </div>
           <div className="text-lg font-bold text-foreground">
-            {t("agentHarness.daysUntilReset", "Days until reset: {days}", { days: daysUntilReset })}
+            {t("agentHarness.daysUntilReset", "Days until reset: {{days}}", { days: daysUntilReset })}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {t("agentHarness.cycleResetDesc", "Agent budgets reset automatically at UTC 00:00 on the 1st.")}
@@ -323,6 +324,9 @@ export function BudgetsView() {
           </div>
         </GlassCard>
       </div>
+
+      {/* Recent Spend: the ledger behind the totals above. */}
+      <SpendLedger />
 
       {/* Model Prices: the price source the billing path uses. A model with
           no price cannot bill a turn. */}

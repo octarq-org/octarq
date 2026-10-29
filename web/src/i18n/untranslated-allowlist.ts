@@ -53,6 +53,8 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "settings.generalTitle", // Identical spelling in Spanish (General)
   "audit.colActor", // Identical spelling in Spanish (Actor)
   "agentHarness.priorityNormal", // Identical spelling in Spanish and Portuguese (Normal)
+  "agentHarness.spendSourceChat", // Identical spelling in Spanish and Portuguese (Chat)
+  "agentHarness.spendColTokens", // Technical term with the same spelling in Spanish and Portuguese
 
   // Protocol acronyms that are universal
   "uiCommon.formErrorStatus", // Technical acronym (HTTP)

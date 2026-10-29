@@ -137,6 +137,9 @@ translates into the next action:
 The ingestion endpoint takes token counts, never a cost. A caller cannot set
 what it owes.
 
+`GET /api/workforce/agents/{id}/spend` reads the ledger, newest first, and the
+Budgets tab renders it. A turn that is absent from the ledger was not charged.
+
 ## Closed vocabularies
 
 - Agent status: `active`, `idle`, `paused` (caller-settable); `executing` is
