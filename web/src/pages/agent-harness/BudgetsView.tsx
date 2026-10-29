@@ -30,7 +30,7 @@ export function BudgetsView() {
       const data = await api.workforceOverview();
       setOverview(data);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load budget overview.";
+      const msg = err instanceof Error ? err.message : t("agentHarness.budgetsLoadError", "Failed to load budget metrics");
       setError(msg);
       setOverview(null); // Fail-closed
     } finally {
@@ -52,13 +52,13 @@ export function BudgetsView() {
       await api.toggleWorkforceAutoHalt(val);
       toast.success(
         val
-          ? "Auto-halt enabled: Agents will pause automatically at 100% budget."
-          : "Auto-halt disabled: Over-budget warnings only."
+          ? t("agentHarness.autoHaltOn", "Auto-halt is on. Agents pause at 100% of budget.")
+          : t("agentHarness.autoHaltOff", "Auto-halt is off.")
       );
     } catch (err: unknown) {
       // Rollback on rejection
       setOverview(prev);
-      const msg = err instanceof Error ? err.message : "Failed to update auto-halt setting.";
+      const msg = err instanceof Error ? err.message : t("agentHarness.autoHaltUpdateFallback", "Could not change auto-halt. Try again.");
       toast.error(msg);
     }
   };
@@ -133,7 +133,9 @@ export function BudgetsView() {
           </div>
           <div className="flex items-center gap-2 pt-1">
             <Badge variant={autoHalt ? "success" : "warning"} className="text-xs">
-              {autoHalt ? "Fail-Closed Protected" : "Advisory Only"}
+              {autoHalt
+                ? t("agentHarness.failClosedProtected", "Fail-Closed Protected")
+                : t("agentHarness.advisoryOnly", "Advisory Only")}
             </Badge>
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
@@ -167,7 +169,9 @@ export function BudgetsView() {
           <div className="flex items-center gap-3">
             <Switch checked={autoHalt} onCheckedChange={handleToggleAutoHalt} />
             <span className="text-xs font-semibold text-foreground">
-              {autoHalt ? "Active" : "Disabled"}
+              {autoHalt
+                ? t("agentHarness.statusActive", "Active")
+                : t("agentHarness.budgetDisabled", "Disabled")}
             </span>
           </div>
         </div>
