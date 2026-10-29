@@ -1,1 +1,0 @@
-import"./vendor-motion-8pz7gm9z.js";import{r as s}from"./vendor-react-DkI3_DdZ.js";import{b as o}from"./index-DyE3Rcfy.js";function u(){const[e,r]=s.useState(null),t=()=>o.settings().then(r);return s.useEffect(()=>{t()},[]),{s:e,reload:t}}export{u};
