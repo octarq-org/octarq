@@ -36,14 +36,14 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
       <GlassCard
         ref={ref}
         strong
-        className={cn("mx-auto mt-12 flex max-w-md flex-col items-center gap-5 px-5 py-10 text-center", className)}
+        className={cn("mx-auto mt-12 flex max-w-md flex-col items-center gap-5 rounded-2xl px-6 py-12 text-center", className)}
       >
         <div
           className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-lg",
+            "flex h-14 w-14 items-center justify-center rounded-2xl",
             locked
               ? "bg-info-bg text-accent-fg ring-1 ring-inset ring-info-border"
-              : "bg-rose-500/10 text-danger-fg", /* ui-color-ok */
+              : "bg-danger-bg text-danger-fg"
           )}
         >
           {icon ?? <DefaultLockIcon />}
@@ -51,10 +51,10 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
 
         <div className="space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <h2 className="text-xl font-bold text-foreground">{feature}</h2>
+            <h2 className="font-display text-[1.375rem] font-semibold tracking-[-0.02em] text-foreground">{feature}</h2>
             {locked && <ProPill>{label}</ProPill>}
           </div>
-          <p className="text-sm leading-relaxed text-foreground/50">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             {locked ? (
               <>
                 {t("uiCommon.lockedIntroPre")}
@@ -74,7 +74,7 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
           <ul className="w-full space-y-1.5 text-left">
             {perks.map((p) => (
               <li key={p} className="flex items-start gap-2 text-sm text-foreground/65">
-                <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-muted-foreground" />
+                <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-[2px] bg-accent-fg" />
                 {p}
               </li>
             ))}
@@ -100,7 +100,7 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
                 href={pricingHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-foreground/65 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                className="inline-flex h-10 items-center justify-center rounded-[var(--radius)] px-4 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
               >
                 {t("uiCommon.comparePlans")}
               </a>

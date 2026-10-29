@@ -44,7 +44,7 @@ export function FallbackCard({
       data-testid="fallback-card"
       data-tool={toolName}
       data-reason={reason}
-      className="rounded-xl border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground space-y-1"
+      className="rounded-xl border border-dashed border-border bg-muted p-3 text-xs text-muted-foreground space-y-1"
     >
       <div className="font-mono font-semibold text-foreground">
         <span>{t("copilot.cardToolPrefix", "tool:")} </span>

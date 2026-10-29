@@ -80,29 +80,29 @@ export function ApiTokens() {
 
       <GlassCard className="p-6">
         {loading ? (
-          <div className="text-foreground/40 text-sm py-6 text-center">{t("personal.loading")}</div>
+          <div className="text-muted-foreground text-sm py-6 text-center">{t("personal.loading")}</div>
         ) : tokens.length === 0 ? (
           <Empty>
-            <Key className="h-8 w-8 text-foreground/50 mb-1" />
-            <div className="text-xs text-foreground/50">{t("personal.noTokens")}</div>
+            <Key className="h-8 w-8 text-muted-foreground mb-1" />
+            <div className="text-xs text-muted-foreground">{t("personal.noTokens")}</div>
           </Empty>
         ) : (
-          <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
+          <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
             {tokens.map((tokenItem) => (
               <div key={tokenItem.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 sm:gap-4 group">
                 <div>
                   <div className="font-semibold text-sm text-foreground">{tokenItem.name}</div>
-                  <div className="text-xs text-foreground/50 mt-1 flex flex-wrap items-center gap-2">
-                    <code className="rounded bg-foreground/5 px-1.5 py-0.5 border border-foreground/[0.04]">{tokenItem.prefix}…</code>
+                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                    <code className="rounded bg-well px-1.5 py-0.5 border border-border">{tokenItem.prefix}…</code>
                     <Badge>{t(SCOPE_LABEL[tokenItem.role || "member"])}</Badge>
-                    {tokenItem.note && <span className="text-foreground/40">{tokenItem.note}</span>}
+                    {tokenItem.note && <span className="text-muted-foreground">{tokenItem.note}</span>}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
-                  <div className="text-[11px] text-foreground/50 flex flex-col sm:items-end">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
+                  <div className="text-[11px] text-muted-foreground flex flex-col sm:items-end">
                     <span>{tokenItem.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(tokenItem.lastUsedAt) }) : t("personal.neverUsed")}</span>
                     {tokenItem.expiresAt && (
-                      <span className={new Date(tokenItem.expiresAt).getTime() < Date.now() ? "text-danger-fg font-medium" : "text-foreground/40"}>
+                      <span className={new Date(tokenItem.expiresAt).getTime() < Date.now() ? "text-danger-fg font-medium" : "text-muted-foreground"}>
                         {new Date(tokenItem.expiresAt).getTime() < Date.now()
                           ? t("personal.expired")
                           : t("personal.expiresAt", { time: timeAgo(tokenItem.expiresAt) })}
@@ -137,10 +137,10 @@ export function ApiTokens() {
       {created && (
         <Modal title={t("personal.tokenGeneratedTitle")} onClose={() => setCreated(null)}>
           <div className="space-y-4">
-            <p className="text-xs text-foreground/60 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               {t("personal.tokenGeneratedIntro")} <span className="font-bold text-danger-fg">{t("personal.tokenGeneratedWarn")}</span>
             </p>
-            <div className="break-all rounded-xl bg-foreground/[0.05] border border-border p-4 font-mono text-xs select-all leading-normal text-foreground">
+            <div className="break-all rounded-xl bg-well border border-border p-4 font-mono text-xs select-all leading-normal text-foreground">
               {created.token}
             </div>
             <Button
@@ -251,7 +251,7 @@ function CreateTokenModal({
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
           <Input className="text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
             {busy ? t("personal.generating") : t("personal.generateToken")}
@@ -309,7 +309,7 @@ function EditTokenModal({
   return (
     <Modal title={t("personal.editTokenTitle")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <div className="text-xs text-foreground/70 rounded-xl bg-foreground/[0.04] p-3.5 border border-foreground/[0.06] leading-relaxed">
+        <div className="text-xs text-muted-foreground rounded-xl bg-well p-3.5 border border-border leading-relaxed">
           {t("personal.editTokenHint")}
         </div>
         <Field label={t("personal.tokenNameLabel")} hint={t("personal.tokenNameHint")}>
@@ -345,7 +345,7 @@ function EditTokenModal({
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
           <Input className="text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
             {busy ? t("personal.saving") : t("personal.saveToken")}

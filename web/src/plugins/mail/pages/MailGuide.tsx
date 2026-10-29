@@ -6,7 +6,7 @@ export function MailGuide() {
 
   return (
     <Guide title={t("mail.guideTitle")} open>
-      <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-foreground/70">
+      <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-muted-foreground">
         <li>
           {t("mail.guideStep1Pre")}
           <b>{t("mail.guideStep1Domains")}</b>

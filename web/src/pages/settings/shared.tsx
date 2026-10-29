@@ -34,9 +34,9 @@ export function InstanceAdminOnly() {
   const { t } = useTranslation();
   return (
     <GlassCard className="p-8 text-center">
-      <Lock className="mx-auto mb-3 h-6 w-6 text-foreground/40" />
-      <p className="text-sm font-medium text-foreground/80">{t("settings.instanceAdminOnly")}</p>
-      <p className="mt-1 text-xs text-foreground/50">{t("settings.instanceAdminOnlyDesc")}</p>
+      <Lock className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
+      <p className="text-sm font-medium text-foreground">{t("settings.instanceAdminOnly")}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t("settings.instanceAdminOnlyDesc")}</p>
     </GlassCard>
   );
 }

@@ -38,7 +38,7 @@ export default function AuditLogPage() {
         sorter: true,
         render: (_, record) => (
           <span
-            className="whitespace-nowrap font-mono tnum text-xs text-foreground/60"
+            className="whitespace-nowrap font-mono tnum text-xs text-muted-foreground"
             title={record.createdAt}
           >
             {timeAgo(record.createdAt)}
@@ -53,11 +53,11 @@ export default function AuditLogPage() {
         render: (_, record) => (
           <span className="whitespace-nowrap text-sm font-medium">
             {record.actorId === 0 ? (
-              <span className="text-foreground/40 italic">
+              <span className="text-muted-foreground italic">
                 {t("audit.systemActor")}
               </span>
             ) : (
-              <span className="text-foreground/80">
+              <span className="text-foreground">
                 {t("audit.user", { id: record.actorId })}
               </span>
             )}
@@ -81,9 +81,9 @@ export default function AuditLogPage() {
         key: "targetType",
         valueType: "text",
         render: (_, record) => (
-          <span className="whitespace-nowrap text-foreground/70 text-sm">
+          <span className="whitespace-nowrap text-muted-foreground text-sm">
             <span className="capitalize">{record.targetType}</span>{" "}
-            <span className="text-foreground/40 font-mono text-xs">
+            <span className="text-muted-foreground font-mono text-xs">
               #{record.targetId}
             </span>
           </span>
@@ -95,7 +95,7 @@ export default function AuditLogPage() {
         key: "ip",
         hideInSearch: true,
         render: (_, record) => (
-          <span className="whitespace-nowrap text-foreground/55 font-mono text-xs">
+          <span className="whitespace-nowrap text-muted-foreground font-mono text-xs">
             {record.ip}
           </span>
         ),
@@ -106,7 +106,7 @@ export default function AuditLogPage() {
         key: "meta",
         hideInSearch: true,
         render: (_, record) => (
-          <span className="text-xs text-foreground/40 font-mono break-all max-w-xs block">
+          <span className="text-xs text-muted-foreground font-mono break-all max-w-xs block">
             {record.meta}
           </span>
         ),

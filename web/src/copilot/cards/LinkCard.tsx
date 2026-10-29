@@ -88,7 +88,7 @@ export function LinkCard({
           />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border">
           <div className="flex items-center gap-2">
             <Button
               size="sm"

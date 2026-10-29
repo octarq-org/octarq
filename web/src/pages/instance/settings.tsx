@@ -98,7 +98,7 @@ export function InstanceSettings() {
 
   if (!settings) {
     return (
-      <div className="flex h-32 items-center justify-center text-sm text-foreground/40">
+      <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
         {t("settings.loadingInstanceSettings")}
       </div>
     );
@@ -116,7 +116,7 @@ export function InstanceSettings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Server className="h-5 w-5 text-accent-fg" />
-            <h2 className="text-base font-bold text-foreground">{t("settings.generalInfo")}</h2>
+            <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.generalInfo")}</h2>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -236,7 +236,7 @@ export function InstanceSettings() {
           </div>
         </Field>
 
-        <div className="border-t border-foreground/[0.06] pt-6">
+        <div className="border-t border-border pt-6">
           <Button variant="primary" onClick={saveGeneral} disabled={busy}>
             {busy ? t("settings.saving") : t("settings.save")}
           </Button>
@@ -247,9 +247,9 @@ export function InstanceSettings() {
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center gap-2">
           <Sliders className="h-5 w-5 text-accent-fg" />
-          <h2 className="text-base font-bold text-foreground">{t("settings.rateLimiting")}</h2>
+          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.rateLimiting")}</h2>
         </div>
-        <p className="text-xs text-foreground/50">{t("settings.instanceRlHint")}</p>
+        <p className="text-xs text-muted-foreground">{t("settings.instanceRlHint")}</p>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <Field label={t("settings.instanceRlAuth")}>
             <Input
@@ -279,7 +279,7 @@ export function InstanceSettings() {
             />
           </Field>
         </div>
-        <div className="border-t border-foreground/[0.06] pt-6">
+        <div className="border-t border-border pt-6">
           <Button variant="primary" onClick={saveGeneral} disabled={busy}>
             {busy ? t("settings.saving") : t("settings.save")}
           </Button>
@@ -293,19 +293,19 @@ export function InstanceSettings() {
         <GlassCard className="p-6 space-y-4">
           <div className="flex items-center gap-2">
             <Cpu className="h-5 w-5 text-accent-fg" />
-            <h2 className="text-base font-bold text-foreground">{t("settings.buildTitle")}</h2>
+            <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.buildTitle")}</h2>
           </div>
           <div className="grid grid-cols-1 gap-4 max-w-2xl sm:grid-cols-3">
             <Field label={t("settings.buildVersion")}>
-              <div className="font-mono text-sm text-foreground/80">{build.version}</div>
+              <div className="font-mono text-sm text-foreground">{build.version}</div>
             </Field>
             <Field label={t("settings.buildCommit")}>
-              <div className="font-mono text-sm text-foreground/80">
+              <div className="font-mono text-sm text-foreground">
                 {build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown"}
               </div>
             </Field>
             <Field label={t("settings.buildBuiltAt")}>
-              <div className="font-mono tnum text-sm text-foreground/80">{build.builtAt}</div>
+              <div className="font-mono tnum text-sm text-foreground">{build.builtAt}</div>
             </Field>
           </div>
         </GlassCard>
@@ -319,10 +319,10 @@ export function InstanceSettings() {
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center gap-2">
           <DatabaseBackup className="h-5 w-5 text-accent-fg" />
-          <h2 className="text-base font-bold text-foreground">{t("settings.backupTitle")}</h2>
+          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.backupTitle")}</h2>
         </div>
-        <p className="text-xs text-foreground/50">{t("settings.backupDesc")}</p>
-        <div className="border-t border-foreground/[0.06] pt-4">
+        <p className="text-xs text-muted-foreground">{t("settings.backupDesc")}</p>
+        <div className="border-t border-border pt-4">
           <Button variant="outline" onClick={handleBackup} disabled={backingUp}>
             {backingUp ? t("settings.backupPreparing") : t("settings.backupDownload")}
           </Button>
@@ -335,7 +335,7 @@ export function InstanceSettings() {
           and DNS), and the same word for two different scopes read as one
           feature split across two pages. */}
       <div className="space-y-3 pt-2">
-        <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="eyebrow px-1">
           {t("settings.systemSettings", "System Settings")}
         </h3>
         <ExtensionSlot name="settings-infra" />
@@ -372,7 +372,7 @@ function TestInstanceMailModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={t("settings.instanceTestMailTitle")} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-xs text-foreground/60 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {t("settings.instanceTestMailDesc")}
         </p>
         <Field label={t("settings.instanceTestMailRecipient")} hint={t("settings.instanceTestMailRecipientHint")}>
@@ -386,7 +386,7 @@ function TestInstanceMailModal({ onClose }: { onClose: () => void }) {
             required
           />
         </Field>
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t("settings.cancel")}
           </Button>

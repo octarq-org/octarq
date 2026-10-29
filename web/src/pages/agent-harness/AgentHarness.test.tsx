@@ -736,7 +736,7 @@ describe("AgentHarnessPage", () => {
     });
 
     // Switch to lessons tab
-    const lessonsTabBtn = screen.getByRole("button", { name: /lessons ledger|经验账本/i });
+    const lessonsTabBtn = screen.getByRole("tab", { name: /lessons ledger|经验账本/i });
     fireEvent.click(lessonsTabBtn);
 
     await waitFor(() => {
@@ -763,7 +763,7 @@ describe("AgentHarnessPage", () => {
       expect(screen.getByTestId("agent-harness-ready")).toBeDefined();
     });
 
-    const lessonsTabBtn = screen.getByRole("button", { name: /lessons ledger|经验账本/i });
+    const lessonsTabBtn = screen.getByRole("tab", { name: /lessons ledger|经验账本/i });
     fireEvent.click(lessonsTabBtn);
 
     await waitFor(() => {
@@ -803,7 +803,7 @@ describe("AgentHarnessPage", () => {
       expect(screen.getByTestId("agent-harness-ready")).toBeDefined();
     });
 
-    const lessonsTabBtn = screen.getByRole("button", { name: /lessons ledger|经验账本/i });
+    const lessonsTabBtn = screen.getByRole("tab", { name: /lessons ledger|经验账本/i });
     fireEvent.click(lessonsTabBtn);
 
     await waitFor(() => {
@@ -950,7 +950,7 @@ describe("AgentHarnessPage", () => {
     });
 
     // Click Tasks tab
-    const tasksTabBtn = screen.getByRole("button", { name: /tasks & issues|任务工单/i });
+    const tasksTabBtn = screen.getByRole("tab", { name: /tasks & issues|任务工单/i });
     fireEvent.click(tasksTabBtn);
 
     await waitFor(() => {
@@ -958,7 +958,7 @@ describe("AgentHarnessPage", () => {
     });
 
     // Click Budgets tab
-    const budgetsTabBtn = screen.getByRole("button", { name: /budgets & governance|预算开销/i });
+    const budgetsTabBtn = screen.getByRole("tab", { name: /budgets & governance|预算开销/i });
     fireEvent.click(budgetsTabBtn);
 
     await waitFor(() => {

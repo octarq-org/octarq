@@ -54,13 +54,13 @@ export function CardShell({
         className={cn(
           "rounded-xl border border-border bg-card p-3 text-xs leading-relaxed shadow-xs space-y-1.5",
           state === "forbidden" && "border-warning-fg/30 bg-warning-fg/10",
-          state === "error" && "border-destructive/30 bg-destructive/5",
+          state === "error" && "border-danger-border bg-danger-bg",
           className,
         )}
       >
         <div className="flex items-center gap-1.5 font-semibold text-foreground">
           {state === "loading" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          {state === "error" && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}
+          {state === "error" && <AlertCircle className="h-3.5 w-3.5 text-danger-fg" />}
           {state === "empty" && <Inbox className="h-3.5 w-3.5 text-muted-foreground" />}
           {state === "forbidden" && <Lock className="h-3.5 w-3.5 text-warning-fg" />}
           <span>{title}</span>
@@ -69,7 +69,7 @@ export function CardShell({
           className={cn(
             "text-xs text-muted-foreground",
             state === "forbidden" && "text-warning-fg font-medium",
-            state === "error" && "text-destructive",
+            state === "error" && "text-danger-fg",
           )}
           role={state === "error" ? "alert" : undefined}
         >
@@ -96,7 +96,7 @@ export function CardShell({
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b border-border/40 pb-1.5 font-semibold text-foreground">
+      <div className="flex items-center justify-between border-b border-border pb-1.5 font-semibold text-foreground">
         <span>{title}</span>
       </div>
       {children}

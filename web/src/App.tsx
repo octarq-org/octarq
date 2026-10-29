@@ -342,7 +342,7 @@ function Shell({
       <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-[var(--radius)] focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
         >
           {t("app.skipToContent")}
         </a>
@@ -378,8 +378,8 @@ function Shell({
           <aside
             className={cn(
               "z-30 shrink-0 overflow-hidden transition-[width,transform] duration-300 ease-out",
-              "absolute inset-y-0 left-0 w-60 md:relative md:inset-auto md:translate-x-0",
-              panelCollapsed ? "max-md:-translate-x-full md:w-16" : "md:w-60",
+              "absolute inset-y-0 left-0 w-64 md:relative md:inset-auto md:translate-x-0",
+              panelCollapsed ? "max-md:-translate-x-full md:w-16" : "md:w-64",
             )}
             {...(panelCollapsed && isMobile ? { inert: "" } : {})}
           >
@@ -416,7 +416,7 @@ function Shell({
               </div>
             ) : (
               <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-                <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-8 sm:py-5">
+                <div key={orgEpoch} className="mx-auto w-full max-w-[1200px] px-5 py-7 sm:px-9 sm:py-9 lg:px-12">
                   <AppRoutes pluginGateCtxValue={pluginGateCtxValue} />
                   <ShellFooter />
                 </div>

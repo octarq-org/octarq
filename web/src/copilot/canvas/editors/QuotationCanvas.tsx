@@ -114,7 +114,7 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="quotation-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {`${t("copilot.quotationCanvasTitle", "Price Quotation —")} ${content.client_name || "Acme Corporation"}`}
@@ -141,7 +141,7 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
       <div className="flex-1 overflow-auto rounded-xl border border-border bg-card">
         <Table className="w-full text-left text-xs border-collapse">
           <THead>
-            <TR className="border-b border-border bg-well/40 font-semibold text-muted-foreground">
+            <TR className="border-b border-border bg-well font-semibold text-muted-foreground">
               <TH className="py-2 px-3">SKU</TH>
               <TH className="py-2 px-3">{t("copilot.quotationColDesc", "Description")}</TH>
               <TH className="py-2 px-3 w-20">{t("copilot.quotationColQty", "Quantity")}</TH>
@@ -203,7 +203,7 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
                     <button
                       onClick={() => handleDeleteItem(idx)}
                       disabled={items.length <= 1}
-                      className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                      className="rounded p-1 text-muted-foreground hover:bg-danger-bg hover:text-danger-fg disabled:opacity-30"
                       aria-label={t("copilot.quotationRemoveItemAria", "Remove item")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -217,10 +217,10 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
       </div>
 
       {/* Pricing Summary & Discount Slider */}
-      <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-well/30 p-3 text-xs">
+      <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-well p-3 text-xs">
         <div className="space-y-2">
           <label className="font-semibold text-foreground flex items-center gap-1.5">
-            <Calculator className="h-3.5 w-3.5 text-primary" />
+            <Calculator className="h-3.5 w-3.5 text-accent-fg" />
             <span>{`${t("copilot.quotationCommercialDiscount", "Commercial Discount:")} ${discountPercent}%`}</span>
           </label>
           <input
@@ -247,7 +247,7 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
             <span>{`${t("copilot.quotationDiscount", "Discount")} (${discountPercent}%):`}</span>
             <span className="font-mono">-{formatCurrency(discountCents)}</span>
           </div>
-          <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border/40">
+          <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border">
             <span>{t("copilot.quotationGrandTotal", "Grand Total:")}</span>
             <span className="font-mono" data-testid="grand-total">{formatCurrency(totalCents)}</span>
           </div>

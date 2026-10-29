@@ -1,8 +1,9 @@
 // Maps composed UIPlugins into <Route> elements wrapped in PluginGate, with fallback components for unserved routes.
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Route, Link } from "react-router-dom";
+import { PackageX, PowerOff, ShieldX } from "lucide-react";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
-import { GlassCard, PageHeader, ScreenWrap, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
+import { ScreenWrap, buttonVariants, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
 import { uiPlugins } from "@octarq/plugin-sdk";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
@@ -15,9 +16,37 @@ function PluginIdLine({ plugin }: { plugin?: UIPlugin }) {
   const { t } = useTranslation();
   if (!plugin) return null;
   return (
-    <p className="text-sm text-foreground/60">
-      {t("uiCommon.pluginId")}: <span className="font-mono text-foreground/80">{plugin.name}</span>
+    <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+      {t("uiCommon.pluginId")}: <span className="text-foreground">{plugin.name}</span>
     </p>
+  );
+}
+
+interface FallbackCardProps {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  plugin?: UIPlugin;
+  state?: ReactNode;
+  action?: ReactNode;
+}
+
+// One panel for all three states, so a 402, a 403 and a 404 read the same way:
+// an icon, one reason, one path forward.
+function FallbackCard({ icon, title, body, plugin, state, action }: FallbackCardProps) {
+  return (
+    <div className="mx-auto mt-10 flex max-w-xl flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-14 text-center shadow-[var(--shadow-card)]">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-well text-muted-foreground ring-1 ring-border [&_svg]:h-5 [&_svg]:w-5">
+        {icon}
+      </div>
+      <h1 className="font-display text-[17px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
+        {title}
+      </h1>
+      <p className="max-w-sm text-[13px] leading-relaxed text-muted-foreground">{body}</p>
+      {plugin && <PluginIdLine plugin={plugin} />}
+      {state && <p className="text-xs text-muted-foreground">{state}</p>}
+      {action && <div className="mt-2">{action}</div>}
+    </div>
   );
 }
 
@@ -27,14 +56,13 @@ export function PluginUnavailable({ plugin }: { plugin?: UIPlugin }) {
   const { t } = useTranslation();
   return (
     <ScreenWrap>
-      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-5 py-10 text-center">
-        <PageHeader
-          title={t("uiCommon.routeUnavailableTitle")}
-          description={t("uiCommon.routeUnavailableBody")}
-        />
-        <PluginIdLine plugin={plugin} />
-        {plugin && <p className="text-xs text-foreground/45">{t("uiCommon.routeUnavailableState")}</p>}
-      </GlassCard>
+      <FallbackCard
+        icon={<PackageX />}
+        title={t("uiCommon.routeUnavailableTitle")}
+        body={t("uiCommon.routeUnavailableBody")}
+        plugin={plugin}
+        state={plugin ? t("uiCommon.routeUnavailableState") : undefined}
+      />
     </ScreenWrap>
   );
 }
@@ -46,19 +74,20 @@ export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
   const canEnable = roleSatisfies("admin", roleCtx.role, roleCtx.isInstanceAdmin);
   return (
     <ScreenWrap>
-      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-5 py-10 text-center">
-        <PageHeader
-          title={t("uiCommon.pluginDisabledTitle")}
-          description={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
-        />
-        <PluginIdLine plugin={plugin} />
-        <p className="text-xs text-foreground/45">{t("uiCommon.pluginDisabledState")}</p>
-        {canEnable && (
-          <Link to="/settings/plugins" className="text-primary hover:text-primary-hover font-medium text-sm">
-            {t("uiCommon.pluginDisabledAdminLink")}
-          </Link>
-        )}
-      </GlassCard>
+      <FallbackCard
+        icon={<PowerOff />}
+        title={t("uiCommon.pluginDisabledTitle")}
+        body={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
+        plugin={plugin}
+        state={t("uiCommon.pluginDisabledState")}
+        action={
+          canEnable ? (
+            <Link to="/settings/plugins" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+              {t("uiCommon.pluginDisabledAdminLink")}
+            </Link>
+          ) : undefined
+        }
+      />
     </ScreenWrap>
   );
 }
@@ -68,17 +97,18 @@ export function AccessDenied({ plugin }: { plugin: UIPlugin }) {
   const { t } = useTranslation();
   return (
     <ScreenWrap>
-      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-5 py-10 text-center">
-        <PageHeader
-          title={t("uiCommon.accessDeniedTitle")}
-          description={t("uiCommon.accessDeniedBody")}
-        />
-        <PluginIdLine plugin={plugin} />
-        <p className="text-xs text-foreground/45">{t("uiCommon.accessDeniedState")}</p>
-        <Link to="/settings/members" className="text-primary hover:text-primary-hover font-medium text-sm">
-          {t("uiCommon.accessDeniedLink")}
-        </Link>
-      </GlassCard>
+      <FallbackCard
+        icon={<ShieldX />}
+        title={t("uiCommon.accessDeniedTitle")}
+        body={t("uiCommon.accessDeniedBody")}
+        plugin={plugin}
+        state={t("uiCommon.accessDeniedState")}
+        action={
+          <Link to="/settings/members" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+            {t("uiCommon.accessDeniedLink")}
+          </Link>
+        }
+      />
     </ScreenWrap>
   );
 }

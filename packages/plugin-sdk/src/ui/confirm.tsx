@@ -133,11 +133,10 @@ export function ConfirmProvider({
                 {pending.opts.cancelLabel ?? defaultCancelLabel}
               </Button>
               <Button
-                variant={pending.opts.danger === false ? "primary" : "danger"}
-                // The danger variant is text-only by design (it lives inline in
-                // tables); as the accept button of a dialog it needs enough
-                // weight to read as the primary action, hence the fill.
-                className={pending.opts.danger === false ? undefined : "bg-rose-500/10 hover:bg-rose-500/20"} /* ui-color-ok */
+                variant={pending.opts.danger === false ? "primary" : "danger-solid"}
+                // The inline danger variant is text-only by design (it lives in
+                // tables); the dialog accept uses danger-solid so the
+                // destructive action has the same weight as a primary.
                 autoFocus
                 onClick={() => settle(true)}
               >

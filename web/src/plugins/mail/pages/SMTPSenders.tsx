@@ -92,9 +92,9 @@ export function SMTPSenders() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="text-xs font-semibold text-foreground/70">
+        <div className="text-xs font-semibold text-muted-foreground">
           {t("settings.smtpOutgoingGateways")}
-          <div className="text-[10px] text-foreground/50 font-normal mt-0.5">{t("settings.smtpOutgoingGatewaysDesc")}</div>
+          <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{t("settings.smtpOutgoingGatewaysDesc")}</div>
         </div>
         {canManageSMTP && mode === "local" && (
           <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
@@ -111,14 +111,14 @@ export function SMTPSenders() {
       </div>
 
       {mode === "integration" && (
-        <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-accent-soft text-xs text-foreground">
           <div className="flex items-center gap-2">
-            <Blocks className="h-4 w-4 text-primary shrink-0" />
+            <Blocks className="h-4 w-4 text-accent-fg shrink-0" />
             <span>{t("settings.integrationsHubBanner")}</span>
           </div>
           <NavLink
             to="/settings/integrations?category=communication"
-            className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+            className="text-accent-fg hover:underline font-medium text-xs whitespace-nowrap ml-3"
           >
             {t("settings.openIntegrationsHub")} →
           </NavLink>
@@ -126,11 +126,11 @@ export function SMTPSenders() {
       )}
 
       {loading ? (
-        <div className="text-foreground/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
+        <div className="text-muted-foreground text-sm py-6 text-center">{t("settings.loadingLower")}</div>
       ) : senders.length === 0 ? (
         <Empty>
-          <Send className="h-8 w-8 text-foreground/50 mb-1" />
-          <div className="text-xs text-foreground/50">{t("settings.noSmtpSenders")}</div>
+          <Send className="h-8 w-8 text-muted-foreground mb-1" />
+          <div className="text-xs text-muted-foreground">{t("settings.noSmtpSenders")}</div>
           {canManageSMTP && mode === "integration" && (
             <NavLink to="/settings/integrations?category=communication">
               <Button variant="outline" size="sm" className="mt-3 text-xs">
@@ -145,7 +145,7 @@ export function SMTPSenders() {
           )}
         </Empty>
       ) : (
-        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
           {senders.map(s => (
             <div key={s.id} className="flex items-center justify-between p-4 group">
               <div>
@@ -166,7 +166,7 @@ export function SMTPSenders() {
                       : <Badge tone="amber" className="text-[9px]">{t("settings.smtpNoPassword")}</Badge>
                   )}
                 </div>
-                <div className="text-xs text-foreground/40 mt-1 font-mono">
+                <div className="text-xs text-muted-foreground mt-1 font-mono">
                   {mode === "integration"
                     ? (s.summary || `${s.fromEmail} via ${s.host}:${s.port || 587}`)
                     : `${s.fromEmail} via ${s.host}:${s.port}`}
@@ -283,7 +283,7 @@ function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: (
         </Field>
 
         {err && <FormError err={err} />}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim() || !host.trim() || !port || !user.trim()}>
             {busy ? t("settings.savingDots") : t("settings.saveRelay")}

@@ -6,6 +6,7 @@ import {
   Field,
   Input,
   Select,
+  Empty,
   toast,
   useTranslation,
 } from "@octarq/plugin-sdk";
@@ -162,15 +163,15 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
   const getRoleIcon = (dept: string) => {
     switch (dept) {
       case "Executive & Routing":
-        return <Bot className="h-5 w-5 text-primary" />;
+        return <Bot className="h-5 w-5 text-accent-fg" />;
       case "Operations":
-        return <Terminal className="h-5 w-5 text-primary" />;
+        return <Terminal className="h-5 w-5 text-accent-fg" />;
       case "Security":
         return <ShieldAlert className="h-5 w-5 text-warning-fg" />;
       case "Communications":
-        return <Mail className="h-5 w-5 text-primary" />;
+        return <Mail className="h-5 w-5 text-accent-fg" />;
       default:
-        return <Cpu className="h-5 w-5 text-primary" />;
+        return <Cpu className="h-5 w-5 text-accent-fg" />;
     }
   };
 
@@ -185,14 +186,14 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
         );
       case "executing":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft border border-primary/20 px-2.5 py-0.5 text-xs font-semibold text-accent-fg">
             <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
             {t("agentHarness.statusExecuting")}
           </span>
         );
       case "idle":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground/10 px-2.5 py-0.5 text-xs font-medium text-foreground/60">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
             {t("agentHarness.statusIdle")}
           </span>
@@ -231,7 +232,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
       <div className="space-y-6" data-testid="fleet-view">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <GlassCard key={i} className="p-5 h-48 animate-pulse bg-muted/20">
+            <GlassCard key={i} className="p-5 h-48 animate-pulse bg-muted">
               <div />
             </GlassCard>
           ))}
@@ -243,7 +244,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
   return (
     <div className="space-y-6" data-testid="fleet-view">
       {/* Top action row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
             {t("agentHarness.tabFleet", "AI Employees")}
@@ -252,16 +253,16 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
             {t("agentHarness.fleetDesc")}
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setDeployModalOpen(true)}>
+        <Button variant="primary" size="sm" className="shrink-0 whitespace-nowrap" onClick={() => setDeployModalOpen(true)}>
           <Plus className="h-4 w-4 mr-1.5" />
           {t("agentHarness.hireAgent", "Deploy AI Employee")}
         </Button>
       </div>
 
       {employees.length === 0 && (
-        <GlassCard className="p-8 text-center text-muted-foreground text-xs" data-testid="fleet-view-empty">
-          {t("agentHarness.fleetEmpty")}
-        </GlassCard>
+        <Empty reason={t("agentHarness.fleetEmpty")}>
+          <Bot />
+        </Empty>
       )}
 
       {/* Grid of employee cards */}
@@ -273,7 +274,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
               {/* Header */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-well border border-border flex items-center justify-center shrink-0">
                     {getRoleIcon(emp.department)}
                   </div>
                   <div>
@@ -304,7 +305,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                     onClick={() => handleTriggerHeartbeat(emp)}
                     title={t("agentHarness.wakeAgentNow", "Trigger heartbeat now")}
                   >
-                    <Play className="h-3.5 w-3.5 text-primary mr-1" />
+                    <Play className="h-3.5 w-3.5 text-accent-fg mr-1" />
                     {t("agentHarness.heartbeatBtn", "Heartbeat")}
                   </Button>
                   <Button
@@ -320,10 +321,10 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
               </div>
 
               {/* Core Directives / Behavioral Rules snippet */}
-              <div className="bg-well/60 rounded-lg p-3 text-xs border border-border/40">
+              <div className="bg-well rounded-lg p-3 text-xs border border-border">
                 <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground mb-1">
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3 text-primary" />
+                    <Sparkles className="h-3 w-3 text-accent-fg" />
                     {t("agentHarness.coreDirectives", "Core Directives")}
                   </span>
                   <button
@@ -332,25 +333,25 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                       setSelectedEmployee(emp);
                       setDirectivesModalOpen(true);
                     }}
-                    className="text-primary hover:underline flex items-center gap-1 font-normal cursor-pointer"
+                    className="text-accent-fg hover:underline flex items-center gap-1 font-normal cursor-pointer"
                   >
                     <Sliders className="h-3 w-3" />
                     {t("agentHarness.tuneDirectives", "Tune Directives")}
                   </button>
                 </div>
-                <p className="text-foreground/90 font-mono text-[11.5px] leading-relaxed line-clamp-2">
+                <p className="text-foreground font-mono text-[11.5px] leading-relaxed line-clamp-2">
                   {emp.directives}
                 </p>
               </div>
 
               {/* Capabilities & Monthly Budget Footer */}
-              <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-4 text-xs">
+              <div className="pt-2 border-t border-border flex items-center justify-between gap-4 text-xs">
                 {/* Capabilities pills */}
                 <div className="flex flex-wrap gap-1">
                   {emp.capabilities.map((cap) => (
                     <span
                       key={cap}
-                      className="px-2 py-0.5 rounded-md bg-foreground/5 border border-border/50 text-[10px] font-mono text-muted-foreground"
+                      className="px-2 py-0.5 rounded-md bg-well border border-border text-[10px] font-mono text-muted-foreground"
                     >
                       {cap}
                     </span>
@@ -371,7 +372,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                       </span>
                     </div>
                   </div>
-                  <div className="w-12 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                  <div className="w-12 h-1.5 bg-border rounded-full overflow-hidden">
                     <div
                       className={`h-full ${budgetPct > 90 ? "bg-danger-fg" : "bg-primary"}`}
                       style={{ width: `${budgetPct}%` }}
@@ -418,7 +419,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
             </Field>
             <Field label={t("agentHarness.initialDirectives")}>
               <textarea
-                className="w-full h-24 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-24 rounded-lg border border-border bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-accent-border"
                 value={newDirectives}
                 onChange={(e) => setNewDirectives(e.target.value)}
                 placeholder={t("agentHarness.initialDirectivesPlaceholder")}
@@ -448,7 +449,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
             </div>
             <Field label={t("agentHarness.standingDirectives", "Standing Directives")}>
               <textarea
-                className="w-full h-36 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-36 rounded-lg border border-border bg-well px-3 py-2 text-xs font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-accent-border"
                 value={selectedEmployee.directives}
                 onChange={(e) =>
                   setSelectedEmployee({ ...selectedEmployee, directives: e.target.value })

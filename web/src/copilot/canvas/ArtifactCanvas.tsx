@@ -125,7 +125,7 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
       className="flex h-full w-full flex-col bg-background overflow-hidden"
     >
       {/* Canvas Top Bar */}
-      <div className="flex items-center justify-between border-b border-border bg-well/30 px-4 py-2.5 shrink-0">
+      <div className="flex items-center justify-between border-b border-border bg-well px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate text-xs font-bold text-foreground" data-testid="artifact-title">
             {artifact.title}
@@ -133,7 +133,7 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
           <span className="rounded-full bg-well px-2 py-0.5 font-mono text-[10px] font-medium text-muted-foreground shrink-0">
             {`v${artifact.version || 1}`}
           </span>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary capitalize shrink-0">
+          <span className="rounded-full bg-accent-soft px-2 py-0.5 font-mono text-[10px] font-semibold text-accent-fg capitalize shrink-0">
             {artifact.status || "draft"}
           </span>
         </div>

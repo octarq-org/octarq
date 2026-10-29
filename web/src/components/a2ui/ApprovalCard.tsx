@@ -57,7 +57,7 @@ export function ApprovalCard({ widget }: { widget: ApprovalWidget }) {
       </div>
 
       {widget.args && Object.keys(widget.args).length > 0 && (
-        <pre className="font-mono text-[11px] p-2 rounded-lg bg-card border border-border text-foreground/80 overflow-x-auto max-h-36">
+        <pre className="font-mono text-[11px] p-2 rounded-lg bg-card border border-border text-foreground overflow-x-auto max-h-36">
           {JSON.stringify(widget.args, null, 2)}
         </pre>
       )}
@@ -67,7 +67,7 @@ export function ApprovalCard({ widget }: { widget: ApprovalWidget }) {
           <div className="flex items-center gap-2 w-full justify-end">
             <Button
               variant="subtle"
-              className="text-xs py-1 px-3 border-0 text-destructive hover:bg-destructive/10"
+              className="text-xs py-1 px-3 border-0 text-danger-fg hover:bg-danger-bg"
               disabled={busy}
               onClick={() => handleDecision("reject")}
             >
@@ -88,7 +88,7 @@ export function ApprovalCard({ widget }: { widget: ApprovalWidget }) {
             <span>{t("copilot.badgeApproved", "Approved")}</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-destructive font-medium text-xs">
+          <div className="flex items-center gap-1.5 text-danger-fg font-medium text-xs">
             <XCircle className="h-3.5 w-3.5" />
             <span>{t("copilot.badgeRejected", "Rejected")}</span>
           </div>

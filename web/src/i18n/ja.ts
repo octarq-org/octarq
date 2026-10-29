@@ -85,6 +85,7 @@ export const ja = {
   },
   topbar: {
     create: "作成",
+    switchArea: "エリアを切り替える",
     lightMode: "ライトモード",
     darkMode: "ダークモード",
     workspaces: "ワークスペース",

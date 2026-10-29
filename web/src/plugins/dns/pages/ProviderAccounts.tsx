@@ -63,9 +63,9 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="text-xs font-semibold text-foreground/70">
+        <div className="text-xs font-semibold text-muted-foreground">
           {t("settings.dnsApiAccounts")}
-          <div className="text-[10px] text-foreground/50 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
+          <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
         </div>
         {canManageProviders && mode === "local" && (
           <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
@@ -82,14 +82,14 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
       </div>
 
       {mode === "integration" && (
-        <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-accent-soft text-xs text-foreground">
           <div className="flex items-center gap-2">
-            <Blocks className="h-4 w-4 text-primary shrink-0" />
+            <Blocks className="h-4 w-4 text-accent-fg shrink-0" />
             <span>{t("settings.integrationsHubBanner")}</span>
           </div>
           <NavLink
             to="/settings/integrations?category=dns"
-            className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+            className="text-accent-fg hover:underline font-medium text-xs whitespace-nowrap ml-3"
           >
             {t("settings.openIntegrationsHub")} →
           </NavLink>
@@ -97,16 +97,16 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
       )}
 
       {loading ? (
-        <div className="text-foreground/40 text-sm py-4 text-center">{t("settings.loadingLower")}</div>
+        <div className="text-muted-foreground text-sm py-4 text-center">{t("settings.loadingLower")}</div>
       ) : mode === null ? (
         <Empty>
-          <Cloud className="h-8 w-8 text-foreground/50 mb-1" />
-          <div className="text-xs text-foreground/50">{t("settings.dnsProvidersUnavailable")}</div>
+          <Cloud className="h-8 w-8 text-muted-foreground mb-1" />
+          <div className="text-xs text-muted-foreground">{t("settings.dnsProvidersUnavailable")}</div>
         </Empty>
       ) : accounts.length === 0 ? (
         <Empty>
-          <Cloud className="h-8 w-8 text-foreground/50 mb-1" />
-          <div className="text-xs text-foreground/50">{t("settings.noDnsProviders")}</div>
+          <Cloud className="h-8 w-8 text-muted-foreground mb-1" />
+          <div className="text-xs text-muted-foreground">{t("settings.noDnsProviders")}</div>
           {canManageProviders && mode === "local" && (
             <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => setCreating(true)}>
               {t("settings.addProvider")}
@@ -121,7 +121,7 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           )}
         </Empty>
       ) : (
-        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
           {accounts.map(a => {
             const providerType = a.provider || a.type || "cloudflare";
             const isConfigured = a.configured ?? a.hasCredentials ?? true;
@@ -129,7 +129,7 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
               <div key={a.id} className="flex items-center justify-between p-4">
                 <div>
                   <div className="font-semibold text-sm text-foreground">{a.name}</div>
-                  <div className="text-xs text-foreground/40 mt-1 flex items-center gap-1.5">
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                     <Badge
                       tone={providerType === "cloudflare" ? "indigo" : providerType === "dnspod" ? "cyan" : "amber"}
                       className="uppercase tracking-wider text-[9px]"
@@ -235,7 +235,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
           <Input className="font-mono text-xs" type="password" value={config} onChange={(e: any) => setConfig(e.target.value)} placeholder={account ? "••••••••" : t("settings.apiKeysPlaceholderNew")} required={!account} />
         </Field>
         {err && <FormError err={err} />}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
             {busy ? t("settings.savingDots") : t("settings.saveConnection")}

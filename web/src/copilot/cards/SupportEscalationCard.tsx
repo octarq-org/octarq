@@ -135,7 +135,7 @@ export function SupportEscalationCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div className="flex items-center gap-1.5">
             <LifeBuoy className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
@@ -148,7 +148,7 @@ export function SupportEscalationCard({
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
               isCritical
-                ? "bg-destructive/15 text-destructive border border-destructive/20"
+                ? "bg-danger-bg text-danger-fg border border-danger-border"
                 : "bg-warning-fg/15 text-warning-fg"
             }`}
             data-testid="severity-chip"
@@ -157,14 +157,14 @@ export function SupportEscalationCard({
           </span>
         </div>
 
-        <div className="rounded-lg border border-border/50 bg-background/50 p-2 text-xs space-y-1">
+        <div className="rounded-lg border border-border bg-well p-2 text-xs space-y-1">
           <div className="text-[11px] font-semibold text-muted-foreground">
             {t("copilot.supportSummary", "Escalation Summary")}
           </div>
-          <div className="text-foreground/90 font-medium">
+          <div className="text-foreground font-medium">
             {summary}
           </div>
-          <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/30">
+          <div className="text-[11px] text-muted-foreground pt-1 border-t border-border">
             {`${t("copilot.supportRoutingTarget", "Routing Target:")} `}<span className="text-foreground font-medium">{owner}</span>
           </div>
         </div>
@@ -177,7 +177,7 @@ export function SupportEscalationCard({
             {citations.slice(0, 2).map((cite, idx) => (
               <div
                 key={cite.article_id || idx}
-                className="rounded-md border border-border/40 bg-well/20 px-2 py-1 text-[11px] text-muted-foreground truncate"
+                className="rounded-md border border-border bg-well px-2 py-1 text-[11px] text-muted-foreground truncate"
               >
                 <span className="font-medium text-foreground">{cite.title}</span>
                 {cite.snippet && <span className="ml-1">· {cite.snippet}</span>}
@@ -197,7 +197,7 @@ export function SupportEscalationCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

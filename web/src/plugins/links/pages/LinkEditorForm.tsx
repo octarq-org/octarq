@@ -265,7 +265,7 @@ export function LinkEditorForm({
 
       <div className="flex items-center gap-3 pt-2 min-w-0">
         <Switch checked={enabled} onCheckedChange={setEnabled} />
-        <span className="text-sm text-foreground/60 select-none">{t("links.linkRoutingActive")}</span>
+        <span className="text-sm text-muted-foreground select-none">{t("links.linkRoutingActive")}</span>
       </div>
 
       <Field label={t("links.routingRules")}>
@@ -274,7 +274,7 @@ export function LinkEditorForm({
 
       {err && <FormError err={err} />}
 
-      <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06] min-w-0">
+      <div className="flex justify-end gap-2.5 pt-4 border-t border-border min-w-0">
         <Button variant="ghost" onClick={onCancel}>
           {t("links.cancel")}
         </Button>
@@ -320,7 +320,7 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
     ["content", "content"],
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-well border border-foreground/[0.05] rounded-xl min-w-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-well border border-border rounded-xl min-w-0">
       {fields.map(([k, label]) => (
         <Input
           key={k}
@@ -353,7 +353,7 @@ function RoutingRulesEditor({ rules, onChange, geoReady }: { rules: any[]; onCha
   return (
     <div className="space-y-3 min-w-0">
       {rules.map((rule, i) => (
-        <div key={i} className="flex gap-2 items-start bg-well p-3 rounded-lg border border-foreground/[0.05] min-w-0">
+        <div key={i} className="flex gap-2 items-start bg-well p-3 rounded-lg border border-border min-w-0">
           <div className="flex-1 space-y-2 min-w-0">
             <div className="flex gap-2 min-w-0">
               <div className="w-1/3 min-w-[100px] shrink-0">
@@ -449,7 +449,7 @@ function RoutingRulesEditor({ rules, onChange, geoReady }: { rules: any[]; onCha
         </Button>
         
         {rules.some((r) => r.type === "split") && (
-          <div className="text-xs text-foreground/60 font-mono">
+          <div className="text-xs text-muted-foreground font-mono">
             {t("links.splitTotalLabel", { total: splitTotal })} · {t("links.ruleSplitRemainder")}: {splitRem}%
           </div>
         )}

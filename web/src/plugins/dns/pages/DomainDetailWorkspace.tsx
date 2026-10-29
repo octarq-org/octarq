@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Badge, Button, confirmDialog, GlassCard, toast } from "@octarq/plugin-sdk";
+import { Badge, Button, confirmDialog, GlassCard, TabBar, toast } from "@octarq/plugin-sdk";
 import { api, Domain, ProviderAccount } from "../../../api";
 import { dnsApi, DNSVerifyResult } from "../api";
 import {
@@ -107,13 +107,9 @@ export function DomainDetailWorkspace({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-foreground/[0.06]">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-border">
         <div className="flex items-center gap-3">
-          <Button
-            variant="subtle"
-            className="gap-1.5 text-xs py-1.5 px-3"
-            onClick={onBack}
-          >
+          <Button variant="subtle" size="sm" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
             {t("domains.backToDomains")}
           </Button>
@@ -145,57 +141,17 @@ export function DomainDetailWorkspace({
         </div>
       </div>
 
-      {/* Sub Navigation Tabs */}
-      <div className="flex gap-2 border-b border-foreground/[0.06] overflow-x-auto [scrollbar-width:none]">
-        <button
-          type="button"
-          onClick={() => setActiveSubTab("records")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-            activeSubTab === "records"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-foreground/50 hover:text-foreground/80"
-          }`}
-        >
-          <Layers className="h-4 w-4 text-accent-fg" />
-          {t("domains.domainRecords")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab("routing")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-            activeSubTab === "routing"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-foreground/50 hover:text-foreground/80"
-          }`}
-        >
-          <LinkIcon className="h-4 w-4 text-accent-fg" />
-          {t("domains.domainRouting")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab("verification")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-            activeSubTab === "verification"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-foreground/50 hover:text-foreground/80"
-          }`}
-        >
-          <ShieldCheck className="h-4 w-4 text-success-fg" />
-          {t("domains.domainHealth")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSubTab("settings")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-            activeSubTab === "settings"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-foreground/50 hover:text-foreground/80"
-          }`}
-        >
-          <Settings className="h-4 w-4 text-foreground/60" />
-          {t("domains.domainSettings")}
-        </button>
-      </div>
+      <TabBar
+        className="mb-6"
+        value={activeSubTab}
+        onValueChange={(v) => setActiveSubTab(v as DomainSubTab)}
+        items={[
+          { value: "records", label: t("domains.domainRecords"), icon: <Layers className="h-4 w-4" /> },
+          { value: "routing", label: t("domains.domainRouting"), icon: <LinkIcon className="h-4 w-4" /> },
+          { value: "verification", label: t("domains.domainHealth"), icon: <ShieldCheck className="h-4 w-4" /> },
+          { value: "settings", label: t("domains.domainSettings"), icon: <Settings className="h-4 w-4" /> },
+        ]}
+      />
 
       {/* Sub-tab 1: DNS Records */}
       {activeSubTab === "records" && (
@@ -203,7 +159,7 @@ export function DomainDetailWorkspace({
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-foreground">{t("domains.dnsRecords")}</h3>
-              <p className="text-xs text-foreground/50">{t("domains.pageDescription")}</p>
+              <p className="text-xs text-muted-foreground">{t("domains.pageDescription")}</p>
             </div>
           </div>
           <RecordsView domain={domain} />
@@ -215,7 +171,7 @@ export function DomainDetailWorkspace({
         <GlassCard className="p-6 space-y-5">
           <div>
             <h3 className="text-base font-semibold text-foreground">{t("domains.managedHosts")}</h3>
-            <p className="text-xs text-foreground/50 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {t("domains.syncToggleHint")}
             </p>
           </div>
@@ -247,31 +203,26 @@ export function DomainDetailWorkspace({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold text-foreground">{t("domains.dnsSetupVerification")}</h3>
-                <p className="text-xs text-foreground/50 mt-1 leading-relaxed">
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   {t("domains.verificationHint")}
                 </p>
               </div>
-              <Button
-                variant="primary"
-                onClick={() => verifyDns(domain)}
-                disabled={verifying}
-                className="text-xs py-1.5 px-3.5 gap-1.5"
-              >
+              <Button variant="primary" size="sm" onClick={() => verifyDns(domain)} disabled={verifying}>
                 <RefreshCw className={`h-3.5 w-3.5 ${verifying ? "animate-spin" : ""}`} />
                 {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
               </Button>
             </div>
 
             {verifying && dnsStatus === null ? (
-              <div className="flex flex-col items-center justify-center p-10 rounded-2xl bg-foreground/[0.02] border border-foreground/[0.05] space-y-3">
+              <div className="flex flex-col items-center justify-center p-10 rounded-2xl bg-well border border-border space-y-3">
                 <RefreshCw className="h-6 w-6 text-accent-fg animate-spin" />
-                <span className="text-xs text-foreground/60">{t("domains.verifying")}</span>
+                <span className="text-xs text-muted-foreground">{t("domains.verifying")}</span>
               </div>
             ) : dnsStatus === null ? (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
-                  <div key={label} className="flex flex-col items-center p-4 rounded-xl bg-well border border-foreground/[0.05]">
-                    <span className="text-xs uppercase font-bold text-foreground/45 tracking-wider">{t("domains.statusLabel", { label })}</span>
+                  <div key={label} className="flex flex-col items-center p-4 rounded-xl bg-well border border-border">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">{t("domains.statusLabel", { label })}</span>
                     <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
                   </div>
                 ))}
@@ -294,7 +245,7 @@ export function DomainDetailWorkspace({
 
                 {/* 3. Mail hosts posture list */}
                 <div className="space-y-3">
-                  <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.mailHosts")}</span>
+                  <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">{t("domains.mailHosts")}</span>
                   {(dnsStatus.hosts?.length
                     ? dnsStatus.hosts
                     : [{ host: domain.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
@@ -311,7 +262,7 @@ export function DomainDetailWorkspace({
                 {/* 5. Short link hosts */}
                 {!!dnsStatus.links?.length && (
                   <div className="space-y-3">
-                    <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">{t("domains.shortLinkHosts")}</span>
                     {dnsStatus.links.map((lh) => (
                       <LinkHostRow key={lh.host} link={lh} />
                     ))}

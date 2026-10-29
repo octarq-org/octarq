@@ -80,15 +80,15 @@ export function RuntimeCard({ provider }: { provider: ProviderHealthReport }) {
         <div>
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent-fg">
                 <Cpu className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground text-sm">
+                <h3 className="text-[13px] font-semibold text-foreground">
                   {t("overview.healthProviderRuntime")}
                 </h3>
                 {goVersion && (
-                  <p className="text-[11px] text-foreground/50">
+                  <p className="text-[11px] text-muted-foreground">
                     {goVersion}
                     {numCpu ? ` · ${numCpu} ${t("overview.healthCpuCores")}` : ""}
                   </p>
@@ -99,26 +99,26 @@ export function RuntimeCard({ provider }: { provider: ProviderHealthReport }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="rounded-xl bg-foreground/5 p-3">
-              <span className="text-xs text-foreground/50 block mb-1">
+            <div className="rounded-xl border border-border bg-well p-3">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.07em] text-muted-foreground">
                 {t("overview.healthGoroutines")}
               </span>
-              <span className="text-lg font-bold text-foreground font-mono">{goroutines}</span>
+              <span className="font-mono text-[15px] font-semibold text-foreground">{goroutines}</span>
             </div>
-            <div className="rounded-xl bg-foreground/5 p-3">
-              <span className="text-xs text-foreground/50 block mb-1">
+            <div className="rounded-xl border border-border bg-well p-3">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.07em] text-muted-foreground">
                 {t("overview.healthUptime")}
               </span>
-              <span className="text-lg font-bold text-foreground font-mono">{uptime}</span>
+              <span className="font-mono text-[15px] font-semibold text-foreground">{uptime}</span>
             </div>
           </div>
 
-        <div className="rounded-xl bg-foreground/5 p-3">
+        <div className="rounded-xl border border-border bg-well p-3">
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="text-foreground/50">{t("overview.healthMemory")}</span>
-            <span className="font-mono text-foreground/70">{heapAlloc}</span>
+            <span className="text-muted-foreground">{t("overview.healthMemory")}</span>
+            <span className="font-mono text-muted-foreground">{heapAlloc}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px] text-foreground/40 font-mono">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
             <span>{t("overview.healthHeap", { size: heapAlloc })}</span>
             <span>{t("overview.healthSys", { size: heapSys })}</span>
           </div>
@@ -151,14 +151,14 @@ export function DatabaseCard({ provider }: { provider: ProviderHealthReport }) {
         <div>
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-accent-fg/10 text-accent-fg">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent-fg">
                 <Database className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground text-sm">
+                <h3 className="text-[13px] font-semibold text-foreground">
                   {t("overview.healthProviderDatabase")}
                 </h3>
-                <p className="text-[11px] text-foreground/50">
+                <p className="text-[11px] text-muted-foreground">
                   {inUse} {t("overview.healthInUse")} · {idle} {t("overview.healthIdle")}
                 </p>
               </div>
@@ -167,32 +167,32 @@ export function DatabaseCard({ provider }: { provider: ProviderHealthReport }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="rounded-xl bg-foreground/5 p-3">
-              <span className="text-xs text-foreground/50 block mb-1">
+            <div className="rounded-xl border border-border bg-well p-3">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.07em] text-muted-foreground">
                 {t("overview.healthConnections")}
               </span>
               <div className="flex items-baseline gap-1 font-mono">
                 <span className="text-lg font-bold text-foreground">{openConns}</span>
                 {maxConns !== null && (
-                  <span className="text-xs text-foreground/40">/ {maxConns}</span>
+                  <span className="text-xs text-muted-foreground">/ {maxConns}</span>
                 )}
               </div>
             </div>
-            <div className="rounded-xl bg-foreground/5 p-3">
-              <span className="text-xs text-foreground/50 block mb-1">
+            <div className="rounded-xl border border-border bg-well p-3">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.07em] text-muted-foreground">
                 {t("overview.healthPingLatency")}
               </span>
-              <span className="text-lg font-bold text-foreground font-mono">{pingLatency}</span>
+              <span className="font-mono text-[15px] font-semibold text-foreground">{pingLatency}</span>
             </div>
           </div>
 
-          <div className="rounded-xl bg-foreground/5 p-3 flex items-center justify-between">
-            <span className="text-xs text-foreground/50">{t("overview.healthSlowQueries")}</span>
+          <div className="flex items-center justify-between rounded-xl border border-border bg-well p-3">
+            <span className="text-xs text-muted-foreground">{t("overview.healthSlowQueries")}</span>
             <span
               className={`font-mono text-xs font-semibold px-2 py-0.5 rounded-md ${
                 slowQueries > 0
                   ? "bg-warning-bg text-warning-fg border border-warning-border"
-                  : "text-foreground/70"
+                  : "text-muted-foreground"
               }`}
             >
               {slowQueries}
@@ -231,15 +231,15 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
         <div>
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-info-fg/10 text-info-fg">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg text-info-fg">
                 <HardDrive className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground text-sm">
+                <h3 className="text-[13px] font-semibold text-foreground">
                   {t("overview.healthProviderDisk")}
                 </h3>
                 {diskPath && (
-                  <p className="text-[11px] text-foreground/50 truncate max-w-[160px]" title={diskPath}>
+                  <p className="text-[11px] text-muted-foreground truncate max-w-[160px]" title={diskPath}>
                     {diskPath}
                   </p>
                 )}
@@ -248,13 +248,13 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
             <HealthStatusBadge status={provider.status} />
           </div>
 
-          <div className="rounded-xl bg-foreground/5 p-3 mb-3">
+          <div className="mb-3 rounded-xl border border-border bg-well p-3">
             <div className="flex items-center justify-between text-xs mb-2">
-              <span className="text-foreground/50">{t("overview.healthDiskUsage")}</span>
+              <span className="text-muted-foreground">{t("overview.healthDiskUsage")}</span>
               <span className="font-mono font-bold text-foreground text-sm">{usagePercent}%</span>
             </div>
             <div
-              className="w-full bg-foreground/10 h-2 rounded-full overflow-hidden"
+              className="h-1.5 w-full overflow-hidden rounded-full bg-border"
               role="progressbar"
               aria-valuenow={usagePercent}
               aria-valuemin={0}
@@ -267,24 +267,24 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-xs font-mono">
-            <div className="rounded-xl bg-foreground/5 p-2.5">
-              <span className="text-[11px] text-foreground/40 block mb-0.5">
+          <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
+            <div className="rounded-xl border border-border bg-well p-2.5">
+              <span className="mb-0.5 block text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("overview.healthDiskUsed")}
               </span>
-              <span className="text-foreground/80 truncate block">{used}</span>
+              <span className="text-foreground truncate block">{used}</span>
             </div>
-            <div className="rounded-xl bg-foreground/5 p-2.5">
-              <span className="text-[11px] text-foreground/40 block mb-0.5">
+            <div className="rounded-xl border border-border bg-well p-2.5">
+              <span className="mb-0.5 block text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("overview.healthDiskFree")}
               </span>
-              <span className="text-foreground/80 truncate block">{free}</span>
+              <span className="text-foreground truncate block">{free}</span>
             </div>
-            <div className="rounded-xl bg-foreground/5 p-2.5">
-              <span className="text-[11px] text-foreground/40 block mb-0.5">
+            <div className="rounded-xl border border-border bg-well p-2.5">
+              <span className="mb-0.5 block text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("overview.healthDiskTotal")}
               </span>
-              <span className="text-foreground/80 truncate block">{total}</span>
+              <span className="text-foreground truncate block">{total}</span>
             </div>
           </div>
         </div>
@@ -300,19 +300,19 @@ export function GenericProviderCard({ provider }: { provider: ProviderHealthRepo
         <div>
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
+              <Activity className="h-4 w-4 text-accent-fg" />
               <h3 className="font-semibold text-foreground text-sm capitalize">{provider.name}</h3>
             </div>
             <HealthStatusBadge status={provider.status} />
           </div>
           {provider.message && (
-            <p className="text-xs text-foreground/60 mb-3">{provider.message}</p>
+            <p className="text-xs text-muted-foreground mb-3">{provider.message}</p>
           )}
           <div className="space-y-1.5 text-xs font-mono">
             {Object.entries(provider.metrics || {}).map(([k, v]) => (
-              <div key={k} className="flex justify-between py-1 border-b border-border/40">
-                <span className="text-foreground/50">{k}:</span>
-                <span className="text-foreground/80">{String(v)}</span>
+              <div key={k} className="flex justify-between py-1 border-b border-border">
+                <span className="text-muted-foreground">{k}:</span>
+                <span className="text-foreground">{String(v)}</span>
               </div>
             ))}
           </div>

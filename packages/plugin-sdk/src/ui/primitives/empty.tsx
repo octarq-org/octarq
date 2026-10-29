@@ -19,16 +19,18 @@ export const Empty = forwardRef<HTMLDivElement, EmptyProps>(
     <div
       ref={ref}
       className={cn(
-        "glass flex flex-col items-center justify-center gap-2 rounded-lg py-10 text-foreground/45",
+        "glass flex flex-col items-center justify-center gap-3 rounded-2xl px-6 py-16 text-center",
         className,
       )}
     >
-      {children}
-      {reason && <p className="text-sm font-medium text-foreground/75">{reason}</p>}
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-well text-accent-fg shadow-[var(--shadow-card)] ring-1 ring-border [&_svg]:h-5 [&_svg]:w-5">
+        {children}
+      </div>
+      {reason && <p className="font-display text-[15px] text-foreground">{reason}</p>}
       {detail && (
-        <p className="max-w-md text-center text-[13px] leading-relaxed text-foreground/45">{detail}</p>
+        <p className="max-w-sm text-[12.5px] leading-relaxed text-muted-foreground">{detail}</p>
       )}
-      {action && <div className="mt-1">{action}</div>}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   ),
 );

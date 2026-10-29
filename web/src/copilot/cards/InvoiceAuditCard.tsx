@@ -133,7 +133,7 @@ export function InvoiceAuditCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div className="text-[11px] text-muted-foreground">
             {`${t("copilot.invoiceAudited", "Audited")} ${total} ${t("copilot.invoiceAuditDesc", "invoice records against purchase orders.")}`}
           </div>
@@ -145,7 +145,7 @@ export function InvoiceAuditCard({
 
         {/* 4 Metric Chips */}
         <div className="grid grid-cols-4 gap-1.5" data-testid="audit-metrics">
-          <div className="rounded-lg border border-border/60 bg-background/50 p-1.5 text-center">
+          <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.invoiceScanned", "Scanned")}</div>
             <div className="font-mono text-xs font-bold text-foreground" data-testid="metric-scanned">
               {total}
@@ -157,9 +157,9 @@ export function InvoiceAuditCard({
               {matched}
             </div>
           </div>
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-1.5 text-center">
-            <div className="text-[10px] text-destructive">{t("copilot.invoiceDiscrepant", "Discrepant")}</div>
-            <div className="font-mono text-xs font-bold text-destructive" data-testid="metric-discrepancies">
+          <div className="rounded-lg border border-danger-border bg-danger-bg p-1.5 text-center">
+            <div className="text-[10px] text-danger-fg">{t("copilot.invoiceDiscrepant", "Discrepant")}</div>
+            <div className="font-mono text-xs font-bold text-danger-fg" data-testid="metric-discrepancies">
               {discrepancyCount}
             </div>
           </div>
@@ -180,7 +180,7 @@ export function InvoiceAuditCard({
             {discrepancies.slice(0, 3).map((item, idx) => (
               <div
                 key={item.invoice_id || item.invoice_no || idx}
-                className="flex items-center justify-between rounded-lg border border-border/50 bg-background/50 px-2 py-1 text-xs"
+                className="flex items-center justify-between rounded-lg border border-border bg-well px-2 py-1 text-xs"
               >
                 <div className="flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5 text-warning-fg shrink-0" />
@@ -195,7 +195,7 @@ export function InvoiceAuditCard({
                     )}
                   </div>
                 </div>
-                <div className="font-mono text-[11px] font-semibold text-destructive">
+                <div className="font-mono text-[11px] font-semibold text-danger-fg">
                   {item.delta_cents ? formatCurrency(item.delta_cents) : item.issue || "Delta"}
                 </div>
               </div>
@@ -214,7 +214,7 @@ export function InvoiceAuditCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

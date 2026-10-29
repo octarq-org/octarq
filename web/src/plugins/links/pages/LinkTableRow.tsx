@@ -33,7 +33,7 @@ export function LinkTableRow({
   const displayTitle = l.title || l.slug;
 
   return (
-    <TR key={l.id} className="hover:bg-foreground/[0.02] transition-colors group">
+    <TR key={l.id} className="hover:bg-well transition-colors group">
       {/* Title, Short Slug & Host */}
       <TD>
         <div className="flex flex-col gap-1">
@@ -41,7 +41,7 @@ export function LinkTableRow({
             {displayTitle}
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs text-foreground/50 truncate max-w-[200px]">
+            <span className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">
               {l.host ? `${l.host}/` : "/"}
               <span>{l.slug}</span>
             </span>
@@ -50,7 +50,7 @@ export function LinkTableRow({
               onClick={() => onCopy(l)}
               title={t("links.copyLink")}
               aria-label={t("links.copyLink")}
-              className="p-0.5 text-foreground/40 hover:text-foreground rounded transition-colors cursor-pointer"
+              className="p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
             >
               {isCopied ? (
                 <Check className="h-3.5 w-3.5 text-success-fg" />
@@ -64,7 +64,7 @@ export function LinkTableRow({
               rel="noreferrer"
               title={t("links.openLink")}
               aria-label={t("links.openLink")}
-              className="p-0.5 text-foreground/40 hover:text-accent-fg rounded transition-colors"
+              className="p-0.5 text-muted-foreground hover:text-accent-fg rounded transition-colors"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
@@ -76,9 +76,9 @@ export function LinkTableRow({
                   key={tag}
                   title={tag}
                   aria-label={tag}
-                  className="inline-flex items-center gap-0.5 text-[10px] text-foreground/70 bg-foreground/[0.06] px-1.5 py-0.5 rounded font-mono"
+                  className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-surface-hover px-1.5 py-0.5 rounded font-mono"
                 >
-                  <Tag className="h-2.5 w-2.5 text-foreground/50" />
+                  <Tag className="h-2.5 w-2.5 text-muted-foreground" />
                   <span className="truncate max-w-[120px]">{tag}</span>
                 </span>
               ))}
@@ -90,7 +90,7 @@ export function LinkTableRow({
       {/* Destination Target URL & Badges */}
       <TD>
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-xs text-foreground/75 truncate max-w-[320px]" title={l.target}>
+          <div className="font-mono text-xs text-foreground truncate max-w-[320px]" title={l.target}>
             {l.target}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -110,7 +110,7 @@ export function LinkTableRow({
               </span>
             ) : null}
             {l.expiresAt && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-foreground/50 bg-foreground/[0.05] px-1.5 py-0.5 rounded" title={new Date(l.expiresAt).toLocaleString()}>
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-well px-1.5 py-0.5 rounded" title={new Date(l.expiresAt).toLocaleString()}>
                 <Clock className="h-2.5 w-2.5" />
               </span>
             )}
@@ -137,7 +137,7 @@ export function LinkTableRow({
         <div className="flex items-center justify-end gap-1.5">
           <Button
             variant="ghost"
-            className="p-1.5 text-xs text-foreground/60 hover:text-accent-fg"
+            className="p-1.5 text-xs text-muted-foreground hover:text-accent-fg"
             title={t("links.tabAnalytics")}
             onClick={() => onAnalytics(l)}
           >
@@ -145,7 +145,7 @@ export function LinkTableRow({
           </Button>
           <Button
             variant="ghost"
-            className="p-1.5 text-xs text-foreground/60 hover:text-foreground"
+            className="p-1.5 text-xs text-muted-foreground hover:text-foreground"
             title={t("links.tabQr")}
             onClick={() => onQr(l)}
           >
@@ -153,7 +153,7 @@ export function LinkTableRow({
           </Button>
           <Button
             variant="ghost"
-            className="p-1.5 text-xs text-foreground/60 hover:text-foreground"
+            className="p-1.5 text-xs text-muted-foreground hover:text-foreground"
             title={t("links.editLink")}
             onClick={() => onEdit(l)}
           >
@@ -161,7 +161,7 @@ export function LinkTableRow({
           </Button>
           <Button
             variant="ghost"
-            className="p-1.5 text-xs text-foreground/50 hover:text-foreground"
+            className="p-1.5 text-xs text-muted-foreground hover:text-foreground"
             title={l.archived ? t("links.unarchive") : t("links.archive")}
             onClick={() => onToggleArchive(l)}
           >

@@ -54,47 +54,48 @@ function OverviewChecklistSection({
   ];
 
   return (
-    <GlassCard className={`mb-6 p-6 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`}>
+    <GlassCard className={`relative mb-8 overflow-hidden p-6 sm:p-8 ${totalCount === 0 ? "hidden" : ""}`}>
+      <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-accent-soft blur-3xl" />
       <button 
         onClick={dismiss} 
-        className="absolute top-4 right-4 p-1 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute top-4 right-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-well transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
         aria-label={t("overview.dismissChecklist")}
         title={t("overview.dismissChecklist")}
       >
         <X size={16} aria-hidden="true" />
       </button>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="relative mb-7 flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <div className={`flex items-center gap-2 ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
-            <Sparkles size={18} />
-            <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
+            <Sparkles size={15} aria-hidden="true" />
+            <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em]">{t("overview.gettingStarted")}</span>
           </div>
-          <h2 className="text-xl font-bold text-foreground mt-1">
+          <h2 className="mt-2 font-display text-[1.375rem] font-semibold tracking-[-0.02em] text-foreground">
             {allCompleted ? t("overview.allSetTitle") : t("overview.setupTitle")}
           </h2>
-          <p className="text-xs text-foreground/50 mt-1">
+          <p className="mt-1.5 max-w-xl text-[12.5px] leading-relaxed text-muted-foreground">
             {allCompleted ? t("overview.allSetDesc") : t("overview.gettingStartedDesc")}
           </p>
         </div>
-        
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <span className="text-xs text-foreground/40">{t("overview.setupProgress")}</span>
-            <span className={`block text-lg font-bold ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
+
+        <div className="w-full shrink-0 sm:w-60">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{t("overview.setupProgress")}</span>
+            <span className={`font-display text-[1.375rem] font-semibold leading-none tracking-[-0.02em] ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
           </div>
-          <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
-            <div 
-              className={`h-full rounded-full transition-all duration-500 ${
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+            <div
+              className={`h-full rounded-full transition-all duration-[var(--dur-slow)] ease-[var(--ease-out)] ${
                 allCompleted ? "bg-success-fg" : "bg-primary"
-              }`} 
+              }`}
               style={{ width: `${progressPercent}%` }}
             />
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {steps.map((step) => (
           <SetupStep
             key={step.id}
@@ -173,15 +174,15 @@ export default function OverviewPage() {
         <Skeleton className="h-7 w-48" />
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="glass rounded-2xl p-4">
+          <div key={i} className="glass rounded-xl p-5">
             <Skeleton className="mb-3 h-3 w-20" />
             <Skeleton className="h-7 w-16" />
           </div>
         ))}
       </div>
-      <div className="glass rounded-2xl p-6">
+      <div className="glass rounded-xl p-6">
         <Skeleton className="mb-4 h-4 w-32" />
         <Skeleton className="h-48 w-full" />
       </div>

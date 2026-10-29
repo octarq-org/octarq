@@ -142,7 +142,7 @@ export function EmailManagementCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div className="flex items-center gap-1.5">
             <Mail className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
@@ -154,7 +154,7 @@ export function EmailManagementCard({
               </div>
             </div>
           </div>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-fg">
             {`${threads.length} ${t("copilot.emailStagedDrafts", "Staged Drafts")}`}
           </span>
         </div>
@@ -173,14 +173,14 @@ export function EmailManagementCard({
               return (
                 <div
                   key={item.id || idx}
-                  className="rounded-lg border border-border/50 bg-background/50 p-2 text-xs space-y-1"
+                  className="rounded-lg border border-border bg-well p-2 text-xs space-y-1"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground truncate mr-2">
                       {item.subject}
                     </span>
                     {isUrgent && (
-                      <span className="rounded-full bg-destructive/10 px-1.5 py-0.2 text-[10px] font-bold text-destructive shrink-0">
+                      <span className="rounded-full bg-danger-bg px-1.5 py-0.2 text-[10px] font-bold text-danger-fg shrink-0">
                         {t("copilot.emailUrgent", "Urgent")}
                       </span>
                     )}
@@ -188,7 +188,7 @@ export function EmailManagementCard({
                   <div className="text-[11px] text-muted-foreground">
                     {`${t("copilot.emailFrom", "From:")} ${sender}`}
                   </div>
-                  <div className="text-xs text-foreground/80 line-clamp-2">
+                  <div className="text-xs text-foreground line-clamp-2">
                     {item.summary}
                   </div>
                 </div>
@@ -208,7 +208,7 @@ export function EmailManagementCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

@@ -16,7 +16,15 @@
 // set to. They are listed explicitly rather than derived, so the parity test
 // (web/src/test/tokensParity.test.ts) compares real data against the stylesheet
 // instead of re-running this module's own assumptions back at itself.
-export type TokenGroup = "surface" | "accent" | "status" | "line" | "radius" | "typography";
+export type TokenGroup =
+  | "surface"
+  | "accent"
+  | "status"
+  | "line"
+  | "radius"
+  | "typography"
+  | "elevation"
+  | "motion";
 
 export interface TokenDef {
   // The CSS custom property name, e.g. "--background".
@@ -70,6 +78,8 @@ export const TOKENS: TokenDef[] = [
   { name: "--danger-bg", group: "status", root: true, dark: true, themed: true },
   { name: "--danger-border", group: "status", root: true, dark: true, themed: true },
   { name: "--danger-fg", group: "status", root: true, dark: true, themed: true },
+  { name: "--danger-solid", group: "status", root: true, dark: true, themed: true },
+  { name: "--danger-solid-fg", group: "status", root: true, dark: true, themed: true },
 
   { name: "--border", group: "line", root: true, dark: true, themed: true },
   { name: "--border-strong", group: "line", root: true, dark: true, themed: true },
@@ -83,7 +93,19 @@ export const TOKENS: TokenDef[] = [
   { name: "--radius-2xl", group: "radius", root: false, dark: false, themed: true },
   { name: "--radius-3xl", group: "radius", root: false, dark: false, themed: true },
 
+  { name: "--font-sans", group: "typography", root: false, dark: false, themed: true },
+  { name: "--font-display", group: "typography", root: false, dark: false, themed: true },
   { name: "--font-mono", group: "typography", root: false, dark: false, themed: true },
+
+  { name: "--shadow-card", group: "elevation", root: true, dark: true, themed: false },
+  { name: "--shadow-float", group: "elevation", root: true, dark: true, themed: false },
+  { name: "--shadow-accent", group: "elevation", root: true, dark: true, themed: false },
+
+  { name: "--ease-out", group: "motion", root: true, dark: false, themed: false },
+  { name: "--ease-in-out", group: "motion", root: true, dark: false, themed: false },
+  { name: "--dur-fast", group: "motion", root: true, dark: false, themed: false },
+  { name: "--dur-base", group: "motion", root: true, dark: false, themed: false },
+  { name: "--dur-slow", group: "motion", root: true, dark: false, themed: false },
 ];
 
 // The three literals a rebrand may override. Everything brand-tinted is derived

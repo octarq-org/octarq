@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, GlassCard, PageHeader, ScreenWrap, toast } from "@octarq/plugin-sdk";
+import { Button, GlassCard, PageHeader, ScreenWrap, TabBar, toast } from "@octarq/plugin-sdk";
 import { api, Domain, ProviderAccount } from "../../../api";
 import { dnsApi } from "../api";
 import { Globe, RefreshCw, Plus, ArrowLeft } from "lucide-react";
@@ -167,11 +167,11 @@ export default function DomainsPage() {
         description={t("domains.pageDescription")}
         action={
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setSyncing(true)} className="gap-1.5 py-1.5 text-xs">
+            <Button variant="ghost" size="sm" onClick={() => setSyncing(true)}>
               <RefreshCw className="h-3.5 w-3.5" />
               {t("domains.syncCloudflare")}
             </Button>
-            <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
+            <Button variant="primary" size="sm" onClick={() => setActive("new")}>
               <Plus className="h-3.5 w-3.5" />
               {t("domains.addDomain")}
             </Button>
@@ -179,45 +179,23 @@ export default function DomainsPage() {
         }
       />
 
-      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <button
-          onClick={() => handleTabChange("domains")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
-            tab === "domains"
-              ? "border-primary text-foreground"
-              : "border-transparent text-foreground/45 hover:text-foreground/70"
-          }`}
-        >
-          {t("domains.tabDns")}
-        </button>
-        <button
-          onClick={() => handleTabChange("ddns")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-            tab === "ddns"
-              ? "border-primary text-foreground"
-              : "border-transparent text-foreground/45 hover:text-foreground/70"
-          }`}
-        >
-          {t("domains.tabDdns")}
-        </button>
-        <button
-          onClick={() => handleTabChange("settings")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-            tab === "settings"
-              ? "border-primary text-foreground"
-              : "border-transparent text-foreground/45 hover:text-foreground/70"
-          }`}
-        >
-          {t("domains.tabSettings")}
-        </button>
-      </div>
+      <TabBar
+        className="mb-6"
+        value={tab}
+        onValueChange={(v) => handleTabChange(v as "domains" | "ddns" | "settings")}
+        items={[
+          { value: "domains", label: t("domains.tabDns") },
+          { value: "ddns", label: t("domains.tabDdns") },
+          { value: "settings", label: t("domains.tabSettings") },
+        ]}
+      />
 
       {tab === "domains" && (
         <>
           {active === "new" ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" className="gap-1.5 text-xs py-1.5" onClick={() => setActive(null)}>
+                <Button variant="ghost" size="sm" onClick={() => setActive(null)}>
                   <ArrowLeft className="h-4 w-4" />
                   {t("domains.backToDomains")}
                 </Button>

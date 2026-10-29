@@ -21,7 +21,7 @@ export const TableSkeleton = forwardRef<HTMLDivElement, TableSkeletonProps>(
     return (
       <div ref={ref} aria-busy="true" role="status" aria-label={ariaLabel} className={cn("w-full", className)}>
         <Table>
-          <THead className="border-b border-foreground/[0.06] bg-foreground/[0.02]">
+          <THead className="border-b border-border bg-well/60">
             <TR>
               {Array.from({ length: cols }).map((_, i) => (
                 <TH key={i}>

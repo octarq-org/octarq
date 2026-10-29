@@ -113,7 +113,7 @@ export function FinancialAnalysisCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div>
             <div className="font-semibold text-foreground text-xs" data-testid="fiscal-quarter">
               {`${quarter} ${t("copilot.financeReconciliation", "Budget Reconciliation")}`}
@@ -125,7 +125,7 @@ export function FinancialAnalysisCard({
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 ${
               isOverBudget
-                ? "bg-destructive/15 text-destructive border border-destructive/20"
+                ? "bg-danger-bg text-danger-fg border border-danger-border"
                 : "bg-success-fg/15 text-success-fg border border-success-fg/20"
             }`}
             data-testid="variance-badge"
@@ -137,13 +137,13 @@ export function FinancialAnalysisCard({
 
         {/* Financial Metrics */}
         <div className="grid grid-cols-3 gap-1.5" data-testid="finance-metrics">
-          <div className="rounded-lg border border-border/60 bg-background/50 p-1.5 text-center">
+          <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.financeBudget", "Budget")}</div>
             <div className="font-mono text-xs font-semibold text-foreground">
               {formatCurrency(budgetCents)}
             </div>
           </div>
-          <div className="rounded-lg border border-border/60 bg-background/50 p-1.5 text-center">
+          <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.financeActual", "Actual")}</div>
             <div className="font-mono text-xs font-semibold text-foreground">
               {formatCurrency(actualCents)}
@@ -152,7 +152,7 @@ export function FinancialAnalysisCard({
           <div
             className={`rounded-lg border p-1.5 text-center ${
               isOverBudget
-                ? "border-destructive/30 bg-destructive/5 text-destructive"
+                ? "border-danger-border bg-danger-bg text-danger-fg"
                 : "border-success-fg/30 bg-success-fg/5 text-success-fg"
             }`}
           >
@@ -172,7 +172,7 @@ export function FinancialAnalysisCard({
             {slides.map((slide, idx) => (
               <div
                 key={slide.slide_number || idx}
-                className="flex items-center justify-between rounded-md border border-border/40 bg-well/20 px-2 py-1 text-xs"
+                className="flex items-center justify-between rounded-md border border-border bg-well px-2 py-1 text-xs"
               >
                 <span className="font-medium text-foreground truncate mr-2">
                   #{slide.slide_number || idx + 1} {slide.title}
@@ -189,7 +189,7 @@ export function FinancialAnalysisCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

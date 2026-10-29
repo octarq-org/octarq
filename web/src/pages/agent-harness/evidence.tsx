@@ -3,7 +3,7 @@ export function EvidenceViewer({ evidence }: { evidence: unknown }) {
     return <span className="text-xs text-muted-foreground italic">—</span>;
   }
   if (typeof evidence !== "object") {
-    return <span className="font-mono text-xs text-foreground/90">{String(evidence)}</span>;
+    return <span className="font-mono text-xs text-foreground">{String(evidence)}</span>;
   }
   if (Array.isArray(evidence)) {
     if (evidence.length === 0) {
@@ -12,11 +12,11 @@ export function EvidenceViewer({ evidence }: { evidence: unknown }) {
     return (
       <div className="space-y-1 font-mono text-xs">
         {evidence.map((item, idx) => (
-          <div key={idx} className="p-1.5 rounded bg-well/40 border border-border/40">
+          <div key={idx} className="p-1.5 rounded bg-well border border-border">
             {typeof item === "object" && item !== null ? (
               <EvidenceViewer evidence={item} />
             ) : (
-              <span className="text-foreground/90">{String(item)}</span>
+              <span className="text-foreground">{String(item)}</span>
             )}
           </div>
         ))}
@@ -31,8 +31,8 @@ export function EvidenceViewer({ evidence }: { evidence: unknown }) {
     <div className="space-y-1 font-mono text-xs">
       {entries.map(([k, v]) => (
         <div key={k} className="flex items-start gap-2">
-          <span className="font-semibold text-foreground/70 shrink-0">{k}:</span>
-          <span className="text-foreground/90 break-all">
+          <span className="font-semibold text-muted-foreground shrink-0">{k}:</span>
+          <span className="text-foreground break-all">
             {typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}
           </span>
         </div>

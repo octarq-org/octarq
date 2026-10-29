@@ -26,26 +26,28 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
   ({ open, onOpenChange, title, wide, children, className }, ref) => (
     <BaseDialog.Root open={open} onOpenChange={(v) => onOpenChange(v)}>
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm modal-overlay" />
+        <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[3px] modal-overlay" />
         <BaseDialog.Popup
           ref={ref}
           className={cn(
-            "glass-strong modal-card fixed z-50 overflow-y-auto p-5 outline-none",
+            "glass-strong modal-card fixed z-50 overflow-y-auto p-6 outline-none",
             "inset-x-0 bottom-0 top-auto w-full max-h-[85vh] rounded-b-none rounded-t-2xl",
-            "sm:inset-auto sm:left-1/2 sm:top-16 sm:bottom-auto sm:-translate-x-1/2 sm:rounded-2xl sm:max-h-[calc(100vh-8rem)]",
-            wide ? "sm:w-[80vw] sm:min-w-[60vw] sm:max-w-[80vw]" : "sm:w-[60vw] sm:min-w-[60vw] sm:max-w-[80vw]",
+            "sm:inset-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:max-h-[calc(100vh-7rem)]",
+            wide ? "sm:w-full sm:max-w-3xl" : "sm:w-full sm:max-w-lg",
             className,
           )}
         >
           <div className="mb-4 flex items-center justify-between">
-            <BaseDialog.Title className="font-display text-lg font-semibold text-foreground">
+            <BaseDialog.Title className="font-display text-[1.125rem] font-semibold tracking-[-0.02em] text-foreground">
               {title}
             </BaseDialog.Title>
             <BaseDialog.Close
               aria-label="Close"
-              className="btn-ghost rounded-xl px-2 py-1 text-foreground/50 hover:text-foreground"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
             >
-              ✕
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
             </BaseDialog.Close>
           </div>
           {children}

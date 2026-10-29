@@ -89,7 +89,7 @@ function ProviderRow({
             </span>
           </>
         ) : (
-          <span className="shrink-0 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
             {t("settings.channelNoneConfigured", "0 destinations")}
           </span>
         )}
@@ -99,10 +99,10 @@ function ProviderRow({
       </button>
 
       {open && (
-        <div className="space-y-3 border-t border-border bg-well/50 px-4 py-4">
+        <div className="space-y-3 border-t border-border bg-well px-4 py-4">
           {/* existing channels for this type */}
           {channels.length > 0 ? (
-            <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] bg-well overflow-hidden">
+            <div className="divide-y divide-border rounded-xl border border-border bg-well overflow-hidden">
               {channels.map((c) => (
                 <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 group">
                   <div className="min-w-0 flex-1">
@@ -116,7 +116,7 @@ function ProviderRow({
                     </div>
                   </div>
                   {canManage && (
-                    <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                    <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
                       <Button
                         variant="subtle"
                         onClick={() => onToggle(c)}
@@ -256,7 +256,7 @@ function EditChannelModal({
 
         <div className="flex items-center gap-3 pt-2">
           <Switch checked={enabled} onCheckedChange={setEnabled} />
-          <span className="text-sm text-foreground/60 select-none">{t("settings.channelEnabled")}</span>
+          <span className="text-sm text-muted-foreground select-none">{t("settings.channelEnabled")}</span>
         </div>
 
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/6">
@@ -370,32 +370,32 @@ export function NotificationChannels() {
 
       {activeTab === "channels" ? (
         <>
-          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
+          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-accent-soft text-xs text-foreground">
             <div className="flex items-center gap-2">
-              <Blocks className="h-4 w-4 text-primary shrink-0" />
+              <Blocks className="h-4 w-4 text-accent-fg shrink-0" />
               <span>{t("settings.commIntegrationsBanner")}</span>
             </div>
             <NavLink
               to="/settings/integrations?category=communication"
-              className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+              className="text-accent-fg hover:underline font-medium text-xs whitespace-nowrap ml-3"
             >
               {t("settings.openIntegrationsHub")} →
             </NavLink>
           </div>
 
           <div>
-            <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="eyebrow mb-2 px-1">
               {t("settings.notifyProvidersHeading", "Notification providers")}
             </h3>
             <GlassCard className="overflow-hidden !p-0">
               {loading ? (
-                <div className="py-10 text-center text-sm text-foreground/40">
+                <div className="py-10 text-center text-sm text-muted-foreground">
                   {t("settings.loadingLower")}
                 </div>
               ) : types.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-10">
                   <Bell className="h-8 w-8 text-foreground/30" />
-                  <div className="text-xs text-foreground/50">{t("settings.noChannels")}</div>
+                  <div className="text-xs text-muted-foreground">{t("settings.noChannels")}</div>
                 </div>
               ) : (
                 types.map((tp) => (

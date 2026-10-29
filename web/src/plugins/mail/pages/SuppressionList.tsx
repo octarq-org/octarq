@@ -68,8 +68,8 @@ export function SuppressionList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-foreground/90">{t("mail.suppressionList")}</h2>
-          <p className="text-xs text-foreground/40 mt-0.5">{t("mail.suppressionListDesc")}</p>
+          <h2 className="text-sm font-semibold text-foreground">{t("mail.suppressionList")}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("mail.suppressionListDesc")}</p>
         </div>
         <Button variant="primary" onClick={() => setShowAdd(true)} className="gap-1.5 py-1 text-xs">
           <Plus className="h-3.5 w-3.5" />
@@ -78,14 +78,14 @@ export function SuppressionList() {
       </div>
 
       {loading && items.length === 0 ? (
-        <div className="p-8 text-center text-xs text-foreground/40">{t("mail.loading")}</div>
+        <div className="p-8 text-center text-xs text-muted-foreground">{t("mail.loading")}</div>
       ) : items.length === 0 ? (
-        <div className="p-8 text-center border border-dashed border-foreground/10 rounded-lg">
+        <div className="p-8 text-center border border-dashed border-border rounded-lg">
           <ShieldAlert className="h-8 w-8 mx-auto text-foreground/20 mb-2" />
-          <p className="text-xs text-foreground/40">{t("mail.noSuppressions")}</p>
+          <p className="text-xs text-muted-foreground">{t("mail.noSuppressions")}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-foreground/[0.06] rounded-lg">
+        <div className="overflow-x-auto border border-border rounded-lg">
           <Table>
             <THead>
               <TR>
@@ -101,14 +101,14 @@ export function SuppressionList() {
                 <TR key={item.id}>
                   <TD className="font-mono font-medium text-foreground">{item.address}</TD>
                   <TD>{renderReasonBadge(item.reason)}</TD>
-                  <TD className="font-mono tnum text-foreground/60">{item.count}</TD>
-                  <TD className="font-mono tnum text-foreground/40">{timeAgo(item.createdAt)}</TD>
+                  <TD className="font-mono tnum text-muted-foreground">{item.count}</TD>
+                  <TD className="font-mono tnum text-muted-foreground">{timeAgo(item.createdAt)}</TD>
                   <TD className="text-right">
                     <Button
                       variant="ghost"
                       onClick={() => handleRemove(item)}
                       title={t("mail.removeSuppression")}
-                      className="p-1 text-foreground/40 hover:text-danger-fg"
+                      className="p-1 text-muted-foreground hover:text-danger-fg"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -133,7 +133,7 @@ export function SuppressionList() {
               />
             </Field>
             {err && <FormError err={err} />}
-            <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
               <Button variant="ghost" onClick={() => setShowAdd(false)}>
                 {t("mail.cancel")}
               </Button>

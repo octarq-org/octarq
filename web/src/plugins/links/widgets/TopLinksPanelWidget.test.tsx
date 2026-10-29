@@ -55,7 +55,7 @@ describe("TopLinksPanelWidget title priority", () => {
     // Link 1: secondary slug
     const secondarySlug = screen.getByText("go.octarq.com/promo-2026");
     expect(secondarySlug).toBeDefined();
-    expect(secondarySlug.className).toContain("text-foreground/40");
+    expect(secondarySlug.className).toContain("text-muted-foreground");
 
     // Link 1: tags (first 2 badges visible + overflow badge "+1")
     expect(screen.getByTitle("marketing")).toBeDefined();

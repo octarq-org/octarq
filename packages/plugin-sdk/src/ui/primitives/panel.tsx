@@ -9,8 +9,8 @@ export interface PanelProps {
 }
 
 export const Panel = forwardRef<HTMLDivElement, PanelProps>(({ title, children, className }, ref) => (
-  <GlassCard ref={ref} className={cn("p-5", className)}>
-    <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-foreground/50">{title}</h3>
+  <GlassCard ref={ref} className={cn("p-6", className)}>
+    <h3 className="eyebrow mb-4">{title}</h3>
     {children}
   </GlassCard>
 ));

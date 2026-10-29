@@ -31,21 +31,21 @@ export function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderA
           </div>
           <div>
             <p className="text-foreground font-semibold">{t("domains.zonesDetected", { count: result.total })}</p>
-            <p className="text-xs text-foreground/55 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {t("domains.createdPrefix")} <span className="text-success-fg font-bold">{result.created}</span> {t("domains.updatedMid")} <span className="text-accent-fg font-bold">{result.updated}</span> {t("domains.recordsSuffix")}
             </p>
           </div>
-          <p className="text-[11px] text-foreground/40 max-w-xs mx-auto">{t("domains.syncToggleHint")}</p>
+          <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">{t("domains.syncToggleHint")}</p>
           <Button variant="primary" onClick={onSynced} className="w-full">{t("domains.done")}</Button>
         </div>
       ) : accounts.length === 0 ? (
-        <div className="py-4 text-center space-y-2 text-foreground/55">
+        <div className="py-4 text-center space-y-2 text-muted-foreground">
           <p className="font-semibold">{t("domains.noProviderAccounts")}</p>
-          <p className="text-xs text-foreground/40">{t("domains.noProviderAccountsHint")}</p>
+          <p className="text-xs text-muted-foreground">{t("domains.noProviderAccountsHint")}</p>
         </div>
       ) : (
         <>
-          <p className="mb-4 text-xs text-foreground/55 leading-relaxed">{t("domains.syncIntro")}</p>
+          <p className="mb-4 text-xs text-muted-foreground leading-relaxed">{t("domains.syncIntro")}</p>
           <Field label={t("domains.dnsProviderConnection")}>
             <Select
               value={String(accountId)}
@@ -57,7 +57,7 @@ export function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderA
             />
           </Field>
           {err && <div className="mb-4"><FormError err={err} /></div>}
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
             <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>
             <Button variant="primary" onClick={run} disabled={busy || !accountId}>{busy ? t("domains.queryingApi") : t("domains.syncZones")}</Button>
           </div>

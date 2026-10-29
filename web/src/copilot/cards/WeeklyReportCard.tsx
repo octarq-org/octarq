@@ -107,7 +107,7 @@ export function WeeklyReportCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div>
             <div className="font-semibold text-foreground text-xs" data-testid="report-title">
               {title}
@@ -121,7 +121,7 @@ export function WeeklyReportCard({
 
         {/* 4 KPI Chips */}
         <div className="grid grid-cols-4 gap-1.5" data-testid="report-kpis">
-          <div className="rounded-lg border border-border/60 bg-background/50 p-1.5 text-center">
+          <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.weeklyTraffic", "Traffic")}</div>
             <div className="font-mono text-xs font-bold text-foreground">{traffic}</div>
           </div>
@@ -129,9 +129,9 @@ export function WeeklyReportCard({
             <div className="text-[10px] text-success-fg">{t("copilot.weeklyDeliverability", "Deliverability")}</div>
             <div className="font-mono text-xs font-bold text-success-fg">{deliverability}</div>
           </div>
-          <div className="rounded-lg border border-primary/20 bg-primary/5 p-1.5 text-center">
-            <div className="text-[10px] text-primary">{t("copilot.weeklyInvoices", "Invoices Matched")}</div>
-            <div className="font-mono text-xs font-bold text-primary">{invoices}</div>
+          <div className="rounded-lg border border-primary/20 bg-accent-soft p-1.5 text-center">
+            <div className="text-[10px] text-accent-fg">{t("copilot.weeklyInvoices", "Invoices Matched")}</div>
+            <div className="font-mono text-xs font-bold text-accent-fg">{invoices}</div>
           </div>
           <div className="rounded-lg border border-warning-fg/20 bg-warning-fg/5 p-1.5 text-center">
             <div className="text-[10px] text-warning-fg">{t("copilot.weeklyTickets", "Open Tickets")}</div>
@@ -140,7 +140,7 @@ export function WeeklyReportCard({
         </div>
 
         {markdownContent ? (
-          <div className="rounded-lg border border-border/40 bg-well/30 p-2 text-xs text-muted-foreground line-clamp-3 font-mono">
+          <div className="rounded-lg border border-border bg-well p-2 text-xs text-muted-foreground line-clamp-3 font-mono">
             {markdownContent.slice(0, 180)}…
           </div>
         ) : (
@@ -149,7 +149,7 @@ export function WeeklyReportCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

@@ -170,7 +170,7 @@ function ConsoleShell() {
                           key={l.code}
                           value={l.code}
                           closeOnClick={true}
-                          className="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors data-[highlighted]:bg-surface-hover data-[highlighted]:text-foreground data-[checked]:bg-primary/10 data-[checked]:text-primary data-[checked]:font-bold"
+                          className="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors data-[highlighted]:bg-surface-hover data-[highlighted]:text-foreground data-[checked]:bg-accent-soft data-[checked]:text-accent-fg data-[checked]:font-bold"
                         >
                           <span>{l.label}</span>
                         </Menu.RadioItem>
@@ -213,7 +213,7 @@ function ConsoleShell() {
                   cn(
                     "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] transition-colors",
                     isActive
-                      ? "bg-foreground/[0.06] font-medium text-foreground ring-1 ring-inset ring-border"
+                      ? "bg-surface-hover font-medium text-foreground ring-1 ring-inset ring-border"
                       : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
                   )
                 }
@@ -225,7 +225,7 @@ function ConsoleShell() {
           </div>
           <div className="border-t border-border px-2.5 pb-1 pt-3">
             {build && (
-              <p className="font-mono tnum text-[10px] leading-relaxed text-foreground/40">
+              <p className="font-mono tnum text-[10px] leading-relaxed text-muted-foreground">
                 {t("app.shellBuildFooter", {
                   version: build.version,
                   commit: build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown",
@@ -272,7 +272,7 @@ function LoadFailedCard({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
   return (
     <GlassCard className="p-8 text-center">
-      <p className="text-sm text-foreground/80">{t("instance.loadFailed")}</p>
+      <p className="text-sm text-foreground">{t("instance.loadFailed")}</p>
       <Button variant="outline" className="mt-4" onClick={onRetry}>
         {t("instance.retry")}
       </Button>

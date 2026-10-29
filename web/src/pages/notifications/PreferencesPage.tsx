@@ -231,11 +231,11 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
       {/* Matrix Card */}
         <GlassCard className="overflow-hidden !p-0">
-          <div className="border-b border-border bg-well/40 px-4 py-3 sm:px-6">
+          <div className="border-b border-border bg-well px-4 py-3 sm:px-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Sliders className="h-4 w-4 text-primary" />
+                  <Sliders className="h-4 w-4 text-accent-fg" />
                   {t("notifications.matrixTitle", "事件渠道路由矩阵")}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -257,7 +257,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
           {/* Matrix Table */}
           <Table className="text-xs sm:text-sm">
-            <THead className="border-b border-border bg-well/20 text-muted-foreground font-medium">
+            <THead className="border-b border-border bg-well text-muted-foreground font-medium">
               <TR>
                 <TH className="py-3 px-4 sm:px-6 w-1/3 text-left">
                   {t("notifications.colEventType", "事件分类 / 规则")}
@@ -306,7 +306,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
                               aria-checked={isEnabled}
                               onClick={() => toggleChannel(row.pattern, ch.name)}
                               className={cn(
-                                "inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                                "inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-border focus:ring-offset-2",
                                 isEnabled ? "bg-primary" : "bg-muted-foreground/25",
                               )}
                             >
@@ -359,7 +359,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
                     value={newLabel}
                     onChange={(e) => setNewLabel(e.target.value)}
                     placeholder={t("notifications.ruleNamePlaceholder", "如：支付结算通知")}
-                    className="w-full rounded-xl border border-border bg-surface-hover/30 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-xl border border-border bg-surface-hover/30 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-border"
                   />
                 </div>
 
@@ -372,7 +372,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
                     value={newPattern}
                     onChange={(e) => setNewPattern(e.target.value)}
                     placeholder={t("notifications.rulePatternPlaceholder", "如：billing.* 或 webhook.failed")}
-                    className="w-full rounded-xl border border-border bg-surface-hover/30 px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-xl border border-border bg-surface-hover/30 px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-accent-border"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
                     {t("notifications.rulePatternHelp", "支持如 billing.*、*.failed 或精确事件名称。")}

@@ -15,7 +15,7 @@ export default function TopLinksPanelWidget() {
   return (
     <Panel title={t("links.topLinks")}>
       {!topLinks || topLinks.length === 0 ? (
-        <p className="text-sm text-foreground/50">{t("links.noLinks")}</p>
+        <p className="text-sm text-muted-foreground">{t("links.noLinks")}</p>
       ) : (
         <div className="space-y-1">
           {topLinks.map((l) => {
@@ -29,7 +29,7 @@ export default function TopLinksPanelWidget() {
               <button
                 key={l.id}
                 onClick={() => nav("/links")}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-foreground/[0.06] transition-colors"
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-hover transition-colors"
               >
                 <div className="min-w-0 flex-1 pr-2">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -39,7 +39,7 @@ export default function TopLinksPanelWidget() {
                         key={tag}
                         title={tag}
                         aria-label={tag}
-                        className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-foreground/[0.06] text-foreground/70 font-mono shrink-0"
+                        className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-surface-hover text-muted-foreground font-mono shrink-0"
                       >
                         {tag}
                       </span>
@@ -48,13 +48,13 @@ export default function TopLinksPanelWidget() {
                       <span
                         title={rawTags.slice(2).join(", ")}
                         aria-label={`+${remainingCount}`}
-                        className="inline-flex items-center text-[10px] px-1 py-0.5 rounded bg-foreground/[0.06] text-foreground/50 font-mono shrink-0"
+                        className="inline-flex items-center text-[10px] px-1 py-0.5 rounded bg-surface-hover text-muted-foreground font-mono shrink-0"
                       >
                         +{remainingCount}
                       </span>
                     )}
                   </div>
-                  <div className="font-mono text-xs text-foreground/40 truncate">
+                  <div className="font-mono text-xs text-muted-foreground truncate">
                     {secondarySlug}
                   </div>
                 </div>

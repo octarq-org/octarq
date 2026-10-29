@@ -213,7 +213,7 @@ export function HarnessEditorModal({
         </div>
 
         {/* Tool permissions */}
-        <div className="space-y-3 rounded-xl border border-border bg-well/30 p-3.5">
+        <div className="space-y-3 rounded-xl border border-border bg-well p-3.5">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-foreground block">
@@ -254,7 +254,7 @@ export function HarnessEditorModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <Button
             type="button"
             variant="outline"

@@ -3,7 +3,7 @@ import { useMemo, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
-import { Search, Settings, User, LogOut, PanelLeft, Sun, Moon, Globe, BookOpen, ExternalLink, Info, Plus } from "lucide-react";
+import { Search, Settings, User, LogOut, PanelLeft, Sun, Moon, Globe, BookOpen, ExternalLink, Info, Plus, ChevronDown, Check } from "lucide-react";
 import { Action } from "../api";
 import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
@@ -25,12 +25,15 @@ function GithubIcon({ className }: { className?: string }) {
 }
 
 
-// Shared surface for the create / search / language buttons — no shadow:
-// elevation is reserved for floating layers.
+// Shared surface for the create / search / language buttons. These are
+// controls on the paper, so they carry the card fill and the same 10px radius
+// as every field and button in the product.
 const ACTION_BUTTON =
-  "rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 " +
-  "hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground transition-colors " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+  "rounded-[var(--radius)] border border-border bg-card text-muted-foreground " +
+  "shadow-[0_1px_1px_rgb(0_0_0/0.03)] transition-colors duration-[var(--dur-fast)] " +
+  "hover:border-border-strong hover:bg-surface-hover hover:text-foreground " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border " +
+  "data-[popup-open]:border-border-strong data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground";
 
 export function TopBar({
   areas,
@@ -63,6 +66,7 @@ export function TopBar({
   const navigate = useNavigate();
 
   const userInitials = user.slice(0, 2).toUpperCase();
+  const currentArea = areas.find((a) => a.id === activeArea);
 
   const groupedActions = useMemo(() => {
     if (!actions || actions.length === 0) return [];
@@ -81,7 +85,7 @@ export function TopBar({
   }, [actions]);
 
   return (
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3">
+    <header className="relative z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 md:gap-3 lg:px-6">
       {/* Menu toggle — mobile only. It opens the overlay drawer on small
           screens; on desktop the collapse control lives in the rail's footer,
           so this is hidden at md+ to avoid two toggles for one state. */}
@@ -90,26 +94,27 @@ export function TopBar({
         aria-label={t("app.collapseMenu")}
         aria-pressed={!panelCollapsed}
         title={t("app.collapseMenu")}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:hidden"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:hidden"
       >
         <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </button>
 
       {/* Brand */}
-      <div className="flex items-center gap-2.5 pr-1">
+      <div className="hidden items-center gap-2.5 pr-1 sm:flex">
         <BrandMark size="sm" />
-        <span className="hidden font-display text-[15px] font-bold tracking-wide text-foreground sm:block">{appName}</span>
+        <span className="hidden font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground sm:block">{appName}</span>
       </div>
 
-      {/* Area tabs */}
-      <nav className="ml-1 flex items-center gap-1 overflow-x-auto">
+      {/* Area tabs — desktop. On phones the same choice collapses into a
+          dropdown so the header keeps room for the action cluster. */}
+      <nav className="ml-2 hidden items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-well p-1 md:flex">
         {areas.map((a) => {
           const active = activeArea === a.id && !settingsActive;
           return (
             <button
               key={a.id}
               onClick={() => onSelectArea(a.id)}
-              className={`relative flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+              className={`relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-[var(--dur-fast)] ${
                 active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -117,15 +122,51 @@ export function TopBar({
                 <motion.span
                   layoutId="area-tab-active"
                   transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                  className="absolute inset-0 rounded-xl bg-foreground/[0.06] ring-1 ring-inset ring-border"
+                  className="absolute inset-0 rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.05)]"
                 />
               )}
-              <a.Icon className="relative h-4 w-4" strokeWidth={1.75} />
+              <a.Icon className={`relative h-4 w-4 transition-colors ${active ? "text-accent-fg" : ""}`} strokeWidth={1.75} />
               <span className="relative whitespace-nowrap">{translateAreaTitle(t, a.id, a.title)}</span>
             </button>
           );
         })}
       </nav>
+
+      {/* Area dropdown — phones only */}
+      <Menu.Root>
+        <Menu.Trigger
+          aria-label={t("topbar.switchArea", "Switch area")}
+          className={cn(ACTION_BUTTON, "ml-1 flex h-9 max-w-[8.5rem] items-center gap-1.5 px-2.5 text-[12px] font-medium md:hidden")}
+        >
+          {currentArea ? (
+            <currentArea.Icon className="h-4 w-4 shrink-0 text-accent-fg" strokeWidth={1.75} />
+          ) : (
+            <BookOpen className="h-4 w-4 shrink-0 text-accent-fg" strokeWidth={1.75} />
+          )}
+          <span className="truncate">{currentArea ? translateAreaTitle(t, currentArea.id, currentArea.title) : appName}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner side="bottom" align="start" sideOffset={8} className="z-50 outline-none">
+            <Menu.Popup className={cn(MENU_POPUP, "w-52")}>
+              {areas.map((a) => {
+                const active = a.id === activeArea && !settingsActive;
+                return (
+                  <Menu.Item
+                    key={a.id}
+                    onClick={() => onSelectArea(a.id)}
+                    className={cn(MENU_ITEM, active && "bg-accent-soft text-accent-fg")}
+                  >
+                    <a.Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    <span className="flex-1 truncate">{translateAreaTitle(t, a.id, a.title)}</span>
+                    {active && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </Menu.Item>
+                );
+              })}
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
 
       <div className="flex-1" />
 
@@ -142,7 +183,7 @@ export function TopBar({
           <Menu.Trigger
             aria-label={t("topbar.create", "Create")}
             title={t("topbar.create", "Create")}
-            className={cn(ACTION_BUTTON, "flex h-9 w-9 items-center justify-center hover:text-foreground data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground")}
+            className={cn(ACTION_BUTTON, "flex h-9 w-9 items-center justify-center")}
           >
             <Plus className="h-4 w-4" strokeWidth={1.75} />
           </Menu.Trigger>
@@ -186,11 +227,11 @@ export function TopBar({
       <button
         onClick={onOpenCommand}
         aria-label={t("common.search")}
-        className={cn(ACTION_BUTTON, "group flex h-9 items-center gap-2 px-3")}
+        className={cn(ACTION_BUTTON, "group hidden h-9 items-center gap-2 px-3 sm:flex")}
       >
-        <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
-        <span className="hidden text-xs font-medium md:block group-hover:text-foreground">{t("common.search")}</span>
-        <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘K</kbd>
+        <Search className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-accent-fg" aria-hidden="true" />
+        <span className="hidden text-[12px] font-medium md:block group-hover:text-foreground">{t("common.search")}</span>
+        <kbd className="hidden rounded-md border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground md:block">⌘K</kbd>
       </button>
 
       {/* Theme toggle — light is the default (Wise/CF); flips to the frosted dark theme. */}
@@ -198,7 +239,7 @@ export function TopBar({
         onClick={toggleTheme}
         aria-label={theme === "dark" ? t("topbar.lightMode", "Light mode") : t("topbar.darkMode", "Dark mode")}
         title={theme === "dark" ? t("topbar.lightMode", "Light mode") : t("topbar.darkMode", "Dark mode")}
-        className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="hidden h-9 w-9 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border sm:flex"
       >
         {theme === "dark" ? <Sun className="h-5 w-5" strokeWidth={1.75} /> : <Moon className="h-5 w-5" strokeWidth={1.75} />}
       </button>
@@ -208,7 +249,7 @@ export function TopBar({
         <Menu.Trigger
           aria-label={t("common.language")}
           title={t("common.language")}
-          className={cn(ACTION_BUTTON, "flex h-9 items-center gap-1.5 px-2.5 text-xs font-semibold data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground")}
+          className={cn(ACTION_BUTTON, "hidden h-9 items-center gap-1.5 px-2.5 text-xs font-semibold data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground sm:flex")}
         >
           <Globe className="h-4 w-4 stroke-[1.75]" />
           <span className="uppercase">{lang}</span>
@@ -217,7 +258,7 @@ export function TopBar({
           <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50 outline-none">
             <Menu.Popup className={cn(MENU_POPUP, "w-40")}>
               <div className="px-2 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                <Globe className="w-3 h-3 text-primary" />
+                <Globe className="w-3 h-3 text-accent-fg" />
                 {t("common.language")}
               </div>
               <Menu.RadioGroup value={lang} onValueChange={(v) => setLang(v as typeof lang)}>
@@ -227,7 +268,7 @@ export function TopBar({
                       key={l.code}
                       value={l.code}
                       closeOnClick={true}
-                      className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors data-[highlighted]:bg-surface-hover data-[highlighted]:text-foreground data-[checked]:bg-primary/10 data-[checked]:text-primary data-[checked]:font-bold"
+                      className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors data-[highlighted]:bg-surface-hover data-[highlighted]:text-foreground data-[checked]:bg-accent-soft data-[checked]:text-accent-fg data-[checked]:font-bold"
                     >
                       <span>{l.label}</span>
                       {lang === l.code && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
@@ -251,8 +292,8 @@ export function TopBar({
         onClick={onOpenSettings}
         aria-label={t("topbar.settings")}
         title={t("topbar.settings")}
-        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
-          settingsActive ? "bg-foreground/[0.06] text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+        className={`hidden h-9 w-9 items-center justify-center rounded-[var(--radius)] transition-colors sm:flex ${
+          settingsActive ? "border border-border bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.05)]" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
         }`}
       >
         <Settings className="h-5 w-5" strokeWidth={1.75} />
@@ -262,31 +303,31 @@ export function TopBar({
       <Menu.Root>
         <Menu.Trigger
           aria-label={t("topbar.account")}
-          className="flex h-9 w-9 items-center justify-center rounded-full brand-gradient text-xs font-semibold text-white ring-1 ring-inset ring-white/20 transition hover:brightness-110 data-[popup-open]:brightness-110"
+          className="flex h-9 w-9 items-center justify-center rounded-full brand-gradient text-[11px] font-semibold text-white shadow-[0_2px_8px_-2px_rgb(0_0_0/0.35)] ring-1 ring-inset ring-white/25 transition hover:brightness-110 data-[popup-open]:brightness-110"
         >
           {userInitials}
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50 outline-none">
             <Menu.Popup className={cn(MENU_POPUP, "w-60")}>
-              <div className="flex items-center gap-2.5 px-2 py-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full brand-gradient text-xs font-semibold text-white ring-1 ring-inset ring-white/20">
+              <div className="flex items-center gap-3 px-2.5 py-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full brand-gradient text-[11px] font-semibold text-white ring-1 ring-inset ring-white/25">
                   {userInitials}
                 </span>
-                <span className="block min-w-0 truncate text-sm text-foreground">{user}</span>
+                <span className="block min-w-0 truncate text-[13px] text-foreground">{user}</span>
               </div>
               <Menu.Separator className="my-1 h-px bg-border" />
-              <Menu.Item render={<NavLink to="/settings/profile" />} className={cn(MENU_ITEM, "text-foreground/75")}>
+              <Menu.Item render={<NavLink to="/settings/profile" />} className={cn(MENU_ITEM, "text-foreground")}>
                 <User className="h-4 w-4" />
                 {t("topbar.personalSettings")}
               </Menu.Item>
               <Menu.Separator className="my-1 h-px bg-border" />
-              <Menu.Item render={<a href={RESOURCES.github} target="_blank" rel="noreferrer" />} className={cn(MENU_ITEM, "text-foreground/75")}>
+              <Menu.Item render={<a href={RESOURCES.github} target="_blank" rel="noreferrer" />} className={cn(MENU_ITEM, "text-foreground")}>
                 <GithubIcon className="h-4 w-4" />
                 <span className="flex-1">{t("footer.github", "GitHub")}</span>
                 <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               </Menu.Item>
-              <Menu.Item render={<a href={RESOURCES.about} target="_blank" rel="noreferrer" />} className={cn(MENU_ITEM, "text-foreground/75")}>
+              <Menu.Item render={<a href={RESOURCES.about} target="_blank" rel="noreferrer" />} className={cn(MENU_ITEM, "text-foreground")}>
                 <Info className="h-4 w-4" />
                 <span className="flex-1">{t("footer.about", "关于 Octarq")}</span>
                 <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -294,7 +335,7 @@ export function TopBar({
               <Menu.Separator className="my-1 h-px bg-border" />
               <Menu.Item
                 onClick={onLogout}
-                className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-danger-fg outline-none transition-colors data-[highlighted]:bg-danger-fg/10 data-[highlighted]:text-danger-fg"
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-danger-fg outline-none transition-colors data-[highlighted]:bg-danger-bg data-[highlighted]:text-danger-fg"
               >
                 <LogOut className="h-4 w-4" />
                 {t("common.signOut")}

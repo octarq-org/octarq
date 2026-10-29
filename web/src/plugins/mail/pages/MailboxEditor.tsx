@@ -70,7 +70,7 @@ export function MailboxEditor({
                 placeholder={t("mail.prefixPlaceholder")}
                 autoFocus
               />
-              <span className="text-foreground/40">@</span>
+              <span className="text-muted-foreground">@</span>
               <div className="min-w-0 flex-1">
                 <Select
                   className="text-sm"
@@ -87,7 +87,7 @@ export function MailboxEditor({
         </Field>
         <div className="flex items-center gap-3 py-1">
           <Switch checked={enabled} onCheckedChange={setEnabled} />
-          <span className="text-sm text-foreground/60 select-none">{t("mail.mailReceivingEnabled")}</span>
+          <span className="text-sm text-muted-foreground select-none">{t("mail.mailReceivingEnabled")}</span>
         </div>
         {canDeleteBox && box && (
           <Button
@@ -104,7 +104,7 @@ export function MailboxEditor({
           </Button>
         )}
         {err && <FormError err={err} />}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button variant="ghost" onClick={onClose}>
             {t("mail.cancel")}
           </Button>

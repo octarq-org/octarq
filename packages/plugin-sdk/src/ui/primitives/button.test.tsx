@@ -27,17 +27,19 @@ describe("Button", () => {
     expect((sm.firstChild as HTMLElement).className).toContain("h-8");
 
     const { container: lg } = render(<Button size="lg">L</Button>);
-    expect((lg.firstChild as HTMLElement).className).toContain("h-10");
+    expect((lg.firstChild as HTMLElement).className).toContain("h-11");
 
     const { container: def } = render(<Button>D</Button>);
-    expect((def.firstChild as HTMLElement).className).toContain("h-9");
+    expect((def.firstChild as HTMLElement).className).toContain("h-10");
   });
 
   it("supports the secondary variant that only the app-local copy used to have", () => {
     const { container } = render(<Button variant="secondary">Test</Button>);
     const button = container.firstChild as HTMLElement;
 
-    expect(button.className).toContain("bg-muted");
+    // Secondary is the bordered card fill: a surface that reads as a control
+    // next to the flat primary, not a second tinted chip.
+    expect(button.className).toContain("bg-card");
     expect(button.className).toContain("border-border");
   });
 

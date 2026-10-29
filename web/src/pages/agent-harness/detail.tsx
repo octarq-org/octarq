@@ -185,7 +185,7 @@ export function HarnessDetailModal({
             <span className="text-xs font-semibold text-foreground">
               {t("agentHarness.preamble")}
             </span>
-            <div className="rounded-xl border border-border bg-well/40 p-3 font-mono text-xs whitespace-pre-wrap break-words max-h-48 overflow-y-auto text-foreground/90">
+            <div className="rounded-xl border border-border bg-well p-3 font-mono text-xs whitespace-pre-wrap break-words max-h-48 overflow-y-auto text-foreground">
               {detail.spec.preamble}
             </div>
           </div>
@@ -196,13 +196,13 @@ export function HarnessDetailModal({
               {t("agentHarness.extraRules")}
             </span>
             {detail.spec.extraRules && detail.spec.extraRules.length > 0 ? (
-              <ul className="rounded-xl border border-border bg-well/30 divide-y divide-border/50 text-xs font-mono">
+              <ul className="rounded-xl border border-border bg-well divide-y divide-border/50 text-xs font-mono">
                 {detail.spec.extraRules.map((rule, idx) => (
                   <li key={idx} className="p-2.5 flex items-start gap-2">
                     <span className="text-muted-foreground select-none opacity-50">
                       {idx + 1}.
                     </span>
-                    <span className="text-foreground/90">{rule}</span>
+                    <span className="text-foreground">{rule}</span>
                   </li>
                 ))}
               </ul>
@@ -225,7 +225,7 @@ export function HarnessDetailModal({
                 </span>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-1.5 p-2.5 rounded-xl border border-border bg-well/30">
+              <div className="flex flex-wrap gap-1.5 p-2.5 rounded-xl border border-border bg-well">
                 {detail.spec.toolAllow.map((tool) => (
                   <Badge key={tool} variant="neutral" className="font-mono text-xs">
                     {tool}
@@ -241,7 +241,7 @@ export function HarnessDetailModal({
               <span className="text-xs font-semibold text-foreground">
                 {t("agentHarness.evidence")}
               </span>
-              <div className="p-3 rounded-xl border border-border bg-well/30 max-h-40 overflow-y-auto">
+              <div className="p-3 rounded-xl border border-border bg-well max-h-40 overflow-y-auto">
                 <EvidenceViewer evidence={detail.evidence} />
               </div>
             </div>
@@ -249,7 +249,7 @@ export function HarnessDetailModal({
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between pt-3 border-t border-border/60">
+      <div className="flex items-center justify-between pt-3 border-t border-border">
         <div className="flex items-center gap-2">
           {detail && (
             <>

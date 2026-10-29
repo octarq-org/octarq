@@ -36,38 +36,42 @@ export function EmailListPane({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col min-h-0 w-full">
-      <div className="mb-3 relative">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="!pl-8 text-sm"
+          className="!pl-10"
           placeholder={t("mail.searchPlaceholder")}
           value={q}
           onChange={(e) => onSearchChange(e.target.value)}
         />
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/45 pointer-events-none" />
         {q && (
           <button
             type="button"
             onClick={() => onSearchChange("")}
-            className="absolute right-2.5 top-2.5 text-foreground/40 hover:text-foreground p-0.5 cursor-pointer"
+            aria-label={t("mail.clearSearch")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-0.5 text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:bg-surface-hover hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
-      <GlassCard className="overflow-hidden">
+      <GlassCard className="flex-1 overflow-hidden">
         {emails.length === 0 && loading ? (
           <ListSkeleton rows={7} ariaLabel={t("mail.loading")} />
         ) : (
-          <div className="overflow-y-auto max-h-[650px] divide-y divide-foreground/[0.04]" onScroll={onScroll}>
+          <div className="max-h-[650px] divide-y divide-border overflow-y-auto" onScroll={onScroll}>
             {emails.length === 0 ? (
               q ? (
-                <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-                  <p className="text-sm text-foreground/60">
-                    {t("mail.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
+                <div className="flex flex-col items-center gap-2.5 px-6 py-10 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                    <Search className="h-4 w-4" />
+                  </div>
+                  <p className="text-[13px] text-muted-foreground">
+                    {t("mail.emptyFilteredReason")} <span className="font-mono text-foreground">{`“${q}”`}</span>
                   </p>
-                  <Button variant="ghost" className="text-xs py-1.5" onClick={() => onSearchChange("")}>
+                  <Button variant="ghost" size="sm" onClick={() => onSearchChange("")}>
                     {t("mail.clearSearch")}
                   </Button>
                 </div>
@@ -76,12 +80,12 @@ export function EmailListPane({
                   reason={t("mail.emptyNoBoxesReason")}
                   detail={t("mail.emptyNoBoxesDetail")}
                   action={
-                    <Button variant="primary" className="mt-1 text-xs py-1.5" onClick={onNewBox}>
+                    <Button variant="primary" size="sm" className="mt-1" onClick={onNewBox}>
                       {t("mail.newMailbox")}
                     </Button>
                   }
                 >
-                  <MailIcon className="h-8 w-8 text-foreground/50 mb-1" />
+                  <MailIcon />
                 </Empty>
               ) : (
                 <Empty
@@ -95,7 +99,7 @@ export function EmailListPane({
                   }
                   detail={t("mail.emptyInboxDetail")}
                 >
-                  <Inbox className="h-8 w-8 text-foreground/50 mb-1" />
+                  <Inbox />
                 </Empty>
               )
             ) : (
@@ -109,7 +113,7 @@ export function EmailListPane({
                     onSelect={() => onOpenEmail(e)}
                   />
                 ))}
-                {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("mail.loading")}</div>}
+                {loading && <div className="p-3 text-center text-xs text-muted-foreground">{t("mail.loading")}</div>}
               </>
             )}
           </div>

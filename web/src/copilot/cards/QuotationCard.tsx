@@ -138,7 +138,7 @@ export function QuotationCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div className="flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
@@ -168,7 +168,7 @@ export function QuotationCard({
               return (
                 <div
                   key={item.sku || idx}
-                  className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 px-2.5 py-1 text-xs"
+                  className="flex items-center justify-between rounded-lg border border-border bg-well px-2.5 py-1 text-xs"
                 >
                   <div className="truncate mr-2">
                     <span className="font-medium text-foreground">{item.description}</span>
@@ -194,7 +194,7 @@ export function QuotationCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

@@ -28,7 +28,7 @@ export function StatusCard({
   return (
     <CardShell title={`Status — ${toolName.replace("statuspage_", "")}`} state={state}>
       <div className="flex items-start gap-2">
-        <Activity className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <Activity className="h-4 w-4 text-accent-fg shrink-0 mt-0.5" />
         <div className="flex-1 space-y-1">
           {slug ? (
             <div data-testid="status-slug" className="font-mono text-xs">

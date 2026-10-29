@@ -55,9 +55,9 @@ export function HealthOverview() {
           <Skeleton className="h-8 w-24" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-48 rounded-2xl" />
-          <Skeleton className="h-48 rounded-2xl" />
-          <Skeleton className="h-48 rounded-2xl" />
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
         </div>
       </div>
     );
@@ -102,27 +102,27 @@ export function HealthOverview() {
   return (
     <div className="mb-6" data-testid="health-overview">
       {/* Header section with status badge, auto-refresh hint, and manual refresh button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-foreground/5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-well">
             <StatusIcon status={normalizedOverall} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-foreground">{t("overview.healthTitle")}</h2>
+              <h2 className="font-display text-[1.25rem] font-semibold tracking-[-0.02em] text-foreground">{t("overview.healthTitle")}</h2>
               <HealthStatusBadge status={data?.overall || "ok"} />
             </div>
-            <p className="text-xs text-foreground/50">{t("overview.healthDesc")}</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{t("overview.healthDesc")}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
           <div className="text-right hidden sm:block">
-            <span className="text-[11px] text-foreground/40 block">
+            <span className="text-[11px] text-muted-foreground block">
               {t("overview.healthAutoRefresh")}
             </span>
             {lastUpdatedText && (
-              <span className="text-[11px] text-foreground/50">
+              <span className="text-[11px] text-muted-foreground">
                 {t("overview.healthLastUpdated", { time: lastUpdatedText })}
               </span>
             )}
@@ -133,7 +133,7 @@ export function HealthOverview() {
             onClick={() => refetch()}
             disabled={isFetching}
             data-testid="health-refresh-btn"
-            className="h-8 text-xs font-medium"
+            className="h-9 text-[12px] font-medium"
             title={t("overview.healthManualRefresh")}
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
@@ -181,7 +181,7 @@ export function HealthOverview() {
 
       {/* Provider cards grid */}
       {providers.length === 0 ? (
-        <GlassCard className="p-6 text-center text-sm text-foreground/50">
+        <GlassCard className="p-6 text-center text-sm text-muted-foreground">
           {t("overview.healthNoProviders")}
         </GlassCard>
       ) : (

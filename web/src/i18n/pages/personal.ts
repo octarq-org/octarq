@@ -93,7 +93,7 @@ export const personal = {
     mcpQuery2: "Show unread emails received in my mailboxes today",
     mcpQuery3: "Check DNS record status across all my domains",
     mcpViewDocs: "View MCP Documentation",
-    dangerZone: "Danger Zone",
+    dangerZone: "Danger zone",
     deleteAccountTitle: "Delete Account",
     deleteAccountDesc: "Permanently delete your personal account, credentials, and authentication sessions. You must leave all workspaces first.",
     deleteAccountButton: "Delete My Account",

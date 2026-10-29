@@ -16,28 +16,36 @@ import { cn } from "../cn";
 // token pipeline exists to prevent. Flat also means the primary action and the
 // accent chrome share one source of truth.
 //
-// Radius stays `rounded-xl`, which the host's @theme pins to --radius (4px) —
-// identical to what the app-local button rendered, and still valid for a
-// consumer that ships its own theme (the Pro portal) where `var(--radius)` is
-// not defined at all.
+// Geometry stays token-driven: the control radius is --radius (10px on the
+// host), so the button matches every field and chip next to it, and still works
+// for a consumer that ships its own theme (the Pro portal).
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded-xl border-0 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-(--ring) focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-[var(--radius)] border-0 font-medium tracking-[-0.01em] outline-none transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) active:scale-[0.985] disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary-hover active:translate-y-[1px]",
-        secondary: "bg-muted text-foreground hover:bg-surface-hover border border-border active:translate-y-[1px]",
-        subtle: "bg-muted text-foreground hover:bg-surface-hover border border-transparent active:translate-y-[1px]",
-        ghost: "bg-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground active:translate-y-[1px]",
-        outline: "border border-border bg-card text-foreground hover:bg-surface-hover hover:border-border-strong active:translate-y-[1px]",
+        primary:
+          "bg-primary text-primary-foreground shadow-[var(--shadow-accent)] hover:-translate-y-px hover:bg-primary-hover",
+        secondary:
+          "border border-border bg-card text-foreground shadow-[0_1px_1px_rgb(0_0_0/0.03)] hover:border-border-strong hover:bg-surface-hover",
+        subtle: "bg-muted text-foreground hover:bg-surface-hover",
+        ghost:
+          "bg-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+        outline:
+          "border border-border bg-transparent text-foreground hover:border-border-strong hover:bg-surface-hover",
         // Token-driven, not a literal rose: --danger-* already carries the hue
         // in both themes, so no `ui-color-ok` exemption is needed.
-        danger: "bg-transparent text-danger-fg hover:bg-danger-bg/50 active:translate-y-[1px]",
+        danger: "bg-transparent text-danger-fg hover:bg-danger-bg",
+        // The filled destructive action for confirm dialogs. Its pair of
+        // *-solid tokens keeps the foreground readable in both themes, so this
+        // variant needs no per-call-site override.
+        "danger-solid":
+          "bg-danger-solid text-danger-solid-fg shadow-[0_8px_20px_-12px_var(--danger-solid)] hover:brightness-110",
       },
       size: {
-        sm: "h-8 px-3 text-xs",
-        md: "h-9 px-3.5 text-sm",
-        lg: "h-10 px-4 text-base",
+        sm: "h-8 gap-1.5 px-3 text-xs",
+        md: "h-10 px-4 text-[13px]",
+        lg: "h-11 px-5 text-sm",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

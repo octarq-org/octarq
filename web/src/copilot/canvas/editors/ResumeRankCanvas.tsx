@@ -81,7 +81,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="resume-rank-canvas">
       {/* Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {`${content.job_title || "Job Requisition"} ${t("copilot.resumeLeaderboard", "— Candidate Leaderboard")}`}
@@ -102,7 +102,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
               className="h-8 rounded-lg border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
           </div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent-fg">
             {`${selectedIds.size} ${t("copilot.resumeSelected", "Selected")}`}
           </span>
         </div>
@@ -112,7 +112,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
       <div className="flex-1 overflow-auto rounded-xl border border-border bg-card">
         <Table className="w-full text-left text-xs border-collapse">
           <THead>
-            <TR className="border-b border-border bg-well/40 font-semibold text-muted-foreground">
+            <TR className="border-b border-border bg-well font-semibold text-muted-foreground">
               <TH className="py-2 px-3 w-8">
                 <input
                   type="checkbox"
@@ -172,7 +172,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
                 <TR
                   key={id}
                   className={`hover:bg-surface-hover/50 transition-colors ${
-                    isSelected ? "bg-primary/5" : ""
+                    isSelected ? "bg-accent-soft" : ""
                   }`}
                   data-testid="candidate-row"
                 >
@@ -198,7 +198,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
                         scorePct >= 90
                           ? "bg-success-fg/10 text-success-fg"
                           : scorePct >= 70
-                            ? "bg-primary/10 text-primary"
+                            ? "bg-accent-soft text-accent-fg"
                             : "bg-muted text-muted-foreground"
                       }`}
                     >
@@ -241,9 +241,9 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
       {activeCandidate && (
         <div
           data-testid="candidate-detail-modal"
-          className="rounded-xl border border-border bg-well/30 p-3 space-y-2 text-xs"
+          className="rounded-xl border border-border bg-well p-3 space-y-2 text-xs"
         >
-          <div className="flex items-center justify-between border-b border-border/40 pb-2">
+          <div className="flex items-center justify-between border-b border-border pb-2">
             <div>
               <div className="text-sm font-bold text-foreground">{activeCandidate.name}</div>
               <div className="text-xs text-muted-foreground">{activeCandidate.current_title}</div>
@@ -256,7 +256,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
               <X className="h-4 w-4" />
             </button>
           </div>
-          <p className="text-xs text-foreground/90 leading-relaxed">
+          <p className="text-xs text-foreground leading-relaxed">
             {activeCandidate.summary || "Candidate matches key criteria for this requisition."}
           </p>
           <div className="grid grid-cols-2 gap-2 pt-1">
@@ -269,7 +269,7 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
               </ul>
             </div>
             <div>
-              <span className="text-[11px] font-semibold text-destructive">{t("copilot.resumeRedFlags", "Red Flags:")}</span>
+              <span className="text-[11px] font-semibold text-danger-fg">{t("copilot.resumeRedFlags", "Red Flags:")}</span>
               <ul className="list-disc list-inside text-[11px] text-muted-foreground">
                 {(activeCandidate.red_flags || ["None detected"]).map((f, i) => (
                   <li key={i}>{f}</li>

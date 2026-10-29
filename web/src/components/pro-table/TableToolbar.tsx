@@ -113,9 +113,12 @@ export function TableToolbar<TData>({
       {hasSearch && (
         <form
           onSubmit={handleSubmit}
-          className="rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-xs"
+          className="rounded-xl border border-border bg-well p-3 text-xs"
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {/* Fields and their actions share one row: the actions sit on the
+              inputs' baseline, so the filter reads as a single control strip
+              instead of a form with a detached footer. */}
+          <div className="flex flex-wrap items-end gap-3">
             {visibleFilterColumns.map((col) => {
               const fieldKey =
                 col.key || (col.dataIndex ? String(col.dataIndex) : "");
@@ -127,12 +130,17 @@ export function TableToolbar<TData>({
                     : fieldKey;
               const valueType = col.valueType || (col.valueEnum ? "select" : "text");
               const currentValue = formState[fieldKey] ?? "";
+              const fieldClass =
+                "h-9 w-full rounded-lg border border-border bg-card px-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-accent-border focus:ring-1 focus:ring-accent-border";
 
               return (
-                <div key={fieldKey} className="flex flex-col gap-1">
+                <div
+                  key={fieldKey}
+                  className="flex min-w-[9rem] flex-1 basis-40 flex-col gap-1.5"
+                >
                   <label
                     htmlFor={`pro-search-${fieldKey}`}
-                    className="font-medium text-foreground/75"
+                    className="px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground"
                   >
                     {label}
                   </label>
@@ -142,7 +150,7 @@ export function TableToolbar<TData>({
                       id={`pro-search-${fieldKey}`}
                       value={currentValue}
                       onChange={(e) => handleFieldChange(fieldKey, e.target.value)}
-                      className="rounded-lg border border-border bg-card/60 px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      className={fieldClass}
                     >
                       <option value="">{t("proTable.all")}</option>
                       {Object.entries(col.valueEnum).map(([enumKey, enumVal]) => {
@@ -172,23 +180,21 @@ export function TableToolbar<TData>({
                       value={currentValue}
                       onChange={(e) => handleFieldChange(fieldKey, e.target.value)}
                       placeholder={col.fieldProps?.placeholder || t("proTable.inputPlaceholder", { name: label })}
-                      className="rounded-lg border border-border bg-card/60 px-2.5 py-1.5 text-xs text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
+                      className={fieldClass}
                     />
                   )}
                 </div>
               );
             })}
-          </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-foreground/[0.04] pt-2.5">
-            <div>
+            <div className="ml-auto flex items-center gap-2">
               {showExpandButton && (
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
                   onClick={() => setCollapsed(!collapsed)}
-                  className="gap-1 text-xs text-foreground/60 hover:text-foreground"
+                  className="h-9 gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   {collapsed ? (
                     <>
@@ -203,13 +209,11 @@ export function TableToolbar<TData>({
                   )}
                 </Button>
               )}
-            </div>
-
-            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
+                className="h-9"
                 onClick={handleReset}
               >
                 {searchCfg.resetText ?? t("proTable.reset")}
@@ -218,7 +222,7 @@ export function TableToolbar<TData>({
                 type="submit"
                 size="sm"
                 variant="primary"
-                className="gap-1.5"
+                className="h-9 gap-1.5"
               >
                 <Search className="h-3 w-3" />
                 <span>{searchCfg.searchText ?? t("proTable.search")}</span>
@@ -239,7 +243,7 @@ export function TableToolbar<TData>({
           )}
           {tooltip && (
             <span
-              className="text-xs text-foreground/50"
+              className="text-xs text-muted-foreground"
               title={typeof tooltip === "string" ? tooltip : undefined}
             >
               {tooltip}
@@ -283,7 +287,7 @@ export function TableToolbar<TData>({
             </Button>
 
             {showDensityDropdown && (
-              <div className="absolute right-0 top-9 z-50 w-32 rounded-xl border border-border bg-card/95 p-1 shadow-lg backdrop-blur-md">
+              <div className="absolute right-0 top-9 z-50 w-32 rounded-xl border border-border bg-card p-1 shadow-lg backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => {
@@ -330,15 +334,15 @@ export function TableToolbar<TData>({
             </Button>
 
             {showColumnDropdown && (
-              <div className="absolute right-0 top-9 z-50 w-48 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur-md">
-                <div className="mb-2 flex items-center justify-between border-b border-foreground/[0.06] pb-1.5 px-1">
-                  <span className="text-xs font-semibold text-foreground/80">
+              <div className="absolute right-0 top-9 z-50 w-48 rounded-xl border border-border bg-card p-2 shadow-lg backdrop-blur-md">
+                <div className="mb-2 flex items-center justify-between border-b border-border pb-1.5 px-1">
+                  <span className="text-xs font-semibold text-foreground">
                     {t("proTable.columns")}
                   </span>
                   <button
                     type="button"
                     onClick={onResetColumnVisibility}
-                    className="text-[11px] text-primary hover:underline cursor-pointer"
+                    className="text-[11px] text-accent-fg hover:underline cursor-pointer"
                   >
                     {t("proTable.resetColumns")}
                   </button>
@@ -360,7 +364,7 @@ export function TableToolbar<TData>({
                       return (
                         <label
                           key={colId}
-                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-foreground/80 hover:bg-surface-hover"
+                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-foreground hover:bg-surface-hover"
                         >
                           <input
                             type="checkbox"
@@ -368,7 +372,7 @@ export function TableToolbar<TData>({
                             onChange={(e) =>
                               onColumnVisibilityChange(colId, e.target.checked)
                             }
-                            className="rounded border-border text-primary focus-visible:ring-primary focus-visible:outline-none"
+                            className="rounded border-border text-accent-fg focus-visible:ring-accent-border focus-visible:outline-none"
                           />
                           <span className="truncate">{title}</span>
                         </label>

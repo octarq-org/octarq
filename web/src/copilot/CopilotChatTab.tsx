@@ -86,7 +86,7 @@ export function CopilotChatTab({
           /* Welcome & Preset Prompts */
           <div className="my-auto py-6 space-y-6">
             <div className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-fg">
                 <Bot className="h-6 w-6" />
               </div>
               <h3 className="text-sm font-bold text-foreground">
@@ -107,7 +107,7 @@ export function CopilotChatTab({
               </div>
               <div className="grid grid-cols-1 gap-2">
                 <PresetPromptCard
-                  icon={<Sunrise className="h-4 w-4 text-primary" />}
+                  icon={<Sunrise className="h-4 w-4 text-accent-fg" />}
                   title={t("copilot.promptBriefing", "查看晨间简报与异动 (Briefing v2)")}
                   desc={t("copilot.promptBriefingDesc", "查看 6 维晨间工作简报、待办事项与实时多维异动播报")}
                   onClick={() => setActiveTab("briefing")}
@@ -154,7 +154,7 @@ export function CopilotChatTab({
                 {msg.role === "user" ? (
                   <span>{t("copilot.userLabel", "你")}</span>
                 ) : (
-                  <span className="font-semibold text-primary flex items-center gap-1">
+                  <span className="font-semibold text-accent-fg flex items-center gap-1">
                     <Sparkles className="h-3 w-3" />
                     <span>{t("copilot.assistantName", "Octarq Copilot")}</span>
                   </span>
@@ -163,11 +163,11 @@ export function CopilotChatTab({
 
               {/* Thinking Process Accordion */}
               {msg.thinking && (
-                <div className="w-full max-w-md rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-xs text-muted-foreground my-1">
+                <div className="w-full max-w-md rounded-xl border border-primary/20 bg-accent-soft p-2.5 text-xs text-muted-foreground my-1">
                   <button
                     type="button"
                     onClick={() => toggleThinking(msg.id)}
-                    className="flex w-full items-center justify-between text-[11px] font-semibold text-primary hover:opacity-80"
+                    className="flex w-full items-center justify-between text-[11px] font-semibold text-accent-fg hover:opacity-80"
                   >
                     <span className="flex items-center gap-1">
                       <Sparkles className="h-3 w-3" />
@@ -194,7 +194,7 @@ export function CopilotChatTab({
                     "rounded-2xl px-3.5 py-2.5 max-w-[92%] shadow-xs",
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground font-medium text-sm"
-                      : "bg-surface-hover/80 text-foreground border border-border/80",
+                      : "bg-surface-hover/80 text-foreground border border-border",
                   )}
                 >
                   {msg.role === "user" ? (
@@ -269,8 +269,8 @@ export function CopilotChatTab({
       </div>
 
       {/* Input & Footer Controls */}
-      <div className="border-t border-border bg-well/30 p-3">
-        <div className="relative flex flex-col rounded-2xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-colors">
+      <div className="border-t border-border bg-well p-3">
+        <div className="relative flex flex-col rounded-2xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-accent-border/50 transition-colors">
           <textarea
             ref={inputRef}
             value={input}
@@ -282,7 +282,7 @@ export function CopilotChatTab({
             className="w-full resize-none bg-transparent p-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:outline-none"
           />
 
-          <div className="flex items-center justify-between border-t border-border/40 px-3 py-2 bg-well/20 rounded-b-2xl">
+          <div className="flex items-center justify-between border-t border-border px-3 py-2 bg-well rounded-b-2xl">
             <div className="text-[10px] text-muted-foreground hidden sm:block">
               {t("copilot.shortcutHint", "Shift + Enter 换行 · Enter 发送 · ⌘&nbsp;J 唤起/收起")}
             </div>
@@ -335,13 +335,13 @@ function PresetPromptCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-start gap-3 rounded-xl border border-border/70 bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-surface-hover/70 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-surface-hover/70 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
     >
       <div className="mt-0.5 shrink-0 rounded-lg bg-well p-1.5 shadow-2xs group-hover:scale-105 transition-transform">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+        <div className="text-xs font-semibold text-foreground group-hover:text-accent-fg transition-colors">
           {title}
         </div>
         <div className="text-[11px] text-muted-foreground truncate mt-0.5">{desc}</div>

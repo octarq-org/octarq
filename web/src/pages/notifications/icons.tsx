@@ -19,7 +19,7 @@ export function getNotificationIcon(eventType: string, className = "h-4 w-4") {
     return <ShieldAlert className={`${className} text-danger-fg`} />;
   }
   if (type.startsWith("system.")) {
-    return <Server className={`${className} text-primary`} />;
+    return <Server className={`${className} text-accent-fg`} />;
   }
   if (type.startsWith("cron.") || type.startsWith("task.")) {
     return <Clock className={`${className} text-warning-fg`} />;

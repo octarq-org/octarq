@@ -72,14 +72,14 @@ export function MailSettings() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  if (!s) return <div className="text-sm text-foreground/40">{t("settings.loadingLower")}</div>;
+  if (!s) return <div className="text-sm text-muted-foreground">{t("settings.loadingLower")}</div>;
 
   const displayed = tokenLoaded && revealed ? inboundToken : MASK;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground/90">{t("settings.inboundMailboxesSettings")}</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t("settings.inboundMailboxesSettings")}</h2>
       </div>
       <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
         <Textarea className="font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
@@ -113,21 +113,21 @@ export function MailSettings() {
           </Field>
         </>
       )}
-      <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
+      <div className="flex items-center gap-3 border-t border-border pt-4">
         <Switch checked={catchAll} onCheckedChange={setCatchAll} />
         <div>
-          <span className="block select-none text-xs font-semibold text-foreground/70">{t("settings.enableCatchAll")}</span>
-          <span className="select-none text-[10px] text-foreground/40">{t("settings.enableCatchAllDesc")}</span>
+          <span className="block select-none text-xs font-semibold text-muted-foreground">{t("settings.enableCatchAll")}</span>
+          <span className="select-none text-[10px] text-muted-foreground">{t("settings.enableCatchAllDesc")}</span>
         </div>
       </div>
-      <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
+      <div className="flex items-center gap-3 border-t border-border pt-4">
         <Switch checked={autoWrap} onCheckedChange={setAutoWrap} />
         <div>
-          <span className="block select-none text-xs font-semibold text-foreground/70">{t("settings.autoWrapLinks")}</span>
-          <span className="select-none text-[10px] text-foreground/40">{t("settings.autoWrapLinksDesc")}</span>
+          <span className="block select-none text-xs font-semibold text-muted-foreground">{t("settings.autoWrapLinks")}</span>
+          <span className="select-none text-[10px] text-muted-foreground">{t("settings.autoWrapLinksDesc")}</span>
         </div>
       </div>
-      <div className="border-t border-foreground/[0.06] pt-4 flex justify-end">
+      <div className="border-t border-border pt-4 flex justify-end">
         <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
     </div>

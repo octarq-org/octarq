@@ -58,14 +58,19 @@ export default function HelloPage() {
         title={t("hello.pageTitle", "Hello Plugin")}
         description={t("hello.pageDesc", "A minimal full-stack example plugin.")}
       />
-      <GlassCard className="p-6">
+      <GlassCard className="p-5">
         {ping ? (
-          <div className="space-y-1 text-sm">
-            <p className="text-white/80">{ping.message}</p>
-            <p className="text-white/40">{ping.time}</p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success-fg" aria-hidden="true" />
+              <span className="text-[13px] font-medium text-foreground">{ping.message}</span>
+            </div>
+            <div className="rounded-lg border border-border bg-well px-3 py-2 font-mono text-xs text-muted-foreground">
+              {ping.time}
+            </div>
           </div>
         ) : (
-          <p className="text-sm text-white/40">{t("hello.loading", "Loading…")}</p>
+          <p className="text-[13px] text-muted-foreground">{t("hello.loading", "Loading…")}</p>
         )}
       </GlassCard>
     </ScreenWrap>
