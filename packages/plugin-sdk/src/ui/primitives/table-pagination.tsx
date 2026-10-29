@@ -80,7 +80,9 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
           ))}
         </select>
 
-        <div className="flex items-center gap-1">
+        {/* gap-3 on touch keeps a 44px pitch: a 32px button with a 12px gap
+            leaves its expanded hit area no room to cover its neighbour's. */}
+        <div className="flex items-center gap-1 pointer-coarse:gap-3">
           <Button
             size="sm"
             variant="outline"

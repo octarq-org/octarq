@@ -143,7 +143,7 @@ export const notifications = {
     catSystemLabel: "Eventos del sistema",
     catSystemDesc: "Actualizaciones, avisos de mantenimiento y estado de la instancia.",
     catSecurityLabel: "Seguridad y auditoría",
-    catSecurityDesc: "Inicio de sesión remoto, restablecimiento de contraseña, dos pasos y cambios de credenciales.",
+    catSecurityDesc: "Inicio de sesión remoto, restablecimiento de contraseña, doble factor y cambios de credenciales.",
     catCronLabel: "Tareas programadas",
     catCronDesc: "Fallos de cron, errores de tareas periódicas y avisos de reintento.",
     catStorageLabel: "Almacenamiento y copias",

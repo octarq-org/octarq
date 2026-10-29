@@ -85,7 +85,7 @@ export function AreaPanel({
               aria-label={t("topbar.switchWorkspace")}
               title={collapsed ? activeOrgName : undefined}
               className={cn(
-                "flex cursor-pointer items-center rounded-[var(--radius)] border border-border bg-card shadow-[0_1px_1px_rgb(0_0_0/0.03)] transition-colors duration-[var(--dur-fast)] hover:border-border-strong data-[popup-open]:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
+                "tap-expand flex cursor-pointer items-center rounded-[var(--radius)] border border-border bg-card shadow-[0_1px_1px_rgb(0_0_0/0.03)] transition-colors duration-[var(--dur-fast)] hover:border-border-strong data-[popup-open]:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
                 collapsed ? "h-10 w-10 justify-center" : "h-11 w-full gap-2.5 px-2",
               )}
             >
@@ -164,7 +164,7 @@ export function AreaPanel({
                         onClick={onNavigate}
                         title={translateNavItemLabel(t, item.id, item.label)}
                         aria-label={translateNavItemLabel(t, item.id, item.label)}
-                        className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                        className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors pointer-coarse:h-11 pointer-coarse:w-11 hover:bg-surface-hover hover:text-foreground"
                       >
                         <ExternalLink className="h-[18px] w-[18px]" strokeWidth={1.75} />
                       </a>
@@ -178,7 +178,7 @@ export function AreaPanel({
                       title={translateNavItemLabel(t, item.id, item.label)}
                       aria-label={translateNavItemLabel(t, item.id, item.label)}
                       className={cn(
-                        "relative mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--radius)] transition-colors",
+                        "relative mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--radius)] transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
                         active
                           ? "bg-accent-soft text-accent-fg ring-1 ring-inset ring-accent-border"
                           : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
@@ -201,7 +201,7 @@ export function AreaPanel({
                       key={item.id}
                       href={item.path}
                       onClick={onNavigate}
-                      className="group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:bg-surface-hover hover:text-foreground"
+                      className="group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] text-muted-foreground transition-colors pointer-coarse:min-h-11 duration-[var(--dur-fast)] hover:bg-surface-hover hover:text-foreground"
                     >
                       <ExternalLink className="relative h-[18px] w-[18px] text-muted-foreground group-hover:text-foreground" strokeWidth={1.75} />
                       <span className="relative flex-1 truncate">{translateNavItemLabel(t, item.id, item.label)}</span>
@@ -213,7 +213,7 @@ export function AreaPanel({
                     key={item.id}
                     to={item.path}
                     onClick={onNavigate}
-                    className={`group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors duration-[var(--dur-fast)] ${
+                    className={`group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors pointer-coarse:min-h-11 duration-[var(--dur-fast)] ${
                       active ? "font-medium text-foreground" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                     }`}
                   >
@@ -279,7 +279,7 @@ export function AreaPanel({
                 active
                   ? "bg-accent-soft font-bold text-accent-fg shadow-2xs"
                   : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
-                collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
+                collapsed ? "mx-auto h-10 w-10 justify-center pointer-coarse:h-11 pointer-coarse:w-11" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium pointer-coarse:min-h-11",
               )}
             >
               {it.iconStr ? (
@@ -298,7 +298,7 @@ export function AreaPanel({
             title={collapsed ? t("footer.help", "About octarq") : undefined}
             className={cn(
               "flex cursor-pointer items-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground",
-              collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
+              collapsed ? "mx-auto h-10 w-10 justify-center pointer-coarse:h-11 pointer-coarse:w-11" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium pointer-coarse:min-h-11",
             )}
           >
             <HelpCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />

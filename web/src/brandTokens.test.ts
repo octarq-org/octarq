@@ -41,6 +41,7 @@ function declared(body: string, name: string): string {
 // styles.css means adding it here too.
 const DERIVED = [
   "--primary-hover",
+  "--primary-solid",
   "--accent-indigo",
   "--accent-fg",
   "--accent-soft",
@@ -61,10 +62,12 @@ describe("brand accent tokens derive from the --primary seed", () => {
       if (selector === ".dark" && value === "") continue;
       it(`${selector} ${token} references var(--primary)`, () => {
         expect(value).not.toBe("");
+        // --primary-solid is asserted below to be derived from the seed, so
+        // referencing it is as seed-following as referencing --primary.
         expect(
           value,
           `${token} is a literal in ${selector}; it will not follow a white-label brand color`,
-        ).toContain("var(--primary)");
+        ).toMatch(/var\(--primary(?:-solid)?\)/);
       });
     }
   }

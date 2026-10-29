@@ -245,6 +245,44 @@ describe("PreferencesPage", () => {
     expect(screen.getAllByText("In-App Inbox").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Email Service").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Telegram Bot").length).toBeGreaterThan(0);
+
+    // Every channel switch names its row and its channel, for both layouts.
+    const switches = screen.getAllByRole("switch");
+    expect(switches.length).toBeGreaterThanOrEqual(5 * mockChannels.length);
+    expect(screen.getAllByRole("switch", { name: "System events — In-App Inbox" }).length).toBe(2);
+  });
+
+  it("names the delete control of a custom rule and saves the matrix without it", async () => {
+    vi.spyOn(api, "notificationPreferences").mockResolvedValue([
+      { eventPattern: "billing.*", channels: ["in_app"] },
+    ]);
+    vi.spyOn(api, "registeredNotificationChannels").mockResolvedValue(mockChannels);
+    const updateSpy = vi.spyOn(api, "updateNotificationPreferences").mockResolvedValue([]);
+
+    renderWithProviders(<PreferencesPage />);
+
+    const deleteButtons = await screen.findAllByRole("button", { name: "Delete — billing.*" });
+    expect(deleteButtons.length).toBe(2);
+
+    fireEvent.click(deleteButtons[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Save preferences/i }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalled());
+    const payload = updateSpy.mock.calls[0][0] as { eventPattern: string }[];
+    expect(payload.some((row) => row.eventPattern === "billing.*")).toBe(false);
+  });
+
+  it("labels both fields of the add-rule dialog", async () => {
+    vi.spyOn(api, "notificationPreferences").mockResolvedValue([]);
+    vi.spyOn(api, "registeredNotificationChannels").mockResolvedValue(mockChannels);
+
+    renderWithProviders(<PreferencesPage />);
+
+    await screen.findAllByText("System events");
+    fireEvent.click(screen.getByRole("button", { name: /Add rule/i }));
+
+    expect(await screen.findByLabelText("Rule Name")).toBeTruthy();
+    expect(screen.getByLabelText("Event Pattern Wildcard")).toBeTruthy();
   });
 
   it("saves updated preferences to API", async () => {

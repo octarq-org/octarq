@@ -296,7 +296,7 @@ export function TableToolbar<TData>({
                   }}
                   className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
                     density === "comfortable"
-                      ? "bg-primary text-primary-foreground font-medium"
+                      ? "bg-primary-solid text-primary-foreground font-medium"
                       : "text-foreground hover:bg-surface-hover"
                   }`}
                 >
@@ -310,7 +310,7 @@ export function TableToolbar<TData>({
                   }}
                   className={`mt-1 flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
                     density === "compact"
-                      ? "bg-primary text-primary-foreground font-medium"
+                      ? "bg-primary-solid text-primary-foreground font-medium"
                       : "text-foreground hover:bg-surface-hover"
                   }`}
                 >

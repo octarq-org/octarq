@@ -79,7 +79,12 @@ function defaultRows(t: TFunc): PreferenceRouteRow[] {
 
 export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
-  const { data: savedPreferences, isLoading: loadingPrefs } = useNotificationPreferencesQuery();
+  const {
+    data: savedPreferences,
+    isLoading: loadingPrefs,
+    isError: prefsLoadFailed,
+    refetch: retryPrefs,
+  } = useNotificationPreferencesQuery();
   const { data: channels = [], isLoading: loadingChannels } = useRegisteredChannelsQuery();
 
   const updateMutation = useUpdatePreferencesMutation();
@@ -96,7 +101,12 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
   const [newLabel, setNewLabel] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Sync server preferences into local matrix state when data arrives
+  // Sync server preferences into local matrix state when data arrives.
+  //
+  // The effect must not depend on `t`: `t` changes identity on every language
+  // switch, and re-running this effect then rebuilds the matrix from the last
+  // server response, silently discarding edits the user has not saved. Custom
+  // rows therefore store no description — it is derived at render.
   useEffect(() => {
     if (!savedPreferences) return;
 
@@ -115,9 +125,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
         extraRows.push({
           key: pref.eventPattern,
           label: pref.eventPattern,
-          description: t("notifications.customRuleDesc", "Custom rule ({{pattern}})", {
-            pattern: pref.eventPattern,
-          }),
+          description: "",
           pattern: pref.eventPattern,
           isCustom: true,
         });
@@ -125,10 +133,21 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     }
 
     setMatrix(nextMatrix);
-    if (extraRows.length > 0) setCustomRows(extraRows);
-  }, [savedPreferences, t]);
+    // Replace, never merge: a rule deleted here (or in another tab) must not
+    // linger as a ghost row that the next Save would re-create.
+    setCustomRows(extraRows);
+  }, [savedPreferences]);
 
-  const allRows = useMemo(() => [...defaultRows(t), ...customRows], [t, customRows]);
+  const allRows = useMemo(
+    () => [
+      ...defaultRows(t),
+      ...customRows.map((row) => ({
+        ...row,
+        description: t("notifications.customRuleDesc", "Custom rule ({{pattern}})", { pattern: row.pattern }),
+      })),
+    ],
+    [t, customRows],
+  );
 
   // Toggle a channel for a specific pattern
   const toggleChannel = (pattern: string, channelName: string) => {
@@ -152,7 +171,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     const row: PreferenceRouteRow = {
       key: pat,
       label: newLabel.trim() || pat,
-      description: t("notifications.customRuleDesc", "Custom rule ({{pattern}})", { pattern: pat }),
+      description: "",
       pattern: pat,
       isCustom: true,
     };
@@ -205,6 +224,11 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
   const isLoading = loadingPrefs || loadingChannels;
 
+  // A failed load leaves the matrix at its defaults. Saving then would write
+  // those defaults over the user's real routing, so both actions stay off and
+  // the matrix is replaced by the error state.
+  const actionsDisabled = isLoading || prefsLoadFailed;
+
   const deleteRuleButton = (row: PreferenceRouteRow) =>
     row.isCustom && (
       <button
@@ -217,14 +241,15 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
       </button>
     );
 
+  // gap-3 keeps the expanded touch targets of neighbouring buttons apart.
   const actionButtons = (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <div className="flex flex-wrap items-center gap-3">
       <Button
         variant="outline"
         size="sm"
         onClick={handleReset}
-        disabled={resetMutation.isPending || isLoading}
-        className="flex items-center gap-1.5 text-xs"
+        disabled={resetMutation.isPending || actionsDisabled}
+        className="tap-expand-sm flex items-center gap-1.5 text-xs"
       >
         <RotateCcw className="h-3.5 w-3.5" />
         <span>{t("notifications.resetDefaults", "Reset to default")}</span>
@@ -234,8 +259,8 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
         variant="primary"
         size="sm"
         onClick={handleSave}
-        disabled={updateMutation.isPending || isLoading}
-        className="flex items-center gap-1.5 text-xs"
+        disabled={updateMutation.isPending || actionsDisabled}
+        className="tap-expand-sm flex items-center gap-1.5 text-xs"
       >
         <Save className="h-3.5 w-3.5" />
         <span>{t("notifications.savePreferences", "Save preferences")}</span>
@@ -284,7 +309,8 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
               variant="subtle"
               size="sm"
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1.5 self-start text-xs sm:self-auto"
+              disabled={prefsLoadFailed}
+              className="tap-expand-sm flex items-center gap-1.5 self-start text-xs sm:self-auto"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>{t("notifications.addRule", "Add rule")}</span>
@@ -292,7 +318,16 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
           </div>
         </div>
 
-        {isLoading ? (
+        {prefsLoadFailed ? (
+          <div className="px-4 py-10 text-center">
+            <p className="text-sm text-foreground">
+              {t("notifications.loadFailed", "Could not load notifications. Try again.")}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => retryPrefs()} className="mt-3">
+              {t("notifications.refresh", "Refresh")}
+            </Button>
+          </div>
+        ) : isLoading ? (
           <p className="py-12 text-center text-xs text-muted-foreground">{t("notifications.loading", "Loading…")}</p>
         ) : (
           <>
@@ -316,9 +351,13 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
                       {deleteRuleButton(row)}
                     </div>
 
-                    <div className="mt-3 space-y-2">
+                    {/* Each row is a full 44px tall, so the switch's expanded
+                        touch target on a coarse pointer stays inside its own
+                        row. Tighter rows overlap, and the lower switch then
+                        takes taps meant for the upper one. */}
+                    <div className="mt-2 space-y-1">
                       {channels.map((ch) => (
-                        <div key={ch.name} className="flex items-center justify-between gap-3">
+                        <div key={ch.name} className="flex min-h-11 items-center justify-between gap-3">
                           <span className="text-xs text-muted-foreground">
                             {ch.displayName || ch.name}
                           </span>

@@ -3,7 +3,7 @@
  *
  * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
  */
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { LifeBuoy, AlertCircle, BookOpen, UserCheck, ShieldAlert, ArrowUpRight } from "lucide-react";
 import { useTranslation } from "../../../i18n";
@@ -28,6 +28,10 @@ export interface SupportEscalationCanvasProps {
 
 export function SupportEscalationCanvas({ artifactId, content, onAction }: SupportEscalationCanvasProps) {
   const { t } = useTranslation();
+  // The visible labels are the accessible names here: a raw <select> and
+  // <textarea> take them through htmlFor, which also keeps the name in
+  // every language without a second string.
+  const fieldId = useId();
   const [selectedOwner, setSelectedOwner] = useState(content.recommended_owner || "VP of Infrastructure");
   const [handoverNotes, setHandoverNotes] = useState(
     "High churn risk enterprise client. DNS renewal script encountered loop on apex domain records. Escalate with priority 1."
@@ -109,10 +113,10 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground">{t("copilot.supportAssignee", "Assignee:")}</label>
+          <label htmlFor={`${fieldId}-assignee`} className="text-[11px] font-semibold text-muted-foreground">{t("copilot.supportAssignee", "Assignee:")}</label>
           <select
+            id={`${fieldId}-assignee`}
             value={selectedOwner}
-            aria-label={t("copilot.supportAssigneeAria", "Escalation Target Owner")}
             onChange={(e) => setSelectedOwner(e.target.value)}
             className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
           >
@@ -123,10 +127,10 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground">{t("copilot.supportHandoverNotes", "Internal Handover Notes:")}</label>
+          <label htmlFor={`${fieldId}-notes`} className="text-[11px] font-semibold text-muted-foreground">{t("copilot.supportHandoverNotes", "Internal Handover Notes:")}</label>
           <textarea
+            id={`${fieldId}-notes`}
             rows={3}
-            aria-label={t("copilot.supportHandoverNotesAria", "Internal handover notes")}
             value={handoverNotes}
             onChange={(e) => setHandoverNotes(e.target.value)}
             className="w-full rounded border border-border bg-background p-2 text-xs text-foreground resize-none focus:border-primary focus:outline-none"

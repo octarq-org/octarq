@@ -3,7 +3,7 @@
  *
  * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
  */
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Video, Plus, Trash2, Camera, Sparkles, Mic, Download } from "lucide-react";
 import { useTranslation } from "../../../i18n";
@@ -24,6 +24,8 @@ export interface StoryboardCanvasProps {
 
 export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCanvasProps) {
   const { t } = useTranslation();
+  // Each scene repeats these fields, so the ids carry the scene index.
+  const fieldId = useId();
   const [scenes, setScenes] = useState<StoryboardScene[]>(() => {
     if (content.scenes && content.scenes.length > 0) return content.scenes;
     return [
@@ -161,10 +163,10 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                 {/* Framing & Lighting Tags */}
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
-                    <label className="text-[10px] text-muted-foreground uppercase font-semibold">{t("copilot.scriptCamera", "Camera")}</label>
+                    <label htmlFor={`${fieldId}-${idx}-camera`} className="text-[10px] text-muted-foreground uppercase font-semibold">{t("copilot.scriptCamera", "Camera")}</label>
                     <input
+                      id={`${fieldId}-${idx}-camera`}
                       type="text"
-                      aria-label={t("copilot.scriptCameraAria", "Camera direction")}
                       value={scene.shot_type || scene.camera_angle || ""}
                       onChange={(e) => handleUpdateScene(idx, "shot_type", e.target.value)}
                       placeholder="e.g. Wide Aerial"
@@ -172,10 +174,10 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-muted-foreground uppercase font-semibold">{t("copilot.scriptLighting", "Lighting")}</label>
+                    <label htmlFor={`${fieldId}-${idx}-lighting`} className="text-[10px] text-muted-foreground uppercase font-semibold">{t("copilot.scriptLighting", "Lighting")}</label>
                     <input
+                      id={`${fieldId}-${idx}-lighting`}
                       type="text"
-                      aria-label={t("copilot.scriptLightingAria", "Lighting style")}
                       value={scene.lighting || ""}
                       onChange={(e) => handleUpdateScene(idx, "lighting", e.target.value)}
                       placeholder="e.g. Cyberpunk"
@@ -186,13 +188,13 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
 
                 {/* Visual Prompt */}
                 <div>
-                  <label className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
+                  <label htmlFor={`${fieldId}-${idx}-visual`} className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
                     <Sparkles className="h-3 w-3 text-accent-fg" />
                     <span>{t("copilot.scriptVisualPrompt", "Visual Prompt")}</span>
                   </label>
                   <textarea
+                    id={`${fieldId}-${idx}-visual`}
                     rows={2}
-                    aria-label={t("copilot.scriptVisualPromptAria", "Visual scene prompt")}
                     value={scene.visual_description || scene.visual_prompt || ""}
                     onChange={(e) => handleUpdateScene(idx, "visual_description", e.target.value)}
                     className="w-full rounded border border-border bg-background p-1.5 text-xs text-foreground resize-none focus:border-primary focus:outline-none"
@@ -201,13 +203,13 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
 
                 {/* Audio Voiceover */}
                 <div>
-                  <label className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
+                  <label htmlFor={`${fieldId}-${idx}-voice`} className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
                     <Mic className="h-3 w-3 text-muted-foreground" />
                     <span>{t("copilot.scriptVoiceover", "Voiceover Narration")}</span>
                   </label>
                   <textarea
+                    id={`${fieldId}-${idx}-voice`}
                     rows={2}
-                    aria-label={t("copilot.scriptVoiceoverAria", "Voiceover narration")}
                     value={scene.voiceover || scene.audio_voiceover || ""}
                     onChange={(e) => handleUpdateScene(idx, "voiceover", e.target.value)}
                     className="w-full rounded border border-border bg-background p-1.5 text-xs italic text-foreground resize-none focus:border-primary focus:outline-none"

@@ -3,7 +3,7 @@
  *
  * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
  */
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { Button, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 import { Plus, Trash2, Building2, Calculator, RefreshCw } from "lucide-react";
 import { useTranslation } from "../../../i18n";
@@ -30,6 +30,8 @@ export interface QuotationCanvasProps {
 
 export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanvasProps) {
   const { t } = useTranslation();
+  // The slider takes its name from the visible discount label.
+  const fieldId = useId();
   const [items, setItems] = useState<QuotationLineItem[]>(() => {
     if (content.line_items && content.line_items.length > 0) {
       return content.line_items;
@@ -219,11 +221,12 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
       {/* Pricing Summary & Discount Slider */}
       <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-well p-3 text-xs">
         <div className="space-y-2">
-          <label className="font-semibold text-foreground flex items-center gap-1.5">
+          <label htmlFor={`${fieldId}-discount`} className="font-semibold text-foreground flex items-center gap-1.5">
             <Calculator className="h-3.5 w-3.5 text-accent-fg" />
             <span>{`${t("copilot.quotationCommercialDiscount", "Commercial Discount:")} ${discountPercent}%`}</span>
           </label>
           <input
+            id={`${fieldId}-discount`}
             type="range"
             min={0}
             max={30}
@@ -231,7 +234,6 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
             value={discountPercent}
             onChange={(e) => handleDiscountChange(parseInt(e.target.value) || 0)}
             className="w-full cursor-pointer accent-primary"
-            aria-label={t("copilot.quotationCommercialDiscountAria", "Commercial Discount Percentage")}
           />
           <div className="text-[11px] text-muted-foreground">
             {t("copilot.quotationDiscountHelp", "Applies negotiated partner volume discount to quotation total.")}

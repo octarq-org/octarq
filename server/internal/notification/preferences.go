@@ -123,6 +123,10 @@ func GetPreferences(ctx context.Context, db *gorm.DB, userID string) ([]models.N
 }
 
 // SavePreferences upserts the specified preference items for a user.
+//
+// It only writes the items it receives: a pattern that is absent from items
+// keeps its stored routing. Use ReplacePreferences when the caller holds the
+// user's whole routing table.
 func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []PreferenceItem) error {
 	if db == nil {
 		return errors.New("notification: nil db")
@@ -130,7 +134,52 @@ func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []Pr
 	if strings.TrimSpace(userID) == "" {
 		return errors.New("notification: empty user ID")
 	}
+	return upsertPreferences(db.WithContext(ctx), userID, items)
+}
 
+// ReplacePreferences writes items as the user's complete routing table: stored
+// rows whose pattern is absent from items are deleted.
+//
+// The preferences page saves the whole matrix at once, and a custom rule
+// removed there has to disappear from the server too. Through SavePreferences
+// alone the deletion was dropped on the floor: the page reported success and
+// the rule routed events again after a reload.
+func ReplacePreferences(ctx context.Context, db *gorm.DB, userID string, items []PreferenceItem) error {
+	if db == nil {
+		return errors.New("notification: nil db")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("notification: empty user ID")
+	}
+
+	patterns := make([]string, 0, len(items))
+	for _, item := range items {
+		if pattern := strings.TrimSpace(item.EventPattern); pattern != "" {
+			patterns = append(patterns, pattern)
+		}
+	}
+
+	tx := db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	stale := tx.Where("user_id = ?", userID)
+	if len(patterns) > 0 {
+		stale = stale.Where("event_pattern NOT IN ?", patterns)
+	}
+	if err := stale.Delete(&models.NotificationPreference{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := upsertPreferences(tx, userID, items); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
+}
+
+// upsertPreferences writes items through db, which may be an open transaction.
+func upsertPreferences(db *gorm.DB, userID string, items []PreferenceItem) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -159,14 +208,14 @@ func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []Pr
 		return nil
 	}
 
-	err := db.WithContext(ctx).Clauses(clause.OnConflict{
+	err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "event_pattern"}},
 		DoUpdates: clause.AssignmentColumns([]string{"channels", "updated_at"}),
 	}).Create(&prefs).Error
 
 	if err != nil {
 		// Fallback if clause.OnConflict unsupported
-		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return db.Transaction(func(tx *gorm.DB) error {
 			for _, pref := range prefs {
 				var existing models.NotificationPreference
 				if findErr := tx.Where("user_id = ? AND event_pattern = ?", pref.UserID, pref.EventPattern).First(&existing).Error; findErr == nil {

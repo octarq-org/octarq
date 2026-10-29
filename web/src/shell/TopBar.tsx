@@ -136,7 +136,7 @@ export function TopBar({
       <Menu.Root>
         <Menu.Trigger
           aria-label={t("topbar.switchArea", "Switch area")}
-          className={cn(ACTION_BUTTON, "ml-1 flex h-9 max-w-[8.5rem] items-center gap-1.5 px-2.5 text-[12px] font-medium md:hidden")}
+          className={cn(ACTION_BUTTON, "tap-expand ml-1 flex h-9 max-w-[8.5rem] items-center gap-1.5 px-2.5 text-[12px] font-medium md:hidden")}
         >
           {currentArea ? (
             <currentArea.Icon className="h-4 w-4 shrink-0 text-accent-fg" strokeWidth={1.75} />
@@ -227,7 +227,7 @@ export function TopBar({
       <button
         onClick={onOpenCommand}
         aria-label={t("common.search")}
-        className={cn(ACTION_BUTTON, "group hidden h-9 items-center gap-2 px-3 sm:flex")}
+        className={cn(ACTION_BUTTON, "tap-expand group hidden h-9 items-center gap-2 px-3 sm:flex")}
       >
         <Search className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-accent-fg" aria-hidden="true" />
         <span className="hidden text-[12px] font-medium md:block group-hover:text-foreground">{t("common.search")}</span>

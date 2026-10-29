@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useId, useState } from "react";
 import {
   GlassCard,
   Button,
@@ -35,6 +35,9 @@ export function BudgetsView() {
   const [priceModel, setPriceModel] = useState("");
   const [priceIn, setPriceIn] = useState("");
   const [priceOut, setPriceOut] = useState("");
+  // The three price fields carry visible labels; these ids connect them, so the
+  // controls also have those labels as their accessible names.
+  const priceFormId = useId();
   const [savingPrice, setSavingPrice] = useState(false);
 
   const loadPrices = async () => {
@@ -376,20 +379,22 @@ export function BudgetsView() {
 
         <form onSubmit={handleSavePrice} className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1 space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground">
+            <label htmlFor={`${priceFormId}-model`} className="text-[11px] font-semibold text-muted-foreground">
               {t("agentHarness.modelColumn", "Model")}
             </label>
             <Input
+              id={`${priceFormId}-model`}
               value={priceModel}
               onChange={(e) => setPriceModel(e.target.value)}
               placeholder={t("agentHarness.modelPlaceholder", "claude-opus-4-8")}
             />
           </div>
           <div className="w-full sm:w-36 space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground">
+            <label htmlFor={`${priceFormId}-in`} className="text-[11px] font-semibold text-muted-foreground">
               {t("agentHarness.inputPrice", "Input $ per 1M tokens")}
             </label>
             <Input
+              id={`${priceFormId}-in`}
               type="number"
               min="0"
               step="any"
@@ -399,10 +404,11 @@ export function BudgetsView() {
             />
           </div>
           <div className="w-full sm:w-36 space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground">
+            <label htmlFor={`${priceFormId}-out`} className="text-[11px] font-semibold text-muted-foreground">
               {t("agentHarness.outputPrice", "Output $ per 1M tokens")}
             </label>
             <Input
+              id={`${priceFormId}-out`}
               type="number"
               min="0"
               step="any"

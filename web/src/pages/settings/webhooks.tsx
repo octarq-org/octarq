@@ -494,10 +494,16 @@ export function WebhooksSettings() {
             </Field>
             <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
+                {/* The switch keeps a fixed name that matches its visible
+                    label. A label that flipped to "Custom Selection" while the
+                    name stayed "All Events" breaks voice control. */}
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
                   <Switch checked={all} onCheckedChange={setAll} aria-label={t("settings.allEventsStar")} />
-                  <span>{all ? t("settings.allEventsStar") : t("settings.customEvents")}</span>
+                  <span>{t("settings.allEventsStar")}</span>
                 </label>
+                {!all && (
+                  <p className="pl-13 text-[11px] text-muted-foreground">{t("settings.customEvents")}</p>
+                )}
                 {!all && (
                   <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-border bg-well p-3">
                     {eventGroups === null ? (

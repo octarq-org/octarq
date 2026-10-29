@@ -4,7 +4,7 @@
  * Invariant: Inbound email body is isolated inside <untrusted> containment styling.
  * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
  */
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Mail, ShieldAlert, Send, Sparkles, User, CornerDownLeft } from "lucide-react";
 import { useTranslation } from "../../../i18n";
@@ -26,6 +26,8 @@ export interface EmailDraftCanvasProps {
 
 export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCanvasProps) {
   const { t } = useTranslation();
+  // Visible row labels name the fields through htmlFor, in every language.
+  const fieldId = useId();
   const threads = content.threads || [];
   const [activeThreadIndex, setActiveThreadIndex] = useState(0);
 
@@ -201,20 +203,20 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
 
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <label className="w-14 text-[11px] font-semibold text-muted-foreground">{t("copilot.emailTo", "To:")}</label>
+            <label htmlFor={`${fieldId}-to`} className="w-14 text-[11px] font-semibold text-muted-foreground">{t("copilot.emailTo", "To:")}</label>
             <input
+              id={`${fieldId}-to`}
               type="text"
-              aria-label={t("copilot.emailRecipientAria", "Recipient email")}
               value={to}
               onChange={(e) => handleToChange(e.target.value)}
               className="flex-1 rounded border border-border bg-background px-2.5 py-1 text-xs text-foreground focus:border-primary focus:outline-none"
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="w-14 text-[11px] font-semibold text-muted-foreground">{t("copilot.emailSubject", "Subject:")}</label>
+            <label htmlFor={`${fieldId}-subject`} className="w-14 text-[11px] font-semibold text-muted-foreground">{t("copilot.emailSubject", "Subject:")}</label>
             <input
+              id={`${fieldId}-subject`}
               type="text"
-              aria-label={t("copilot.emailSubjectAria", "Email subject")}
               value={subject}
               onChange={(e) => handleSubjectChange(e.target.value)}
               className="flex-1 rounded border border-border bg-background px-2.5 py-1 text-xs text-foreground focus:border-primary focus:outline-none"
