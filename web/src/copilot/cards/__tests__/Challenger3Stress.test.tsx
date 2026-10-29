@@ -420,11 +420,11 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
       });
 
       // 1. Edit To
-      const toInput = screen.getByLabelText("Recipient email");
+      const toInput = screen.getByLabelText("To:");
       fireEvent.change(toInput, { target: { value: "legal-review@enterprise.org" } });
 
       // 2. Edit Subject
-      const subjectInput = screen.getByLabelText("Email subject");
+      const subjectInput = screen.getByLabelText("Subject:");
       fireEvent.change(subjectInput, { target: { value: "Urgent: Finalized Master Service Agreement" } });
 
       // 3. Edit Body
@@ -443,8 +443,8 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
       });
 
       // 5. Verify all three fields survived
-      const toAfter = screen.getByLabelText("Recipient email") as HTMLInputElement;
-      const subAfter = screen.getByLabelText("Email subject") as HTMLInputElement;
+      const toAfter = screen.getByLabelText("To:") as HTMLInputElement;
+      const subAfter = screen.getByLabelText("Subject:") as HTMLInputElement;
       const bodyAfter = screen.getByLabelText("Email reply body") as HTMLTextAreaElement;
 
       expect(toAfter.value).toBe("legal-review@enterprise.org");

@@ -3,7 +3,7 @@
  *
  * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
  */
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Presentation, Play, Edit3, Copy, Check, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "../../../i18n";
@@ -26,6 +26,8 @@ export interface FinancialDeckCanvasProps {
 
 export function FinancialDeckCanvas({ artifactId, content, onAction }: FinancialDeckCanvasProps) {
   const { t } = useTranslation();
+  // The speaker notes field takes its name from the visible label.
+  const fieldId = useId();
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [presentationMode, setPresentationMode] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -248,12 +250,12 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
 
       {/* Speaker Notes */}
       <div className="rounded-xl border border-border bg-well p-3 space-y-1.5 text-xs">
-        <label className="text-[11px] font-semibold text-muted-foreground uppercase">
+        <label htmlFor={`${fieldId}-notes`} className="text-[11px] font-semibold text-muted-foreground uppercase">
           {t("copilot.financeSpeakerNotes", "Speaker Notes:")}
         </label>
         <textarea
+          id={`${fieldId}-notes`}
           rows={2}
-          aria-label={t("copilot.financeSpeakerNotesAria", "Speaker notes")}
           value={currentSlide.speaker_notes || ""}
           onChange={(e) => handleUpdateCurrentSlide("speaker_notes", e.target.value)}
           placeholder={t("copilot.financeSpeakerNotesPlaceholder", "Add talking points for executive briefing…")}
