@@ -8,11 +8,13 @@ describe("Button", () => {
     const { container } = render(<Button variant="primary">Test</Button>);
     const button = container.firstChild as HTMLElement;
 
-    // Flat fill derived from the --primary seed, so a white-label rebrand
-    // (which overrides only the seed) repaints the primary action too.
-    expect(button.className).toContain("bg-primary");
+    // A flat fill derived from the --primary seed, so a white-label rebrand
+    // (which overrides only the seed) repaints the primary action too. The fill
+    // is --primary-solid, not --primary: the seed at its display lightness
+    // leaves white label text at 4.47:1 in dark mode, below the 4.5:1 floor.
+    expect(button.className).toContain("bg-primary-solid");
     expect(button.className).toContain("text-primary-foreground");
-    expect(button.className).toContain("hover:bg-primary-hover");
+    expect(button.className).toContain("hover:bg-primary-solid-hover");
 
     // No literal brand hue and no gradient: both are the shapes that survive a
     // rebrand. The gradient end was indigo even after the seed was overridden.

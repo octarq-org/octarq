@@ -89,7 +89,7 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           </div>
           <NavLink
             to="/settings/integrations?category=dns"
-            className="text-accent-fg hover:underline font-medium text-xs whitespace-nowrap ml-3"
+            className="ml-3 inline-flex min-h-8 items-center whitespace-nowrap text-xs font-medium text-accent-fg hover:underline"
           >
             {t("settings.openIntegrationsHub")} →
           </NavLink>
@@ -132,13 +132,13 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
                   <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                     <Badge
                       tone={providerType === "cloudflare" ? "indigo" : providerType === "dnspod" ? "cyan" : "amber"}
-                      className="uppercase tracking-wider text-[9px]"
+                      className="uppercase tracking-wider text-[10px]"
                     >
                       {providerType}
                     </Badge>
                     {isConfigured
-                      ? <Badge tone="green" className="text-[9px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.credentialsSet")}</Badge>
-                      : <Badge tone="amber" className="text-[9px]">{t("settings.noCredentials")}</Badge>}
+                      ? <Badge tone="green" className="text-[10px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.credentialsSet")}</Badge>
+                      : <Badge tone="amber" className="text-[10px]">{t("settings.noCredentials")}</Badge>}
                   </div>
                 </div>
                 {canManageProviders && mode === "integration" && (

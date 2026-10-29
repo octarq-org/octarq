@@ -86,7 +86,7 @@ export function MailboxEditor({
           <Textarea className="text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.noteMemoPlaceholder")} />
         </Field>
         <div className="flex items-center gap-3 py-1">
-          <Switch checked={enabled} onCheckedChange={setEnabled} />
+          <Switch checked={enabled} onCheckedChange={setEnabled} aria-label={t("mail.mailReceivingEnabled")} />
           <span className="text-sm text-muted-foreground select-none">{t("mail.mailReceivingEnabled")}</span>
         </div>
         {canDeleteBox && box && (

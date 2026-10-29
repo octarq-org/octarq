@@ -187,7 +187,7 @@ export function EmailViewForm({
                 <Paperclip className="h-3 w-3 text-accent-fg" />
                 {a.filename || t("mail.attachmentFallback")} <span className="font-mono tnum">({Math.max(1, Math.round(a.size / 1024))} KB)</span>
                 {a.truncated && (
-                  <Badge tone="amber" className="font-mono text-[9px] uppercase tracking-wider ml-1">
+                  <Badge tone="amber" className="font-mono text-[10px] uppercase tracking-wider ml-1">
                     {t("mail.truncated")}
                   </Badge>
                 )}

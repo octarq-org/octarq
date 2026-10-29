@@ -69,7 +69,7 @@ export function DomainListHub({
             )}
             <button
               onClick={onAddNewDomain}
-              className="text-xs text-muted-foreground hover:text-muted-foreground underline underline-offset-2 transition-colors cursor-pointer"
+              className="inline-flex min-h-8 cursor-pointer items-center text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
             >
               {t("domains.orAddManually")}
             </button>

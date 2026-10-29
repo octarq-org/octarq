@@ -193,7 +193,7 @@ export function CopilotChatTab({
                   className={cn(
                     "rounded-2xl px-3.5 py-2.5 max-w-[92%] shadow-xs",
                     msg.role === "user"
-                      ? "bg-primary text-primary-foreground font-medium text-sm"
+                      ? "bg-primary-solid text-primary-foreground font-medium text-sm"
                       : "bg-surface-hover/80 text-foreground border border-border",
                   )}
                 >

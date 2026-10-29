@@ -118,7 +118,7 @@ export function SMTPSenders() {
           </div>
           <NavLink
             to="/settings/integrations?category=communication"
-            className="text-accent-fg hover:underline font-medium text-xs whitespace-nowrap ml-3"
+            className="ml-3 inline-flex min-h-8 items-center whitespace-nowrap text-xs font-medium text-accent-fg hover:underline"
           >
             {t("settings.openIntegrationsHub")} →
           </NavLink>
@@ -153,17 +153,17 @@ export function SMTPSenders() {
                   {s.name}
                   {mode === "integration" ? (
                     <>
-                      <Badge tone={s.provider === "resend" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[9px]">
+                      <Badge tone={s.provider === "resend" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[10px]">
                         {s.provider}
                       </Badge>
                       {s.configured ?? true
-                        ? <Badge tone="green" className="text-[9px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.smtpPasswordSet")}</Badge>
-                        : <Badge tone="amber" className="text-[9px]">{t("settings.smtpNoPassword")}</Badge>}
+                        ? <Badge tone="green" className="text-[10px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.smtpPasswordSet")}</Badge>
+                        : <Badge tone="amber" className="text-[10px]">{t("settings.smtpNoPassword")}</Badge>}
                     </>
                   ) : (
                     s.passSet
-                      ? <Badge tone="green" className="text-[9px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.smtpPasswordSet")}</Badge>
-                      : <Badge tone="amber" className="text-[9px]">{t("settings.smtpNoPassword")}</Badge>
+                      ? <Badge tone="green" className="text-[10px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.smtpPasswordSet")}</Badge>
+                      : <Badge tone="amber" className="text-[10px]">{t("settings.smtpNoPassword")}</Badge>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1 font-mono">

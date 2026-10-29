@@ -22,7 +22,7 @@ export function AuthBadges({
     else if (warn) tone = "amber";
 
     return (
-      <Badge key={label} tone={tone} className="font-mono text-[9px] uppercase tracking-wider">
+      <Badge key={label} tone={tone} className="font-mono text-[10px] uppercase tracking-wider">
         {label}:{result}
       </Badge>
     );

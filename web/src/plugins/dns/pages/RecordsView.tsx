@@ -228,7 +228,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
 
         {canProxy && (
           <div className="flex items-center gap-2 pt-1">
-            <Switch checked={proxied} onCheckedChange={setProxied} />
+            <Switch checked={proxied} onCheckedChange={setProxied} aria-label={t("domains.proxiedLabel")} />
             <span className="text-xs text-muted-foreground select-none">{t("domains.proxiedLabel")}</span>
           </div>
         )}

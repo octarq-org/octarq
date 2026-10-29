@@ -87,7 +87,7 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
             disabled={!canPrev}
             onClick={() => onPageChange(page - 1)}
             aria-label={t("proTable.prevPage")}
-            className="h-7 w-7 p-0"
+            className="tap-expand-sm h-8 w-8 p-0"
           >
             <ChevronLeftGlyph className="h-3.5 w-3.5" />
           </Button>
@@ -98,7 +98,7 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
               size="sm"
               variant={p === page ? "primary" : "outline"}
               onClick={() => onPageChange(p)}
-              className={`h-7 min-w-[1.75rem] px-1.5 text-xs ${p === page ? "font-semibold" : ""}`}
+              className={`tap-expand-sm h-8 min-w-[2rem] px-1.5 text-xs ${p === page ? "font-semibold" : ""}`}
             >
               {p}
             </Button>
@@ -110,7 +110,7 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
             disabled={!canNext}
             onClick={() => onPageChange(page + 1)}
             aria-label={t("proTable.nextPage")}
-            className="h-7 w-7 p-0"
+            className="tap-expand-sm h-8 w-8 p-0"
           >
             <ChevronRightGlyph className="h-3.5 w-3.5" />
           </Button>

@@ -185,7 +185,7 @@ export function AuthenticationSettings() {
           <p className="text-sm font-medium text-foreground">{t("settings.allowPublicSignup")}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.allowPublicSignupDesc")}</p>
         </div>
-        <Switch checked={allowReg} onCheckedChange={toggleRegistration} />
+        <Switch checked={allowReg} onCheckedChange={toggleRegistration} aria-label={t("settings.allowPublicSignup")} />
       </GlassCard>
 
       {/* Email verification gate */}
@@ -194,7 +194,7 @@ export function AuthenticationSettings() {
           <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification")}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc")}</p>
         </div>
-        <Switch checked={requireVerify} onCheckedChange={toggleRequireVerification} />
+        <Switch checked={requireVerify} onCheckedChange={toggleRequireVerification} aria-label={t("settings.requireEmailVerification")} />
       </GlassCard>
 
       {/* Provider list (Supabase-style accordion) */}

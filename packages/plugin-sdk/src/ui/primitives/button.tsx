@@ -25,7 +25,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-primary text-primary-foreground shadow-[var(--shadow-accent)] hover:-translate-y-px hover:bg-primary-hover",
+          "bg-primary-solid text-primary-foreground shadow-[var(--shadow-accent)] hover:-translate-y-px hover:bg-primary-solid-hover",
         secondary:
           "border border-border bg-card text-foreground shadow-[0_1px_1px_rgb(0_0_0/0.03)] hover:border-border-strong hover:bg-surface-hover",
         subtle: "bg-muted text-foreground hover:bg-surface-hover",

@@ -113,7 +113,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
 
         <Link
           to="/help/settings/mcp"
-          className="inline-flex items-center gap-1 text-xs text-accent-fg hover:underline shrink-0"
+          className="inline-flex min-h-8 shrink-0 items-center gap-1 text-xs text-accent-fg hover:underline"
         >
           {t("personal.mcpViewDocs")}
           <ExternalLink className="h-3.5 w-3.5" />

@@ -342,7 +342,7 @@ function Shell({
       <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-[var(--radius)] focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-[var(--radius)] focus:bg-primary-solid focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
         >
           {t("app.skipToContent")}
         </a>

@@ -188,6 +188,7 @@ export function PluginsSettings() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                aria-label={t("common.search")}
                 placeholder={t("common.search")}
                 className="!pl-10"
               />
@@ -245,7 +246,7 @@ export function PluginsSettings() {
                               broken, and the tooltip explaining it is invisible
                               to touch and keyboard. */}
                           {p.core && (
-                            <Badge tone="violet" className="shrink-0 text-[9px] uppercase tracking-wider font-semibold">
+                            <Badge tone="violet" className="shrink-0 text-[10px] uppercase tracking-wider font-semibold">
                               {t("settings.pluginCoreBadge")}
                             </Badge>
                           )}

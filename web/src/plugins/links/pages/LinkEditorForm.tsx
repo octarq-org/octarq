@@ -264,7 +264,7 @@ export function LinkEditorForm({
       </div>
 
       <div className="flex items-center gap-3 pt-2 min-w-0">
-        <Switch checked={enabled} onCheckedChange={setEnabled} />
+        <Switch checked={enabled} onCheckedChange={setEnabled} aria-label={t("links.linkRoutingActive")} />
         <span className="text-sm text-muted-foreground select-none">{t("links.linkRoutingActive")}</span>
       </div>
 
