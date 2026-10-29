@@ -11,6 +11,7 @@ import (
 
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/internal/agentstore"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/llmprovider"
@@ -150,17 +151,18 @@ func (h *Handler) auditAgentTurn(
 }
 
 // writeBillingRefusal answers a turn the agent budget cannot accept. Each
-// message names the next action an operator can take.
+// message names the next action an operator can take, and each code lets the
+// client translate that action instead of showing raw prose.
 func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, agentstore.ErrAgentNotFound):
-		writeErr(w, r, http.StatusNotFound, "", "No such workforce agent found in this workspace.")
+		writeErr(w, r, http.StatusNotFound, apierror.CodeWorkforceAgentNotFound, "No such workforce agent found in this workspace.")
 	case errors.Is(err, agentstore.ErrAgentPaused):
-		writeErr(w, r, http.StatusConflict, "", "This agent is paused. Resume it before you run a turn.")
+		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceAgentPaused, "This agent is paused. Resume it before you run a turn.")
 	case errors.Is(err, agentstore.ErrBudgetExceeded):
-		writeErr(w, r, http.StatusConflict, "", "This agent reached its monthly budget limit. Raise the limit before you run a turn.")
+		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceBudgetExceeded, "This agent reached its monthly budget limit. Raise the limit before you run a turn.")
 	case errors.Is(err, agentstore.ErrModelPriceMissing):
-		writeErr(w, r, http.StatusBadRequest, "", "No price is configured for this model. Add a price before you bill agent turns.")
+		writeErr(w, r, http.StatusBadRequest, apierror.CodeWorkforceModelPriceAbsent, "No price is configured for this model. Add a price before you bill agent turns.")
 	default:
 		writeErr(w, r, http.StatusInternalServerError, "", "Could not check the agent budget; retry the request.")
 	}
@@ -400,6 +402,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		}); err != nil {
 			slog.Error("failed to record agent spend", "orgId", orgID, "agentId", billingAgent, "err", err)
 			_ = writeSSEPayload(w, flusher, "error", map[string]string{
+				"code":    apierror.CodeWorkforceSpendNotRecorded,
 				"message": "The turn finished, but its spend was not recorded. Check the billing setup before the next turn.",
 			})
 			return

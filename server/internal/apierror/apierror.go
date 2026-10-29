@@ -49,14 +49,23 @@ const (
 	// account" from every other 409. The register endpoint has two conflicts
 	// (the address is taken, the workspace slug is taken) and the client has
 	// to tell them apart to show the right next step.
-	CodeEmailInUse          = "email_in_use"
-	CodeUnsupportedMedia    = "unsupported_media_type"
-	CodeUnprocessableEntity = "unprocessable_entity"
-	CodeRateLimitExceeded   = "rate_limit_exceeded"
-	CodeInternalError       = "internal_error"
-	CodeNotImplemented      = "not_implemented"
-	CodeServiceUnavailable  = "service_unavailable"
-	CodeGatewayTimeout      = "gateway_timeout"
+	CodeEmailInUse = "email_in_use"
+	// Workforce billing refusals. A chat turn attributed to an agent is
+	// refused before the stream opens, and the client must show the operator
+	// the exact next action: pick another agent, resume it, raise its limit,
+	// or configure the model price.
+	CodeWorkforceAgentNotFound    = "workforce_agent_not_found"
+	CodeWorkforceAgentPaused      = "workforce_agent_paused"
+	CodeWorkforceBudgetExceeded   = "workforce_budget_exceeded"
+	CodeWorkforceModelPriceAbsent = "workforce_model_price_missing"
+	CodeWorkforceSpendNotRecorded = "workforce_spend_not_recorded"
+	CodeUnsupportedMedia          = "unsupported_media_type"
+	CodeUnprocessableEntity       = "unprocessable_entity"
+	CodeRateLimitExceeded         = "rate_limit_exceeded"
+	CodeInternalError             = "internal_error"
+	CodeNotImplemented            = "not_implemented"
+	CodeServiceUnavailable        = "service_unavailable"
+	CodeGatewayTimeout            = "gateway_timeout"
 )
 
 // codes is the registry. Keeping it in one slice is what lets the spec document
@@ -73,6 +82,11 @@ var codes = []string{
 	CodeMethodNotAllowed,
 	CodeConflict,
 	CodeEmailInUse,
+	CodeWorkforceAgentNotFound,
+	CodeWorkforceAgentPaused,
+	CodeWorkforceBudgetExceeded,
+	CodeWorkforceModelPriceAbsent,
+	CodeWorkforceSpendNotRecorded,
 	CodeUnsupportedMedia,
 	CodeUnprocessableEntity,
 	CodeRateLimitExceeded,

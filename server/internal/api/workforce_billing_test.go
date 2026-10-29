@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/agentstore"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"gorm.io/gorm"
@@ -241,6 +242,21 @@ func TestWorkforceBilling_ChatStreamBillsTheAgent(t *testing.T) {
 	}
 }
 
+// wantErrCode pins the machine-readable code the client branches on. The
+// prose message may change; the code is the contract.
+func wantErrCode(t *testing.T, rec *httptest.ResponseRecorder, code string) {
+	t.Helper()
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode error body: %v (%s)", err, rec.Body.String())
+	}
+	if body.Code != code {
+		t.Fatalf("error code: got %q, want %q (%s)", body.Code, code, rec.Body.String())
+	}
+}
+
 // TestWorkforceBilling_ChatStreamRefusals pins that the gate runs before the
 // stream opens, so every refusal is a real HTTP status.
 func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
@@ -260,6 +276,8 @@ func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
 	// A model without a price cannot be billed.
 	if rec := streamAgentTurn(t, srv, cookies, agent.ID, ""); rec.Code != http.StatusBadRequest {
 		t.Fatalf("unpriced model: expected 400, got %d (%s)", rec.Code, rec.Body.String())
+	} else {
+		wantErrCode(t, rec, apierror.CodeWorkforceModelPriceAbsent)
 	}
 
 	setModelPrice(t, srv, cookies, fakeStreamModel, 1, 1)
@@ -267,6 +285,8 @@ func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
 	// An unknown agent is a 404.
 	if rec := streamAgentTurn(t, srv, cookies, "agent-missing", ""); rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown agent: expected 404, got %d", rec.Code)
+	} else {
+		wantErrCode(t, rec, apierror.CodeWorkforceAgentNotFound)
 	}
 
 	// A paused agent is refused even when its budget is untouched.
@@ -275,6 +295,8 @@ func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
 	}
 	if rec := streamAgentTurn(t, srv, cookies, agent.ID, ""); rec.Code != http.StatusConflict {
 		t.Fatalf("paused agent: expected 409, got %d (%s)", rec.Code, rec.Body.String())
+	} else {
+		wantErrCode(t, rec, apierror.CodeWorkforceAgentPaused)
 	}
 
 	// An agent over its limit with auto-halt on is refused. Spend past the
@@ -295,5 +317,7 @@ func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
 	}
 	if rec := streamAgentTurn(t, srv, cookies, agent.ID, ""); rec.Code != http.StatusConflict {
 		t.Fatalf("exhausted budget: expected 409, got %d (%s)", rec.Code, rec.Body.String())
+	} else {
+		wantErrCode(t, rec, apierror.CodeWorkforceBudgetExceeded)
 	}
 }

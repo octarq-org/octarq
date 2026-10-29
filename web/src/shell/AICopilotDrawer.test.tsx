@@ -8,6 +8,8 @@ import {
   AICopilotDrawer,
   useAICopilotStore,
 } from "./AICopilotDrawer";
+import { RoleProvider } from "./role";
+import type { WorkforceAgentDTO } from "../api/types";
 
 const createMockSSEStream = (chunks: string[]) => {
   const encoder = new TextEncoder();
@@ -19,6 +21,65 @@ const createMockSSEStream = (chunks: string[]) => {
       controller.close();
     },
   });
+};
+
+// workforceAgent builds one row of GET /api/workforce/agents.
+const workforceAgent = (overrides: Partial<WorkforceAgentDTO> = {}): WorkforceAgentDTO => ({
+  id: "agent-1",
+  name: "Ops Agent",
+  role: "Operator",
+  department: "Operations",
+  model: "test-model",
+  status: "active",
+  heartbeat: "1h",
+  budgetUsed: 1.5,
+  budgetLimit: 10,
+  capabilities: [],
+  directives: "",
+  ...overrides,
+});
+
+// agentFetch answers the agent list and the chat stream from one fetch mock.
+const agentFetch = (
+  agents: WorkforceAgentDTO[],
+  chat: { ok: true; chunks: string[] } | { ok: false; status: number; body: Record<string, string> },
+) =>
+  vi.fn((input: string | URL | Request) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url === "/api/workforce/agents") {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: { get: () => "application/json" },
+        json: async () => ({ items: agents }),
+      } as unknown as Response);
+    }
+    if (!chat.ok) {
+      return Promise.resolve({
+        ok: false,
+        status: chat.status,
+        statusText: "Error",
+        json: async () => chat.body,
+      } as unknown as Response);
+    }
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      body: createMockSSEStream(chat.chunks),
+    } as unknown as Response);
+  });
+
+const renderAdminDrawer = () => {
+  useAICopilotStore.getState().openDrawer();
+  return render(
+    <I18nProvider>
+      <RoleProvider value={{ role: "admin", isInstanceAdmin: false }}>
+        <AICopilotDrawer />
+      </RoleProvider>
+    </I18nProvider>,
+  );
 };
 
 describe("AICopilotButton", () => {
@@ -303,5 +364,115 @@ describe("AICopilotDrawer", () => {
 
     expect(useAICopilotStore.getState().messages).toHaveLength(0);
     expect(screen.getByTestId("copilot-empty-state")).not.toBeNull();
+  });
+
+  it("9. does not offer attribution to a non-admin", () => {
+    const mockFetch = agentFetch([workforceAgent()], { ok: true, chunks: [] });
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    useAICopilotStore.getState().openDrawer();
+    render(
+      <I18nProvider>
+        <RoleProvider value={{ role: "member", isInstanceAdmin: false }}>
+          <AICopilotDrawer />
+        </RoleProvider>
+      </I18nProvider>,
+    );
+
+    expect(screen.queryByLabelText("Agent to bill")).toBeNull();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("10. bills an admin turn to the selected agent and refreshes the spend", async () => {
+    const mockFetch = agentFetch([workforceAgent()], {
+      ok: true,
+      chunks: ['event: text\ndata: {"delta": "Billed reply"}\n\n', "event: done\ndata: {}\n\n"],
+    });
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    renderAdminDrawer();
+
+    const select = await screen.findByLabelText("Agent to bill");
+    fireEvent.change(select, { target: { value: "agent-1" } });
+    expect(screen.getByText("$1.50 of $10.00")).not.toBeNull();
+
+    const textarea = screen.getByPlaceholderText(/Ask anything about your workspace/);
+    fireEvent.change(textarea, { target: { value: "Run the report" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      expect(screen.getByText("Billed reply")).not.toBeNull();
+    });
+
+    const chatCall = mockFetch.mock.calls.find(([url]) => url === "/api/ai/chat/stream") as unknown as
+      | [string, RequestInit]
+      | undefined;
+    expect(chatCall).toBeDefined();
+    expect(JSON.parse(String(chatCall![1].body))).toMatchObject({ agentId: "agent-1" });
+
+    // The list is read again after the turn, so the spend shown is current.
+    await waitFor(() => {
+      const listCalls = mockFetch.mock.calls.filter(([url]) => url === "/api/workforce/agents");
+      expect(listCalls.length).toBe(2);
+    });
+  });
+
+  it("11. warns that a paused agent refuses the next turn", async () => {
+    global.fetch = agentFetch([workforceAgent({ status: "paused" })], { ok: true, chunks: [] }) as unknown as typeof fetch;
+
+    renderAdminDrawer();
+
+    const select = await screen.findByLabelText("Agent to bill");
+    fireEvent.change(select, { target: { value: "agent-1" } });
+
+    expect(screen.getByText("This agent is paused. Resume it in AI Workforce.")).not.toBeNull();
+  });
+
+  it("12. shows the next action when the server refuses an exhausted budget", async () => {
+    global.fetch = agentFetch([workforceAgent()], {
+      ok: false,
+      status: 409,
+      body: {
+        code: "workforce_budget_exceeded",
+        message: "This agent reached its monthly budget limit. Raise the limit before you run a turn.",
+      },
+    }) as unknown as typeof fetch;
+
+    renderAdminDrawer();
+
+    const select = await screen.findByLabelText("Agent to bill");
+    fireEvent.change(select, { target: { value: "agent-1" } });
+
+    const textarea = screen.getByPlaceholderText(/Ask anything about your workspace/);
+    fireEvent.change(textarea, { target: { value: "Spend too much" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).not.toBeNull();
+    });
+    expect(
+      screen.getByText("This agent reached its monthly budget limit. Raise the limit in AI Workforce."),
+    ).not.toBeNull();
+  });
+
+  it("13. maps a forbidden attribution to the admin-only rule", async () => {
+    global.fetch = agentFetch([workforceAgent()], {
+      ok: false,
+      status: 403,
+      body: { code: "forbidden", message: "forbidden" },
+    }) as unknown as typeof fetch;
+
+    renderAdminDrawer();
+
+    const select = await screen.findByLabelText("Agent to bill");
+    fireEvent.change(select, { target: { value: "agent-1" } });
+
+    const textarea = screen.getByPlaceholderText(/Ask anything about your workspace/);
+    fireEvent.change(textarea, { target: { value: "Bill this" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      expect(screen.getByText("Only an admin can bill a turn to an agent.")).not.toBeNull();
+    });
   });
 });

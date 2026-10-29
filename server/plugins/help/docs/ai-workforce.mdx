@@ -85,6 +85,25 @@ Each agent counts its spend for the current calendar month. The counter starts a
 
 Raise the budget limit to continue work after a stop. Then resume the agent.
 
+### Bill a Chat Turn to an Agent
+
+A workspace admin can charge chat turns to an agent.
+
+1. Press ⌘J to open **AI Copilot**.
+2. Select the agent in **Bill to**.
+3. Send the turn.
+
+The selector shows the agent spend beside the agent name.
+
+Select **No agent** to run turns without a charge.
+
+The platform refuses an attributed turn in four cases:
+
+- The agent is paused. Resume the agent first.
+- The agent reached its limit and the guard is on. Raise the limit first.
+- The model has no price. Add the price first.
+- A member starts the turn. Only an admin can bill a turn.
+
 ## Access Permissions
 
 The AI Workforce page needs the workspace admin role.
