@@ -115,6 +115,9 @@ func (s *WorkforceStore) ListAgents(ctx context.Context, orgID uint) ([]models.W
 		Find(&agents).Error; err != nil {
 		return nil, err
 	}
+	for i := range agents {
+		normalizeBudget(&agents[i], time.Now().UTC())
+	}
 
 	return agents, nil
 }
@@ -135,6 +138,7 @@ func (s *WorkforceStore) GetAgent(ctx context.Context, orgID uint, id string) (*
 		}
 		return nil, err
 	}
+	normalizeBudget(&agent, time.Now().UTC())
 
 	return &agent, nil
 }
@@ -488,7 +492,11 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 	var totalSpend, totalLimit float64
 	byAgent := make([]WorkforceSpendAgent, 0, len(agents))
 	providerSpend := map[string]float64{}
+	now := time.Now().UTC()
 	for _, a := range agents {
+		// A counter from an earlier month reads as zero: the dashboard shows
+		// this month's spend, the same number the budget gate compares against.
+		normalizeBudget(&a, now)
 		totalSpend += a.BudgetUsed
 		totalLimit += a.BudgetLimit
 		byAgent = append(byAgent, WorkforceSpendAgent{Name: a.Name, Model: a.Model, Spend: a.BudgetUsed})

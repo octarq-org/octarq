@@ -25,8 +25,12 @@ type WorkforceAgent struct {
 	Heartbeat string `gorm:"size:64;not null;default:'Every 15m'" json:"heartbeat"`
 	// BudgetLimit is the maximum spend allocated for the billing cycle.
 	BudgetLimit float64 `gorm:"type:decimal(10,2);not null;default:10.00" json:"budgetLimit"`
-	// BudgetUsed is the current spend accrued for the billing cycle.
+	// BudgetUsed is the current spend accrued for the billing period.
 	BudgetUsed float64 `gorm:"type:decimal(10,2);not null;default:0.00" json:"budgetUsed"`
+	// BudgetPeriodStart is the first instant of the billing period BudgetUsed
+	// covers. The first spend event of a new calendar month resets the counter,
+	// so a budget limit is always a monthly limit.
+	BudgetPeriodStart time.Time `gorm:"column:budget_period_start" json:"budgetPeriodStart,omitempty"`
 	// Capabilities is the set of tool domains the agent can invoke.
 	Capabilities StringList `gorm:"type:text;not null" json:"capabilities"`
 	// Directives is the core behavioral prompt and operational constraints.
@@ -90,6 +94,57 @@ func (WorkforceTaskStep) TableName() string {
 	return "workforce_task_steps"
 }
 
+// WorkforceModelPrice is one workspace's price for one model. Prices are per
+// million tokens in US dollars. A model without a row is unpriced: the
+// billing path refuses to attribute a turn to it instead of inventing a price.
+type WorkforceModelPrice struct {
+	OrgID uint `gorm:"primaryKey;column:owner_id;not null" json:"orgId"`
+	// Model is the provider model identifier, e.g. "claude-opus-4-8".
+	Model string `gorm:"primaryKey;size:64;not null" json:"model"`
+	// InputPerMTok is the price of one million input (prompt) tokens.
+	InputPerMTok float64 `gorm:"column:input_per_mtok;type:decimal(12,4);not null" json:"inputPerMTok"`
+	// OutputPerMTok is the price of one million output (completion) tokens.
+	OutputPerMTok float64   `gorm:"column:output_per_mtok;type:decimal(12,4);not null" json:"outputPerMTok"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+func (WorkforceModelPrice) TableName() string {
+	return "workforce_model_prices"
+}
+
+// WorkforceSpendEvent is one billed agent turn in the spend ledger. The ledger
+// is the audit trail of how BudgetUsed was accrued; the price is frozen into
+// cost_usd at write time, so a later price change does not rewrite history.
+type WorkforceSpendEvent struct {
+	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
+	// OrgID scopes the event to one workspace.
+	OrgID uint `gorm:"index:idx_workforce_spend_org_agent;not null;column:owner_id" json:"orgId"`
+	// AgentID references WorkforceAgent.ID.
+	AgentID string `gorm:"size:64;index:idx_workforce_spend_org_agent;not null" json:"agentId"`
+	// Model is the provider model identifier that was billed.
+	Model string `gorm:"size:64;not null" json:"model"`
+	// InputTokens is the prompt token count of the turn.
+	InputTokens int `gorm:"not null" json:"inputTokens"`
+	// OutputTokens is the completion token count of the turn. Every supported
+	// provider already includes reasoning tokens here.
+	OutputTokens int `gorm:"not null" json:"outputTokens"`
+	// ReasoningTokens records the reasoning subset of OutputTokens for audit.
+	// It is not billed a second time.
+	ReasoningTokens int `gorm:"not null" json:"reasoningTokens"`
+	// CostUSD is the frozen cost of the turn in US dollars.
+	CostUSD float64 `gorm:"type:decimal(12,6);not null" json:"costUsd"`
+	// Source is where the usage was reported from: chat or runtime.
+	Source string `gorm:"size:32;not null" json:"source"`
+	// SessionID links a chat turn to its session.
+	SessionID string    `gorm:"size:64" json:"sessionId,omitempty"`
+	CreatedAt time.Time `gorm:"index" json:"createdAt"`
+}
+
+func (WorkforceSpendEvent) TableName() string {
+	return "workforce_spend_events"
+}
+
 // Closed vocabularies. The API validates every inbound status and priority
 // against these sets: an unknown value would seed a row that no dashboard query
 // or state machine ever matches.
@@ -103,6 +158,17 @@ var (
 	WorkforceTaskPriorities = []string{"urgent", "high", "normal", "low"}
 	// WorkforceTaskStepStatuses are the supported execution-log states.
 	WorkforceTaskStepStatuses = []string{"completed", "running", "failed", "awaiting_approval"}
+	// WorkforceSpendSources are the supported provenance labels of a spend
+	// event. "chat" is written by the agent chat stream; "runtime" is written
+	// by an external agent process that reports its own usage.
+	WorkforceSpendSources = []string{"chat", "runtime"}
+)
+
+// Named spend sources. The API and the store use these constants so a label
+// typo cannot create a provenance value no report matches.
+const (
+	WorkforceSpendSourceChat    = "chat"
+	WorkforceSpendSourceRuntime = "runtime"
 )
 
 // InStatusSet reports whether value belongs to the given closed vocabulary.

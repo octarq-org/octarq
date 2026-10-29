@@ -15,21 +15,22 @@ import (
 
 // WorkforceAgentDTO represents the API response for an AI workforce agent.
 type WorkforceAgentDTO struct {
-	ID              string     `json:"id"`
-	OrgID           uint       `json:"orgId"`
-	Name            string     `json:"name"`
-	Role            string     `json:"role"`
-	Department      string     `json:"department"`
-	Model           string     `json:"model"`
-	Status          string     `json:"status"`
-	Heartbeat       string     `json:"heartbeat"`
-	BudgetLimit     float64    `json:"budgetLimit"`
-	BudgetUsed      float64    `json:"budgetUsed"`
-	Capabilities    []string   `json:"capabilities"`
-	Directives      string     `json:"directives"`
-	LastHeartbeatAt *time.Time `json:"lastHeartbeatAt,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	ID                string     `json:"id"`
+	OrgID             uint       `json:"orgId"`
+	Name              string     `json:"name"`
+	Role              string     `json:"role"`
+	Department        string     `json:"department"`
+	Model             string     `json:"model"`
+	Status            string     `json:"status"`
+	Heartbeat         string     `json:"heartbeat"`
+	BudgetLimit       float64    `json:"budgetLimit"`
+	BudgetUsed        float64    `json:"budgetUsed"`
+	BudgetPeriodStart time.Time  `json:"budgetPeriodStart,omitempty"`
+	Capabilities      []string   `json:"capabilities"`
+	Directives        string     `json:"directives"`
+	LastHeartbeatAt   *time.Time `json:"lastHeartbeatAt,omitempty"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 // WorkforceTaskDTO represents the API response for an autonomous task ticket.
@@ -95,21 +96,22 @@ func toAgentDTO(a models.WorkforceAgent) WorkforceAgentDTO {
 		caps = []string{}
 	}
 	return WorkforceAgentDTO{
-		ID:              a.ID,
-		OrgID:           a.OrgID,
-		Name:            a.Name,
-		Role:            a.Role,
-		Department:      a.Department,
-		Model:           a.Model,
-		Status:          a.Status,
-		Heartbeat:       a.Heartbeat,
-		BudgetLimit:     a.BudgetLimit,
-		BudgetUsed:      a.BudgetUsed,
-		Capabilities:    caps,
-		Directives:      a.Directives,
-		LastHeartbeatAt: a.LastHeartbeatAt,
-		CreatedAt:       a.CreatedAt,
-		UpdatedAt:       a.UpdatedAt,
+		ID:                a.ID,
+		OrgID:             a.OrgID,
+		Name:              a.Name,
+		Role:              a.Role,
+		Department:        a.Department,
+		Model:             a.Model,
+		Status:            a.Status,
+		Heartbeat:         a.Heartbeat,
+		BudgetLimit:       a.BudgetLimit,
+		BudgetUsed:        a.BudgetUsed,
+		BudgetPeriodStart: a.BudgetPeriodStart,
+		Capabilities:      caps,
+		Directives:        a.Directives,
+		LastHeartbeatAt:   a.LastHeartbeatAt,
+		CreatedAt:         a.CreatedAt,
+		UpdatedAt:         a.UpdatedAt,
 	}
 }
 

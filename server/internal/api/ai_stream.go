@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/internal/agentstore"
+	"github.com/octarq-org/octarq/server/internal/authz"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 )
@@ -146,6 +149,23 @@ func (h *Handler) auditAgentTurn(
 	h.auditAs(r, orgID, h.auth.UserID(r), "agent.turn", "agent_session", 0, meta)
 }
 
+// writeBillingRefusal answers a turn the agent budget cannot accept. Each
+// message names the next action an operator can take.
+func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, agentstore.ErrAgentNotFound):
+		writeErr(w, r, http.StatusNotFound, "", "No such workforce agent found in this workspace.")
+	case errors.Is(err, agentstore.ErrAgentPaused):
+		writeErr(w, r, http.StatusConflict, "", "This agent is paused. Resume it before you run a turn.")
+	case errors.Is(err, agentstore.ErrBudgetExceeded):
+		writeErr(w, r, http.StatusConflict, "", "This agent reached its monthly budget limit. Raise the limit before you run a turn.")
+	case errors.Is(err, agentstore.ErrModelPriceMissing):
+		writeErr(w, r, http.StatusBadRequest, "", "No price is configured for this model. Add a price before you bill agent turns.")
+	default:
+		writeErr(w, r, http.StatusInternalServerError, "", "Could not check the agent budget; retry the request.")
+	}
+}
+
 // AIChatStreamMessage is a single message in the chat stream request.
 type AIChatStreamMessage struct {
 	Role    string `json:"role"`
@@ -162,6 +182,10 @@ type AIChatStreamRequest struct {
 	Messages []AIChatStreamMessage `json:"messages"`
 	Model    string                `json:"model,omitempty"`
 	Thinking *bool                 `json:"thinking,omitempty"`
+	// AgentID attributes the turn to a workforce agent. An attributed turn is
+	// priced and charged to that agent's budget; an absent value leaves the
+	// turn unbilled.
+	AgentID string `json:"agentId,omitempty"`
 }
 
 // SetEndpointSource configures the endpoint source for agent tool dispatch.
@@ -225,6 +249,38 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
 		return
+	}
+
+	// The model is resolved here so the billing gate sees the exact model the
+	// runner will use.
+	model := p.DefaultModel()
+	if req.Model != "" {
+		model = req.Model
+	}
+
+	// A turn attributed to a workforce agent is billed to that agent. The
+	// price and the budget are checked before the stream starts: once the
+	// response is open, a refusal can no longer become an HTTP error.
+	//
+	// Attribution spends workspace money, so it carries the same authority as
+	// the workforce page that configures the agent.
+	var billingStore *agentstore.WorkforceStore
+	billingAgent := ""
+	if req.AgentID != "" {
+		if !h.callerHoldsRole(r, authz.RoleAdmin) {
+			writeErr(w, r, http.StatusForbidden, "", "Workspace permission denied; higher workspace role required")
+			return
+		}
+		billingStore = h.getWorkforceStore()
+		if billingStore == nil {
+			writeErr(w, r, http.StatusInternalServerError, "", "The workforce store is not configured; retry the request.")
+			return
+		}
+		if _, err := billingStore.AuthorizeTurn(r.Context(), orgID, req.AgentID, model); err != nil {
+			writeBillingRefusal(w, r, err)
+			return
+		}
+		billingAgent = req.AgentID
 	}
 
 	// Prepare SSE response headers
@@ -306,9 +362,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		harness.WithSystem(systemPrompt),
 		harness.WithMaxSteps(maxSteps),
 	)
-	model := p.DefaultModel()
 	if req.Model != "" {
-		model = req.Model
 		runnerOpts = append(runnerOpts, harness.WithModel(req.Model))
 	}
 
@@ -329,6 +383,28 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// Record what the agent did before answering: a turn that failed is
 	// exactly the one an operator will want to look at later.
 	h.auditAgentTurn(r, orgID, session.ID, turn, tracer.Events(), catalog, spec, model)
+
+	// An attributed turn is charged after it runs, including a turn that
+	// failed partway: the provider bills the tokens it generated. A billing
+	// failure is surfaced, not swallowed — an unrecorded turn would leave the
+	// budget unaware of real spend.
+	if billingAgent != "" {
+		if _, _, err := billingStore.RecordSpend(r.Context(), orgID, agentstore.SpendInput{
+			AgentID:         billingAgent,
+			Model:           model,
+			InputTokens:     turn.InputTokens,
+			OutputTokens:    turn.OutputTokens,
+			ReasoningTokens: turn.ReasoningTokens,
+			Source:          models.WorkforceSpendSourceChat,
+			SessionID:       session.ID,
+		}); err != nil {
+			slog.Error("failed to record agent spend", "orgId", orgID, "agentId", billingAgent, "err", err)
+			_ = writeSSEPayload(w, flusher, "error", map[string]string{
+				"message": "The turn finished, but its spend was not recorded. Check the billing setup before the next turn.",
+			})
+			return
+		}
+	}
 
 	if runErr != nil {
 		_ = writeSSEPayload(w, flusher, "error", map[string]string{

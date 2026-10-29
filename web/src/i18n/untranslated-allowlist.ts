@@ -36,6 +36,7 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "agentHarness.toolAllowPlaceholder", // Example tool identifiers (list_links, list_domains, dns_verify)
   "agentHarness.lessonScopePlaceholder", // Example scope identifiers (links, domains, system)
   "agentHarness.lessonEvidencePlaceholder", // Example JSON snippet for lesson evidence
+  "agentHarness.modelPlaceholder", // Provider model identifier; identifiers are never translated
 
   // Industry terms & loanwords standard in ES/PT tech communities
   "groups.Marketing", // Industry standard term in ES/PT (Marketing)

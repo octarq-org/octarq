@@ -58,6 +58,10 @@ import type {
   CreateWorkforceTaskInput,
   UpdateWorkforceTaskInput,
   WorkforceOverviewDTO,
+  WorkforceModelPriceDTO,
+  SetWorkforceModelPriceInput,
+  WorkforceSpendEventDTO,
+  RecordWorkforceSpendInput,
 } from "./types";
 
 export class ApiError extends Error {
@@ -493,4 +497,30 @@ export const api = {
     req<WorkforceOverviewDTO>("GET", "/api/workforce/overview"),
   toggleWorkforceAutoHalt: (autoHalt: boolean): Promise<{ autoHalt: boolean }> =>
     req<{ autoHalt: boolean }>("POST", "/api/workforce/budgets/auto-halt", { autoHalt }),
+
+  // AI Workforce - Billing
+  workforceModelPrices: async (): Promise<WorkforceModelPriceDTO[]> => {
+    const res = await req<{ items?: WorkforceModelPriceDTO[] }>("GET", "/api/workforce/model-prices");
+    return res.items ?? [];
+  },
+  setWorkforceModelPrice: (input: SetWorkforceModelPriceInput): Promise<WorkforceModelPriceDTO> =>
+    req<WorkforceModelPriceDTO>("PUT", "/api/workforce/model-prices", input),
+  deleteWorkforceModelPrice: (model: string): Promise<{ ok: boolean }> =>
+    req<{ ok: boolean }>("DELETE", `/api/workforce/model-prices?model=${encodeURIComponent(model)}`),
+  workforceAgentSpend: async (id: string, limit = 100): Promise<WorkforceSpendEventDTO[]> => {
+    const res = await req<{ items?: WorkforceSpendEventDTO[] }>(
+      "GET",
+      `/api/workforce/agents/${encodeURIComponent(id)}/spend?limit=${limit}`
+    );
+    return res.items ?? [];
+  },
+  recordWorkforceAgentSpend: (
+    id: string,
+    input: RecordWorkforceSpendInput
+  ): Promise<{ event: WorkforceSpendEventDTO; agent: WorkforceAgentDTO }> =>
+    req<{ event: WorkforceSpendEventDTO; agent: WorkforceAgentDTO }>(
+      "POST",
+      `/api/workforce/agents/${encodeURIComponent(id)}/spend`,
+      input
+    ),
 };
