@@ -1,0 +1,1 @@
+import{j as s}from"./vendor-motion-8pz7gm9z.js";import{r as t}from"./vendor-react-DkI3_DdZ.js";import{e as a}from"./index-COkZpbFZ.js";const m=t.forwardRef(({className:e,...r},o)=>s.jsx("div",{ref:o,"aria-hidden":!0,className:a("skeleton h-4 w-full rounded-md",e),...r}));m.displayName="Skeleton";export{m as S};
