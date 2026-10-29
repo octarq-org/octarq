@@ -2,12 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "../i18n";
 import { api } from "../api/client";
 import type { WorkforceAgentDTO } from "../api/types";
-
-// A billed turn can cost less than one cent, so small amounts keep four
-// decimals instead of rounding to $0.00.
-export function formatUSD(value: number): string {
-  return `$${value >= 1 ? value.toFixed(2) : Number(value.toFixed(4))}`;
-}
+import { formatUSD } from "../lib/money";
 
 // Loads the workforce agents an admin can bill a chat turn to. Failures are
 // reported, never thrown: attribution is optional, and the chat keeps working

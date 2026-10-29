@@ -11,6 +11,7 @@ import {
   type WorkforceAgentDTO,
   type WorkforceTaskDTO,
   type WorkforceOverviewDTO,
+  type WorkforceSpendEventDTO,
 } from "../../api";
 import { I18nProvider } from "../../i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -307,6 +308,7 @@ describe("AgentHarnessPage", () => {
     vi.mocked(api.workforceAgents).mockResolvedValue(mockAgentsResponse);
     vi.mocked(api.workforceTasks).mockResolvedValue(mockTasksResponse);
     vi.mocked(api.workforceOverview).mockResolvedValue(mockOverviewResponse);
+    vi.mocked(api.workforceAgentSpend).mockResolvedValue([]);
     vi.mocked(api.workforceAgent).mockImplementation(async (id: string) => {
       const found = mockAgentsResponse.find((a) => a.id === id);
       if (!found) throw new Error("Agent not found");
@@ -1204,6 +1206,7 @@ describe("AgentHarnessPage", () => {
 
   // 27. Budgets render only real spend; an empty breakdown shows the empty state
   it("renders the spend empty state instead of fabricated agent rows", async () => {
+    vi.mocked(api.workforceAgents).mockResolvedValue([]);
     vi.mocked(api.workforceOverview).mockResolvedValue({
       activeAgents: 0,
       runningTasks: 0,
@@ -1246,5 +1249,58 @@ describe("AgentHarnessPage", () => {
     await waitFor(() => {
       expect(screen.getByText("No model price is set. Agent turns are not billed.")).toBeDefined();
     });
+  });
+
+  // 29. The ledger shows the turns behind an agent's budget, and switching the
+  // agent reads that agent's own ledger.
+  it("lists the billed turns of an agent and reloads when the agent changes", async () => {
+    const ledgers: Record<string, WorkforceSpendEventDTO[]> = {
+      "agent-01": [
+        {
+          id: 11,
+          agentId: "agent-01",
+          model: "claude-3-7-sonnet",
+          inputTokens: 1200,
+          outputTokens: 400,
+          reasoningTokens: 0,
+          costUsd: 0.0096,
+          source: "chat",
+          createdAt: "2026-10-29T10:00:00Z",
+        },
+      ],
+      "agent-02": [
+        {
+          id: 12,
+          agentId: "agent-02",
+          model: "gpt-4o",
+          inputTokens: 800,
+          outputTokens: 200,
+          reasoningTokens: 0,
+          costUsd: 0.002,
+          source: "runtime",
+          createdAt: "2026-10-29T11:00:00Z",
+        },
+      ],
+    };
+    vi.mocked(api.workforceAgentSpend).mockImplementation(async (id: string) => ledgers[id] ?? []);
+
+    renderPage("/workforce?tab=budgets");
+
+    await waitFor(() => {
+      expect(screen.getByText("Recent Spend")).toBeDefined();
+      expect(screen.getByText("claude-3-7-sonnet")).toBeDefined();
+      expect(screen.getByText("1,200 in / 400 out")).toBeDefined();
+      expect(screen.getByText("$0.0096")).toBeDefined();
+      expect(screen.getByText("Chat")).toBeDefined();
+    });
+
+    fireEvent.change(screen.getByLabelText("Agent"), { target: { value: "agent-02" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("gpt-4o")).toBeDefined();
+      expect(screen.getByText("$0.002")).toBeDefined();
+      expect(screen.getByText("Runtime")).toBeDefined();
+    });
+    expect(screen.queryByText("claude-3-7-sonnet")).toBeNull();
   });
 });
