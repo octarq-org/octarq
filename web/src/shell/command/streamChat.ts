@@ -1,7 +1,17 @@
 import type { ToolPayload } from "./types";
 
+// ChatFailure describes a refused or failed chat request. The UI branches on
+// code — the server's message is prose and may change.
+export interface ChatFailure {
+  // status is the HTTP status of a refused request; 0 for a network failure.
+  status: number;
+  // code is the machine-readable error code, e.g. workforce_budget_exceeded.
+  code?: string;
+}
+
 export async function streamChatResponse({
   messages,
+  agentId,
   signal,
   onThinking,
   onText,
@@ -10,23 +20,36 @@ export async function streamChatResponse({
   onDone,
 }: {
   messages: Array<{ role: string; content: string }>;
+  // agentId attributes the turn to a workforce agent, which prices and
+  // charges it to that agent's monthly budget.
+  agentId?: string;
   signal?: AbortSignal;
   onThinking: (delta: string, tokens?: number) => void;
   onText: (delta: string) => void;
   onTool: (toolPayload: ToolPayload) => void;
-  onError: (err: string) => void;
+  onError: (err: string, failure?: ChatFailure) => void;
   onDone: () => void;
 }) {
   try {
     const res = await fetch("/api/ai/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify(agentId ? { messages, agentId } : { messages }),
       signal,
     });
 
     if (!res.ok) {
-      onError(`HTTP ${res.status}: ${res.statusText}`);
+      let message = `HTTP ${res.status}: ${res.statusText}`;
+      let code: string | undefined;
+      try {
+        const body = (await res.json()) as { code?: string; message?: string; detail?: string };
+        if (typeof body.code === "string") code = body.code;
+        if (typeof body.message === "string" && body.message) message = body.message;
+        else if (typeof body.detail === "string" && body.detail) message = body.detail;
+      } catch {
+        // Not JSON — keep the status line.
+      }
+      onError(message, { status: res.status, code });
       return;
     }
 
@@ -74,7 +97,8 @@ export async function streamChatResponse({
         const err = parsedObj
           ? String(parsedObj.error ?? parsedObj.message ?? JSON.stringify(parsed))
           : String(parsed);
-        onError(err);
+        const code = typeof parsedObj?.code === "string" ? parsedObj.code : undefined;
+        onError(err, { status: 0, code });
       }
     };
 

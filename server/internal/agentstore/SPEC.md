@@ -120,6 +120,20 @@ real HTTP status. It requires the workspace admin role, the same authority the
 workforce page needs. It records the turn after the run and before the `done`
 event; a failed write is surfaced as an SSE `error` event and logged.
 
+The Copilot drawer is the only UI producer. An admin selects an agent in the
+**Bill to** control; the drawer sends `agentId` on each turn and shows the
+agent spend. A member does not see the control, and the server refuses a member
+request with `403 forbidden`. Refusals carry a stable code the drawer
+translates into the next action:
+
+| Code | Status | Next action |
+|---|---|---|
+| `workforce_agent_not_found` | 404 | Select another agent |
+| `workforce_agent_paused` | 409 | Resume the agent |
+| `workforce_budget_exceeded` | 409 | Raise the limit |
+| `workforce_model_price_missing` | 400 | Add the model price |
+| `workforce_spend_not_recorded` | SSE `error` | Check the billing setup |
+
 The ingestion endpoint takes token counts, never a cost. A caller cannot set
 what it owes.
 
