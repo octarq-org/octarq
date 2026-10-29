@@ -153,9 +153,9 @@ export function CopilotBriefingTab() {
   return (
     <div className="flex flex-1 flex-col overflow-y-auto p-4 space-y-5" data-testid="copilot-briefing-tab">
       {/* Briefing Header Banner */}
-      <div className="flex items-center justify-between rounded-2xl border border-primary/25 bg-primary/5 p-4">
+      <div className="flex items-center justify-between rounded-2xl border border-primary/25 bg-accent-soft p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent-fg">
             <Sunrise className="h-5 w-5" />
           </div>
           <div>
@@ -163,7 +163,7 @@ export function CopilotBriefingTab() {
               <h3 className="text-sm font-bold text-foreground">
                 {t("copilot.morningBriefingTitle", "Chief-of-Staff Morning Briefing")}
               </h3>
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-fg">
                 v2
               </span>
             </div>
@@ -188,8 +188,8 @@ export function CopilotBriefingTab() {
       {loading ? (
         <div className="space-y-3 py-6 animate-pulse" data-testid="briefing-loading-skeleton">
           <div className="h-4 bg-muted rounded w-3/4" />
-          <div className="h-16 bg-muted/60 rounded-xl" />
-          <div className="h-16 bg-muted/60 rounded-xl" />
+          <div className="h-16 bg-muted rounded-xl" />
+          <div className="h-16 bg-muted rounded-xl" />
         </div>
       ) : error ? (
         <div role="alert" className="rounded-2xl border border-danger-fg/30 bg-danger-fg/10 p-4 text-xs">
@@ -215,10 +215,10 @@ export function CopilotBriefingTab() {
             </h4>
 
             {/* 1. Schedule & Agenda */}
-            <div className="rounded-xl border border-border bg-well/40 p-3 space-y-1">
+            <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-primary" />
+                  <Calendar className="h-3.5 w-3.5 text-accent-fg" />
                   <span>{t("copilot.dimSchedule")}</span>
                 </span>
                 <span className="text-[11px] text-muted-foreground">
@@ -231,7 +231,7 @@ export function CopilotBriefingTab() {
             </div>
 
             {/* 2. Tasks & Commitments */}
-            <div className="rounded-xl border border-border bg-well/40 p-3 space-y-1">
+            <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-success-fg" />
@@ -247,13 +247,13 @@ export function CopilotBriefingTab() {
             </div>
 
             {/* 3. Priority Communications */}
-            <div className="rounded-xl border border-border bg-well/40 p-3 space-y-1">
+            <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5 text-accent-fg" />
                   <span>{t("copilot.dimPriorityMail")}</span>
                 </span>
-                <span className="text-[11px] font-semibold text-primary">
+                <span className="text-[11px] font-semibold text-accent-fg">
                   {briefing.dimensions.priorityMail.unreadHighImportance} {t("copilot.highPriority")}
                 </span>
               </div>
@@ -263,7 +263,7 @@ export function CopilotBriefingTab() {
             </div>
 
             {/* 4. Pending Decisions */}
-            <div className="rounded-xl border border-border bg-well/40 p-3 space-y-1">
+            <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
                   <ShieldAlert className="h-3.5 w-3.5 text-warning-fg" />
@@ -287,10 +287,10 @@ export function CopilotBriefingTab() {
             </div>
 
             {/* 5. Autonomous Actions (TierAuto) & Undo */}
-            <div className="rounded-xl border border-border bg-well/40 p-3 space-y-2">
+            <div className="rounded-xl border border-border bg-well p-3 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
-                  <RotateCcw className="h-3.5 w-3.5 text-primary" />
+                  <RotateCcw className="h-3.5 w-3.5 text-accent-fg" />
                   <span>{t("copilot.dimAutonomousActions")}</span>
                 </span>
                 <span className="text-[11px] text-muted-foreground">
@@ -319,7 +319,7 @@ export function CopilotBriefingTab() {
             </div>
 
             {/* 6. Finance & Infrastructure Health */}
-            <div className="rounded-xl border border-border bg-well/40 p-3 space-y-1">
+            <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
                   <Activity className="h-3.5 w-3.5 text-success-fg" />
@@ -382,7 +382,7 @@ export function CopilotBriefingTab() {
                         {anom.dimension === "traffic" && <TrendingUp className="h-4 w-4 text-warning-fg" />}
                         {anom.dimension === "dns" && <Globe2 className="h-4 w-4 text-accent-fg" />}
                         {anom.dimension === "security" && <ShieldAlert className="h-4 w-4 text-danger-fg" />}
-                        {anom.dimension === "mail" && <Mail className="h-4 w-4 text-primary" />}
+                        {anom.dimension === "mail" && <Mail className="h-4 w-4 text-accent-fg" />}
                         <span className="text-xs font-bold text-foreground">{anom.title}</span>
                       </div>
                       <span className="text-[10px] text-muted-foreground font-mono">{anom.detectedAt}</span>
@@ -395,7 +395,7 @@ export function CopilotBriefingTab() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleInvestigate(`Investigate anomaly: ${anom.title}`)}
-                        className="text-xs h-7 text-primary hover:text-primary-hover flex items-center gap-1"
+                        className="text-xs h-7 text-accent-fg hover:text-accent-fg-hover flex items-center gap-1"
                       >
                         <span>{t("copilot.investigateInCopilot")}</span>
                         <ArrowRight className="h-3 w-3" />

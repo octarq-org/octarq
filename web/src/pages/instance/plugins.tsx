@@ -44,13 +44,13 @@ export function InstancePluginsSettings() {
       )}
 
       {plugins === null ? (
-        <GlassCard className="p-8 text-sm text-center text-foreground/50">{t("settings.loadingPlugins")}</GlassCard>
+        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.loadingPlugins")}</GlassCard>
       ) : plugins.length === 0 ? (
-        <GlassCard className="p-8 text-sm text-center text-foreground/55">{t("settings.noPlugins")}</GlassCard>
+        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.noPlugins")}</GlassCard>
       ) : (
         <GlassCard className="overflow-hidden p-0">
           <Table>
-            <THead className="border-b border-border/60">
+            <THead className="border-b border-border">
               <TR>
                 <TH>{t("settings.instancePluginName")}</TH>
                 <TH>{t("settings.instancePluginFeatureKey")}</TH>
@@ -66,15 +66,15 @@ export function InstancePluginsSettings() {
                     <div className="font-medium text-foreground">{p.title || p.name}</div>
                     <div className="font-mono text-[10px] text-muted-foreground">{p.name}</div>
                   </TD>
-                  <TD className="font-mono text-[11px] text-foreground/70">{p.featureKey}</TD>
-                  <TD className="text-foreground/70 capitalize">{p.category}</TD>
+                  <TD className="font-mono text-[11px] text-muted-foreground">{p.featureKey}</TD>
+                  <TD className="text-muted-foreground capitalize">{p.category}</TD>
                   <TD>
                     {p.requires && p.requires.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {p.requires.map((r) => (
                           <span
                             key={r}
-                            className="rounded-md bg-foreground/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-foreground/70"
+                            className="rounded-md bg-well px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
                           >
                             {r}
                           </span>
@@ -115,7 +115,7 @@ export function InstancePluginsSettings() {
         </GlassCard>
       )}
 
-      <p className="text-xs text-foreground/50 leading-relaxed">{t("settings.instancePluginsFootnote")}</p>
+      <p className="text-xs text-muted-foreground leading-relaxed">{t("settings.instancePluginsFootnote")}</p>
     </div>
   );
 }

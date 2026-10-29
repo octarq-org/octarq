@@ -111,7 +111,7 @@ export function ResumeRankCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div>
             <div className="font-semibold text-foreground text-xs" data-testid="job-title">
               {jobTitle}
@@ -121,7 +121,7 @@ export function ResumeRankCard({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-fg">
               {`${totalCount} ${t("copilot.resumeEvaluated", "Evaluated")}`}
             </span>
             <span className="rounded-full bg-success-fg/10 px-2 py-0.5 text-[10px] font-medium text-success-fg">
@@ -139,7 +139,7 @@ export function ResumeRankCard({
             {candidates.slice(0, 3).map((candidate, idx) => (
               <div
                 key={candidate.id || idx}
-                className="flex items-center justify-between rounded-lg border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs"
+                className="flex items-center justify-between rounded-lg border border-border bg-well px-2.5 py-1.5 text-xs"
               >
                 <div className="flex items-center gap-2">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface-hover font-mono text-[10px] font-bold text-foreground">
@@ -155,7 +155,7 @@ export function ResumeRankCard({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                  <span className="rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[11px] font-semibold text-accent-fg">
                     {Math.round(candidate.score > 1 ? candidate.score : candidate.score * 100)}%
                   </span>
                 </div>
@@ -175,7 +175,7 @@ export function ResumeRankCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

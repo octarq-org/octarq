@@ -122,7 +122,7 @@ export function OrgMembersManager() {
       <GlassCard className="p-6 space-y-6">
 
       {canManage && (
-      <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end p-4 rounded-xl border border-foreground/[0.05] bg-well">
+      <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end p-4 rounded-xl border border-border bg-well">
         <div className="flex-1">
           <Field label={t("settings.inviteByEmail")}>
             <Input
@@ -155,9 +155,9 @@ export function OrgMembersManager() {
       )}
 
       {loading ? (
-        <div className="text-foreground/40 text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
+        <div className="text-muted-foreground text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
       ) : (
-        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
           {(members || []).map((m) => {
             const myEmail = (me?.email || me?.username || "").toLowerCase();
             const isSelf = myEmail ? m.email.toLowerCase() === myEmail : false;
@@ -188,11 +188,11 @@ export function OrgMembersManager() {
                   {m.pending ? (
                     <Badge tone="amber" className="text-[10px] px-2">{t("settings.statusPending")}</Badge>
                   ) : (
-                    <span className="text-xs text-foreground/40">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
+                    <span className="text-xs text-muted-foreground">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
                   )}
                 </div>
                 {canManage && !isSelf && (
-                  <div className="flex items-center gap-2 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                  <div className="flex items-center gap-2 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
                     {m.pending && (
                       <Button
                         variant="secondary"

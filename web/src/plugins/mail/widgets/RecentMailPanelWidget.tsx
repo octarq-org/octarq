@@ -15,21 +15,21 @@ export default function RecentMailPanelWidget() {
   return (
     <Panel title={t("mail.recentMail")}>
       {!recentEmails || recentEmails.length === 0 ? (
-        <p className="text-sm text-foreground/50">{t("mail.noMail")}</p>
+        <p className="text-sm text-muted-foreground">{t("mail.noMail")}</p>
       ) : (
-        <div className="divide-y divide-foreground/[0.04]">
+        <div className="divide-y divide-border">
           {recentEmails.map((e) => (
             <button
               key={e.id}
               onClick={() => nav("/mail")}
-              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-foreground/[0.06] transition-colors"
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-hover transition-colors"
             >
               {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
-              <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-foreground/55" : "font-semibold"}`}>
+              <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-muted-foreground" : "font-semibold"}`}>
                 {e.from || t("mail.unknownSender")}
               </span>
-              <span className="flex-1 truncate text-sm text-foreground/55">{e.subject || t("mail.noSubject")}</span>
-              <span className="shrink-0 text-xs text-foreground/40">{timeAgo(e.receivedAt)}</span>
+              <span className="flex-1 truncate text-sm text-muted-foreground">{e.subject || t("mail.noSubject")}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(e.receivedAt)}</span>
             </button>
           ))}
         </div>

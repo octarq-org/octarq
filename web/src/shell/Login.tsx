@@ -179,12 +179,24 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   const isMailUnavailableErr = err.toLowerCase().includes("cannot send email");
 
   return (
-    <div className="bg-background grid h-full place-items-center p-4">
-      <div className="glass-strong w-full max-w-md rounded-2xl p-8">
+    <div className="octarq-aurora relative grid h-full place-items-center overflow-hidden p-4 sm:p-8">
+      {/* A single centred halo behind the card. It is decorative only: the card
+          itself stays the highest-contrast object on the page, which is what a
+          sign-in form should be. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(620px 360px at 50% 18%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%)",
+        }}
+      />
+      <div className="glass-strong relative w-full max-w-[26rem] overflow-hidden rounded-3xl p-7 shadow-[var(--shadow-float)] sm:p-9">
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-border to-transparent" />
 
         <div className="mb-6 text-center">
-          <BrandMark size="lg" className="mx-auto mb-4" />
-          <h1 className="font-display text-2xl font-bold text-foreground">
+          <BrandMark size="lg" className="mx-auto mb-5" />
+          <h1 className="font-display text-[1.625rem] font-semibold leading-tight tracking-[-0.03em] text-foreground">
             {pendingVerifyEmail
               ? t("app.registerVerifyTitle")
               : mode === "register"
@@ -196,7 +208,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           {/* When verification is pending the explanation lives in the panel
               below, next to the resend action — no need to say it twice. */}
           {!pendingVerifyEmail && (
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
               {oauthPending
                 ? t("app.twoFactorOAuthDesc")
                 : mode === "register"
@@ -209,7 +221,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         </div>
 
         {isVerifiedNotice && (
-          <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="mb-4 text-xs p-3 rounded-xl">
+          <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="mb-4 rounded-lg p-3 text-xs">
             <span>{t("app.emailVerifiedSuccess")}</span>
           </Alert>
         )}
@@ -325,7 +337,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
               </div>
             )}
 
-            <button type="submit" className="btn-primary w-full py-2.5 mt-2" disabled={busy}>
+            <button type="submit" className="btn-primary mt-2 h-11 w-full" disabled={busy}>
               {busy
                 ? mode === "register"
                   ? t("app.creating")
@@ -377,7 +389,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
             under the title because it is a stamp, not part of the heading, and
             because this spot stays visible in every mode (login / register /
             forgot / pending-verification). */}
-        <p className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] text-foreground/40">
+        <p className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] text-muted-foreground">
           {window.location.host}
         </p>
       </div>

@@ -17,6 +17,7 @@ import {
   TableEmpty,
   TableError,
   TableSkeleton,
+  TabBar,
   Tabs,
   Textarea,
   Tooltip,
@@ -30,6 +31,7 @@ import {
   ModalRow,
   SelectRow,
   SwitchRow,
+  TabBarPreview,
   TablePaginationPreview,
   TablePreview,
 } from "./catalogPreviews";
@@ -207,6 +209,13 @@ export const CATALOG: CatalogEntry[] = [
     covers: ["TablePagination"],
     copy: ["Total {{total}} items", "Page {{page}} of {{totalPages}}", "{{size}} / page", "Previous", "Next"],
     Component: () => <TablePaginationPreview />,
+  },
+  {
+    name: "TabBar",
+    group: "data",
+    covers: ["TabBar"],
+    copy: ["Overview", "Activity", "Settings"],
+    Component: () => <TabBarPreview />,
   },
   {
     name: "Tabs",

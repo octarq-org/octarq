@@ -69,11 +69,11 @@ function SessionsList() {
     }
   }
 
-  if (loading) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.loadingSessions")}</div>;
-  if (sessions.length === 0) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.noSessions")}</div>;
+  if (loading) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.loadingSessions")}</div>;
+  if (sessions.length === 0) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.noSessions")}</div>;
 
   return (
-    <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
+    <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
       {sessions.map((s) => {
         const ua = parseUA(s.userAgent);
         // Spelled out rather than t(`settings.${ua.browserKey}`): an
@@ -91,14 +91,14 @@ function SessionsList() {
           <div key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-foreground/85">{browserName}</span>
+                <span className="text-sm font-medium text-foreground">{browserName}</span>
                 {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
-                <span className="text-xs text-foreground/50">{ua.os}</span>
+                <span className="text-xs text-muted-foreground">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="font-mono text-xs text-foreground/40">{s.location || s.ip}</span>
-                <span className="font-mono tnum text-xs text-foreground/50">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
-                <span className="font-mono tnum text-xs text-foreground/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
+                <span className="font-mono text-xs text-muted-foreground">{s.location || s.ip}</span>
+                <span className="font-mono tnum text-xs text-muted-foreground">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
+                <span className="font-mono tnum text-xs text-muted-foreground">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
               </div>
             </div>
             <Button
@@ -147,18 +147,18 @@ function LinkedIdentities() {
     }
   }
 
-  if (items === null) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.loadingIdentities")}</div>;
-  if (items.length === 0) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.noLinkedIdentities")}</div>;
+  if (items === null) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.loadingIdentities")}</div>;
+  if (items.length === 0) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.noLinkedIdentities")}</div>;
 
   return (
-    <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
+    <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
       {items.map((id) => (
         <div key={id.id} className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-foreground/85 truncate">{id.issuer}</div>
+            <div className="text-sm font-medium text-foreground truncate">{id.issuer}</div>
             <div className="flex items-center gap-3 mt-1">
-              <span className="font-mono text-xs text-foreground/50 truncate">{id.email}</span>
-              <span className="font-mono tnum text-xs text-foreground/25">{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
+              <span className="font-mono text-xs text-muted-foreground truncate">{id.email}</span>
+              <span className="font-mono tnum text-xs text-muted-foreground">{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
             </div>
           </div>
           <Button
@@ -297,16 +297,16 @@ export function SecuritySettings() {
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2"><Shield className="h-4 w-4" /> {t("settings.twoFATitle")}</h2>
+          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground flex items-center gap-2"><Shield className="h-4 w-4" /> {t("settings.twoFATitle")}</h2>
           <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>
         </div>
-        <p className="text-xs text-foreground/50">{t("settings.twoFADesc")}</p>
+        <p className="text-xs text-muted-foreground">{t("settings.twoFADesc")}</p>
 
         {enabled && (
           <div className="space-y-1">
-            <p className="text-[11px] text-foreground/45">{t("settings.twoFACoverageBase")}</p>
-            {hasOauth && <p className="text-[11px] text-foreground/45">{t("settings.twoFACoverageOauth")}</p>}
-            {hasSso && <p className="text-[11px] text-foreground/45">{t("settings.twoFACoverageSso")}</p>}
+            <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageBase")}</p>
+            {hasOauth && <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageOauth")}</p>}
+            {hasSso && <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageSso")}</p>}
           </div>
         )}
 
@@ -316,8 +316,8 @@ export function SecuritySettings() {
         {recoveryCodes && (
           <Alert variant="warning" className="p-4">
             <p className="text-xs font-bold text-warning-fg mb-2">{t("settings.saveRecoveryCodes")}</p>
-            <p className="text-[11px] text-foreground/50 mb-3">{t("settings.recoveryCodesDesc")}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-xs text-foreground/80">
+            <p className="text-[11px] text-muted-foreground mb-3">{t("settings.recoveryCodesDesc")}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-xs text-foreground">
               {recoveryCodes.map((c) => <span key={c} className="select-all whitespace-nowrap">{c}</span>)}
             </div>
           </Alert>
@@ -328,8 +328,8 @@ export function SecuritySettings() {
         )}
 
         {!enabled && setup && (
-          <div className="space-y-3 rounded-xl border border-foreground/[0.05] bg-well p-4">
-            <p className="text-xs text-foreground/60">{t("settings.scanInstructions")}</p>
+          <div className="space-y-3 rounded-xl border border-border bg-well p-4">
+            <p className="text-xs text-muted-foreground">{t("settings.scanInstructions")}</p>
             <img
               alt={t("settings.qrAlt")}
               className="rounded-lg bg-white p-2"
@@ -352,8 +352,8 @@ export function SecuritySettings() {
         )}
 
         {enabled && (
-          <div className="space-y-3 rounded-xl border border-foreground/[0.05] bg-well p-4">
-            <p className="text-xs text-foreground/60">{t("settings.disableInstructions")}</p>
+          <div className="space-y-3 rounded-xl border border-border bg-well p-4">
+            <p className="text-xs text-muted-foreground">{t("settings.disableInstructions")}</p>
             <Field label={t("settings.verificationCode")}>
               <Input className="text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
             </Field>
@@ -364,18 +364,18 @@ export function SecuritySettings() {
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">{t("settings.activeSessions")}</h2>
+          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.activeSessions")}</h2>
           <Button variant="danger" onClick={logoutAll} disabled={busy} className="text-xs py-1 px-3">
             {t("settings.signOutOfAll")}
           </Button>
         </div>
-        <p className="text-xs text-foreground/50">{t("settings.activeSessionsDesc")}</p>
+        <p className="text-xs text-muted-foreground">{t("settings.activeSessionsDesc")}</p>
         <SessionsList />
       </GlassCard>
 
       <GlassCard className="p-6 space-y-4">
-        <h2 className="text-base font-bold text-foreground">{t("settings.linkedIdentities")}</h2>
-        <p className="text-xs text-foreground/50">{t("settings.linkedIdentitiesDesc")}</p>
+        <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.linkedIdentities")}</h2>
+        <p className="text-xs text-muted-foreground">{t("settings.linkedIdentitiesDesc")}</p>
         <LinkedIdentities />
       </GlassCard>
 

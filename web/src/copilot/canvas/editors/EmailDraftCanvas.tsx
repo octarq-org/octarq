@@ -117,7 +117,7 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="email-draft-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {t("copilot.emailWorkspaceTitle", "Inbound Email Workspace & Staged Reply")}
@@ -167,19 +167,19 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
           </span>
         </div>
 
-        <div className="text-xs text-foreground/90 font-medium">
+        <div className="text-xs text-foreground font-medium">
           {`${t("copilot.emailSubject", "Subject:")} ${currentThread.subject}`}
         </div>
-        <div className="text-xs text-muted-foreground leading-relaxed italic bg-background/50 p-2.5 rounded-lg border border-border/50">
+        <div className="text-xs text-muted-foreground leading-relaxed italic bg-well p-2.5 rounded-lg border border-border">
           {currentThread.summary}
         </div>
       </div>
 
       {/* Draft Composer Pane */}
       <div className="flex-1 flex flex-col rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
-        <div className="flex items-center justify-between border-b border-border/40 pb-2">
+        <div className="flex items-center justify-between border-b border-border pb-2">
           <span className="font-semibold text-foreground flex items-center gap-1.5">
-            <CornerDownLeft className="h-3.5 w-3.5 text-primary" />
+            <CornerDownLeft className="h-3.5 w-3.5 text-accent-fg" />
             <span>{t("copilot.emailOutboundDraft", "Outbound Reply Draft")}</span>
           </span>
           <div className="flex items-center gap-1 text-[11px]">

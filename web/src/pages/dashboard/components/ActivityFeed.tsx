@@ -67,15 +67,15 @@ export function ActivityFeed() {
   });
 
   return (
-    <GlassCard className="mb-6 p-6">
+    <GlassCard className="mb-8 p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-foreground">{t("overview.activityFeedTitle")}</h2>
-          <p className="text-xs text-foreground/50 mt-0.5">{t("overview.activityFeedDesc")}</p>
+          <h2 className="font-display text-[1.25rem] font-semibold tracking-[-0.02em] text-foreground">{t("overview.activityFeedTitle")}</h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">{t("overview.activityFeedDesc")}</p>
         </div>
         <button
           onClick={() => nav("/notifications")}
-          className="flex items-center gap-1 text-xs font-medium text-accent-fg hover:underline"
+          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-accent-fg transition-colors hover:bg-accent-soft"
         >
           {t("overview.activityFeedViewAll")}
           <ArrowRight size={14} />
@@ -97,22 +97,22 @@ export function ActivityFeed() {
       ) : !cards || cards.length === 0 ? (
         <div className="flex flex-col items-center py-8 text-center">
           <Inbox size={28} className="text-foreground/25" />
-          <p className="mt-2 text-sm font-medium text-foreground/60">{t("overview.activityFeedEmpty")}</p>
-          <p className="mt-0.5 text-xs text-foreground/40">{t("overview.activityFeedEmptyDesc")}</p>
+          <p className="mt-2 text-sm font-medium text-muted-foreground">{t("overview.activityFeedEmpty")}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("overview.activityFeedEmptyDesc")}</p>
         </div>
       ) : (
-        <ul className="divide-y divide-foreground/5">
+        <ul className="divide-y divide-border">
           {cards.map((card) => (
             <li key={card.key}>
               <button
                 onClick={() => nav(card.target)}
-                className="flex w-full items-center gap-3 py-2.5 text-left rounded-lg px-2 -mx-2 hover:bg-foreground/5 transition-colors"
+                className="flex w-full items-center gap-3 py-2.5 text-left rounded-lg px-2 -mx-2 hover:bg-well transition-colors"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground/5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-well">
                   {card.kind === "notification" ? (
                     <Bell size={16} className="text-accent-fg" />
                   ) : (
-                    <ScrollText size={16} className="text-foreground/50" />
+                    <ScrollText size={16} className="text-muted-foreground" />
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -121,10 +121,10 @@ export function ActivityFeed() {
                     {card.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-fg" />}
                   </span>
                   {card.detail && (
-                    <span className="block truncate text-xs text-foreground/50">{card.detail}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{card.detail}</span>
                   )}
                 </span>
-                <span className="shrink-0 text-xs text-foreground/40">{timeAgo(card.at)}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(card.at)}</span>
               </button>
             </li>
           ))}

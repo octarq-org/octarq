@@ -9,7 +9,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(({ className, 
   <div
     ref={ref}
     aria-hidden
-    className={cn("h-4 w-full animate-pulse rounded-md bg-foreground/[0.08]", className)}
+    className={cn("skeleton h-4 w-full rounded-md", className)}
     {...props}
   />
 ));

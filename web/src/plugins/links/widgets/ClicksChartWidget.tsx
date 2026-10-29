@@ -25,7 +25,7 @@ export default function ClicksChartWidget() {
       <div className="mb-4 flex items-center justify-between gap-2">
         <h3 className="font-display font-semibold text-foreground">{t("links.clicksLast30")}</h3>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-foreground/40">
+          <span className="text-sm text-muted-foreground">
             {t("links.clicksTotal", { count: clicks30d })} · {botLabel}
           </span>
           <BotToggle value={includeBot} onChange={setIncludeBot} />

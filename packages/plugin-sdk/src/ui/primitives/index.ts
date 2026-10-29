@@ -16,6 +16,7 @@ export { Input, fieldClass } from "./input";
 export { Textarea } from "./textarea";
 export { Select, type SelectOption } from "./select";
 export { Tabs, type TabItem } from "./tabs";
+export { TabBar, type TabBarItem, type TabBarProps } from "./tab-bar";
 export { Tooltip } from "./tooltip";
 export { Table, THead, TBody, TR, TH, TD, TableDensityProvider, useTableDensity, useSetTableDensity, type TableDensity } from "./table";
 export { Skeleton } from "./skeleton";

@@ -11,7 +11,7 @@ export const ProPill = forwardRef<HTMLSpanElement, ProPillProps>(({ className, c
   <span
     ref={ref}
     className={cn(
-      "inline-flex items-center gap-1 rounded-full bg-info-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info-fg ring-1 ring-inset ring-info-border",
+      "inline-flex items-center gap-1 rounded-full border border-info-border bg-info-bg px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] leading-none text-info-fg",
       className,
     )}
   >

@@ -1,4 +1,4 @@
-import { Alert, Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
+import { TabBar, Alert, Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, CheckCheck, RefreshCw, Settings2, Trash2, MailOpen } from "lucide-react";
@@ -105,73 +105,17 @@ export function InboxPage() {
 
         {/* 4 Horizontal Filter Tabs: [Unread | All | Mentions | System Alerts] */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 rounded-xl border border-border bg-well/60 p-1 overflow-x-auto" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={filter === "unread"}
-              onClick={() => setFilter("unread")}
-              data-testid="tab-unread"
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
-                filter === "unread"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("notifications.filterUnread", "未读")}
-              {unreadCount > 0 && (
-                <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={filter === "all"}
-              onClick={() => setFilter("all")}
-              data-testid="tab-all"
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
-                filter === "all"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("notifications.filterAll", "全部")}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={filter === "mentions"}
-              onClick={() => setFilter("mentions")}
-              data-testid="tab-mentions"
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
-                filter === "mentions"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("notifications.filterMentions", "提及")}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={filter === "system"}
-              onClick={() => setFilter("system")}
-              data-testid="tab-system"
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
-                filter === "system"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("notifications.filterSystem", "系统告警")}
-            </button>
-          </div>
+          <TabBar
+            size="sm"
+            value={filter}
+            onValueChange={(v) => setFilter(v as typeof filter)}
+            items={[
+              { value: "unread", label: t("notifications.filterUnread", "未读"), testId: "tab-unread", count: unreadCount > 0 ? unreadCount : undefined },
+              { value: "all", label: t("notifications.filterAll", "全部"), testId: "tab-all" },
+              { value: "mentions", label: t("notifications.filterMentions", "提及"), testId: "tab-mentions" },
+              { value: "system", label: t("notifications.filterSystem", "系统告警"), testId: "tab-system" },
+            ]}
+          />
         </div>
 
         {/* Notification Cards */}
@@ -180,10 +124,10 @@ export function InboxPage() {
             <div className="divide-y divide-border p-6 space-y-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse flex items-start gap-4 pt-4 first:pt-0">
-                  <div className="h-10 w-10 rounded-xl bg-foreground/10 shrink-0" />
+                  <div className="h-10 w-10 rounded-xl bg-border shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-1/3 rounded bg-foreground/10" />
-                    <div className="h-3.5 w-2/3 rounded bg-foreground/10" />
+                    <div className="h-4 w-1/3 rounded bg-border" />
+                    <div className="h-3.5 w-2/3 rounded bg-border" />
                   </div>
                 </div>
               ))}
@@ -252,7 +196,7 @@ export function InboxPage() {
                               "text-sm",
                               isUnread
                                 ? "font-semibold text-foreground"
-                                : "font-medium text-foreground/85",
+                                : "font-medium text-muted-foreground",
                             )}
                           >
                             {notif.title}

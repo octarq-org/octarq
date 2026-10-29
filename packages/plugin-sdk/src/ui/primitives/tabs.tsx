@@ -28,15 +28,15 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
         onValueChange={(v) => onValueChange?.(String(v))}
         className={className}
       >
-        <BaseTabs.List className="relative flex items-center gap-1 rounded-xl bg-foreground/[0.04] p-1">
+        <BaseTabs.List className="relative flex items-center gap-1 rounded-xl border border-border bg-well p-1">
           {items.map((it) => (
             <BaseTabs.Tab
               key={it.value}
               value={it.value}
               disabled={it.disabled}
               className={cn(
-                "relative z-10 flex-1 rounded-lg px-3 py-1.5 text-sm font-medium outline-none transition-colors",
-                "text-foreground/55 hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring/60",
+                "relative z-10 flex-1 cursor-pointer rounded-lg px-3.5 py-2 text-[13px] font-medium outline-none transition-colors duration-[var(--dur-fast)]",
+                "text-muted-foreground hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring/60",
                 "data-selected:text-foreground disabled:cursor-not-allowed disabled:opacity-40",
               )}
             >
@@ -45,7 +45,7 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
           ))}
           <BaseTabs.Indicator
             className={cn(
-              "absolute left-0 top-1 z-0 h-[calc(100%-0.5rem)] rounded-lg bg-foreground/10 transition-all duration-200",
+              "absolute left-0 top-1 z-0 h-[calc(100%-0.5rem)] rounded-lg border border-border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-all duration-[var(--dur-base)] ease-[var(--ease-out)]",
               "w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)]",
             )}
           />

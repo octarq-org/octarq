@@ -42,7 +42,7 @@ function WorkspaceAddress() {
 
   return (
     <GlassCard className="p-6 space-y-4">
-      <h2 className="text-base font-bold text-foreground">{t("settings.workspaceAddress")}</h2>
+      <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.workspaceAddress")}</h2>
       <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
         <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
           <div className="flex gap-2">
@@ -63,20 +63,20 @@ function WorkspaceAddress() {
       {confirming && (
         <Modal title={t("settings.workspaceAddressConfirmTitle")} onClose={() => setConfirming(false)}>
           <div className="space-y-4">
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-muted-foreground">
               {t("settings.workspaceAddressConfirmDesc", { from: current.slug, to: slug.trim() })}
             </p>
-            <ul className="space-y-2 rounded-xl border border-foreground/[0.05] bg-well p-4 text-xs text-foreground/60">
+            <ul className="space-y-2 rounded-xl border border-border bg-well p-4 text-xs text-muted-foreground">
               <li>
                 <div>{t("settings.workspaceAddressBreaksBilling")}</div>
-                <code className="mt-1 block break-all text-[11px] text-foreground/45">/api/webhook/{slug.trim()}/billing/…</code>
+                <code className="mt-1 block break-all text-[11px] text-muted-foreground">/api/webhook/{slug.trim()}/billing/…</code>
               </li>
               <li>
                 <div>{t("settings.workspaceAddressBreaksSso")}</div>
-                <code className="mt-1 block break-all text-[11px] text-foreground/45">/api/sso/{slug.trim()}/callback</code>
+                <code className="mt-1 block break-all text-[11px] text-muted-foreground">/api/sso/{slug.trim()}/callback</code>
               </li>
             </ul>
-            <p className="text-xs text-foreground/50">{t("settings.workspaceAddressNoAlias")}</p>
+            <p className="text-xs text-muted-foreground">{t("settings.workspaceAddressNoAlias")}</p>
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="ghost" onClick={() => setConfirming(false)}>{t("settings.cancel")}</Button>
               <Button variant="primary" onClick={save} disabled={busy}>
@@ -108,8 +108,8 @@ function TenantAddress() {
 
   return (
     <GlassCard className="p-6 space-y-2">
-      <h2 className="text-base font-bold text-foreground">{t("settings.tenantSubdomain")}</h2>
-      <p className="text-xs text-foreground/50">{t("settings.tenantSubdomainHint")}</p>
+      <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.tenantSubdomain")}</h2>
+      <p className="text-xs text-muted-foreground">{t("settings.tenantSubdomainHint")}</p>
       <Code>{subdomain}</Code>
     </GlassCard>
   );
@@ -198,7 +198,7 @@ export function GeneralSettings() {
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">{t("settings.workspaceProfile")}</h2>
+          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.workspaceProfile")}</h2>
         </div>
         <form onSubmit={renameWorkspace} className="max-w-md">
           <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>
@@ -221,8 +221,8 @@ export function GeneralSettings() {
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">
           <div>
-            <h2 className="text-base font-bold text-foreground">{t("export.title")}</h2>
-            <p className="text-xs text-foreground/50 mt-1">
+            <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("export.title")}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
               {t("export.desc")}
             </p>
           </div>
@@ -241,7 +241,7 @@ export function GeneralSettings() {
               <ShieldAlert size={20} />
               <h2 className="text-base font-bold">{t("settings.dangerZone")}</h2>
             </div>
-            <p className="text-xs text-foreground/60">
+            <p className="text-xs text-muted-foreground">
               {t("settings.dangerZoneDesc")}
             </p>
             <div className="pt-2">
@@ -256,10 +256,10 @@ export function GeneralSettings() {
       {showDeleteModal && (
         <Modal title={t("settings.deleteWorkspaceModalTitle")} onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
           <div className="space-y-4">
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-muted-foreground">
               {t("settings.deleteWorkspaceModalDesc")}
             </p>
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-muted-foreground">
               {t("settings.confirmTypePre")}<span className="font-mono font-bold text-danger-fg select-all">DELETE MY DATA</span>{t("settings.confirmTypePost")}
             </p>
             <Input

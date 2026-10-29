@@ -76,7 +76,7 @@ Batch reconciliation processed 54 vendor invoices. Six overdue invoices flagged 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-hidden" data-testid="weekly-report-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 shrink-0">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {content.report_title || "Executive Operations Weekly Report"}
@@ -123,7 +123,7 @@ Batch reconciliation processed 54 vendor invoices. Six overdue invoices flagged 
       <div className="flex-1 flex gap-3 overflow-hidden">
         {(viewMode === "split" || viewMode === "edit") && (
           <div className="flex-1 flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-            <div className="border-b border-border bg-well/30 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+            <div className="border-b border-border bg-well px-3 py-1.5 text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
               <Edit3 className="h-3 w-3" />
               <span>{t("copilot.weeklyMarkdownSource", "Markdown Source")}</span>
             </div>
@@ -138,12 +138,12 @@ Batch reconciliation processed 54 vendor invoices. Six overdue invoices flagged 
 
         {(viewMode === "split" || viewMode === "preview") && (
           <div className="flex-1 flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-            <div className="border-b border-border bg-well/30 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+            <div className="border-b border-border bg-well px-3 py-1.5 text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
               <Eye className="h-3 w-3" />
               <span>{t("copilot.weeklyLiveDocument", "Live Rendered Document")}</span>
             </div>
             <div
-              className="flex-1 p-4 overflow-y-auto prose prose-invert prose-xs max-w-none text-xs leading-relaxed space-y-2 text-foreground/90"
+              className="flex-1 p-4 overflow-y-auto prose prose-invert prose-xs max-w-none text-xs leading-relaxed space-y-2 text-foreground"
               data-testid="markdown-preview"
             >
               {markdown.split("\n\n").map((block, idx) => {

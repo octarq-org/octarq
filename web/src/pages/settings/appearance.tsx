@@ -23,7 +23,7 @@ function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex flex-wrap rounded-xl bg-foreground/[0.05] p-1 border border-foreground/[0.06]"
+      className="inline-flex flex-wrap rounded-xl bg-well p-1 border border-border"
     >
       {options.map((o) => (
         <button
@@ -36,7 +36,7 @@ function Segmented<T extends string>({
             "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
             value === o.value
               ? "bg-background text-foreground shadow-sm"
-              : "text-foreground/60 hover:text-foreground",
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           {o.label}
@@ -51,7 +51,7 @@ function Setting({ title, desc, children }: { title: string; desc: string; child
     <GlassCard className="p-6 max-w-xl space-y-3">
       <div>
         <div className="font-semibold text-sm text-foreground">{title}</div>
-        <div className="text-xs text-foreground/50 mt-0.5">{desc}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
       </div>
       {children}
     </GlassCard>

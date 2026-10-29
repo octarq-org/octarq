@@ -131,15 +131,15 @@ export function CanvasApprovalGate({
         role={terminalState === "failed" ? "alert" : undefined}
         className={`flex items-center justify-between rounded-xl border p-3 text-xs ${
           terminalState === "failed"
-            ? "border-destructive/30 bg-destructive/10"
-            : "border-border bg-well/40"
+            ? "border-danger-border bg-danger-bg"
+            : "border-border bg-well"
         }`}
       >
         <div className="flex items-center gap-2">
           {terminalState === "decided" && <CheckCircle2 className="h-4 w-4 text-success-fg" />}
-          {terminalState === "rejected" && <XCircle className="h-4 w-4 text-destructive" />}
+          {terminalState === "rejected" && <XCircle className="h-4 w-4 text-danger-fg" />}
           {terminalState === "expired" && <Clock className="h-4 w-4 text-warning-fg" />}
-          {terminalState === "failed" && <AlertTriangle className="h-4 w-4 text-destructive" />}
+          {terminalState === "failed" && <AlertTriangle className="h-4 w-4 text-danger-fg" />}
           <span className="font-medium text-foreground">{terminalMessage}</span>
         </div>
         <span className="font-mono text-[11px] text-muted-foreground uppercase">
@@ -156,13 +156,13 @@ export function CanvasApprovalGate({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 font-semibold text-foreground">
-          <ShieldCheck className="h-4 w-4 text-primary" />
+          <ShieldCheck className="h-4 w-4 text-accent-fg" />
           <span>{t("copilot.operatorAuthorizationGate", "Operator Authorization Gate")}</span>
         </div>
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase font-mono ${
             riskLevel === "destructive"
-              ? "bg-destructive/15 text-destructive border border-destructive/20"
+              ? "bg-danger-bg text-danger-fg border border-danger-border"
               : "bg-warning-fg/15 text-warning-fg border border-warning-fg/20"
           }`}
         >
@@ -185,7 +185,7 @@ export function CanvasApprovalGate({
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
         <Button
           size="sm"
           variant="secondary"

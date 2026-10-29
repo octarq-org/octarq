@@ -93,13 +93,13 @@ export function EmailViewForm({
 
   return (
     <GlassCard className="flex flex-col h-full max-h-full min-h-0">
-      <div className="p-5 border-b border-foreground/[0.06] flex justify-between items-start shrink-0 gap-4">
+      <div className="p-5 border-b border-border flex justify-between items-start shrink-0 gap-4">
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-bold text-foreground mb-2 leading-snug">{email.subject || t("mail.noSubject")}</h2>
-          <div className="text-xs text-foreground/55 space-y-1.5">
-            <div><span className="text-foreground/45">{t("mail.fromLabel")}</span> <span className="font-semibold text-foreground/80">{email.from}</span></div>
-            <div><span className="text-foreground/45">{t("mail.toLabel")}</span> <span className="text-foreground/70">{email.to}</span></div>
-            <div className="text-[11px] text-foreground/50 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground space-y-1.5">
+            <div><span className="text-muted-foreground">{t("mail.fromLabel")}</span> <span className="font-semibold text-foreground">{email.from}</span></div>
+            <div><span className="text-muted-foreground">{t("mail.toLabel")}</span> <span className="text-muted-foreground">{email.to}</span></div>
+            <div className="text-[11px] text-muted-foreground pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
             <div className="mt-2.5 flex flex-wrap items-center gap-2 pt-1">
               <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
               {email.category && CATEGORY_META[email.category] && (
@@ -119,12 +119,12 @@ export function EmailViewForm({
       {(email.otp || (email.category === "otp" && email.subject.match(/\b([A-Z0-9]{4,8})\b/i)?.[1])) && (
         <div
           data-testid="otp-copy-bar"
-          className="mx-5 mt-3 flex items-center justify-between gap-3 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl text-xs shrink-0"
+          className="mx-5 mt-3 flex items-center justify-between gap-3 px-4 py-2.5 bg-accent-soft border border-primary/20 rounded-xl text-xs shrink-0"
         >
           <div className="flex items-center gap-2.5">
-            <KeyRound className="h-4 w-4 text-primary shrink-0" />
+            <KeyRound className="h-4 w-4 text-accent-fg shrink-0" />
             <span className="font-medium text-foreground">{t("mail.verificationCode", "Verification Code:")}</span>
-            <span className="font-mono text-sm font-bold text-primary tracking-widest px-2.5 py-0.5 rounded bg-background border border-primary/30">
+            <span className="font-mono text-sm font-bold text-accent-fg tracking-widest px-2.5 py-0.5 rounded bg-background border border-primary/30">
               {email.otp || email.subject.match(/\b([A-Z0-9]{4,8})\b/i)?.[1]}
             </span>
           </div>
@@ -167,7 +167,7 @@ export function EmailViewForm({
             <Sparkles className="h-3 w-3" />
             {t("mail.aiSummaryTitle")}
           </div>
-          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{summary || email.summary}</p>
+          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{summary || email.summary}</p>
         </div>
       )}
 
@@ -175,15 +175,15 @@ export function EmailViewForm({
         {email.html ? (
           <iframe srcDoc={email.html} className="h-full min-h-[400px] w-full bg-white rounded-xl shadow-inner border-0" sandbox="" title={t("mail.iframeTitle")} />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-foreground/85 leading-relaxed">{email.text}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-foreground leading-relaxed">{email.text}</pre>
         )}
       </div>
 
-      <div className="p-5 border-t border-foreground/[0.06] shrink-0 bg-foreground/[0.01]">
+      <div className="p-5 border-t border-border shrink-0 bg-well">
         {realAttachments.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {realAttachments.map((a, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground/[0.05] border border-foreground/[0.06] px-2.5 py-1 text-xs text-foreground/85" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-well border border-border px-2.5 py-1 text-xs text-foreground" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
                 <Paperclip className="h-3 w-3 text-accent-fg" />
                 {a.filename || t("mail.attachmentFallback")} <span className="font-mono tnum">({Math.max(1, Math.round(a.size / 1024))} KB)</span>
                 {a.truncated && (

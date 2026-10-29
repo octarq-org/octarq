@@ -118,7 +118,7 @@ export function TasksView() {
     switch (s) {
       case "in_progress":
         return (
-          <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+          <span className="inline-flex items-center gap-1 text-xs text-accent-fg font-medium">
             <PlayCircle className="h-3.5 w-3.5 animate-spin" />
             {t("agentHarness.statusInProgress")}
           </span>
@@ -201,7 +201,7 @@ export function TasksView() {
       <div className="space-y-6" data-testid="tasks-view">
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <GlassCard key={i} className="p-4 h-24 animate-pulse bg-muted/20">
+            <GlassCard key={i} className="p-4 h-24 animate-pulse bg-muted">
               <div />
             </GlassCard>
           ))}
@@ -214,7 +214,7 @@ export function TasksView() {
     <div className="space-y-6" data-testid="tasks-view">
       {/* Header and filter bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-xl bg-foreground/5 p-1 border border-border/50">
+        <div className="flex items-center gap-1 rounded-xl bg-well p-1 border border-border">
           {[
             { id: "all", label: t("agentHarness.tabAllTasks") },
             { id: "in_progress", label: t("agentHarness.statusInProgress") },
@@ -276,10 +276,10 @@ export function TasksView() {
                 </div>
 
                 {/* Right assignee & heartbeat */}
-                <div className="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40 justify-between sm:justify-end">
+                <div className="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-border justify-between sm:justify-end">
                   <div className="flex items-center gap-2 text-right">
-                    <div className="h-8 w-8 rounded-lg bg-foreground/5 border border-border/60 flex items-center justify-center shrink-0">
-                      <Bot className="h-4 w-4 text-primary" />
+                    <div className="h-8 w-8 rounded-lg bg-well border border-border flex items-center justify-center shrink-0">
+                      <Bot className="h-4 w-4 text-accent-fg" />
                     </div>
                     <div>
                       <div className="text-xs font-medium text-foreground">{task.assignee}</div>
@@ -354,7 +354,7 @@ export function TasksView() {
 
             <Field label={t("agentHarness.objectiveContext")}>
               <textarea
-                className="w-full h-24 rounded-lg border border-border/80 bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-24 rounded-lg border border-border bg-well px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-accent-border"
                 value={newGoal}
                 onChange={(e) => setNewGoal(e.target.value)}
                 placeholder={t("agentHarness.objectiveContextPlaceholder")}
@@ -396,11 +396,11 @@ export function TasksView() {
               </div>
             </div>
 
-            <div className="rounded-lg bg-foreground/[0.03] border border-border/50 p-3 space-y-1">
+            <div className="rounded-lg bg-well border border-border p-3 space-y-1">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 {t("agentHarness.execSummaryLabel", "Execution Summary")}
               </div>
-              <div className="text-foreground/90 leading-relaxed">{selectedTask.summary}</div>
+              <div className="text-foreground leading-relaxed">{selectedTask.summary}</div>
             </div>
 
             {selectedTask.executionSteps && selectedTask.executionSteps.length > 0 && (
@@ -409,7 +409,7 @@ export function TasksView() {
                   <Terminal className="h-3.5 w-3.5" />
                   {t("agentHarness.toolExecLogLabel", "Tool Execution Log")}
                 </div>
-                <div className="rounded-lg bg-black/80 border border-border/60 p-3 font-mono text-[11px] text-success-fg space-y-1">
+                <div className="rounded-lg bg-black/80 border border-border p-3 font-mono text-[11px] text-success-fg space-y-1">
                   {selectedTask.executionSteps.map((step, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <span className="text-muted-foreground">{idx + 1}.</span>

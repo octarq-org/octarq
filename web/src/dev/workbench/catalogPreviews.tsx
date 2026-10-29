@@ -10,6 +10,7 @@ import {
   Switch,
   Table,
   TableDensityProvider,
+  TabBar,
   TablePagination,
   TBody,
   TD,
@@ -167,5 +168,20 @@ export function TablePreview() {
         </Table>
       </TableDensityProvider>
     </div>
+  );
+}
+
+export function TabBarPreview() {
+  const [value, setValue] = useState("overview");
+  return (
+    <TabBar
+      value={value}
+      onValueChange={setValue}
+      items={[
+        { value: "overview", label: "Overview" },
+        { value: "activity", label: "Activity", count: 3 },
+        { value: "settings", label: "Settings" },
+      ]}
+    />
   );
 }

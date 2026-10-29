@@ -33,7 +33,7 @@ export function EmployeeCard({
     <CardShell title={`${t("copilot.cardAiCrewMember", "AI Crew Member")} — ${e.name ?? "Assistant"}`} state={state}>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5">
-          <Bot className="h-4 w-4 text-primary" />
+          <Bot className="h-4 w-4 text-accent-fg" />
           <span
             data-testid="employee-status"
             data-status={isOnline ? "online" : "offline"}

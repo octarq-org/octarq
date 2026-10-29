@@ -26,7 +26,7 @@ export function PortalCard({
   return (
     <CardShell title={`Licenses — ${(a.email ?? "").trim() || "Buyer"}`} state={state}>
       <div className="flex items-start gap-2">
-        <Key className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <Key className="h-4 w-4 text-accent-fg shrink-0 mt-0.5" />
         <div className="flex-1 space-y-1 font-mono text-xs">
           {a.email && (
             <div data-testid="portal-email">

@@ -8,14 +8,14 @@ import { cn } from "../cn";
 // meant a plugin package could not render it at all and had to approximate one
 // with a Badge.
 export const alertVariants = cva(
-  "relative w-full rounded-xl border p-4 text-sm font-medium transition-colors flex items-start gap-3",
+  "relative flex w-full items-start gap-3 rounded-lg border p-4 text-[13px] leading-relaxed transition-colors",
   {
     variants: {
       variant: {
-        info: "bg-info-bg text-info-fg border-info-border",
-        success: "bg-success-bg text-success-fg border-success-border",
-        warning: "bg-warning-bg text-warning-fg border-warning-border",
-        danger: "bg-danger-bg text-danger-fg border-danger-border",
+        info: "border-info-border bg-info-bg text-info-fg",
+        success: "border-success-border bg-success-bg text-success-fg",
+        warning: "border-warning-border bg-warning-bg text-warning-fg",
+        danger: "border-danger-border bg-danger-bg text-danger-fg",
       },
     },
     defaultVariants: {

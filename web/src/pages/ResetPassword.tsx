@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
             <h2 className="text-base font-semibold text-foreground">
               {t("reset.successHeading")}
             </h2>
-            <p className="text-xs text-foreground/40">
+            <p className="text-xs text-muted-foreground">
               {t("reset.successBody")}
             </p>
           </div>
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               </div>
             </div>
 
@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               </div>
             </div>
 

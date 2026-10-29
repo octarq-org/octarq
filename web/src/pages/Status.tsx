@@ -93,7 +93,7 @@ export default function StatusPage() {
       default:
         return (
           <div className="flex items-center gap-2">
-            <MinusCircle className="h-4 w-4 text-foreground/40" />
+            <MinusCircle className="h-4 w-4 text-muted-foreground" />
             <Badge variant="default">{t("status.statusNa")}</Badge>
           </div>
         );
@@ -116,26 +116,26 @@ export default function StatusPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* Header */}
-      <header className="border-b border-foreground/10 bg-background sticky top-0 z-10">
+      <header className="border-b border-border bg-background sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BrandMark size="md" />
             <div>
               <h1 className="font-bold text-lg leading-tight tracking-tight">{t("status.title")}</h1>
-              <p className="text-xs text-foreground/50">{t("status.desc")}</p>
+              <p className="text-xs text-muted-foreground">{t("status.desc")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-              className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-foreground/10 hover:bg-foreground/5 transition-colors"
+              className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-well transition-colors"
               title={t("common.language")}
             >
               {lang === "zh" ? "EN" : "中文"}
             </button>
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg border border-foreground/10 hover:bg-foreground/5 transition-colors text-foreground/70"
+              className="p-2 rounded-lg border border-border hover:bg-well transition-colors text-muted-foreground"
               title={t("uiCommon.toggleTheme")}
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -181,13 +181,13 @@ export default function StatusPage() {
         </div>
 
         {/* Subsystems Card */}
-        <div className="bg-card border border-foreground/10 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-foreground/10">
-            <h3 className="font-semibold text-base text-foreground/90">{t("status.subsystems")}</h3>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
+            <h3 className="font-semibold text-base text-foreground">{t("status.subsystems")}</h3>
             <button
               onClick={() => fetchStatus(true)}
               disabled={refreshing}
-              className="flex items-center gap-1.5 text-xs font-medium text-foreground/60 hover:text-foreground px-3 py-1.5 rounded-lg border border-foreground/10 hover:bg-foreground/5 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-well transition-all disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               {refreshing ? t("status.refreshing") : t("status.refresh")}
@@ -195,20 +195,20 @@ export default function StatusPage() {
           </div>
 
           {loading ? (
-            <div className="py-10 text-center text-foreground/40 text-sm">
+            <div className="py-10 text-center text-muted-foreground text-sm">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 opacity-50" />
               {t("status.loadingSystemStatus")}
             </div>
           ) : (
-            <div className="divide-y divide-foreground/5">
+            <div className="divide-y divide-border">
               {data?.subsystems.map((sub) => (
                 <div key={sub.name} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between">
                   <div>
-                    <span className="font-medium text-sm text-foreground/90">
+                    <span className="font-medium text-sm text-foreground">
                       {getSubsystemLabel(sub.name)}
                     </span>
                     {sub.detail && (
-                      <p className="text-xs text-foreground/50 mt-0.5">{sub.detail}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{sub.detail}</p>
                     )}
                   </div>
                   {renderStatusBadge(sub.status)}
@@ -221,7 +221,7 @@ export default function StatusPage() {
 
       {/* Footer: what this page actually monitors, when it last got an answer.
           The timestamp is machine-produced → mono. */}
-      <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-foreground/40 border-t border-foreground/10 mt-12">
+      <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-muted-foreground border-t border-border mt-12">
         {data && (
           <p className="font-mono tnum">
             {t("status.footerLine", {

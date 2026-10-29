@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
-import { Field, Select, useNotificationChannelForm, useTranslation } from "@octarq/plugin-sdk";
+import { Field, Select, buttonVariants, useNotificationChannelForm, useTranslation } from "@octarq/plugin-sdk";
 
 interface IntegrationOption {
   id: number;
@@ -68,9 +68,9 @@ export default function SlackForm() {
 
   if (integrations.length === 0) {
     return (
-      <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-xs text-foreground/80 space-y-3">
+      <div className="rounded-lg border border-warning-border bg-warning-bg p-4 text-xs text-foreground space-y-3">
         <div className="flex items-start gap-2.5">
-          <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+          <AlertCircle className="h-4 w-4 text-warning-fg shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-foreground">
               {t("settings.noSlackIntegrationTitle", "No Slack integration found")}
@@ -82,7 +82,7 @@ export default function SlackForm() {
         </div>
         <Link
           to="/settings/integrations?category=communication"
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          className={buttonVariants({ variant: "primary", size: "sm" })}
         >
           {t("settings.openIntegrationsHub", "Integrations Hub")} →
         </Link>

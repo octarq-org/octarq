@@ -26,7 +26,7 @@ export const Tooltip = forwardRef<HTMLButtonElement, TooltipProps>(
             <BaseTooltip.Positioner side={side} sideOffset={6} className="z-50 outline-none">
               <BaseTooltip.Popup
                 className={cn(
-                  "glass-strong max-w-xs rounded-lg px-2.5 py-1.5 text-xs text-foreground/85",
+                  "glass-strong max-w-xs rounded-lg px-3 py-2 text-[12px] leading-snug text-foreground/85",
                   "origin-[var(--transform-origin)]",
                   className,
                 )}

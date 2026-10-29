@@ -69,12 +69,12 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
   }
 
   return (
-    <div className="bg-well rounded-2xl p-4 border border-foreground/[0.05] space-y-4">
+    <div className="bg-well rounded-2xl p-4 border border-border space-y-4">
       {hosts.length === 0 ? (
-        <p className="text-sm text-foreground/50">{t("domains.noActiveHosts")}</p>
+        <p className="text-sm text-muted-foreground">{t("domains.noActiveHosts")}</p>
       ) : (
         <Table>
-          <THead className="border-b border-foreground/[0.06]">
+          <THead className="border-b border-border">
             <TR>
               <TH>{t("domains.thHost")}</TH>
               <TH className="text-accent-fg">{t("domains.thLink")}</TH>
@@ -82,10 +82,10 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
               <TH className="text-right" />
             </TR>
           </THead>
-          <TBody className="divide-y divide-foreground/[0.04]">
+          <TBody className="divide-y divide-border">
             {hosts.map((h) => (
               <TR key={h.host} className="group">
-                <TD className="font-mono text-xs text-foreground/70">{h.host}</TD>
+                <TD className="font-mono text-xs text-muted-foreground">{h.host}</TD>
                 <TD>
                   {h.linkEnabled !== null ? (
                     <button
@@ -94,17 +94,17 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                       className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
                         h.linkEnabled
                           ? "bg-primary/25 text-accent-fg hover:bg-primary/40"
-                          : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
+                          : "bg-surface-hover text-muted-foreground hover:bg-surface-hover line-through"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-primary" : "bg-foreground/[0.06]"}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-primary" : "bg-surface-hover"}`} />
                       {h.linkEnabled ? t("domains.on") : t("domains.off")}
                     </button>
                   ) : (
                     <button
                       disabled={!!busy}
                       onClick={() => addHost(h.host, true, false)}
-                      className="text-xs text-foreground/50 hover:text-accent-fg transition-colors px-2 py-0.5 disabled:opacity-50"
+                      className="text-xs text-muted-foreground hover:text-accent-fg transition-colors px-2 py-0.5 disabled:opacity-50"
                     >
                       {t("domains.addShort")}
                     </button>
@@ -118,17 +118,17 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                       className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
                         h.mailEnabled
                           ? "bg-success-bg text-success-fg border border-success-border hover:brightness-95"
-                          : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
+                          : "bg-surface-hover text-muted-foreground hover:bg-surface-hover line-through"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-success-fg" : "bg-foreground/[0.06]"}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-success-fg" : "bg-surface-hover"}`} />
                       {h.mailEnabled ? t("domains.on") : t("domains.off")}
                     </button>
                   ) : (
                     <button
                       disabled={!!busy}
                       onClick={() => addHost(h.host, false, true)}
-                      className="text-xs text-foreground/50 hover:text-success-fg transition-colors px-2 py-0.5 disabled:opacity-50"
+                      className="text-xs text-muted-foreground hover:text-success-fg transition-colors px-2 py-0.5 disabled:opacity-50"
                     >
                       {t("domains.addShort")}
                     </button>
@@ -188,7 +188,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap bg-foreground/[0.02] p-2.5 rounded-xl border border-foreground/[0.04]">
+    <div className="flex items-center gap-2 flex-wrap bg-well p-2.5 rounded-xl border border-border">
       <div className="relative flex-1 min-w-[150px]">
         <Input
           className="h-9 text-xs py-1.5 w-full"
@@ -198,17 +198,17 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
         {draft && !draft.includes(".") && (
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] text-foreground/50">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] text-muted-foreground">
             → {draft.trim().toLowerCase()}.{domain.name}
           </span>
         )}
       </div>
-      <label className="flex items-center gap-1.5 text-xs text-foreground/60 cursor-pointer select-none">
-        <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="rounded accent-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
+      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+        <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="rounded accent-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border focus-visible:ring-offset-2" />
         {t("domains.thLink")}
       </label>
-      <label className="flex items-center gap-1.5 text-xs text-foreground/60 cursor-pointer select-none">
-        <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="rounded accent-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
+      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+        <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="rounded accent-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border focus-visible:ring-offset-2" />
         {t("domains.thMail")}
       </label>
       <Button variant="primary" className="h-9 py-1 px-3 text-xs" disabled={busy || !draft.trim() || (!forLink && !forMail)} onClick={submit}>
@@ -222,7 +222,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
               type="button"
               disabled={busy}
               onClick={() => { setDraft(s); }}
-              className="text-[10px] text-foreground/40 hover:text-foreground/70 border border-foreground/[0.05] hover:border-foreground/15 bg-foreground/[0.01] hover:bg-foreground/[0.03] rounded-lg px-2 py-0.5 transition-colors cursor-pointer"
+              className="text-[10px] text-muted-foreground hover:text-muted-foreground border border-border hover:border-border-strong bg-well hover:bg-well rounded-lg px-2 py-0.5 transition-colors cursor-pointer"
             >
               {s}
             </button>

@@ -63,7 +63,7 @@ export function Workbench() {
                   className={`w-full rounded-md px-2 py-1 text-left text-xs ${
                     selected === e.name
                       ? "bg-info-bg text-info-fg"
-                      : "text-foreground/75 hover:bg-surface-hover"
+                      : "text-foreground hover:bg-surface-hover"
                   }`}
                 >
                   {e.name}

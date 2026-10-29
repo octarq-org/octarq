@@ -90,10 +90,10 @@ function ProTableInner<
     if (!header.column.getCanSort()) return null;
     const sorted = header.column.getIsSorted();
     if (sorted === "asc") {
-      return <ArrowUp className="inline-block h-3.5 w-3.5 text-primary" />;
+      return <ArrowUp className="inline-block h-3.5 w-3.5 text-accent-fg" />;
     }
     if (sorted === "desc") {
-      return <ArrowDown className="inline-block h-3.5 w-3.5 text-primary" />;
+      return <ArrowDown className="inline-block h-3.5 w-3.5 text-accent-fg" />;
     }
     return (
       <ArrowUpDown className="inline-block h-3.5 w-3.5 text-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -135,7 +135,7 @@ function ProTableInner<
 
       {/* Extra render slot */}
       {tableExtraRender && (
-        <div className="border-t border-foreground/[0.06] px-4 py-2">
+        <div className="border-t border-border px-4 py-2">
           {tableExtraRender(table)}
         </div>
       )}
@@ -154,7 +154,7 @@ function ProTableInner<
           <TableEmpty emptyText={emptyText} emptyReason={emptyReason} />
         ) : (
           <Table className={tableClassName}>
-            <THead className="border-b border-foreground/[0.06] bg-foreground/[0.02]">
+            <THead className="border-b border-border bg-well">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TR key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {

@@ -92,6 +92,7 @@ export const en = {
   },
   topbar: {
     create: "Create",
+    switchArea: "Switch area",
     lightMode: "Light mode",
     darkMode: "Dark mode",
     workspaces: "Workspaces",

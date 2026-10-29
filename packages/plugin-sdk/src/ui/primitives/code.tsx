@@ -26,7 +26,7 @@ export const Code = forwardRef<HTMLElement, CodeProps>(({ children, className },
       tabIndex={0}
       aria-label={t("uiCommon.clickToCopy")}
       className={cn(
-        "cursor-pointer break-all rounded-lg bg-muted px-1.5 py-0.5 font-mono text-[12px] text-accent-fg hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        "cursor-pointer break-all rounded-md border border-border bg-well px-2 py-1 font-mono text-[12px] text-accent-fg transition-colors duration-[var(--dur-fast)] hover:border-border-strong hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-border",
         className,
       )}
       title={t("uiCommon.clickToCopy")}

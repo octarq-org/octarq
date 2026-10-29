@@ -1,4 +1,4 @@
-import { Button } from "@octarq/plugin-sdk";
+import { Button, TabBar } from "@octarq/plugin-sdk";
 import { Inbox, Settings } from "lucide-react";
 import { Mailbox } from "../api";
 import { useTranslation } from "../../../i18n";
@@ -24,53 +24,32 @@ export function MailboxBar({
 
   if (boxes.length === 0) return null;
 
+  const items = [
+    {
+      value: "all",
+      label: t("mail.allMailboxes"),
+      icon: <Inbox className="h-3.5 w-3.5" />,
+      count: totalUnread > 0 ? totalUnread : undefined,
+    },
+    ...boxes.map((b) => ({
+      value: String(b.id),
+      label: <span className="font-mono">{b.address}</span>,
+      count: b.unread > 0 ? b.unread : undefined,
+    })),
+  ];
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-well p-2 rounded-2xl border border-foreground/[0.05]">
-      <div className="flex items-center gap-1.5 flex-wrap flex-1">
-        <button
-          type="button"
-          onClick={() => onSelect(undefined)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-            active === undefined
-              ? "bg-accent text-accent-fg shadow-sm font-semibold"
-              : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]"
-          }`}
-        >
-          <Inbox className="h-3.5 w-3.5" />
-          <span>{t("mail.allMailboxes")}</span>
-          {totalUnread > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${active === undefined ? "bg-accent-fg/20 text-accent-fg" : "bg-primary text-primary-fg"}`}>
-              {totalUnread}
-            </span>
-          )}
-        </button>
-        {boxes.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => onSelect(b.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-colors cursor-pointer ${
-              active === b.id
-                ? "bg-accent text-accent-fg shadow-sm font-semibold"
-                : "text-foreground/70 hover:text-foreground hover:bg-foreground/[0.03]"
-            }`}
-          >
-            <span>{b.address}</span>
-            {b.unread > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${active === b.id ? "bg-accent-fg/20 text-accent-fg" : "bg-primary text-primary-fg font-sans font-bold"}`}>
-                {b.unread}
-              </span>
-            )}
-          </button>
-        ))}
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <TabBar
+          size="sm"
+          value={active === undefined ? "all" : String(active)}
+          onValueChange={(v) => onSelect(v === "all" ? undefined : Number(v))}
+          items={items}
+        />
       </div>
       {activeBox && (
-        <Button
-          variant="subtle"
-          className="text-xs py-1 px-2.5 gap-1 shrink-0"
-          onClick={() => onEdit(activeBox)}
-          title={t("mail.editMailbox")}
-        >
+        <Button variant="ghost" size="sm" onClick={() => onEdit(activeBox)} title={t("mail.editMailbox")}>
           <Settings className="h-3.5 w-3.5" />
           <span>{t("mail.editMailbox")}</span>
         </Button>

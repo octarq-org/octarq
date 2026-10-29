@@ -27,12 +27,12 @@ export function A2UIRenderer({ widget }: { widget: A2UIWidget }) {
         <div
           role="region"
           aria-label={t("a2ui.unsupported")}
-          className="my-2 rounded-lg border border-foreground/[0.08] dark:border-white/[0.08] bg-foreground/[0.02] dark:bg-white/[0.02] p-3 text-xs"
+          className="my-2 rounded-lg border border-border bg-well p-3 text-xs"
         >
           <div className="font-medium text-muted-foreground mb-1">
             {t("a2ui.unsupported")}: <span className="font-mono">{String(widget.kind)}</span>
           </div>
-          <pre className="font-mono text-[11px] p-2 rounded bg-muted/40 text-muted-foreground overflow-x-auto max-h-40">
+          <pre className="font-mono text-[11px] p-2 rounded bg-muted text-muted-foreground overflow-x-auto max-h-40">
             {JSON.stringify(widget, null, 2)}
           </pre>
         </div>

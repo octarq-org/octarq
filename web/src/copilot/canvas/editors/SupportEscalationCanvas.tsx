@@ -53,7 +53,7 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="support-escalation-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {`${t("copilot.supportCanvasTitle", "Incident Dossier —")} ${content.ticket_id || "TICK-4091"}`}
@@ -62,35 +62,35 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
             {t("copilot.supportCanvasDesc", "Review incident timeline, RAG knowledge citations, and assign escalation owner.")}
           </p>
         </div>
-        <span className="rounded-full bg-destructive/15 text-destructive border border-destructive/20 px-2.5 py-0.5 text-xs font-bold">
+        <span className="rounded-full bg-danger-bg text-danger-fg border border-danger-border px-2.5 py-0.5 text-xs font-bold">
           {content.severity || "CRITICAL"}
         </span>
       </div>
 
       {/* Customer Information & Complaint Chronology */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div className="font-semibold text-foreground">{t("copilot.supportProfileChronology", "Customer Profile & Incident Chronology")}</div>
           <div className="font-mono text-muted-foreground">{content.customer_email || "cto@acme.com"}</div>
         </div>
-        <p className="text-xs text-foreground/90 leading-relaxed">
+        <p className="text-xs text-foreground leading-relaxed">
           {content.summary || "Customer reported production redirect failures across all custom domains. SLA commitment requires immediate resolution."}
         </p>
       </div>
 
       {/* RAG Knowledge Base Citations */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
-        <div className="flex items-center gap-1.5 font-semibold text-foreground border-b border-border/40 pb-1.5">
-          <BookOpen className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-1.5 font-semibold text-foreground border-b border-border pb-1.5">
+          <BookOpen className="h-4 w-4 text-accent-fg" />
           <span>{t("copilot.supportKbCitations", "RAG Knowledge Base Citations")}</span>
         </div>
         <div className="space-y-1.5">
           {citations.map((cite, idx) => (
-            <div key={idx} className="rounded-lg border border-border/50 bg-well/20 p-2 text-xs space-y-1">
+            <div key={idx} className="rounded-lg border border-border bg-well p-2 text-xs space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-medium text-foreground">{cite.title}</span>
                 {cite.score && (
-                  <span className="font-mono text-[10px] text-primary">
+                  <span className="font-mono text-[10px] text-accent-fg">
                     {`${t("copilot.supportMatch", "Match:")} ${Math.round(cite.score * 100)}%`}
                   </span>
                 )}
@@ -103,8 +103,8 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
 
       {/* Escalation Routing & Notes */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
-        <div className="flex items-center gap-1.5 font-semibold text-foreground border-b border-border/40 pb-1.5">
-          <UserCheck className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-1.5 font-semibold text-foreground border-b border-border pb-1.5">
+          <UserCheck className="h-4 w-4 text-accent-fg" />
           <span>{t("copilot.supportTargetHandover", "Escalation Target & Handover Notes")}</span>
         </div>
 

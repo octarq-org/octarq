@@ -1,4 +1,4 @@
-import { Button, Modal } from "@octarq/plugin-sdk";
+import { Button, Input, Modal } from "@octarq/plugin-sdk";
 import { useTranslation } from "../i18n";
 
 export interface CreateOrgModalProps {
@@ -25,8 +25,7 @@ export function CreateOrgModal({
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <label className="label">{t("app.workspaceName")}</label>
-          <input
-            className="input w-full"
+          <Input
             value={newOrgName}
             onChange={(e) => onNewOrgNameChange(e.target.value)}
             placeholder={t("app.workspaceNamePlaceholder")}

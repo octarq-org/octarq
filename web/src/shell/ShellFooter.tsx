@@ -14,8 +14,8 @@ export function ShellFooter() {
   }, []);
   if (!build) return null;
   return (
-    <footer className="mt-10 border-t border-foreground/[0.06] pb-1 pt-3">
-      <p className="font-mono tnum text-[11px] text-foreground/35">
+    <footer className="mt-10 border-t border-border pb-1 pt-3">
+      <p className="font-mono tnum text-[11px] text-muted-foreground">
         {t("app.shellBuildFooter", {
           version: build.version,
           commit: build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown",

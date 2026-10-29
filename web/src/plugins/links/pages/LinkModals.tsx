@@ -97,7 +97,7 @@ export function LinkModals({
           onClose={onCloseQr}
         >
           <div className="flex flex-col items-center gap-5 py-4">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-foreground/[0.08]">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-border">
               <img
                 src={`/api/links/${qrLink.id}/qr`}
                 alt={t("links.qrAlt")}
@@ -106,7 +106,7 @@ export function LinkModals({
                 height={220}
               />
             </div>
-            <div className="font-mono text-xs text-foreground/75 bg-well px-3 py-1.5 rounded-lg border border-foreground/[0.05] truncate max-w-sm">
+            <div className="font-mono text-xs text-foreground bg-well px-3 py-1.5 rounded-lg border border-border truncate max-w-sm">
               {linkURL(qrLink)}
             </div>
             <div className="flex items-center gap-2">

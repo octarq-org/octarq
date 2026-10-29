@@ -7,8 +7,8 @@ import { useUnreadNotificationsCountQuery } from "./api";
 import { useNotificationUIStore } from "./store";
 
 const ACTION_BUTTON =
-  "rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 " +
-  "hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground transition-all";
+  "rounded-xl border border-border bg-surface-hover/50 " +
+  "hover:bg-surface-hover hover:border-border-strong text-muted-foreground transition-all";
 
 function NotificationBellConnected() {
   const { t } = useTranslation();
@@ -27,7 +27,7 @@ function NotificationBellConnected() {
       className={cn(
         ACTION_BUTTON,
         "relative flex h-9 w-9 items-center justify-center transition-colors hover:text-foreground",
-        isDrawerOpen && "bg-foreground/[0.06] text-foreground ring-1 ring-inset ring-border",
+        isDrawerOpen && "bg-surface-hover text-foreground ring-1 ring-inset ring-border",
       )}
     >
       <Bell className="h-5 w-5" strokeWidth={1.75} />

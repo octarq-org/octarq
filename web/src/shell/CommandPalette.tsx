@@ -337,8 +337,8 @@ export function CommandPalette({
         >
           {mode === "search" ? (
             <>
-              <div className="flex items-center gap-3 border-b border-foreground/[0.08] dark:border-white/[0.08] focus-within:border-primary/50 bg-foreground/[0.015] dark:bg-white/[0.015] px-4 py-1 transition-colors">
-                <Search className="h-4 w-4 shrink-0 text-primary" />
+              <div className="flex items-center gap-3 border-b border-border focus-within:border-primary/50 bg-well px-4 py-1 transition-colors">
+                <Search className="h-4 w-4 shrink-0 text-accent-fg" />
                 <input
                   ref={inputRef}
                   value={q}
@@ -350,13 +350,13 @@ export function CommandPalette({
                 <button
                   type="button"
                   onClick={() => setMode("chat")}
-                  className="flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 hover:bg-primary/20 px-2 py-1 text-xs font-medium text-primary transition-colors shrink-0 cursor-pointer"
+                  className="flex items-center gap-1 rounded-md border border-primary/20 bg-accent-soft hover:bg-primary/20 px-2 py-1 text-xs font-medium text-accent-fg transition-colors shrink-0 cursor-pointer"
                   aria-label={t("command.chat.askAi")}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>{t("command.chat.askAi")}</span>
                 </button>
-                <kbd className="shrink-0 rounded-md border border-foreground/10 dark:border-white/10 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground">
+                <kbd className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground">
                   esc
                 </kbd>
               </div>
@@ -387,8 +387,8 @@ export function CommandPalette({
                       }}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
                         i === sel
-                          ? "bg-primary/10 text-primary dark:bg-primary/20 font-medium"
-                          : "hover:bg-surface-hover/80 text-foreground/90"
+                          ? "bg-accent-soft text-accent-fg dark:bg-primary/20 font-medium"
+                          : "hover:bg-surface-hover/80 text-foreground"
                       }`}
                     >
                       {c.iconStr ? (
@@ -396,13 +396,13 @@ export function CommandPalette({
                       ) : c.Icon ? (
                         <c.Icon
                           className={`h-4 w-4 shrink-0 transition-colors ${
-                            i === sel ? "text-primary" : "text-muted-foreground"
+                            i === sel ? "text-accent-fg" : "text-muted-foreground"
                           }`}
                           strokeWidth={1.75}
                         />
                       ) : null}
                       <span className="flex-1 truncate text-sm">{c.label}</span>
-                      <span className="shrink-0 rounded-md border border-foreground/5 dark:border-white/5 bg-muted/40 dark:bg-white/5 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+                      <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
                         {c.id === "ask-ai-entry"
                           ? t("command.chat.modeBadge")
                           : c.shortcut

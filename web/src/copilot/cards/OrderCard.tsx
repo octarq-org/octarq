@@ -28,7 +28,7 @@ export function OrderCard({
   return (
     <CardShell title={isList ? t("copilot.cardOrdersList", "Orders — List") : `${t("copilot.cardOrderLookup", "Order — Lookup")}${orderNo ? ` (${orderNo})` : ""}`} state={state}>
       <div className="flex items-start gap-2">
-        <ShoppingCart className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <ShoppingCart className="h-4 w-4 text-accent-fg shrink-0 mt-0.5" />
         <div className="flex-1 space-y-1">
           {isList ? (
             <div data-testid="order-list" className="font-mono text-xs text-muted-foreground">

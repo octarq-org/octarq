@@ -245,8 +245,8 @@ export function WebhooksSettings() {
         <GlassCard className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-foreground">{t("settings.outboundEventWebhooks")}</h2>
-              <span className="rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
+              <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.outboundEventWebhooks")}</h2>
+              <span className="rounded-full bg-accent-soft text-accent-fg px-2 py-0.5 text-[10px] font-semibold">
                 HMAC-SHA256 Signatures
               </span>
             </div>
@@ -302,32 +302,32 @@ export function WebhooksSettings() {
               </div>
             </Alert>
           ) : webhooks.length === 0 ? (
-            <div className="select-none rounded border border-dashed border-foreground/[0.06] py-4 text-center text-xs text-foreground/40">{t("settings.noWebhooks")}</div>
+            <div className="select-none rounded border border-dashed border-border py-4 text-center text-xs text-muted-foreground">{t("settings.noWebhooks")}</div>
           ) : (
             <div className="space-y-3.5">
               {webhooks.map((w) => (
-                <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-sm sm:flex-row sm:items-center">
+                <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-well p-3 text-sm sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-foreground/80">{w.name}</span>
+                      <span className="font-semibold text-foreground">{w.name}</span>
                       {w.events === "*" ? (
-                        <span className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-foreground/45">{t("settings.allEvents")}</span>
+                        <span className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground">{t("settings.allEvents")}</span>
                       ) : (
                         String(w.events).split(",").filter(Boolean).map((key: string) => {
                           const def = defByKey.get(key.trim());
                           return (
-                            <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] text-foreground/45">
+                            <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
                               {key.trim()}
                             </span>
                           );
                         })
                       )}
                     </div>
-                    <div className="select-all truncate font-mono text-xs text-foreground/45">{w.url}</div>
-                    <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
+                    <div className="select-all truncate font-mono text-xs text-muted-foreground">{w.url}</div>
+                    <div className="select-all font-mono text-[10px] text-muted-foreground">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
                   </div>
                   {canManage && (
-                    <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                    <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
                       <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} />
                       <Button
                         variant="ghost"
@@ -353,7 +353,7 @@ export function WebhooksSettings() {
           <GlassCard className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-bold text-foreground">
+                <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">
                   {t("settings.inboundRelaysHeading", "Inbound Webhook Relays")}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -403,7 +403,7 @@ export function WebhooksSettings() {
           <GlassCard className="p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h2 className="text-base font-bold text-foreground">
+                <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">
                   {t("settings.dlqHeading", "Dead-Letter Queue (DLQ) Audit")}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -494,33 +494,33 @@ export function WebhooksSettings() {
             </Field>
             <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
                   <Switch checked={all} onCheckedChange={setAll} />
                   <span>{all ? t("settings.allEventsStar") : t("settings.customEvents")}</span>
                 </label>
                 {!all && (
-                  <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-foreground/[0.06] bg-well p-3">
+                  <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-border bg-well p-3">
                     {eventGroups === null ? (
-                      <div className="py-2 text-center text-xs text-foreground/40">{t("settings.loadingEvents")}</div>
+                      <div className="py-2 text-center text-xs text-muted-foreground">{t("settings.loadingEvents")}</div>
                     ) : (
                       eventGroups.map((g) => {
                         const allChecked = g.events.every((ev) => selected.has(ev.key));
                         return (
                           <div key={g.group} className="space-y-1.5">
-                            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground/70">
+                            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted-foreground">
                               <input type="checkbox" checked={allChecked} onChange={(e) => toggleGroup(g, e.target.checked)} />
                               <span>{g.group}</span>
                             </label>
                             <div className="space-y-1.5 pl-6">
                               {g.events.map((ev) => (
-                                <label key={ev.key} className="flex cursor-pointer items-start gap-2 text-xs text-zinc-300">
+                                <label key={ev.key} className="flex cursor-pointer items-start gap-2 text-xs text-foreground">
                                   <input type="checkbox" className="mt-0.5" checked={selected.has(ev.key)} onChange={(e) => toggleEvent(ev.key, e.target.checked)} />
                                   <span className="min-w-0">
                                     <span className="flex flex-wrap items-center gap-1.5">
                                       <span>{ev.title}</span>
-                                      <span className="rounded border border-foreground/10 bg-foreground/5 px-1 py-px font-mono text-[9px] text-foreground/45">{ev.key}</span>
+                                      <span className="rounded border border-border bg-well px-1 py-px font-mono text-[9px] text-muted-foreground">{ev.key}</span>
                                     </span>
-                                    <span className="block text-[10px] text-foreground/40">{ev.description}</span>
+                                    <span className="block text-[10px] text-muted-foreground">{ev.description}</span>
                                   </span>
                                 </label>
                               ))}

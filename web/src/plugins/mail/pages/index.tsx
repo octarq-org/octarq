@@ -128,15 +128,15 @@ export default function MailPage() {
         title={t("mail.pageTitle")}
         description={t("mail.pageDesc")}
         action={
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={markAllRead} className="py-1.5 text-xs">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={markAllRead}>
               {t("mail.markRead")}
             </Button>
-            <Button variant="outline" onClick={() => setCompose(true)} className="gap-1.5 py-1.5 text-xs">
+            <Button variant="outline" size="sm" onClick={() => setCompose(true)}>
               <Send className="h-3.5 w-3.5" />
               {t("mail.compose")}
             </Button>
-            <Button variant="primary" onClick={() => setNewBox(true)} className="gap-1.5 py-1.5 text-xs">
+            <Button variant="primary" size="sm" onClick={() => setNewBox(true)}>
               <Plus className="h-3.5 w-3.5" />
               {t("mail.newMailbox")}
             </Button>
@@ -161,7 +161,7 @@ export default function MailPage() {
 
           <FolderNav currentFolder={folder} onSelectFolder={(f) => { setFolder(f); setOpen(null); }} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 min-h-0 items-start">
+          <div className="grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
             <EmailListPane
               emails={emails}
               loading={loading}
@@ -176,7 +176,7 @@ export default function MailPage() {
               onNewBox={() => setNewBox(true)}
             />
 
-            <div className="w-full">
+            <div className="h-full w-full">
               {open ? (
                 <EmailViewForm
                   email={open}
@@ -186,10 +186,12 @@ export default function MailPage() {
                   onChanged={() => { loadEmails(true); loadBoxes(); }}
                 />
               ) : (
-                <GlassCard className="flex flex-col items-center justify-center py-16 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
-                  <Inbox className="h-12 w-12 mb-3 opacity-40 text-accent-fg" />
-                  <p className="text-sm font-medium">{t("mail.selectEmail")}</p>
-                </GlassCard>
+                <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-well px-6 py-16 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card text-accent-fg shadow-[var(--shadow-card)] ring-1 ring-border">
+                    <Inbox className="h-5 w-5" />
+                  </div>
+                  <p className="font-display text-[13px] text-foreground">{t("mail.selectEmail")}</p>
+                </div>
               )}
             </div>
           </div>

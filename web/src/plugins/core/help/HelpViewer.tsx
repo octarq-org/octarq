@@ -169,25 +169,27 @@ export default function HelpViewer() {
   return (
     <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top Breadcrumb & Share Action Header */}
-      <div className="border-b border-border/60 bg-card px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
         {/* Left: Breadcrumbs */}
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
-            <BookOpen className="w-4 h-4 text-primary" />
+            <BookOpen className="w-4 h-4 text-accent-fg" />
             <span className="font-semibold text-foreground">
               {t("help.title", "Help & Documentation")}
             </span>
           </div>
           {currentDocMeta && (
             <>
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-              {categoryObj && (
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-primary/10 text-primary border-primary/20">
-                  {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
-                </span>
-              )}
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-              <span className="font-bold text-foreground truncate max-w-xs sm:max-w-sm">
+              <span className="hidden items-center gap-2 sm:flex">
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                {categoryObj && (
+                  <span className="rounded-full border border-accent-border bg-accent-soft px-2.5 py-0.5 text-[11px] font-semibold text-accent-fg">
+                    {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
+                  </span>
+                )}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground/50" />
+              <span className="min-w-0 flex-1 truncate font-semibold text-foreground">
                 {currentDocMeta.title}
               </span>
             </>
@@ -199,7 +201,7 @@ export default function HelpViewer() {
           <button
             onClick={handleCopyLink}
             title={t("help.copy_page_link", "Copy Page Link")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-xs"
           >
             {copiedLink ? (
               <Check className="w-3.5 h-3.5 text-success-fg" />
@@ -217,9 +219,9 @@ export default function HelpViewer() {
       <div className="flex-1 flex overflow-hidden">
         {/* Document Scroll Area */}
         <div className="flex-1 overflow-y-auto bg-surface-hover/20 scrollbar-thin p-4 sm:p-8 lg:p-12">
-          <div className="max-w-4xl mx-auto space-y-8">
+          <div className="max-w-3xl mx-auto space-y-8">
             {notFound ? (
-              <div className="bg-card rounded-2xl border border-border/80 p-8 shadow-xs space-y-4">
+              <div className="bg-card rounded-2xl border border-border p-8 shadow-xs space-y-4">
                 <div className="flex items-center gap-3 text-foreground">
                   <AlertTriangle className="w-5 h-5 text-warning-fg shrink-0" />
                   <h1 className="text-lg font-bold">{t("help.not_found_title", "That page isn't in this build")}</h1>
@@ -233,7 +235,7 @@ export default function HelpViewer() {
                 {docs.length > 0 && (
                   <button
                     onClick={() => navigate(getDocUrl(docs[0]))}
-                    className="text-sm font-semibold text-primary hover:underline"
+                    className="text-sm font-semibold text-accent-fg hover:underline"
                   >
                     {t("help.not_found_action", "Browse the documentation index")}
                   </button>
@@ -246,7 +248,7 @@ export default function HelpViewer() {
                 </p>
               </div>
             ) : error ? (
-              <div className="p-6 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm flex items-start gap-3">
+              <div className="p-6 bg-danger-bg text-danger-fg rounded-lg border border-danger-border text-sm flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                 <div className="flex-1 space-y-1.5 min-w-0">
                   <p className="font-semibold">{t("help.error_title", "Couldn't load this page")}</p>
@@ -263,7 +265,7 @@ export default function HelpViewer() {
                 </div>
                 <button
                   onClick={() => setRetryNonce((n) => n + 1)}
-                  className="shrink-0 px-3 py-1.5 rounded-lg border border-destructive/30 text-xs font-semibold hover:bg-destructive/20 transition-colors"
+                  className="shrink-0 px-3 py-1.5 rounded-lg border border-danger-border text-xs font-semibold hover:bg-danger-bg transition-colors"
                 >
                   {t("help.error_retry", "Retry")}
                 </button>
@@ -271,12 +273,12 @@ export default function HelpViewer() {
             ) : content ? (
               <div className="space-y-8">
                 {/* Main Glass/Card Article Container */}
-                <div className="bg-card rounded-2xl border border-border/80 p-6 sm:p-10 md:p-12 shadow-xs transition-all">
+                <div className="bg-card rounded-2xl border border-border p-6 sm:p-10 md:p-12 shadow-xs transition-all">
                   {/* Document Title & Meta Header */}
-                  <div className="space-y-4 border-b border-border/50 pb-6 mb-8">
+                  <div className="space-y-4 border-b border-border pb-6 mb-8">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       {categoryObj && (
-                        <span className="text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20">
+                        <span className="text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 bg-accent-soft text-accent-fg border-primary/20">
                           <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
                           {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
                         </span>
@@ -284,7 +286,7 @@ export default function HelpViewer() {
 
                       <div className="flex items-center gap-3 text-xs text-muted-foreground/80 font-medium">
                         <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          <Clock className="w-3.5 h-3.5 text-accent-fg" />
                           <span>
                             {readTimeMinutes} {t("help.read_time", "min read")}
                           </span>
@@ -296,7 +298,7 @@ export default function HelpViewer() {
                       </div>
                     </div>
 
-                    <h1 className="text-3xl sm:text-4xl md:text-[2.5rem] font-extrabold tracking-tight text-foreground leading-tight">
+                    <h1 className="font-display text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.03em] text-foreground sm:text-[2rem]">
                       {content.title}
                     </h1>
                   </div>

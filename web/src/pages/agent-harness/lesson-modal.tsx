@@ -120,7 +120,7 @@ export function HarnessLessonModal({
           />
         </Field>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+        <div className="flex justify-end gap-2 pt-2 border-t border-border">
           <Button
             type="button"
             variant="outline"

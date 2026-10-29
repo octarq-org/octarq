@@ -16,7 +16,7 @@ export function ChartCard({ widget }: { widget: ChartWidget }) {
     <div
       role="region"
       aria-label={title}
-      className="my-2 rounded-lg border border-foreground/[0.08] dark:border-white/[0.08] bg-foreground/[0.02] dark:bg-white/[0.02] p-3 text-sm"
+      className="my-2 rounded-lg border border-border bg-well p-3 text-sm"
     >
       <div className="font-medium text-foreground mb-2 flex items-center justify-between">
         <span>{title}</span>
@@ -44,7 +44,7 @@ export function ChartCard({ widget }: { widget: ChartWidget }) {
                         {s.name}
                       </span>
                     )}
-                    <div className="flex-1 h-3 rounded-full bg-muted/50 overflow-hidden">
+                    <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
                       <div
                         className="h-full bg-primary rounded-full transition-all duration-300"
                         style={{ width: `${pct}%` }}
@@ -62,7 +62,7 @@ export function ChartCard({ widget }: { widget: ChartWidget }) {
           ))}
 
           {series.length > 1 && (
-            <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-foreground/[0.04] dark:border-white/[0.04] text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
               {series.map((s, i) => (
                 <div key={i} className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-primary" />

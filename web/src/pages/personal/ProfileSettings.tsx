@@ -153,7 +153,7 @@ export function ProfileSettings() {
         </div>
 
         {changingEmail && (
-          <form onSubmit={handleEmailUpdate} className="space-y-4 border-t border-foreground/[0.04] pt-4">
+          <form onSubmit={handleEmailUpdate} className="space-y-4 border-t border-border pt-4">
             <Field label={t("personal.newEmailLabel")} hint={t("personal.newEmailHint")}>
               <Input
                 type="email"
@@ -221,7 +221,7 @@ export function ProfileSettings() {
             />
           </Field>
 
-          <div className="pt-2 border-t border-foreground/[0.04] flex justify-end">
+          <div className="pt-2 border-t border-border flex justify-end">
             <Button type="submit" variant="primary" disabled={busy || !password || !currentPassword}>
               {busy ? t("personal.updating") : t("personal.updatePassword")}
             </Button>
@@ -234,7 +234,7 @@ export function ProfileSettings() {
           <Trash2 size={18} />
           <h2 className="text-base font-bold">{t("personal.dangerZone")}</h2>
         </div>
-        <p className="text-xs text-foreground/60">
+        <p className="text-xs text-muted-foreground">
           {t("personal.deleteAccountDesc")}
         </p>
         <div className="pt-2">
@@ -253,10 +253,10 @@ export function ProfileSettings() {
           }}
         >
           <div className="space-y-4">
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-muted-foreground">
               {t("personal.deleteAccountModalDesc")}
             </p>
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-muted-foreground">
               {t("personal.confirmTypePre")}
               <span className="font-mono font-bold text-danger-fg select-all">DELETE MY ACCOUNT</span>
               {t("personal.confirmTypePost")}

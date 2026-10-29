@@ -41,95 +41,117 @@ body,
 :root {
   color-scheme: light;
 
-  /* Radius — 4px base; the --radius-* ramp below (and every var(--radius)
-     consumer such as .input) resolves from here. */
-  --radius: 0.25rem;
+  /* Radius — a 10px base with a wider ramp. Controls sit at 10px, cards at
+     12px, and drawers/dialogs at 18px, so the product has one soft geometry
+     instead of a single austere 4px edge. */
+  --radius: 0.625rem;
 
-  /* Surfaces — warm near-white app bg, pure-white cards, 1px flat borders.
-     This is the Wise/Cloudflare signature: clean panels on a soft neutral. */
-  --background: #f6f6f4;                          /* body / app background */
-  --foreground: #1c1c1a;                          /* default body text — warm near-black */
+  /* Surfaces — warm paper under crisp white cards. The temperature is what
+     keeps a dense ops console from reading as a spreadsheet: the page is the
+     desk, the card is the document on it. */
+  --background: #f4f2ec;                          /* body / app background */
+  --foreground: #17160f;                          /* default body text — warm near-black */
   --card: #ffffff;                                /* .glass / .card fill */
-  --card-foreground: #1c1c1a;
+  --card-foreground: #17160f;
   --popover: #ffffff;                             /* .glass-strong / modal fill */
-  --popover-foreground: #1c1c1a;
-  --muted: #f2f2ef;                               /* subtle fill / track */
-  --muted-foreground: #6b6b64;                    /* .label / secondary text — AA on white */
-  --surface-hover: #f2f2ef;                       /* row / item hover */
-  --well: #f3f3f0;                                /* recessed panel inside a card (lists, stat wells) */
+  --popover-foreground: #17160f;
+  --muted: #efede6;                               /* subtle fill / track */
+  --muted-foreground: #6e6a5e;                    /* .label / secondary text — AA on white */
+  --surface-hover: #f3f1ea;                       /* row / item hover */
+  --well: #f7f5ef;                                /* recessed panel inside a card (lists, stat wells) */
 
-  /* Accents. The primary action surface stays the brand gradient (indigo→violet,
-     same axis as the TopBar mark) so actions and chrome read as one system.
-     --primary is the flat fallback for borders/rings/charts; --accent-fg is the
-     readable accent for text/icons on the current surface (indigo-600 on light).
+  /* Accents. The primary action surface stays flat so it follows a rebrand; the
+     gradient partner is reserved for the brand mark. --accent-fg is the readable
+     accent for text/icons on the current surface.
 
      Only the three SEED values below are literal: --primary, --accent-violet and
      --primary-foreground. Every other brand-tinted token is mixed from --primary
      so the white-label plugin re-themes the whole app by overriding the seeds
      alone (brand.tsx applyAccents). Hardcoding a derived value here is how the
      accent, hover and info surfaces used to stay indigo on a rebranded instance.
-     Two mechanisms, on purpose. Tints (soft fills, hairlines, info surfaces)
-     are color-mix, which is what a wash of the accent over the surface means.
-     The text and hover ramp is `oklch(from …)` instead, moving ONLY lightness
-     and keeping chroma and hue: mixing toward black drags a/b toward zero too,
-     which desaturated indigo-600 into a muddy #4a4db9.
+     Tints are color-mix, which is what a wash of the accent over the surface
+     means. The text and hover ramp is `oklch(from …)` instead, moving ONLY
+     lightness and keeping chroma and hue: mixing toward black drags a/b toward
+     zero too, which desaturated the accent into a muddy grey.
 
      The text tokens clamp their lightness rather than just offsetting it. An
      operator may pick a near-white brand (a bright yellow, a pale cyan), and an
      accent label one step darker than that is still unreadable on white. The
      clamp floors readability at any hue — that is the whole point of accepting
      an arbitrary brand colour. */
-  --primary: #6366f1;                             /* SEED — indigo-500 */
-  --accent-violet: #8b5cf6;                        /* SEED — violet-500, gradient end */
+  --primary: #4f46e5;                             /* SEED — indigo-600 */
+  --accent-violet: #7c3aed;                        /* SEED — violet-600, gradient end */
   --primary-foreground: #ffffff;                   /* SEED — text on the primary fill */
 
-  --primary-hover: oklch(from var(--primary) calc(l - 0.08) c h);
+  --primary-hover: oklch(from var(--primary) calc(l - 0.07) c h);
   --accent-indigo: var(--primary);                 /* gradient start — legacy name */
-  --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.08, 0.55) c h);  /* accent text/icons on surface */
-  --accent-soft: color-mix(in oklab, var(--primary) 12%, transparent);   /* tinted fill */
-  --accent-border: color-mix(in oklab, var(--primary) 28%, transparent); /* tinted hairline */
+  --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.06, 0.55) c h);  /* accent text/icons on surface */
+  --accent-soft: color-mix(in oklab, var(--primary) 11%, transparent);   /* tinted fill */
+  --accent-border: color-mix(in oklab, var(--primary) 26%, transparent); /* tinted hairline */
   --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent-violet) 100%);
 
   /* Status accents — readable on the current surface (600-weight on light).
      Info is the brand-tinted one: it mixes from --primary so it follows a
-     rebrand. Success/warning/danger are semantic, not brand, and stay literal. */
-  --info-bg: color-mix(in oklab, var(--primary) 10%, #fff);
-  --info-border: color-mix(in oklab, var(--primary) 30%, #fff);
-  --info-fg: oklch(from var(--primary) clamp(0.30, l - 0.13, 0.50) c h);
+     rebrand. Success/warning/danger are semantic, not brand, and stay literal.
+     The *-solid pair is the filled destructive action (confirm dialogs), which
+     needs a stable foreground in both themes. */
+  --info-bg: color-mix(in oklab, var(--primary) 9%, #fff);
+  --info-border: color-mix(in oklab, var(--primary) 28%, #fff);
+  --info-fg: oklch(from var(--primary) clamp(0.30, l - 0.11, 0.50) c h);
 
-  --success-bg: #ecfdf5;
+  --success-bg: #ecfdf3;
   --success-border: #a7f3d0;
   --success-fg: #047857;
 
-  --warning-bg: #fffbeb;
+  --warning-bg: #fffaeb;
   --warning-border: #fde68a;
   --warning-fg: #b45309;
 
-  --danger-bg: #fef2f2;
+  --danger-bg: #fef3f2;
   --danger-border: #fecaca;
-  --danger-fg: #b91c1c;
+  --danger-fg: #b42318;
+  --danger-solid: #b42318;
+  --danger-solid-fg: #ffffff;
 
   /* Lines & focus */
-  --border: #e7e7e3;
-  --border-strong: #d8d8d2;
-  --input: #dcdcd5;
+  --border: #e5e1d6;
+  --border-strong: #d6d1c3;
+  --input: #dad5c7;
   --ring: var(--primary);
+
+  /* Elevation. Cards carry a hairline shadow so the 1px border reads as an
+     edge, not a wireframe; only floating layers (dialog, popover, toast,
+     command palette) get the deeper float. The accent shadow is mixed from
+     --primary so it repaints with a rebrand. */
+  --shadow-card: 0 1px 2px rgb(26 24 18 / 0.04), 0 12px 32px -20px rgb(26 24 18 / 0.22);
+  --shadow-float: 0 2px 4px rgb(26 24 18 / 0.05), 0 24px 60px -24px rgb(26 24 18 / 0.32);
+  --shadow-accent: 0 1px 2px color-mix(in oklab, var(--primary) 22%, transparent),
+    0 8px 18px -12px color-mix(in oklab, var(--primary) 42%, transparent);
+
+  /* Motion — one easing family and three durations. Every transition and
+     animation draws from these, so a hover, a page entrance and a dialog all
+     move with the same hand. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
 
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: #07070b;
-  --foreground: #e7e7ef;
-  --card: #14141c;
-  --card-foreground: #e7e7ef;
-  --popover: #0d0d14;
+  --background: #0a0a0d;
+  --foreground: #edede6;
+  --card: #131317;
+  --card-foreground: #edede6;
+  --popover: #0e0e12;
   --popover-foreground: #ffffff;
-  --muted: rgba(255, 255, 255, 0.05);
-  --muted-foreground: rgba(255, 255, 255, 0.55);
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: rgba(237, 237, 230, 0.58);
   --surface-hover: rgba(255, 255, 255, 0.06);
-  --well: rgba(0, 0, 0, 0.22);
+  --well: rgba(0, 0, 0, 0.24);
 
   /* Same seed, opposite mix direction: on dark the accents lighten toward #fff
      instead of darkening toward #000. Derived tokens are NOT repeated here —
@@ -137,31 +159,38 @@ body,
      is in scope, including the white-label override applyAccents writes inline
      on <html> (the same element .dark sits on, so the inline seed wins). */
   --primary: #6366f1;                              /* SEED */
-  --primary-hover: oklch(from var(--primary) calc(l + 0.09) c h);
+  --primary-hover: oklch(from var(--primary) calc(l + 0.08) c h);
   --accent-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);  /* accent text on dark */
-  --accent-soft: color-mix(in oklab, var(--primary) 18%, transparent);
-  --accent-border: color-mix(in oklab, var(--primary) 38%, transparent);
+  --accent-soft: color-mix(in oklab, var(--primary) 16%, transparent);
+  --accent-border: color-mix(in oklab, var(--primary) 34%, transparent);
 
-  --info-bg: color-mix(in oklab, var(--primary) 15%, transparent);
-  --info-border: color-mix(in oklab, var(--primary) 35%, transparent);
+  --info-bg: color-mix(in oklab, var(--primary) 14%, transparent);
+  --info-border: color-mix(in oklab, var(--primary) 34%, transparent);
   --info-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);
 
-  --success-bg: rgba(16, 185, 129, 0.15);
-  --success-border: rgba(16, 185, 129, 0.35);
+  --success-bg: rgba(16, 185, 129, 0.13);
+  --success-border: rgba(16, 185, 129, 0.32);
   --success-fg: #6ee7b7;
 
-  --warning-bg: rgba(245, 158, 11, 0.15);
-  --warning-border: rgba(245, 158, 11, 0.38);
+  --warning-bg: rgba(245, 158, 11, 0.13);
+  --warning-border: rgba(245, 158, 11, 0.34);
   --warning-fg: #fcd34d;
 
-  --danger-bg: rgba(244, 63, 94, 0.15);
-  --danger-border: rgba(244, 63, 94, 0.38);
+  --danger-bg: rgba(244, 63, 94, 0.13);
+  --danger-border: rgba(244, 63, 94, 0.34);
   --danger-fg: #fda4af;
+  --danger-solid: #dc2626;
+  --danger-solid-fg: #ffffff;
 
   --border: rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --input: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --input: rgba(255, 255, 255, 0.12);
   --ring: var(--primary);
+
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 16px 40px -28px rgb(0 0 0 / 0.9);
+  --shadow-float: 0 2px 6px rgb(0 0 0 / 0.4), 0 28px 70px -24px rgb(0 0 0 / 0.85);
+  --shadow-accent: 0 1px 2px color-mix(in oklab, var(--primary) 30%, transparent),
+    0 10px 22px -14px color-mix(in oklab, var(--primary) 55%, transparent);
 }
 
 @theme inline {
@@ -199,68 +228,98 @@ body,
   --color-danger-bg: var(--danger-bg);
   --color-danger-border: var(--danger-border);
   --color-danger-fg: var(--danger-fg);
+  --color-danger-solid: var(--danger-solid);
+  --color-danger-solid-fg: var(--danger-solid-fg);
 
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 4px;
-  --radius-2xl: 4px;    /* new: closes the 27 existing rounded-2xl call sites */
-  --radius-3xl: 4px;    /* new: defensive */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 24px;
 
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Display font — inherits the body face (Inter). The class stays (10 call
-   sites reference it); only the Outfit webfont goes away. */
+/* Display font — Space Grotesk for page titles, section headers and metric
+   values. The grotesk gives the console a voice; body copy stays Inter because
+   forms and tables are read, not admired. */
 .font-display {
-  font-family: inherit;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
-/* App background — a flat page fill in both modes. The class stays (5
-   consumers reference it); only the decorative radial gradients go away. */
+/* App background — warm paper with two faint accent washes. The washes are
+   mixed from the live seed, so a rebranded instance tints the room too. */
 .octarq-aurora {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(1100px 620px at 12% -12%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 62%),
+    radial-gradient(900px 520px at 102% -6%, color-mix(in oklab, var(--accent-violet) 5%, transparent), transparent 58%);
+  background-attachment: fixed;
 }
 .dark .octarq-aurora {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(1100px 620px at 12% -12%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 62%),
+    radial-gradient(900px 520px at 102% -6%, color-mix(in oklab, var(--accent-violet) 7%, transparent), transparent 58%);
 }
 
-/* Surface — a flat panel with a 1px border and no shadow, in both modes.
-   Dark mode uses the solid --card fill (no backdrop blur), so panels never
-   let the page background bleed through. */
+/* Paper grain — a fixed, non-interactive layer of low-opacity noise so large
+   empty surfaces have texture instead of banding. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark body::after {
+  opacity: 0.04;
+}
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Surface — a card with a hairline border and one soft shadow. The border and
+   the shadow together are what make a panel sit on the paper rather than float
+   above it. */
 .glass,
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
 }
 .card {
   border-radius: var(--radius-lg);
 }
 
-/* Floating layers (dialog / popover / dropdown / toast / tooltip / ⌘K) get
-   exactly one restrained shadow per mode so the layer reads off the surface
-   beneath it — functional separation, not decoration. */
+/* Floating layers (dialog / popover / dropdown / toast / tooltip / ⌘K) get the
+   deeper shadow so the layer reads off the surface beneath it — functional
+   separation, not decoration. */
 .glass-strong {
   background: var(--popover);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.12);
-}
-.dark .glass-strong {
-  border-color: rgba(255, 255, 255, 0.09);
-  box-shadow: 0 4px 16px -4px rgb(0 0 0 / 0.45);
+  box-shadow: var(--shadow-float);
 }
 
 /* Brand gradient — the mark surface (BrandMark). Reads the accent design token
@@ -315,6 +374,27 @@ h1, h2, h3, h4, h5, h6 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Micro-label used above section titles and table headers: the one typographic
+   device that gives every module the same information scent. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.eyebrow::before {
+  content: "";
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 1px;
+  background: var(--accent-fg);
+}
+
 /* ─── Shared component classes ───────────────────────────────────────────── */
 
 .btn,
@@ -330,7 +410,12 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.5rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 500;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s, transform 0.15s;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
   border: none;
   text-decoration: none;
 }
@@ -339,15 +424,16 @@ h1, h2, h3, h4, h5, h6 {
 .btn {
   background: var(--primary);
   color: var(--primary-foreground);
-  box-shadow: none;
+  box-shadow: var(--shadow-accent), inset 0 1px 0 rgb(255 255 255 / 0.16);
 }
 .btn-primary:hover,
 .btn:hover {
   background: var(--primary-hover);
+  transform: translateY(-1px);
 }
 .btn-primary:active,
 .btn:active {
-  transform: translateY(1px);
+  transform: translateY(0) scale(0.985);
 }
 .btn-primary:disabled,
 .btn:disabled {
@@ -355,6 +441,7 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.5;
   filter: none;
   transform: none;
+  box-shadow: none;
 }
 
 .btn-ghost {
@@ -366,7 +453,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--foreground);
 }
 .btn-ghost:active {
-  transform: translateY(1px);
+  transform: scale(0.985);
 }
 
 .btn-danger {
@@ -386,7 +473,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.875rem;
   color: var(--foreground);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
   font-family: inherit;
   field-sizing: content;
 }
@@ -398,7 +485,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .input:focus-visible {
   border-color: color-mix(in srgb, var(--primary) 55%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 16%, transparent);
 }
 .dark .input {
   background: rgba(255, 255, 255, 0.04);
@@ -422,10 +509,41 @@ h1, h2, h3, h4, h5, h6 {
 
 .label {
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.375rem;
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
+}
+
+/* ─── Entrance motion ──────────────────────────────────────────────────────
+   One rise curve for page content. Components that animate a list pass an
+   inline delay, so a grid of tiles arrives as a cascade instead of a flash. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-rise {
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+/* Skeleton — a slow sheen, not a pulse. The placeholder keeps its own light
+   surface so a loading table does not strobe next to real rows. */
+@keyframes skeleton-sheen {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--foreground) 5%, transparent), transparent);
+  animation: skeleton-sheen 1.8s var(--ease-in-out) infinite;
 }
 
 /* Modal Animations */
@@ -479,15 +597,16 @@ h1, h2, h3, h4, h5, h6 {
 .markdown-body h5,
 .markdown-body h6 {
   color: var(--foreground);
-  font-weight: 700;
-  line-height: 1.35;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.3;
   scroll-margin-top: 5rem;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 .markdown-body h1 {
-  font-size: 2.125rem;
-  font-weight: 800;
+  font-size: 1.875rem;
+  font-weight: 600;
   margin-top: 0;
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
@@ -495,12 +614,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .markdown-body h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.375rem;
+  font-weight: 600;
   margin-top: 2.25rem;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-bottom: 1px solid var(--border);
 }
 
 .markdown-body h3 {
@@ -520,11 +639,7 @@ h1, h2, h3, h4, h5, h6 {
 .markdown-body p {
   margin-top: 0;
   margin-bottom: 1.25rem;
-  color: color-mix(in srgb, var(--foreground) 88%, transparent);
-}
-
-.dark .markdown-body p {
-  color: #cbd5e1;
+  color: color-mix(in oklab, var(--foreground) 84%, transparent);
 }
 
 .markdown-body a {
@@ -547,20 +662,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .markdown-body code:not(pre code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 0.85em;
   font-weight: 500;
   padding: 0.2em 0.45em;
   border-radius: 0.375rem;
-  background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+  background-color: var(--well);
   color: var(--foreground);
-  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
-}
-
-.dark .markdown-body code:not(pre code) {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #e2e8f0;
+  border: 1px solid var(--border);
 }
 
 .markdown-body ul,
@@ -580,11 +689,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .markdown-body li {
   margin-bottom: 0.375rem;
-  color: color-mix(in srgb, var(--foreground) 88%, transparent);
-}
-
-.dark .markdown-body li {
-  color: #cbd5e1;
+  color: color-mix(in oklab, var(--foreground) 84%, transparent);
 }
 
 .markdown-body li > ul,
@@ -598,6 +703,23 @@ h1, h2, h3, h4, h5, h6 {
   border: 0;
   background: linear-gradient(90deg, transparent 0%, var(--border) 20%, var(--border) 80%, transparent 100%);
   margin: 2.25rem 0;
+}
+
+@media (max-width: 640px) {
+  .markdown-body {
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+  .markdown-body h1 {
+    font-size: 1.5rem;
+  }
+  .markdown-body h2 {
+    font-size: 1.25rem;
+    margin-top: 1.75rem;
+  }
+  .markdown-body h3 {
+    font-size: 1.0625rem;
+  }
 }
 
 .markdown-body img {

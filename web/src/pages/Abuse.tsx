@@ -1,4 +1,5 @@
-import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "@octarq/plugin-sdk";
+import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, TabBar, toast } from "@octarq/plugin-sdk";
+import { ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
 import { useTranslation } from "../i18n";
@@ -49,25 +50,25 @@ export default function AbusePage() {
         description={t("abuse.pageDesc")}
       />
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {(["open", "reviewed", "dismissed", "all"] as const).map((filter) => (
-          <Button
-            key={filter}
-            variant={statusFilter === filter ? "primary" : "subtle"}
-            onClick={() => setStatusFilter(filter)}
-            className="rounded-full px-4 py-1 text-xs"
-          >
-            {t("abuse.filter" + filter.charAt(0).toUpperCase() + filter.slice(1))}
-          </Button>
-        ))}
-      </div>
+      {/* Same segmented strip as every other list page, so the status filter
+          does not read as a separate pill control on one page only. */}
+      <TabBar
+        className="mb-6"
+        size="sm"
+        value={statusFilter}
+        onValueChange={setStatusFilter}
+        items={(["open", "reviewed", "dismissed", "all"] as const).map((filter) => ({
+          value: filter,
+          label: t("abuse.filter" + filter.charAt(0).toUpperCase() + filter.slice(1)),
+        }))}
+      />
 
       {loading ? (
         <ListSkeleton rows={5} ariaLabel={t("abuse.loading")} />
       ) : reports.length === 0 ? (
-        <GlassCard className="p-10 text-center text-foreground/40">
-          {t("abuse.emptyState")}
-        </GlassCard>
+        <Empty reason={t("abuse.emptyState")}>
+          <ShieldAlert />
+        </Empty>
       ) : (
         <div className="space-y-4">
           {reports.map((r) => (
@@ -76,7 +77,7 @@ export default function AbusePage() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     {/* AbuseReport model has no title/tags in backend; retain slug display */}
-                    <h3 className="font-semibold text-lg text-danger-fg">/{r.slug}</h3>
+                    <h3 className="font-display text-[17px] font-semibold tracking-[-0.01em] text-danger-fg">/{r.slug}</h3>
                     <Badge tone={getReasonTone(r.reason)} className="uppercase tracking-wider">
                       {t("abuse.reason" + r.reason.charAt(0).toUpperCase() + r.reason.slice(1)) || r.reason}
                     </Badge>
@@ -84,7 +85,7 @@ export default function AbusePage() {
                       {t("abuse.filter" + r.status.charAt(0).toUpperCase() + r.status.slice(1)) || r.status}
                     </Badge>
                   </div>
-                  <div className="mt-2 text-sm text-foreground/55 break-all">
+                  <div className="mt-2 text-sm text-muted-foreground break-all">
                     {t("abuse.target")}{" "}
                     <a
                       href={r.target}
@@ -96,29 +97,29 @@ export default function AbusePage() {
                     </a>
                   </div>
                 </div>
-                <div className="text-left sm:text-right text-xs text-foreground/40">
+                <div className="text-left sm:text-right text-xs text-muted-foreground">
                   <div className="font-mono tnum" title={r.createdAt}>{timeAgo(r.createdAt)}</div>
                   <div className="mt-1">{t("abuse.ip", { ip: r.reporterIp })}</div>
                 </div>
               </div>
 
-              <div className="mt-4 text-sm text-foreground/75 bg-foreground/[0.03] p-4 rounded-xl border border-foreground/[0.06] font-normal leading-relaxed">
-                {r.description || <span className="text-foreground/50 italic">{t("abuse.noDescription")}</span>}
+              <div className="mt-4 text-sm text-foreground bg-well p-4 rounded-xl border border-border font-normal leading-relaxed">
+                {r.description || <span className="text-muted-foreground italic">{t("abuse.noDescription")}</span>}
               </div>
 
               {r.status === "open" && (
-                <div className="mt-4 flex gap-2 justify-end border-t border-foreground/[0.06] pt-4">
+                <div className="mt-4 flex gap-2 justify-end border-t border-border pt-4">
                   <Button
                     variant="ghost"
+                    size="sm"
                     onClick={() => updateStatus(r.id, "dismissed")}
-                    className="text-xs py-1.5"
                   >
                     {t("abuse.dismissSafe")}
                   </Button>
                   <Button
                     variant="danger"
+                    size="sm"
                     onClick={() => updateStatus(r.id, "reviewed")}
-                    className="text-xs py-1.5"
                   >
                     {t("abuse.markReviewed")}
                   </Button>

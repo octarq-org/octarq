@@ -93,7 +93,7 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="storyboard-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {`${content.campaign_title || "Launch Campaign"} ${t("copilot.scriptCanvasTitle", "— Storyboard Studio")}`}
@@ -131,9 +131,9 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
               data-testid="scene-card"
             >
               <div className="space-y-2">
-                <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+                <div className="flex items-center justify-between border-b border-border pb-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-foreground">
-                    <Video className="h-3.5 w-3.5 text-primary" />
+                    <Video className="h-3.5 w-3.5 text-accent-fg" />
                     <span>{`${t("copilot.scriptScenePrefix", "Scene #")}${num}`}</span>
                   </div>
                   <div className="flex items-center gap-1">
@@ -150,7 +150,7 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                     <button
                       onClick={() => handleDeleteScene(idx)}
                       disabled={scenes.length <= 1}
-                      className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30 ml-1"
+                      className="rounded p-1 text-muted-foreground hover:bg-danger-bg hover:text-danger-fg disabled:opacity-30 ml-1"
                       aria-label={t("copilot.scriptDeleteSceneAria", "Delete scene")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -187,7 +187,7 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                 {/* Visual Prompt */}
                 <div>
                   <label className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-primary" />
+                    <Sparkles className="h-3 w-3 text-accent-fg" />
                     <span>{t("copilot.scriptVisualPrompt", "Visual Prompt")}</span>
                   </label>
                   <textarea
@@ -210,7 +210,7 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                     aria-label={t("copilot.scriptVoiceoverAria", "Voiceover narration")}
                     value={scene.voiceover || scene.audio_voiceover || ""}
                     onChange={(e) => handleUpdateScene(idx, "voiceover", e.target.value)}
-                    className="w-full rounded border border-border bg-background p-1.5 text-xs italic text-foreground/90 resize-none focus:border-primary focus:outline-none"
+                    className="w-full rounded border border-border bg-background p-1.5 text-xs italic text-foreground resize-none focus:border-primary focus:outline-none"
                   />
                 </div>
               </div>

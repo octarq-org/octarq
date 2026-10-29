@@ -45,9 +45,9 @@ export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; o
           <GlassCard className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <span className="block text-xs text-foreground/40">{t("instance.wizardProgress", { done, total: steps.length })}</span>
+                <span className="block text-xs text-muted-foreground">{t("instance.wizardProgress", { done, total: steps.length })}</span>
               </div>
-              <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
+              <div className="w-32 bg-border h-2 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{ width: `${steps.length ? Math.round((done / steps.length) * 100) : 0}%` }}
@@ -90,7 +90,7 @@ export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; o
                     </span>
                     <Badge tone={badge.tone}>{t(badge.key)}</Badge>
                   </div>
-                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/55">
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                     {(() => {
                       if (check.id === "registration" && check.status === "ok") {
                         if (check.detail.includes("disabled")) {

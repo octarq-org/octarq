@@ -28,7 +28,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
     <button
       type="button"
       onClick={copy}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs hover:bg-foreground/10 text-foreground/60 hover:text-foreground transition-colors shrink-0 font-sans"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs hover:bg-surface-hover text-muted-foreground hover:text-foreground transition-colors shrink-0 font-sans"
       title={t("domains.copy")}
     >
       {copied ? (
@@ -52,14 +52,14 @@ export function DnsReputationScoreCard({ repScore }: { repScore: DnsReputationSc
   const descKey = `domains.scoreDesc_${repScore.grade}`;
 
   return (
-    <div className="rounded-2xl bg-foreground/[0.02] border border-foreground/[0.06] p-5 space-y-4">
+    <div className="rounded-2xl bg-well border border-border p-5 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-4">
-          <div className="flex flex-col items-center justify-center h-16 w-16 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] shrink-0">
+          <div className="flex flex-col items-center justify-center h-16 w-16 rounded-2xl bg-well border border-border shrink-0">
             <span className="text-2xl font-black font-mono tracking-tight text-foreground">
               {repScore.score}
             </span>
-            <span className="text-[10px] font-mono text-foreground/40 font-medium">/ 100</span>
+            <span className="text-[10px] font-mono text-muted-foreground font-medium">/ 100</span>
           </div>
 
           <div className="space-y-1">
@@ -67,7 +67,7 @@ export function DnsReputationScoreCard({ repScore }: { repScore: DnsReputationSc
               <h4 className="text-sm font-bold text-foreground">{t("domains.dnsHealthScore")}</h4>
               <Badge tone={repScore.tone}>{t(gradeKey)}</Badge>
             </div>
-            <p className="text-xs text-foreground/60 leading-relaxed max-w-xl">{t(descKey)}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">{t(descKey)}</p>
           </div>
         </div>
 
@@ -83,7 +83,7 @@ export function DnsReputationScoreCard({ repScore }: { repScore: DnsReputationSc
       </div>
 
       {/* Visual score progress bar */}
-      <div className="w-full bg-foreground/[0.05] h-2 rounded-full overflow-hidden">
+      <div className="w-full bg-well h-2 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${
             repScore.tone === "green"
@@ -131,8 +131,8 @@ export function DnsFixAlertBanner({
         <AlertTriangle className="h-5 w-5 text-warning-fg shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-foreground">{t("domains.autoFixBannerTitle")}</h4>
-          <p className="text-xs text-foreground/60 mt-1 leading-relaxed">{t("domains.autoFixBannerDesc")}</p>
-          <p className="text-[11px] text-foreground/45 mt-1">
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("domains.autoFixBannerDesc")}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
             {hasProvider ? t("domains.providerAutoFixNote") : t("domains.manualFixNote")}
           </p>
         </div>
@@ -171,7 +171,7 @@ export function DnsTroubleshootingGuide({ issues }: { issues: DnsDiagnosticIssue
           <ShieldAlert className="h-4 w-4 text-warning-fg" />
           {t("domains.troubleshootingTitle")}
         </h4>
-        <p className="text-xs text-foreground/50 mt-0.5">{t("domains.troubleshootingDesc")}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{t("domains.troubleshootingDesc")}</p>
       </div>
 
       <div className="space-y-3">
@@ -180,58 +180,58 @@ export function DnsTroubleshootingGuide({ issues }: { issues: DnsDiagnosticIssue
           return (
             <div
               key={`${issue.host}-${issue.protocol}-${idx}`}
-              className="rounded-xl border border-foreground/[0.06] bg-foreground/[0.015] p-4 space-y-3"
+              className="rounded-xl border border-border bg-well p-4 space-y-3"
             >
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Badge tone="neutral" className="font-mono text-xs font-bold">
                     {issue.protocol}
                   </Badge>
-                  <span className="text-xs font-mono text-foreground/80 font-medium">{issue.host}</span>
+                  <span className="text-xs font-mono text-foreground font-medium">{issue.host}</span>
                 </div>
                 <Badge tone={tone}>
                   {issue.issueType === "misconfigured" ? t("domains.misconfigured") : t("domains.missing")}
                 </Badge>
               </div>
 
-              <p className="text-xs text-foreground/65 leading-relaxed">{t(issue.rationaleKey)}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t(issue.rationaleKey)}</p>
 
               {issue.observedValue && (
-                <div className="p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.05] space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-foreground/45 tracking-wider">
+                <div className="p-2.5 rounded-lg bg-well border border-border space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                     {t("domains.issueObserved")}
                   </span>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-foreground/60 break-all">{issue.observedValue}</span>
+                    <span className="font-mono text-xs text-muted-foreground break-all">{issue.observedValue}</span>
                     <CopyButton text={issue.observedValue} />
                   </div>
                 </div>
               )}
 
-              <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] space-y-2">
+              <div className="p-3 rounded-xl bg-well border border-border space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-foreground/45 tracking-wider">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                     {t("domains.issueRecommended")}
                   </span>
-                  <span className="text-[11px] text-foreground/50">{t(issue.fixHintKey)}</span>
+                  <span className="text-[11px] text-muted-foreground">{t(issue.fixHintKey)}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
-                  <div className="p-2 rounded bg-foreground/[0.02] border border-foreground/[0.04]">
-                    <span className="text-[10px] text-foreground/40 block font-sans">{t("domains.issueRecordType")}</span>
-                    <span className="font-semibold text-foreground/80">{issue.recordType}</span>
+                  <div className="p-2 rounded bg-well border border-border">
+                    <span className="text-[10px] text-muted-foreground block font-sans">{t("domains.issueRecordType")}</span>
+                    <span className="font-semibold text-foreground">{issue.recordType}</span>
                   </div>
-                  <div className="p-2 rounded bg-foreground/[0.02] border border-foreground/[0.04]">
-                    <span className="text-[10px] text-foreground/40 block font-sans">{t("domains.issueHost")}</span>
+                  <div className="p-2 rounded bg-well border border-border">
+                    <span className="text-[10px] text-muted-foreground block font-sans">{t("domains.issueHost")}</span>
                     <div className="flex items-center justify-between gap-1">
-                      <span className="truncate text-foreground/80">{issue.recordName}</span>
+                      <span className="truncate text-foreground">{issue.recordName}</span>
                       <CopyButton text={issue.recordName} />
                     </div>
                   </div>
-                  <div className="p-2 rounded bg-foreground/[0.02] border border-foreground/[0.04] sm:col-span-1">
-                    <span className="text-[10px] text-foreground/40 block font-sans">{t("domains.issueRecommended")}</span>
+                  <div className="p-2 rounded bg-well border border-border sm:col-span-1">
+                    <span className="text-[10px] text-muted-foreground block font-sans">{t("domains.issueRecommended")}</span>
                     <div className="flex items-center justify-between gap-1">
-                      <span className="truncate text-foreground/80">{issue.recommendedValue}</span>
+                      <span className="truncate text-foreground">{issue.recommendedValue}</span>
                       <CopyButton text={issue.recommendedValue} />
                     </div>
                   </div>
@@ -250,8 +250,8 @@ function DnsStatusBadge({ status, label }: { status: DNSRecordStatus; label: str
   const tone: BadgeTone = status.healthy ? "green" : status.set ? "amber" : "red";
   const text = status.healthy ? t("domains.configured") : status.set ? t("domains.misconfigured") : t("domains.missing");
   return (
-    <div className="flex flex-col items-center p-3 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
-      <span className="text-[10px] uppercase font-bold text-foreground/40 tracking-wider">{label}</span>
+    <div className="flex flex-col items-center p-3 rounded-xl bg-well border border-border">
+      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{label}</span>
       <div className="mt-2"><Badge tone={tone}>{text}</Badge></div>
     </div>
   );
@@ -260,10 +260,10 @@ function DnsStatusBadge({ status, label }: { status: DNSRecordStatus; label: str
 export function DnsHostRow({ host }: { host: HostDNSStatus }) {
   const dkimLabel = host.dkim.selector ? `DKIM (${host.dkim.selector})` : "DKIM";
   return (
-    <div className="rounded-xl bg-foreground/[0.015] border border-foreground/[0.04] p-3">
+    <div className="rounded-xl bg-well border border-border p-3">
       <div className="flex items-center gap-2 mb-2.5 px-1">
         <Mail className="h-3.5 w-3.5 text-accent-fg/70 shrink-0" />
-        <span className="text-xs font-mono text-foreground/70 truncate">{host.host}</span>
+        <span className="text-xs font-mono text-muted-foreground truncate">{host.host}</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <DnsStatusBadge status={host.spf} label="SPF" />
@@ -286,11 +286,11 @@ export function LinkHostRow({ link }: { link: LinkHostStatus }) {
       ? (link.cname ? `CNAME → ${link.cname}` : t("domains.resolvesNoCname", { target: link.target }))
       : t("domains.addCname", { target: link.target });
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-foreground/[0.015] border border-foreground/[0.04] p-3">
+    <div className="flex items-center gap-3 rounded-xl bg-well border border-border p-3">
       <LinkIcon className="h-3.5 w-3.5 text-accent-fg/70 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div className="text-xs font-mono text-foreground/70 truncate">{link.host}</div>
-        <div className="text-[10px] text-foreground/40 truncate font-mono">{detail}</div>
+        <div className="text-xs font-mono text-muted-foreground truncate">{link.host}</div>
+        <div className="text-[10px] text-muted-foreground truncate font-mono">{detail}</div>
       </div>
       <Badge tone={tone}>{text}</Badge>
     </div>
@@ -308,7 +308,7 @@ export function LinkHostGuide({ apex }: { apex: string }) {
         <li>{t("domains.guideOrAdd")} <b>A / AAAA</b> {t("domains.guideAaaaRec")}</li>
         <li>{t("domains.guideProxiedIntro")} <b>{t("domains.guideProxiedWord")}</b> {t("domains.guideProxiedMid")} <b>{t("domains.guideUnverifiedWord")}</b> {t("domains.guideProxiedEnd")}</li>
       </ul>
-      <p className="text-foreground/40">{t("domains.guideTipIntro")} <b>{t("domains.guideSubdomainPreset")}</b> {t("domains.guideTipEnd")}</p>
+      <p className="text-muted-foreground">{t("domains.guideTipIntro")} <b>{t("domains.guideSubdomainPreset")}</b> {t("domains.guideTipEnd")}</p>
     </Guide>
   );
 }

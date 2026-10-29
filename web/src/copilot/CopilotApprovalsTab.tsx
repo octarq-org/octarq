@@ -29,7 +29,7 @@ export function CopilotApprovalsTab({
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Filter Pills */}
-      <div className="flex items-center justify-between border-b border-border bg-well/20 px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-border bg-well px-4 py-2.5">
         <div className="flex items-center gap-1 text-xs">
           <button
             type="button"

@@ -81,18 +81,18 @@ export function RecordsView({ domain }: { domain: Domain }) {
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
 
-      <p className="text-[11px] text-foreground/50">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
+      <p className="text-[11px] text-muted-foreground">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
       
       {err && <Alert variant="danger" className="p-3 text-xs font-medium">{typeof err === "string" ? err : err.message}</Alert>}
       
       {records === null ? (
-        <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
+        <p className="text-muted-foreground p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
+        <p className="text-muted-foreground p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
       ) : (
-        <div className="bg-well rounded-2xl border border-foreground/[0.05] overflow-hidden">
+        <div className="bg-well rounded-2xl border border-border overflow-hidden">
           <Table>
-            <THead className="border-b border-foreground/[0.06] bg-foreground/[0.01]">
+            <THead className="border-b border-border bg-well">
               <TR>
                 <TH>{t("domains.thType")}</TH>
                 <TH>{t("domains.thName")}</TH>
@@ -104,9 +104,9 @@ export function RecordsView({ domain }: { domain: Domain }) {
             <TBody>
               {filtered.map((r) => (
                 <TR key={r.id}>
-                  <TD className="font-semibold text-foreground/80">
+                  <TD className="font-semibold text-foreground">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="font-mono text-foreground/85 bg-foreground/5 px-2 py-0.5 rounded-lg border border-foreground/[0.04]">{r.type}</span>
+                      <span className="font-mono text-foreground bg-well px-2 py-0.5 rounded-lg border border-border">{r.type}</span>
                       {r.proxied && (
                         <span title={t("domains.cloudflareProxied")}>
                           <Cloud className="h-3 w-3 text-warning-fg fill-warning-bg" />
@@ -114,8 +114,8 @@ export function RecordsView({ domain }: { domain: Domain }) {
                       )}
                     </span>
                   </TD>
-                  <TD className="max-w-[120px] truncate font-mono text-foreground/80">{r.name}</TD>
-                  <TD className="max-w-[180px] truncate text-foreground/55 font-mono">{r.content}</TD>
+                  <TD className="max-w-[120px] truncate font-mono text-foreground">{r.name}</TD>
+                  <TD className="max-w-[180px] truncate text-muted-foreground font-mono">{r.content}</TD>
                   <TD className="max-w-[120px] truncate text-accent-fg/80">{r.comment}</TD>
                   <TD className="text-right">
                     <div className="flex gap-1.5 justify-end">
@@ -229,13 +229,13 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
         {canProxy && (
           <div className="flex items-center gap-2 pt-1">
             <Switch checked={proxied} onCheckedChange={setProxied} />
-            <span className="text-xs text-foreground/60 select-none">{t("domains.proxiedLabel")}</span>
+            <span className="text-xs text-muted-foreground select-none">{t("domains.proxiedLabel")}</span>
           </div>
         )}
 
         {err && <FormError err={err} />}
         
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
           <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>
           <Button variant="primary" onClick={save}>{t("domains.saveRecord")}</Button>
         </div>

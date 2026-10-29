@@ -143,7 +143,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2 text-[10px]">
       <dt className="w-12 shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 flex-1 break-all font-mono text-foreground/80">{value}</dd>
+      <dd className="min-w-0 flex-1 break-all font-mono text-foreground">{value}</dd>
     </div>
   );
 }
@@ -219,7 +219,7 @@ function ColorEditor() {
           <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Make it permanent
           </h3>
-          <pre className="overflow-x-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[10px] leading-relaxed">
+          <pre className="overflow-x-auto rounded-md border border-border bg-muted p-2 font-mono text-[10px] leading-relaxed">
             {`:root {\n${snippet}\n}`}
           </pre>
           <p className="mt-1 text-[10px] text-muted-foreground">

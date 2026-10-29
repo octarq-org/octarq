@@ -10,6 +10,7 @@ import {
   PageHeader,
   ScreenWrap,
   Skeleton,
+  TabBar,
   Table,
   TBody,
   TD,
@@ -376,157 +377,95 @@ function AgentHarnessContent({
       />
 
       {/* Executive Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
-        <GlassCard className="p-3.5 space-y-1">
-          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Bot className="h-3.5 w-3.5 text-primary" />
-            {t("agentHarness.statActiveAgents", "Active AI Employees")}
+      <div className="my-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <GlassCard className="flex items-start justify-between gap-3 p-4">
+          <div className="flex min-w-0 flex-col">
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("agentHarness.statActiveAgents", "Active AI Employees")}
+            </div>
+            <div className="tnum mt-auto pt-2 font-display text-[1.5rem] leading-none tracking-[-0.02em] text-foreground">
+              {overview ? overview.activeAgents : "—"}
+            </div>
           </div>
-          <div className="text-xl font-bold font-mono text-foreground">
-            {overview ? overview.activeAgents : "—"}
-          </div>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-fg" aria-hidden="true">
+            <Bot className="h-4 w-4" />
+          </span>
         </GlassCard>
-        <GlassCard className="p-3.5 space-y-1">
-          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Terminal className="h-3.5 w-3.5 text-primary" />
-            {t("agentHarness.statRunningTasks", "Running Tasks")}
+        <GlassCard className="flex items-start justify-between gap-3 p-4">
+          <div className="flex min-w-0 flex-col">
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("agentHarness.statRunningTasks", "Running Tasks")}
+            </div>
+            <div className="mt-auto flex items-baseline gap-1.5 pt-2">
+              <span className="tnum font-display text-[1.5rem] leading-none tracking-[-0.02em] text-accent-fg">
+                {overview ? overview.runningTasks : "—"}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {overview
+                  ? t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: overview.queuedTasks })
+                  : t("agentHarness.overviewUnavailable", "Unavailable")}
+              </span>
+            </div>
           </div>
-          <div className="text-xl font-bold font-mono text-primary">
-            {overview ? overview.runningTasks : "—"}{" "}
-            <span className="text-xs text-muted-foreground font-normal">
-              {overview
-                ? t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: overview.queuedTasks })
-                : t("agentHarness.overviewUnavailable", "Unavailable")}
-            </span>
-          </div>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-fg" aria-hidden="true">
+            <Terminal className="h-4 w-4" />
+          </span>
         </GlassCard>
-        <GlassCard className="p-3.5 space-y-1">
-          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <ShieldAlert className="h-3.5 w-3.5 text-warning-fg" />
-            {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
+        <GlassCard className="flex items-start justify-between gap-3 p-4">
+          <div className="flex min-w-0 flex-col">
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
+            </div>
+            <div className="tnum mt-auto pt-2 font-display text-[1.5rem] leading-none tracking-[-0.02em] text-warning-fg">
+              {overview ? overview.pendingApprovals : "—"}
+            </div>
           </div>
-          <div className="text-xl font-bold font-mono text-warning-fg">
-            {overview ? overview.pendingApprovals : "—"}
-          </div>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning-bg text-warning-fg" aria-hidden="true">
+            <ShieldAlert className="h-4 w-4" />
+          </span>
         </GlassCard>
-        <GlassCard className="p-3.5 space-y-1">
-          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Coins className="h-3.5 w-3.5 text-primary" />
-            {t("agentHarness.statBudgetUsage", "Monthly Budget Used")}
+        <GlassCard className="flex items-start justify-between gap-3 p-4">
+          <div className="flex min-w-0 flex-col">
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("agentHarness.statBudgetUsage", "Monthly Budget Used")}
+            </div>
+            <div className="mt-auto flex items-baseline gap-1.5 pt-2">
+              <span className="tnum font-display text-[1.5rem] leading-none tracking-[-0.02em] text-foreground">
+                {overview ? `$${overview.monthlySpend.toFixed(2)}` : "—"}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                / {overview ? `$${overview.monthlyLimit.toFixed(0)}` : "—"}
+              </span>
+            </div>
           </div>
-          <div className="text-xl font-bold font-mono text-foreground">
-            {overview ? `$${overview.monthlySpend.toFixed(2)}` : "—"}{" "}
-            <span className="text-xs text-muted-foreground font-normal">
-              / {overview ? `$${overview.monthlyLimit.toFixed(0)}` : "—"}
-            </span>
-          </div>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-fg" aria-hidden="true">
+            <Coins className="h-4 w-4" />
+          </span>
         </GlassCard>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border/60 mt-4 mb-6 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveTab("fleet")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === "fleet"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Bot className="h-4 w-4" />
-          <span>{t("agentHarness.tabFleet", "AI Employees")}</span>
-          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5 ml-1">
-            PREVIEW
-          </Badge>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("tasks")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === "tasks"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Terminal className="h-4 w-4" />
-          <span>{t("agentHarness.tabTasks", "Tasks & Issues")}</span>
-          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5 ml-1">
-            PREVIEW
-          </Badge>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("approvals")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === "approvals"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <ShieldAlert className="h-4 w-4" />
-          <span>{t("agentHarness.tabApprovals", "Board Approvals")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("budgets")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === "budgets"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Coins className="h-4 w-4" />
-          <span>{t("agentHarness.tabBudgets", "Budgets & Governance")}</span>
-          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5 ml-1">
-            PREVIEW
-          </Badge>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("specs")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === "specs"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Sliders className="h-4 w-4" />
-          <span>{t("agentHarness.tabSpecs")}</span>
-          {versions.length > 0 && (
-            <Badge variant="neutral" className="text-[10px] py-0 px-1.5 ml-1">
-              {versions.length}
-            </Badge>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("lessons")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === "lessons"
-              ? "border-primary text-foreground font-semibold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <BookOpen className="h-4 w-4" />
-          <span>{t("agentHarness.tabLessons")}</span>
-          {lessons.length > 0 && (
-            <Badge variant="neutral" className="text-[10px] py-0 px-1.5 ml-1">
-              {lessons.length}
-            </Badge>
-          )}
-        </button>
-      </div>
+      <TabBar
+        className="mb-6 mt-4"
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+        items={[
+          { value: "fleet", label: t("agentHarness.tabFleet", "AI Employees"), icon: <Bot className="h-4 w-4" /> },
+          { value: "tasks", label: t("agentHarness.tabTasks", "Tasks & Issues"), icon: <Terminal className="h-4 w-4" /> },
+          { value: "approvals", label: t("agentHarness.tabApprovals", "Board Approvals"), icon: <ShieldAlert className="h-4 w-4" /> },
+          { value: "budgets", label: t("agentHarness.tabBudgets", "Budgets & Governance"), icon: <Coins className="h-4 w-4" /> },
+          { value: "specs", label: t("agentHarness.tabSpecs"), icon: <Sliders className="h-4 w-4" />, count: versions.length || undefined },
+          { value: "lessons", label: t("agentHarness.tabLessons"), icon: <BookOpen className="h-4 w-4" />, count: lessons.length || undefined },
+        ]}
+      />
 
       {/* Prototype Status Callout */}
       {(activeTab === "fleet" || activeTab === "tasks" || activeTab === "budgets") && (
-        <div data-testid="workforce-prototype-callout" className="flex items-center justify-between rounded-xl border border-border/70 bg-well/40 p-3 text-xs mb-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider">
-              PROTOTYPE
-            </Badge>
-            <span>{t("agentHarness.fleetDesc")}</span>
-          </div>
+        <div data-testid="workforce-prototype-callout" className="mb-4 flex items-center gap-2 rounded-xl border border-border bg-well p-3 text-xs">
+          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider">
+            PREVIEW
+          </Badge>
+          <span className="text-muted-foreground">{t("agentHarness.previewNote", "These views can change before release.")}</span>
         </div>
       )}
 
@@ -556,7 +495,7 @@ function AgentHarnessContent({
                 <Skeleton className="h-4 w-72" />
               </GlassCard>
               <GlassCard className="p-0 overflow-hidden">
-                <div className="p-4 border-b border-border/50">
+                <div className="p-4 border-b border-border">
                   <Skeleton className="h-4 w-32" />
                 </div>
                 <div className="p-4 space-y-3">
@@ -663,7 +602,7 @@ function AgentHarnessContent({
                     </div>
 
                     {activeVersion ? (
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground/80">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground">
                         <span className="font-semibold text-foreground">
                           {activeVersion.name}
                         </span>
@@ -701,7 +640,7 @@ function AgentHarnessContent({
 
               {/* Versions Table */}
               <GlassCard className="overflow-hidden p-0">
-                <div className="border-b border-border/60 px-5 py-3 flex items-center justify-between">
+                <div className="border-b border-border px-5 py-3 flex items-center justify-between">
                   <h3 className="font-bold text-sm text-foreground">
                     {t("agentHarness.versionHistory")}
                   </h3>
@@ -711,7 +650,7 @@ function AgentHarnessContent({
                 </div>
 
                 <Table>
-                  <THead className="border-b border-border/60">
+                  <THead className="border-b border-border">
                     <TR>
                       <TH className="w-24">{t("agentHarness.version")}</TH>
                       <TH>{t("agentHarness.name")}</TH>
@@ -746,7 +685,7 @@ function AgentHarnessContent({
                       return (
                         <TR
                           key={v.id}
-                          className={isActive ? "bg-primary/5" : undefined}
+                          className={isActive ? "bg-accent-soft" : undefined}
                         >
                           <TD>
                             <div className="flex items-center gap-1.5 font-mono font-bold text-sm">
@@ -785,7 +724,7 @@ function AgentHarnessContent({
                             {v.publishedAt ? timeAgo(v.publishedAt) : "—"}
                           </TD>
 
-                          <TD className="text-xs text-foreground/80">
+                          <TD className="text-xs text-foreground">
                             {v.createdBy || "—"}
                           </TD>
 
@@ -815,7 +754,7 @@ function AgentHarnessContent({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleActivate(v.version, v.id)}
-                                    className="text-xs h-7 px-2 text-primary border-primary/30 hover:bg-primary/10"
+                                    className="text-xs h-7 px-2 text-accent-fg border-primary/30 hover:bg-accent-soft"
                                   >
                                     {t("agentHarness.activate")}
                                   </Button>
@@ -835,7 +774,7 @@ function AgentHarnessContent({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleActivate(v.version, v.id)}
-                                  className="text-xs h-7 px-2 text-primary border-primary/30 hover:bg-primary/10"
+                                  className="text-xs h-7 px-2 text-accent-fg border-primary/30 hover:bg-accent-soft"
                                 >
                                   {t("agentHarness.activate")}
                                 </Button>
@@ -860,7 +799,7 @@ function AgentHarnessContent({
           {lessonsLoading && (
             <div data-testid="agent-harness-lessons-loading" className="space-y-4">
               <GlassCard className="p-0 overflow-hidden">
-                <div className="p-4 border-b border-border/50">
+                <div className="p-4 border-b border-border">
                   <Skeleton className="h-4 w-32" />
                 </div>
                 <div className="p-4 space-y-3">
@@ -917,7 +856,7 @@ function AgentHarnessContent({
           {!lessonsLoading && !lessonsError && lessons.length > 0 && (
             <div data-testid="agent-harness-lessons-ready" className="space-y-4">
               <GlassCard className="overflow-hidden p-0">
-                <div className="border-b border-border/60 px-5 py-3 flex items-center justify-between">
+                <div className="border-b border-border px-5 py-3 flex items-center justify-between">
                   <h3 className="font-bold text-sm text-foreground">
                     {t("agentHarness.lessonsTitle")}
                   </h3>
@@ -927,7 +866,7 @@ function AgentHarnessContent({
                 </div>
 
                 <Table>
-                  <THead className="border-b border-border/60">
+                  <THead className="border-b border-border">
                     <TR>
                       <TH className="w-24">{t("agentHarness.lessonScope")}</TH>
                       <TH>{t("agentHarness.lessonNote")}</TH>
@@ -968,7 +907,7 @@ function AgentHarnessContent({
                           <TD className="max-w-xs">
                             <EvidenceViewer evidence={lesson.evidence} />
                           </TD>
-                          <TD className="text-xs text-foreground/80">
+                          <TD className="text-xs text-foreground">
                             {lesson.createdBy || "—"}
                           </TD>
                           <TD className="text-xs text-muted-foreground" title={lesson.createdAt}>

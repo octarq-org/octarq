@@ -129,7 +129,7 @@ export function ApprovalCard({
           data-verdict={verdict}
           className="flex items-center gap-2 rounded-lg bg-well p-2 text-xs font-medium"
         >
-          <ShieldCheck className="h-4 w-4 text-primary" />
+          <ShieldCheck className="h-4 w-4 text-accent-fg" />
           <span>
             {verdict === "decided" && t("copilot.cardApprovedDesc", "Action approved. The change executed successfully.")}
             {verdict === "rejected" && t("copilot.cardRejectedDesc", "Action rejected. The system made no changes.")}
@@ -168,7 +168,7 @@ export function ApprovalCard({
       )}
 
       {verdict === "failed" && detail && (
-        <div role="alert" className="text-xs text-destructive">
+        <div role="alert" className="text-xs text-danger-fg">
           {detail}
         </div>
       )}

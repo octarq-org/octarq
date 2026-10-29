@@ -105,7 +105,7 @@ export function HarnessProposalModal({
           </Alert>
         )}
 
-        <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 bg-well/20 text-center hover:bg-well/40 transition-colors">
+        <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 bg-well text-center hover:bg-well transition-colors">
           <input
             ref={fileInputRef}
             type="file"
@@ -144,7 +144,7 @@ export function HarnessProposalModal({
           />
         </Field>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+        <div className="flex justify-end gap-2 pt-2 border-t border-border">
           <Button
             type="button"
             variant="outline"

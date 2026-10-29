@@ -85,6 +85,7 @@ export const pt = {
   },
   topbar: {
     create: "Criar",
+    switchArea: "Alternar área",
     lightMode: "Modo claro",
     darkMode: "Modo escuro",
     workspaces: "Espaços de trabalho",

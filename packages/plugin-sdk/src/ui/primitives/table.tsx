@@ -61,7 +61,7 @@ export type TableProps = TableHTMLAttributes<HTMLTableElement>;
 
 export const Table = forwardRef<HTMLTableElement, TableProps>(({ className, ...props }, ref) => (
   <div className="w-full overflow-x-auto">
-    <table ref={ref} className={cn("w-full border-collapse text-left text-sm", className)} {...props} />
+    <table ref={ref} className={cn("w-full border-collapse text-left text-[13px]", className)} {...props} />
   </div>
 ));
 Table.displayName = "Table";
@@ -69,14 +69,14 @@ Table.displayName = "Table";
 export type THeadProps = HTMLAttributes<HTMLTableSectionElement>;
 
 export const THead = forwardRef<HTMLTableSectionElement, THeadProps>(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("text-foreground/50", className)} {...props} />
+  <thead ref={ref} className={cn("text-muted-foreground", className)} {...props} />
 ));
 THead.displayName = "THead";
 
 export type TBodyProps = HTMLAttributes<HTMLTableSectionElement>;
 
 export const TBody = forwardRef<HTMLTableSectionElement, TBodyProps>(({ className, ...props }, ref) => (
-  <tbody ref={ref} className={cn("divide-y divide-foreground/[0.06]", className)} {...props} />
+  <tbody ref={ref} className={cn("divide-y divide-border", className)} {...props} />
 ));
 TBody.displayName = "TBody";
 
@@ -85,7 +85,7 @@ export type TRProps = HTMLAttributes<HTMLTableRowElement>;
 export const TR = forwardRef<HTMLTableRowElement, TRProps>(({ className, ...props }, ref) => (
   <tr
     ref={ref}
-    className={cn("transition-colors hover:bg-foreground/[0.03]", className)}
+    className={cn("transition-colors duration-[var(--dur-fast)] hover:bg-surface-hover", className)}
     {...props}
   />
 ));
@@ -99,8 +99,8 @@ export const TH = forwardRef<HTMLTableCellElement, THProps>(({ className, ...pro
     <th
       ref={ref}
       className={cn(
-        "whitespace-nowrap px-3 text-[12px] font-medium uppercase tracking-wide",
-        density === "compact" ? "py-1" : "py-2",
+        "whitespace-nowrap px-4 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em]",
+        density === "compact" ? "py-1" : "py-2.5",
         className,
       )}
       {...props}
@@ -117,13 +117,13 @@ export const TD = forwardRef<HTMLTableCellElement, TDProps>(({ className, ...pro
     <td
       ref={ref}
       className={cn(
-        "px-3 text-foreground/80",
+        "px-4 text-foreground/80",
         // Tightened from py-2.5 for the denser look, but NOT down to py-1.5:
         // that left comfortable a hair from compact and made the density
-        // control pointless. Comfortable matches the header's py-2; compact
+        // control pointless. Comfortable matches the header's py-2.5; compact
         // stays visibly tighter. Whatever these values become, the two must
         // stay distinguishable — tableDensity.test.tsx pins that.
-        density === "compact" ? "py-1" : "py-2",
+        density === "compact" ? "py-1" : "py-2.5",
         className,
       )}
       {...props}

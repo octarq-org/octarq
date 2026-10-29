@@ -26,16 +26,16 @@ export const Switch = forwardRef<HTMLSpanElement, SwitchProps>(
       disabled={disabled}
       aria-label={ariaLabel}
       className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 rounded-full outline-none transition-colors duration-300",
+        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full outline-none transition-colors duration-[var(--dur-base)] ease-[var(--ease-out)]",
         "focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50",
-        "bg-foreground/15 data-[checked]:bg-primary",
+        "bg-border data-[checked]:bg-primary",
         className,
       )}
     >
       <BaseSwitch.Thumb
         className={cn(
-          "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-[left,transform,opacity] duration-300",
-          "left-0.5 scale-90 opacity-70 data-[checked]:left-4 data-[checked]:scale-110 data-[checked]:opacity-100",
+          "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.25)] transition-[left,transform] duration-[var(--dur-base)] ease-[var(--ease-out)]",
+          "data-[checked]:left-[1.375rem]",
         )}
       />
     </BaseSwitch.Root>

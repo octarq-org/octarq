@@ -1,4 +1,4 @@
-import { Switch, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog, Input } from "@octarq/plugin-sdk";
+import { Switch, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog, Input, TabBar } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
@@ -156,92 +156,63 @@ export function PluginsSettings() {
       {plugins !== null && plugins.length > 0 && (
         <div className="space-y-3">
           {/* Top Category Tag Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            <button
-              onClick={() => setCategoryFilter("all")}
-              className={`px-3 py-1.5 rounded-xl font-medium transition-colors shrink-0 ${
-                categoryFilter === "all"
-                  ? "bg-accent-fg text-white shadow-xs"
-                  : "bg-foreground/[0.04] text-foreground/70 hover:bg-surface-hover hover:text-foreground"
-              }`}
-            >
-              {t("settings.allCategoriesCount", { count: plugins.length })}
-            </button>
-            {availableCategories.map((c) => {
-              const meta = CATEGORIES[c] || { labelKey: "settings.pluginCategory." + c, tone: "neutral" };
-              const count = (plugins ?? []).filter((p) => (p.category || "utilities") === c).length;
-              const isSelected = categoryFilter === c;
-              return (
-                <button
-                  key={c}
-                  onClick={() => setCategoryFilter(c)}
-                  className={`px-3 py-1.5 rounded-xl font-medium transition-colors shrink-0 capitalize ${
-                    isSelected
-                      ? "bg-accent-fg text-white shadow-xs"
-                      : "bg-foreground/[0.04] text-foreground/70 hover:bg-surface-hover hover:text-foreground"
-                  }`}
-                >
-                  {t(meta.labelKey)} ({count})
-                </button>
-              );
-            })}
+          <div className="overflow-x-auto pb-1">
+            <TabBar
+              size="sm"
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+              items={[
+                {
+                  value: "all",
+                  label: t("settings.allCategories"),
+                  count: plugins.length,
+                },
+                ...availableCategories.map((c) => {
+                  const meta = CATEGORIES[c] || { labelKey: "settings.pluginCategory." + c, tone: "neutral" };
+                  const count = (plugins ?? []).filter((p) => (p.category || "utilities") === c).length;
+                  return {
+                    value: c,
+                    label: <span className="capitalize">{t(meta.labelKey)}</span>,
+                    count,
+                  };
+                }),
+              ]}
+            />
           </div>
 
           {/* Search & Status Filter Control */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-foreground/[0.02] p-3 rounded-2xl border border-border/60">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full max-w-md">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("common.search")}
-                className="pl-9 pr-3 py-1.5 text-xs rounded-xl bg-card border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/30 text-foreground placeholder:text-muted-foreground"
+                className="!pl-10"
               />
             </div>
 
-            <div className="flex items-center gap-1 bg-surface rounded-xl p-1 border border-border/40 text-xs shrink-0">
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-                  statusFilter === "all"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("settings.filterAllCount", { count: plugins.length })}
-              </button>
-              <button
-                onClick={() => setStatusFilter("enabled")}
-                className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-                  statusFilter === "enabled"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("settings.filterActiveCount", { count: enabledCount })}
-              </button>
-              <button
-                onClick={() => setStatusFilter("disabled")}
-                className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-                  statusFilter === "disabled"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("settings.filterDisabledCount", { count: plugins.length - enabledCount })}
-              </button>
-            </div>
+            <TabBar
+              size="sm"
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+              items={[
+                { value: "all", label: t("settings.filterAll"), count: plugins.length },
+                { value: "enabled", label: t("settings.enabled"), count: enabledCount },
+                { value: "disabled", label: t("settings.disabled"), count: plugins.length - enabledCount },
+              ]}
+            />
           </div>
         </div>
       )}
 
       {plugins === null ? (
-        <GlassCard className="p-8 text-sm text-center text-foreground/50">{t("settings.loadingPlugins")}</GlassCard>
+        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.loadingPlugins")}</GlassCard>
       ) : plugins.length === 0 ? (
-        <GlassCard className="p-8 text-sm text-center text-foreground/55">{t("settings.noPlugins")}</GlassCard>
+        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.noPlugins")}</GlassCard>
       ) : filteredPlugins.length === 0 ? (
-        <GlassCard className="p-8 text-sm text-center text-foreground/50">
+        <GlassCard className="p-8 text-sm text-center text-muted-foreground">
           {t("settings.noMatchingPlugins")}
         </GlassCard>
       ) : (
@@ -263,7 +234,7 @@ export function PluginsSettings() {
                   {/* Card Top Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-foreground/[0.04] border border-border/60 shadow-xs">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-well border border-border shadow-xs">
                         <PluginIcon iconStr={p.icon} firstMenuIcon={firstMenuIcon} />
                       </div>
                       <div className="min-w-0">
@@ -319,7 +290,7 @@ export function PluginsSettings() {
                       <span
                         key={tag}
                         onClick={() => setSearch("#" + tag)}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] rounded-md bg-foreground/[0.04] text-foreground/60 hover:text-accent-fg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] rounded-md bg-well text-muted-foreground hover:text-accent-fg transition-colors cursor-pointer"
                       >
                         <Tag className="h-2.5 w-2.5" />
                         {tag}
@@ -334,21 +305,21 @@ export function PluginsSettings() {
                   )}
                   {/* Card Description */}
                   {description && (
-                    <p className="text-xs text-foreground/60 leading-relaxed mt-2.5 line-clamp-3">
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 line-clamp-3">
                       {description}
                     </p>
                   )}
                 </div>
 
                 {/* Card Bottom Meta Footer */}
-                <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
+                <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     {p.menus && p.menus.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {p.menus.slice(0, 2).map((m) => (
                           <span
                             key={m.id}
-                            className="inline-block px-1.5 py-0.5 text-[10px] rounded-md bg-foreground/[0.05] text-foreground/70 truncate max-w-[120px]"
+                            className="inline-block px-1.5 py-0.5 text-[10px] rounded-md bg-well text-muted-foreground truncate max-w-[120px]"
                           >
                             {m.label}
                           </span>

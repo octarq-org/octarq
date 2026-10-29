@@ -240,7 +240,7 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
       data-testid={isLeftColumn ? "copilot-chat-pane" : undefined}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-well/40 shrink-0">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-well shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl brand-gradient text-white shadow-xs">
             <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -302,7 +302,7 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-border bg-well/20 px-4 py-2 shrink-0">
+      <div className="flex border-b border-border bg-well px-4 py-2 shrink-0">
         <div className="flex items-center gap-1 rounded-xl bg-surface-hover/50 p-0.5 w-full">
           <button
             type="button"

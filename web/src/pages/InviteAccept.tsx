@@ -67,7 +67,7 @@ export default function InviteAcceptPage() {
               ✓
             </div>
             <h2 className="text-base font-semibold text-foreground">{t("invite.successHeading")}</h2>
-            <p className="text-xs text-foreground/40">{t("invite.successBody")}</p>
+            <p className="text-xs text-muted-foreground">{t("invite.successBody")}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,7 +88,7 @@ export default function InviteAcceptPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               </div>
             </div>
 
@@ -103,7 +103,7 @@ export default function InviteAcceptPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               </div>
             </div>
 

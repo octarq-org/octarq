@@ -86,6 +86,7 @@ export const zh: Resources = {
   },
   topbar: {
     create: "新建",
+    switchArea: "切换区域",
     lightMode: "浅色模式",
     darkMode: "深色模式",
     workspaces: "工作区",

@@ -123,11 +123,11 @@ export function HarnessDiffModal({
       </div>
 
       {!diffData || !diffData.hasActive ? (
-        <div className="rounded-xl border border-border bg-well/40 p-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-well p-4 text-sm text-muted-foreground">
           {t("agentHarness.noActiveSpecDesc")}
         </div>
       ) : diffData.isIdentical ? (
-        <div className="rounded-xl border border-border bg-well/40 p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-well p-6 text-center text-sm text-muted-foreground">
           {t("agentHarness.diffIdentical")}
         </div>
       ) : (
@@ -135,7 +135,7 @@ export function HarnessDiffModal({
           {/* Metadata & Numbers */}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <GlassCard className="p-3">
-              <span className="font-semibold text-foreground/70 block mb-1">
+              <span className="font-semibold text-muted-foreground block mb-1">
                 {t("agentHarness.maxSteps")}
               </span>
               {diffData.maxStepsChanged ? (
@@ -149,12 +149,12 @@ export function HarnessDiffModal({
                   </span>
                 </div>
               ) : (
-                <span className="text-foreground/80">{targetDetail.spec.maxSteps}</span>
+                <span className="text-foreground">{targetDetail.spec.maxSteps}</span>
               )}
             </GlassCard>
 
             <GlassCard className="p-3">
-              <span className="font-semibold text-foreground/70 block mb-1">
+              <span className="font-semibold text-muted-foreground block mb-1">
                 {t("agentHarness.name")}
               </span>
               {diffData.nameChanged ? (
@@ -168,18 +168,18 @@ export function HarnessDiffModal({
                   </span>
                 </div>
               ) : (
-                <span className="text-foreground/80">{targetDetail.spec.name}</span>
+                <span className="text-foreground">{targetDetail.spec.name}</span>
               )}
             </GlassCard>
           </div>
 
           {/* Tool Allow Diff */}
           <GlassCard className="p-3 space-y-2 text-xs">
-            <span className="font-semibold text-foreground/70 block">
+            <span className="font-semibold text-muted-foreground block">
               {t("agentHarness.toolAllow")}
             </span>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-2.5 rounded bg-well/40 border border-border/50">
+              <div className="p-2.5 rounded bg-well border border-border">
                 <span className="text-[11px] text-muted-foreground block mb-1.5 font-medium">
                   {t("agentHarness.before", { version: activeDetail?.version ?? 0 })}
                 </span>
@@ -195,7 +195,7 @@ export function HarnessDiffModal({
                   </div>
                 )}
               </div>
-              <div className="p-2.5 rounded bg-well/40 border border-border/50">
+              <div className="p-2.5 rounded bg-well border border-border">
                 <span className="text-[11px] text-muted-foreground block mb-1.5 font-medium">
                   {t("agentHarness.after", { version: targetDetail.version })}
                 </span>
@@ -216,7 +216,7 @@ export function HarnessDiffModal({
 
           {/* Extra Rules Diff */}
           <GlassCard className="p-3 space-y-2 text-xs">
-            <span className="font-semibold text-foreground/70 block">
+            <span className="font-semibold text-muted-foreground block">
               {t("agentHarness.extraRules")}
             </span>
             <div className="space-y-1.5">
@@ -247,7 +247,7 @@ export function HarnessDiffModal({
               {diffData.unchangedRules.map((rule, idx) => (
                 <div
                   key={`unc-${idx}`}
-                  className="flex items-start gap-2 bg-well/30 p-2 rounded text-muted-foreground font-mono text-[11px]"
+                  className="flex items-start gap-2 bg-well p-2 rounded text-muted-foreground font-mono text-[11px]"
                 >
                   <span className="select-none opacity-40">•</span>
                   <span className="flex-1">{rule}</span>
@@ -263,17 +263,17 @@ export function HarnessDiffModal({
 
           {/* Preamble Diff */}
           <GlassCard className="p-3 space-y-2 text-xs">
-            <span className="font-semibold text-foreground/70 block">
+            <span className="font-semibold text-muted-foreground block">
               {t("agentHarness.preamble")}
             </span>
             <div className="grid grid-cols-2 gap-3 font-mono text-[11px]">
-              <div className="p-2.5 rounded bg-well/40 border border-border/50 max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
+              <div className="p-2.5 rounded bg-well border border-border max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
                 <span className="text-[10px] font-sans text-muted-foreground block mb-1">
                   {t("agentHarness.before", { version: activeDetail?.version ?? 0 })}
                 </span>
                 <p className="text-muted-foreground">{activeDetail?.spec.preamble}</p>
               </div>
-              <div className="p-2.5 rounded bg-well/40 border border-border/50 max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
+              <div className="p-2.5 rounded bg-well border border-border max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
                 <span className="text-[10px] font-sans text-muted-foreground block mb-1">
                   {t("agentHarness.after", { version: targetDetail.version })}
                 </span>
@@ -287,10 +287,10 @@ export function HarnessDiffModal({
           {/* Evidence if present on target */}
           {targetDetail.evidence !== null && targetDetail.evidence !== undefined && (
             <GlassCard className="p-3 space-y-2 text-xs">
-              <span className="font-semibold text-foreground/70 block">
+              <span className="font-semibold text-muted-foreground block">
                 {t("agentHarness.evidence")}
               </span>
-              <div className="p-2.5 rounded bg-well/40 border border-border/50 max-h-36 overflow-y-auto">
+              <div className="p-2.5 rounded bg-well border border-border max-h-36 overflow-y-auto">
                 <EvidenceViewer evidence={targetDetail.evidence} />
               </div>
             </GlassCard>
@@ -298,7 +298,7 @@ export function HarnessDiffModal({
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-2 border-t border-border/60">
+      <div className="flex items-center justify-between pt-2 border-t border-border">
         <div>
           {canActivate && (
             <Button

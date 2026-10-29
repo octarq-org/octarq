@@ -105,7 +105,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
               <h3 className="font-bold text-base text-foreground">{t("personal.mcpTitle")}</h3>
               <Badge>{t("personal.mcpBadge")}</Badge>
             </div>
-            <p className="text-xs text-foreground/60 mt-0.5 max-w-xl leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
               {t("personal.mcpDesc")}
             </p>
           </div>
@@ -121,9 +121,9 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
       </div>
 
       {/* Tabs & Token Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-foreground/[0.06]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border">
         {/* Client Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-foreground/[0.04] border border-foreground/[0.06]">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-well border border-border">
           {(
             [
               { id: "cursor", label: t("personal.mcpTabCursor"), icon: Code2 },
@@ -142,7 +142,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   active
                     ? "bg-surface text-foreground shadow-xs"
-                    : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.04]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-well"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -155,7 +155,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
         {/* Token Selector (if tokens available) */}
         {tokens.length > 0 && selectedClient !== "claude-desktop" && (
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-foreground/50 shrink-0">{t("personal.mcpSelectToken")}:</span>
+            <span className="text-muted-foreground shrink-0">{t("personal.mcpSelectToken")}:</span>
             <select
               className="input py-1 px-2 text-xs"
               value={selectedTokenPrefix}
@@ -173,8 +173,8 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
       </div>
 
       {/* Code Snippet */}
-      <div className="relative rounded-xl bg-foreground/[0.04] border border-foreground/[0.06] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 bg-foreground/[0.02] border-b border-foreground/[0.04] text-[11px] text-foreground/50">
+      <div className="relative rounded-xl bg-well border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 bg-well border-b border-border text-[11px] text-muted-foreground">
           <span className="font-mono">
             {selectedClient === "cursor" && ".cursor/mcp.json"}
             {selectedClient === "claude-desktop" && "claude_desktop_config.json"}
@@ -197,7 +197,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
 
       {/* Example Queries */}
       <div className="space-y-2 pt-2">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/80">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
           <Sparkles className="h-3.5 w-3.5 text-accent-fg" />
           <span>{t("personal.mcpExampleQueries")}</span>
         </div>
@@ -207,7 +207,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
               key={i}
               type="button"
               onClick={() => copyPrompt(query)}
-              className="flex items-center justify-between p-2.5 rounded-lg text-left text-xs bg-foreground/[0.02] border border-foreground/[0.06] hover:bg-foreground/[0.05] hover:border-accent-border transition-all text-foreground/70 group"
+              className="flex items-center justify-between p-2.5 rounded-lg text-left text-xs bg-well border border-border hover:bg-well hover:border-accent-border transition-all text-muted-foreground group"
             >
               <span className="truncate pr-2">"{query}"</span>
               <Copy className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-accent-fg" />

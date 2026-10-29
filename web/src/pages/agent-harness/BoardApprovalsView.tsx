@@ -108,7 +108,7 @@ export function BoardApprovalsView() {
       <div className="flex items-center justify-between rounded-xl border border-warning-border bg-warning-bg p-4 text-xs">
         <div className="flex items-center gap-2.5">
           <ShieldAlert className="h-5 w-5 text-warning-fg shrink-0" />
-          <div className="text-foreground/90">
+          <div className="text-foreground">
             <strong>{t("agentHarness.boardGovernanceTitle")}</strong>: {t("agentHarness.boardGovernanceDesc")}
           </div>
         </div>
@@ -159,12 +159,12 @@ export function BoardApprovalsView() {
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-2">
                     <span className="flex items-center gap-1">
-                      <Bot className="h-3 w-3 text-primary" />
+                      <Bot className="h-3 w-3 text-accent-fg" />
                       {taskItem.assignee || taskItem.assigneeAgentId}
                     </span>
                   </div>
                   {taskItem.summary && (
-                    <p className="text-xs text-foreground/80 max-w-xl">{taskItem.summary}</p>
+                    <p className="text-xs text-foreground max-w-xl">{taskItem.summary}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -245,7 +245,7 @@ export function BoardApprovalsView() {
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-2">
                     <span className="flex items-center gap-1">
-                      <Bot className="h-3 w-3 text-primary" />
+                      <Bot className="h-3 w-3 text-accent-fg" />
                       {t("agentHarness.requesterLabel")} {appr.agent || "AI Agent"}
                     </span>
                     <span>•</span>
@@ -279,13 +279,13 @@ export function BoardApprovalsView() {
               </div>
 
               {appr.reason && (
-                <div className="text-xs text-foreground/80 leading-relaxed bg-foreground/[0.03] p-3 rounded-lg border border-border/50">
+                <div className="text-xs text-foreground leading-relaxed bg-well p-3 rounded-lg border border-border">
                   {appr.reason}
                 </div>
               )}
 
               {appr.diff && appr.diff.length > 0 && (
-                <div className="rounded-lg bg-black/80 border border-border/60 p-3 font-mono text-[11px] text-warning-fg overflow-x-auto">
+                <div className="rounded-lg bg-black/80 border border-border p-3 font-mono text-[11px] text-warning-fg overflow-x-auto">
                   <div className="text-muted-foreground text-[10px] uppercase mb-1">
                     {t("agentHarness.stagedParams")}
                   </div>

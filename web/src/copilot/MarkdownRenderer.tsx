@@ -25,13 +25,13 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           }
           const codeText = codeLines.join("\n");
           return (
-            <div key={pIdx} className="my-2 overflow-hidden rounded-xl border border-border bg-muted/60 font-mono text-xs">
+            <div key={pIdx} className="my-2 overflow-hidden rounded-xl border border-border bg-muted font-mono text-xs">
               {language && (
-                <div className="border-b border-border/60 bg-muted/90 px-3 py-1 text-[11px] font-medium text-muted-foreground uppercase">
+                <div className="border-b border-border bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground uppercase">
                   {language}
                 </div>
               )}
-              <pre className="overflow-x-auto p-3 text-foreground/90">
+              <pre className="overflow-x-auto p-3 text-foreground">
                 <code>{codeText}</code>
               </pre>
             </div>
@@ -55,7 +55,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 return (
                   <blockquote
                     key={pIndex}
-                    className="border-l-2 border-primary/50 bg-primary/5 pl-3 py-1 text-xs italic text-muted-foreground my-1.5 rounded-r"
+                    className="border-l-2 border-primary/50 bg-accent-soft pl-3 py-1 text-xs italic text-muted-foreground my-1.5 rounded-r"
                   >
                     {renderInline(quoteText)}
                   </blockquote>
@@ -131,7 +131,7 @@ function renderInline(text: string): React.ReactNode[] {
       return (
         <code
           key={idx}
-          className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] text-foreground border border-border/50"
+          className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] text-foreground border border-border"
         >
           {token.slice(1, -1)}
         </code>
@@ -146,7 +146,7 @@ function renderInline(text: string): React.ReactNode[] {
     }
     if (token.startsWith("*") && token.endsWith("*") && token.length > 2) {
       return (
-        <em key={idx} className="italic text-foreground/90">
+        <em key={idx} className="italic text-foreground">
           {token.slice(1, -1)}
         </em>
       );

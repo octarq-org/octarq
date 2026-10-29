@@ -68,7 +68,7 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="invoice-audit-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {t("copilot.invoiceCanvasTitle", "Invoice Audit & Reconciliation Ledger")}
@@ -98,7 +98,7 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
             onClick={() => setActiveTab(tab)}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
               activeTab === tab
-                ? "bg-primary/10 text-primary font-semibold"
+                ? "bg-accent-soft text-accent-fg font-semibold"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -111,7 +111,7 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
       <div className="flex-1 overflow-auto rounded-xl border border-border bg-card">
         <Table className="w-full text-left text-xs border-collapse">
           <THead>
-            <TR className="border-b border-border bg-well/40 font-semibold text-muted-foreground">
+            <TR className="border-b border-border bg-well font-semibold text-muted-foreground">
               <TH className="py-2 px-3">{t("copilot.invoiceColNo", "Invoice No")}</TH>
               <TH className="py-2 px-3">{t("copilot.invoiceColVendor", "Vendor")}</TH>
               <TH className="py-2 px-3">{t("copilot.invoiceColPo", "PO Number")}</TH>
@@ -137,7 +137,7 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
                     <TD className="py-2 px-3 font-mono text-muted-foreground">{item.po_number || "PO-104"}</TD>
                     <TD className="py-2 px-3 font-mono">
                       {item.delta_cents ? (
-                        <span className="text-destructive font-semibold">
+                        <span className="text-danger-fg font-semibold">
                           +{formatCurrency(item.delta_cents)}
                         </span>
                       ) : (
@@ -171,9 +171,9 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
       {inspectedItem && (
         <div
           data-testid="po-inspector"
-          className="rounded-xl border border-border bg-well/30 p-3 space-y-2 text-xs"
+          className="rounded-xl border border-border bg-well p-3 space-y-2 text-xs"
         >
-          <div className="flex items-center justify-between border-b border-border/40 pb-2">
+          <div className="flex items-center justify-between border-b border-border pb-2">
             <div>
               <div className="text-sm font-bold text-foreground">
                 {`${t("copilot.invoicePoInspection", "PO Inspection:")} ${inspectedItem.po_number || "PO-104"}`}
@@ -190,10 +190,10 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="text-xs text-foreground/90">
+          <div className="text-xs text-foreground">
             {`${t("copilot.invoiceDiscrepancy", "Discrepancy:")} ${inspectedItem.issue || "Amount mismatch between purchase order and billed line items."}`}
           </div>
-          <div className="font-mono text-xs text-destructive font-bold">
+          <div className="font-mono text-xs text-danger-fg font-bold">
             {`${t("copilot.invoiceVariance", "Variance:")} ${formatCurrency(inspectedItem.delta_cents || 175000)}`}
           </div>
         </div>

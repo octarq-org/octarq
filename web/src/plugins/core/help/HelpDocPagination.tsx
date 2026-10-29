@@ -22,17 +22,17 @@ export function HelpDocPagination({
       {prevDoc ? (
         <button
           onClick={() => onNavigateDoc(prevDoc)}
-          className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-left transition-colors group flex items-start gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="p-4 rounded-2xl border border-border bg-card hover:bg-surface-hover text-left transition-colors group flex items-start gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
         >
           <ArrowLeft
-            className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-transform mt-0.5 shrink-0"
+            className="w-4 h-4 text-muted-foreground group-hover:text-accent-fg group-hover:-translate-x-1 transition-transform mt-0.5 shrink-0"
             aria-hidden="true"
           />
           <div>
             <div className="text-[10px] text-muted-foreground uppercase font-semibold">
               {t("help.prev_doc", "Previous")}
             </div>
-            <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+            <div className="text-xs font-bold text-foreground group-hover:text-accent-fg transition-colors">
               {prevDoc.title}
             </div>
           </div>
@@ -44,18 +44,18 @@ export function HelpDocPagination({
       {nextDoc ? (
         <button
           onClick={() => onNavigateDoc(nextDoc)}
-          className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-right transition-colors group flex items-start justify-end gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="p-4 rounded-2xl border border-border bg-card hover:bg-surface-hover text-right transition-colors group flex items-start justify-end gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
         >
           <div>
             <div className="text-[10px] text-muted-foreground uppercase font-semibold">
               {t("help.next_doc", "Next")}
             </div>
-            <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+            <div className="text-xs font-bold text-foreground group-hover:text-accent-fg transition-colors">
               {nextDoc.title}
             </div>
           </div>
           <ArrowRight
-            className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform mt-0.5 shrink-0"
+            className="w-4 h-4 text-muted-foreground group-hover:text-accent-fg group-hover:translate-x-1 transition-transform mt-0.5 shrink-0"
             aria-hidden="true"
           />
         </button>

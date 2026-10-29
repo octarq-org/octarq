@@ -73,7 +73,7 @@ function ProviderRow({
           <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
         )}
       </button>
-      {expandable && open && <div className="space-y-3 border-t border-border bg-well/50 px-4 py-4">{children}</div>}
+      {expandable && open && <div className="space-y-3 border-t border-border bg-well px-4 py-4">{children}</div>}
     </div>
   );
 }
@@ -168,7 +168,7 @@ export function AuthenticationSettings() {
   // Callback path constructed centrally; validated against Go route by oauthRoutes.test.ts.
   const CallbackField = ({ provider }: { provider: string }) => (
     <Field label={t("settings.callbackUrl")} hint={t("settings.callbackUrlHint")}>
-      <Input readOnly className="cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />
+      <Input readOnly className="cursor-text bg-well font-mono text-xs text-foreground" value={`${origin}${oauthCallbackPath(provider)}`} />
     </Field>
   );
 
@@ -199,7 +199,7 @@ export function AuthenticationSettings() {
 
       {/* Provider list (Supabase-style accordion) */}
       <div>
-        <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="eyebrow mb-2 px-1">
           {t("settings.authProviders")}
         </h3>
         <GlassCard className="overflow-hidden !p-0">

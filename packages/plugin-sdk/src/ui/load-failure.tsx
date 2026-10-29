@@ -29,10 +29,10 @@ export const AccessDenied = forwardRef<HTMLDivElement, AccessDeniedProps>(
     const { t } = useTranslation();
 
     return (
-      <GlassCard ref={ref} className={cn("mx-auto mt-8 max-w-md p-8 text-center", className)}>
-        {icon ?? <ShieldGlyph className="mx-auto mb-3 h-8 w-8 text-danger-fg" />}
-        <h3 className="mb-1 text-lg font-bold">{title ?? t("uiCommon.accessDeniedTitle")}</h3>
-        <p className="text-sm opacity-70">{body ?? t("uiCommon.accessDeniedBody")}</p>
+      <GlassCard ref={ref} className={cn("mx-auto mt-8 max-w-md rounded-2xl p-10 text-center", className)}>
+        {icon ?? <ShieldGlyph className="mx-auto mb-4 h-8 w-8 text-danger-fg" />}
+        <h3 className="mb-1.5 font-display text-[1.125rem] font-semibold tracking-[-0.01em]">{title ?? t("uiCommon.accessDeniedTitle")}</h3>
+        <p className="text-[13px] leading-relaxed text-muted-foreground">{body ?? t("uiCommon.accessDeniedBody")}</p>
       </GlassCard>
     );
   },

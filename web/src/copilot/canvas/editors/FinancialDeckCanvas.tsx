@@ -115,7 +115,7 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="financial-deck-canvas">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
             {`${content.fiscal_quarter || "FY26 Q3"} ${t("copilot.financeCanvasTitle", "— 3-Slide Executive Presentation")}`}
@@ -155,11 +155,11 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
             onClick={() => setActiveSlideIndex(idx)}
             className={`flex-1 rounded-xl border p-2.5 text-left transition-all ${
               activeSlideIndex === idx
-                ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary"
+                ? "border-primary bg-accent-soft shadow-xs ring-1 ring-accent-border"
                 : "border-border bg-card hover:bg-surface-hover"
             }`}
           >
-            <div className="font-mono text-[10px] font-bold text-primary">{`${t("copilot.financeSlidePrefix", "SLIDE #")}${s.slide_number || idx + 1}`}</div>
+            <div className="font-mono text-[10px] font-bold text-accent-fg">{`${t("copilot.financeSlidePrefix", "SLIDE #")}${s.slide_number || idx + 1}`}</div>
             <div className="font-semibold text-xs text-foreground truncate mt-0.5">{s.title}</div>
           </button>
         ))}
@@ -185,7 +185,7 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
                 aria-label={t("copilot.financeSlideTitleAria", "Slide Title")}
                 value={currentSlide.title}
                 onChange={(e) => handleUpdateCurrentSlide("title", e.target.value)}
-                className="w-full text-base font-bold text-foreground bg-transparent border-b border-border/50 pb-1 focus:border-primary focus:outline-none"
+                className="w-full text-base font-bold text-foreground bg-transparent border-b border-border pb-1 focus:border-primary focus:outline-none"
               />
               <input
                 type="text"
@@ -201,7 +201,7 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
           {/* Bullet Points */}
           <div className="space-y-2 pt-2">
             {(currentSlide.bullets || []).map((bullet, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-xs text-foreground/90 leading-relaxed">
+              <div key={idx} className="flex items-start gap-2 text-xs text-foreground leading-relaxed">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                 {presentationMode ? (
                   <span>{bullet}</span>
@@ -212,12 +212,12 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
                       aria-label={`Slide bullet point ${idx + 1}`}
                       value={bullet}
                       onChange={(e) => handleUpdateBullet(idx, e.target.value)}
-                      className="flex-1 rounded bg-background/50 border border-border/40 px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                      className="flex-1 rounded bg-well border border-border px-2 py-1 text-xs focus:border-primary focus:outline-none"
                     />
                     <button
                       onClick={() => handleDeleteBullet(idx)}
                       disabled={(currentSlide.bullets || []).length <= 1}
-                      className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                      className="p-1 text-muted-foreground hover:text-danger-fg disabled:opacity-30"
                       aria-label={t("copilot.financeRemoveBulletAria", "Remove bullet point")}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -230,7 +230,7 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
             {!presentationMode && (
               <button
                 onClick={handleAddBullet}
-                className="flex items-center gap-1 text-[11px] text-primary hover:underline pt-1"
+                className="flex items-center gap-1 text-[11px] text-accent-fg hover:underline pt-1"
               >
                 <Plus className="h-3 w-3" />
                 <span>{t("copilot.financeAddBullet", "Add bullet point")}</span>
@@ -240,14 +240,14 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-border/40 pt-2 text-[10px] text-muted-foreground font-mono">
+        <div className="flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground font-mono">
           <span>OCTARQ PRO ENTERPRISE BRIEFING</span>
           <span>{`${t("copilot.financePage", "PAGE #")}${activeSlideIndex + 1} ${t("copilot.financeOf", "OF 3")}`}</span>
         </div>
       </div>
 
       {/* Speaker Notes */}
-      <div className="rounded-xl border border-border bg-well/20 p-3 space-y-1.5 text-xs">
+      <div className="rounded-xl border border-border bg-well p-3 space-y-1.5 text-xs">
         <label className="text-[11px] font-semibold text-muted-foreground uppercase">
           {t("copilot.financeSpeakerNotes", "Speaker Notes:")}
         </label>

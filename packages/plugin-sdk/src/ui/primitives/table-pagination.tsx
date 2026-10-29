@@ -53,13 +53,13 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
     <div
       ref={ref}
       className={cn(
-        "flex flex-wrap items-center justify-between gap-4 border-t border-foreground/[0.06] px-4 py-3 text-xs text-foreground/70",
+        "flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-3 text-[12px] text-muted-foreground",
         className,
       )}
     >
       <div className="flex items-center gap-3">
         <span className="font-medium">{t("proTable.totalItems", { total })}</span>
-        <span className="text-foreground/40">|</span>
+        <span className="text-muted-foreground">|</span>
         <span>{t("proTable.pageOf", { page, totalPages: Math.max(1, pageCount) })}</span>
       </div>
 
@@ -71,7 +71,7 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
             onPageChange(1);
           }}
           aria-label={t("proTable.perPage", { size: pageSize })}
-          className="rounded-lg border border-border bg-card/60 px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          className="cursor-pointer rounded-md border border-border bg-card px-2 py-1 text-[12px] text-foreground outline-none transition-colors hover:border-border-strong focus-visible:ring-2 focus-visible:ring-accent-soft"
         >
           {pageSizeOptions.map((opt) => (
             <option key={opt} value={opt}>

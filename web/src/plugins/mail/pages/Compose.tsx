@@ -1,4 +1,4 @@
-import { Field, Input, Textarea, Modal, Button, Select, FormError, toast } from "@octarq/plugin-sdk";
+import { Field, Input, Textarea, Modal, Button, Select, FormError, buttonVariants, toast } from "@octarq/plugin-sdk";
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../../api";
@@ -165,9 +165,9 @@ export function Compose({
       ) : (
         <div className="space-y-4">
           {!loadingSenders && senders.length === 0 ? (
-            <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-xs text-foreground/80 space-y-3">
+            <div className="rounded-lg border border-warning-border bg-warning-bg p-4 text-xs text-foreground space-y-3">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 text-warning-fg shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-semibold text-foreground">
                     {t("settings.noSmtpSenders")}
@@ -182,7 +182,7 @@ export function Compose({
               {senderSource === "integration" && (
                 <Link
                   to="/settings/integrations?category=communication"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className={buttonVariants({ variant: "primary", size: "sm" })}
                 >
                   {t("settings.openIntegrationsHub")} →
                 </Link>
@@ -226,19 +226,19 @@ export function Compose({
               />
             </Field>
             {showSuggestions && contacts.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-card border border-foreground/[0.1] rounded-xl shadow-lg overflow-hidden divide-y divide-foreground/[0.05]">
+              <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-card border border-border rounded-xl shadow-lg overflow-hidden divide-y divide-border">
                 {contacts.map((c) => (
                   <button
                     key={c.id}
                     type="button"
-                    className="px-3.5 py-2 text-left text-xs hover:bg-foreground/[0.05] transition-colors flex items-center justify-between cursor-pointer"
+                    className="px-3.5 py-2 text-left text-xs hover:bg-well transition-colors flex items-center justify-between cursor-pointer"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       selectContact(c);
                     }}
                   >
-                    <span className="font-mono text-foreground/90">{c.name ? `${c.name} <${c.address}>` : c.address}</span>
-                    <span className="text-[10px] text-foreground/40 font-mono">{c.interactionCount}</span>
+                    <span className="font-mono text-foreground">{c.name ? `${c.name} <${c.address}>` : c.address}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{c.interactionCount}</span>
                   </button>
                 ))}
               </div>
@@ -251,18 +251,18 @@ export function Compose({
             <Textarea className="text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("mail.bodyPlaceholder")} required />
           </Field>
           {autoWrapLinksEnabled && (
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300 select-none">
+            <label className="flex items-center gap-2 cursor-pointer text-[13px] text-foreground select-none">
               <Input
                 type="checkbox"
                 checked={trackLinks}
                 onChange={(e) => setTrackLinks(e.target.checked)}
-                className="rounded border-zinc-700 bg-zinc-900/50 text-accent-fg focus:ring-ring"
+                className="h-4 w-4 rounded border-border accent-primary"
               />
               <span>{t("mail.trackLinks")}</span>
             </label>
           )}
           {err && <FormError err={err} />}
-          <div className="flex items-center justify-between gap-2.5 pt-4 border-t border-foreground/[0.06]">
+          <div className="flex items-center justify-between gap-2.5 pt-4 border-t border-border">
             <Button
               variant="outline"
               type="button"

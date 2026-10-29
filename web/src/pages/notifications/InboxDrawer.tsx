@@ -52,7 +52,7 @@ function InboxDrawerContent() {
               {t("notifications.inboxTitle", "站内信收件箱")}
             </h2>
             {unreadCount > 0 && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-fg">
                 {unreadCount}
               </span>
             )}
@@ -82,7 +82,7 @@ function InboxDrawerContent() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex border-b border-border bg-well/30 px-4 py-2">
+        <div className="flex border-b border-border bg-well px-4 py-2">
           <div className="flex items-center gap-1 rounded-xl bg-surface-hover/50 p-0.5">
             <button
               type="button"
@@ -116,18 +116,18 @@ function InboxDrawerContent() {
           {isLoading ? (
             <div className="space-y-3 p-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse flex items-start gap-3 rounded-xl p-3 bg-well/40">
-                  <div className="h-8 w-8 rounded-lg bg-foreground/10 shrink-0" />
+                <div key={i} className="animate-pulse flex items-start gap-3 rounded-xl p-3 bg-well">
+                  <div className="h-8 w-8 rounded-lg bg-border shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3.5 w-3/4 rounded bg-foreground/10" />
-                    <div className="h-3 w-full rounded bg-foreground/10" />
+                    <div className="h-3.5 w-3/4 rounded bg-border" />
+                    <div className="h-3 w-full rounded bg-border" />
                   </div>
                 </div>
               ))}
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-well/60 text-muted-foreground">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-well text-muted-foreground">
                 <CheckCheck className="h-6 w-6 text-muted-foreground/60" />
               </div>
               <p className="text-sm font-medium text-foreground">
@@ -167,7 +167,7 @@ function InboxDrawerContent() {
                       <span
                         className={cn(
                           "truncate text-sm text-foreground",
-                          isUnread ? "font-semibold" : "font-medium text-foreground/80",
+                          isUnread ? "font-semibold" : "font-medium text-foreground",
                         )}
                       >
                         {notif.title}
@@ -191,7 +191,7 @@ function InboxDrawerContent() {
                           <button
                             type="button"
                             onClick={() => markRead.mutate(notif.id)}
-                            className="text-xs text-primary hover:underline"
+                            className="text-xs text-accent-fg hover:underline"
                           >
                             {t("notifications.markRead", "标记已读")}
                           </button>
@@ -214,14 +214,14 @@ function InboxDrawerContent() {
         </div>
 
         {/* Drawer Footer Links */}
-        <div className="flex items-center justify-between border-t border-border bg-well/40 px-4 py-3 text-xs">
+        <div className="flex items-center justify-between border-t border-border bg-well px-4 py-3 text-xs">
           <button
             type="button"
             onClick={() => {
               closeDrawer();
               navigate("/notifications");
             }}
-            className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-1 font-medium text-foreground hover:text-accent-fg transition-colors"
           >
             <span>{t("notifications.viewAllInbox", "查看全部站内信")}</span>
             <ExternalLink className="h-3 w-3" />

@@ -103,7 +103,7 @@ export function ScriptStoryboardCard({
       forbiddenReason={forbiddenReason}
     >
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div>
             <div className="font-semibold text-foreground text-xs" data-testid="campaign-title">
               {title}
@@ -116,17 +116,17 @@ export function ScriptStoryboardCard({
             <span className="rounded-full bg-well px-2 py-0.5 font-mono text-[10px] font-medium text-foreground">
               {aspectRatio}
             </span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-fg">
               {`${durationSec}s`}
             </span>
           </div>
         </div>
 
         {firstScene ? (
-          <div className="rounded-lg border border-border/50 bg-background/50 p-2 space-y-1.5" data-testid="scene-preview">
+          <div className="rounded-lg border border-border bg-well p-2 space-y-1.5" data-testid="scene-preview">
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-semibold text-foreground flex items-center gap-1">
-                <Video className="h-3 w-3 text-primary" />
+                <Video className="h-3 w-3 text-accent-fg" />
                 <span>{`${t("copilot.scriptScenePrefix", "Scene #")}${firstScene.scene_number || firstScene.scene_no || 1}`}</span>
               </span>
               <span className="font-mono text-muted-foreground">{`${firstScene.duration_sec}s`}</span>
@@ -135,7 +135,7 @@ export function ScriptStoryboardCard({
               {firstScene.visual_description || firstScene.visual_prompt || "Cinematic opening sequence."}
             </div>
             {(firstScene.voiceover || firstScene.audio_voiceover) && (
-              <div className="text-[11px] text-foreground/80 italic line-clamp-1 border-t border-border/30 pt-1">
+              <div className="text-[11px] text-foreground italic line-clamp-1 border-t border-border pt-1">
                 "{firstScene.voiceover || firstScene.audio_voiceover}"
               </div>
             )}
@@ -146,7 +146,7 @@ export function ScriptStoryboardCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
           <Button
             size="sm"
             variant="secondary"

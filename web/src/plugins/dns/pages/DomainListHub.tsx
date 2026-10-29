@@ -44,13 +44,13 @@ export function DomainListHub({
         reason={t("domains.addFirstDomain")}
         detail={
           <>
-            <p className="text-sm text-foreground/50 leading-relaxed">{t("domains.addFirstDomainHint")}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t("domains.addFirstDomainHint")}</p>
             {accounts.length > 0 ? (
-              <p className="mt-3 text-xs text-foreground/45">
+              <p className="mt-3 text-xs text-muted-foreground">
                 {t("domains.connectedProvidersPre")} <span className="font-mono tnum">{accounts.length}</span>
               </p>
             ) : (
-              <p className="mt-3 text-xs leading-relaxed text-foreground/45">{t("domains.providerBlockerDetail")}</p>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{t("domains.providerBlockerDetail")}</p>
             )}
           </>
         }
@@ -69,7 +69,7 @@ export function DomainListHub({
             )}
             <button
               onClick={onAddNewDomain}
-              className="text-xs text-foreground/45 hover:text-foreground/70 underline underline-offset-2 transition-colors cursor-pointer"
+              className="text-xs text-muted-foreground hover:text-muted-foreground underline underline-offset-2 transition-colors cursor-pointer"
             >
               {t("domains.orAddManually")}
             </button>
@@ -100,15 +100,15 @@ export function DomainListHub({
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-2 text-xs text-foreground/60 font-medium">
-          <span className="bg-well px-2.5 py-1 rounded-lg border border-foreground/[0.06]">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+          <span className="bg-well px-2.5 py-1 rounded-lg border border-border">
             {t("domains.allDomainsCount", { count: domains.length })}
           </span>
-          <span className="bg-well px-2.5 py-1 rounded-lg border border-foreground/[0.06] text-accent-fg flex items-center gap-1">
+          <span className="bg-well px-2.5 py-1 rounded-lg border border-border text-accent-fg flex items-center gap-1">
             <LinkIcon className="h-3 w-3" />
             <span>{t("domains.linkEnabledCount", { count: linkCount })}</span>
           </span>
-          <span className="bg-well px-2.5 py-1 rounded-lg border border-foreground/[0.06] text-success-fg flex items-center gap-1">
+          <span className="bg-well px-2.5 py-1 rounded-lg border border-border text-success-fg flex items-center gap-1">
             <Mail className="h-3 w-3" />
             <span>{t("domains.mailEnabledCount", { count: mailCount })}</span>
           </span>
@@ -119,8 +119,8 @@ export function DomainListHub({
         <ListSkeleton rows={6} ariaLabel={t("domains.loading")} />
       ) : domains.length === 0 && q ? (
         <GlassCard className="flex flex-col items-center gap-3 p-8 text-center">
-          <p className="text-sm text-foreground/60">
-            {t("domains.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
+          <p className="text-sm text-muted-foreground">
+            {t("domains.emptyFilteredReason")} <span className="font-mono text-foreground">{`“${q}”`}</span>
           </p>
           <Button variant="ghost" className="text-xs py-1.5" onClick={() => onSearchChange("")}>
             {t("domains.emptyFilteredAction")}
@@ -133,7 +133,7 @@ export function DomainListHub({
               key={d.id}
               role="button"
               tabIndex={0}
-              className="glass p-4 rounded-2xl border border-foreground/[0.06] hover:border-foreground/20 transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="glass p-4 rounded-2xl border border-border hover:border-border-strong transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
               onClick={() => {
                 onSelectDomain(d, "records");
               }}
@@ -157,20 +157,20 @@ export function DomainListHub({
                       </Badge>
                     </div>
                     {d.note && (
-                      <div className="truncate text-xs text-foreground/50 mt-1">{d.note}</div>
+                      <div className="truncate text-xs text-muted-foreground mt-1">{d.note}</div>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
                   {/* Service Toggles */}
-                  <div className="flex items-center gap-2 bg-well px-3 py-1.5 rounded-xl border border-foreground/[0.05]">
+                  <div className="flex items-center gap-2 bg-well px-3 py-1.5 rounded-xl border border-border">
                     <button
                       type="button"
                       className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                         d.forLink
                           ? "bg-accent text-accent-fg font-medium"
-                          : "text-foreground/40 hover:text-foreground/70"
+                          : "text-muted-foreground hover:text-muted-foreground"
                       }`}
                       title={t("domains.toggleLinkRouting")}
                       onClick={(e) => {
@@ -186,7 +186,7 @@ export function DomainListHub({
                       className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                         d.forMail
                           ? "bg-success-bg text-success-fg border border-success-border font-medium"
-                          : "text-foreground/40 hover:text-foreground/70"
+                          : "text-muted-foreground hover:text-muted-foreground"
                       }`}
                       title={t("domains.toggleMailRouting")}
                       onClick={(e) => {
@@ -237,7 +237,7 @@ export function DomainListHub({
               </div>
             </div>
           ))}
-          {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("domains.loading")}</div>}
+          {loading && <div className="p-3 text-center text-xs text-muted-foreground">{t("domains.loading")}</div>}
         </div>
       )}
     </div>
