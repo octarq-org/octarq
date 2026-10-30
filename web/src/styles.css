@@ -13,6 +13,15 @@
    either. An OSS build has no such packages and the glob simply matches
    nothing. */
 @source "../node_modules/@octarq-org/plugin-*/dist/**/*.js";
+/* The other way a Pro plugin reaches this build: octarq.plugins.dev.json points
+   at LOCAL SOURCE in a sibling checkout (../../../octarq-pro from this file), so
+   `make dev` composes plugins that are neither workspace source nor in
+   node_modules. Without this line every Pro page lost the utilities the rest of
+   the stylesheet already uses — one-off values like `border-foreground/[0.04]`
+   and `bg-foreground/[0.02]` — and borders fell back to currentColor, so the
+   roles matrix drew a black grid over the warm-paper surface. An OSS checkout
+   has no sibling octarq-pro and the glob matches nothing. */
+@source "../../../octarq-pro/packages/plugin-*/src/**/*.tsx";
 /* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
    animation vocabulary. tw-animate-css resolves to
    node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
