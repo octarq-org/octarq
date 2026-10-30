@@ -1,4 +1,4 @@
-import { GlassCard, PageHeader, cn, useTableDensity, useSetTableDensity } from "@octarq/plugin-sdk";
+import { PageHeader, Panel, cn, useTableDensity, useSetTableDensity } from "@octarq/plugin-sdk";
 import { LANGS, useTranslation, type Lang } from "../../i18n";
 import { setTheme, useTheme, type Theme } from "../../theme";
 
@@ -33,7 +33,7 @@ function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+            "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11",
             value === o.value
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
@@ -48,13 +48,9 @@ function Segmented<T extends string>({
 
 function Setting({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <GlassCard className="p-6 max-w-xl space-y-3">
-      <div>
-        <div className="font-semibold text-sm text-foreground">{title}</div>
-        <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
-      </div>
+    <Panel title={title} description={desc} className="max-w-xl space-y-3">
       {children}
-    </GlassCard>
+    </Panel>
   );
 }
 

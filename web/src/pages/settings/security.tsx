@@ -1,4 +1,4 @@
-import { Field, Input, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
+import { Field, Input, timeAgo, PageHeader, Panel, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, type LinkedIdentity } from "../../api";
 import { Shield } from "lucide-react";
@@ -295,13 +295,12 @@ export function SecuritySettings() {
     <div className="space-y-6">
       <PageHeader title={t("settings.securityTitle")} description={t("settings.securityDescription")} />
 
-      <GlassCard className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground flex items-center gap-2"><Shield className="h-4 w-4" /> {t("settings.twoFATitle")}</h2>
-          <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.twoFADesc")}</p>
-
+      <Panel
+        title={t("settings.twoFATitle")}
+        icon={<Shield className="h-4 w-4" />}
+        description={t("settings.twoFADesc")}
+        action={<Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>}
+      >
         {enabled && (
           <div className="space-y-1">
             <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageBase")}</p>
@@ -360,24 +359,23 @@ export function SecuritySettings() {
             <Button variant="danger" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : t("settings.disable2FA")}</Button>
           </div>
         )}
-      </GlassCard>
+      </Panel>
 
-      <GlassCard className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.activeSessions")}</h2>
+      <Panel
+        title={t("settings.activeSessions")}
+        description={t("settings.activeSessionsDesc")}
+        action={
           <Button variant="danger" onClick={logoutAll} disabled={busy} className="text-xs py-1 px-3">
             {t("settings.signOutOfAll")}
           </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.activeSessionsDesc")}</p>
+        }
+      >
         <SessionsList />
-      </GlassCard>
+      </Panel>
 
-      <GlassCard className="p-6 space-y-4">
-        <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.linkedIdentities")}</h2>
-        <p className="text-xs text-muted-foreground">{t("settings.linkedIdentitiesDesc")}</p>
+      <Panel title={t("settings.linkedIdentities")} description={t("settings.linkedIdentitiesDesc")}>
         <LinkedIdentities />
-      </GlassCard>
+      </Panel>
 
 
     </div>

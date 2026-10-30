@@ -8,6 +8,7 @@ import {
   Input,
   Modal,
   PageHeader,
+  Panel,
   toast,
 } from "@octarq/plugin-sdk";
 import { api, ApiError } from "../../api";
@@ -229,20 +230,18 @@ export function ProfileSettings() {
         </form>
       </GlassCard>
 
-      <GlassCard className="p-6 space-y-3 border-danger/30">
-        <div className="flex items-center gap-2 text-danger">
-          <Trash2 size={18} />
-          <h2 className="text-base font-bold">{t("personal.dangerZone")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {t("personal.deleteAccountDesc")}
-        </p>
+      <Panel
+        title={<span className="text-danger-fg">{t("personal.dangerZone")}</span>}
+        icon={<Trash2 size={20} className="text-danger-fg" />}
+        description={t("personal.deleteAccountDesc")}
+        className="border-danger-border bg-danger-bg/50 space-y-6"
+      >
         <div className="pt-2">
           <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
             {t("personal.deleteAccountButton")}
           </Button>
         </div>
-      </GlassCard>
+      </Panel>
 
       {showDeleteModal && (
         <Modal

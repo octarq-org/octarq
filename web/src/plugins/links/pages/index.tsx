@@ -1,4 +1,4 @@
-import { Alert, Badge, Empty, ScreenWrap, PageHeader, GlassCard, Button, Input, Table, THead, TBody, TR, TH, TabBar, TableError, confirmDialog, toast } from "@octarq/plugin-sdk";
+import { Alert, Badge, Empty, ScreenWrap, PageHeader, Panel, GlassCard, Button, Input, Table, THead, TBody, TR, TH, TabBar, TableError, confirmDialog, toast } from "@octarq/plugin-sdk";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, NavLink } from "react-router-dom";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
@@ -363,16 +363,11 @@ export default function LinksPage() {
           </div>
 
           {/* Anomaly Real-Time Monitor Card */}
-          <GlassCard className="p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h3 className="font-semibold text-sm text-foreground">{t("links.tabAnomalies", "Anomaly Monitoring")}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{t("links.anomalyDesc", "Real-time monitors track 404 floods, redirect loops, and abnormal traffic spikes.")}</p>
-              </div>
-              <Badge variant="success" className="text-xs">
-                {t("links.anomalyOperational", "Operational")}
-              </Badge>
-            </div>
+          <Panel
+            title={t("links.tabAnomalies", "Anomaly Monitoring")}
+            description={t("links.anomalyDesc", "Real-time monitors track 404 floods, redirect loops, and abnormal traffic spikes.")}
+            action={<Badge variant="success" className="text-xs">{t("links.anomalyOperational", "Operational")}</Badge>}
+          >
 
             <div className="py-8 text-center space-y-2">
               <ShieldCheck className="h-10 w-10 text-success-fg mx-auto opacity-80" />
@@ -381,7 +376,7 @@ export default function LinksPage() {
                 {t("links.anomalyDesc", "Real-time monitors track 404 floods, redirect loops, and abnormal traffic spikes.")}
               </p>
             </div>
-          </GlassCard>
+          </Panel>
         </div>
       )}
 
@@ -402,11 +397,10 @@ export default function LinksPage() {
           </div>
 
           {/* Reserved Words GlassCard */}
-          <GlassCard className="p-6 space-y-4">
-            <div>
-              <h3 className="font-semibold text-sm text-foreground">{t("links.reservedTitle", "System Reserved Words")}</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("links.reservedDesc", "Reserved words prevent short links from colliding with system routes and administrative endpoints.")}</p>
-            </div>
+          <Panel
+            title={t("links.reservedTitle", "System Reserved Words")}
+            description={t("links.reservedDesc", "Reserved words prevent short links from colliding with system routes and administrative endpoints.")}
+          >
 
             <div className="flex flex-wrap gap-2 pt-2">
               {SYSTEM_RESERVED_SLUGS.map((slug) => (
@@ -418,7 +412,7 @@ export default function LinksPage() {
                 </span>
               ))}
             </div>
-          </GlassCard>
+          </Panel>
         </div>
       )}
 

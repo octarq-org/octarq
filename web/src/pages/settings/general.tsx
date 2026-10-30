@@ -1,4 +1,4 @@
-import { Field, Input, Modal, PageHeader, GlassCard, Badge, Button, toast, Code, ExtensionSlot } from "@octarq/plugin-sdk";
+import { Field, Input, Modal, PageHeader, Panel, Badge, Button, toast, Code, ExtensionSlot } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type OrgSlug, type Settings } from "../../api";
 import { ShieldAlert } from "lucide-react";
@@ -41,8 +41,7 @@ function WorkspaceAddress() {
   const changed = slug.trim() !== "" && slug.trim() !== current.slug;
 
   return (
-    <GlassCard className="p-6 space-y-4">
-      <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.workspaceAddress")}</h2>
+    <Panel title={t("settings.workspaceAddress")}>
       <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
         <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
           <div className="flex gap-2">
@@ -86,7 +85,7 @@ function WorkspaceAddress() {
           </div>
         </Modal>
       )}
-    </GlassCard>
+    </Panel>
   );
 }
 
@@ -107,11 +106,9 @@ function TenantAddress() {
   if (!subdomain) return null;
 
   return (
-    <GlassCard className="p-6 space-y-2">
-      <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.tenantSubdomain")}</h2>
-      <p className="text-xs text-muted-foreground">{t("settings.tenantSubdomainHint")}</p>
+    <Panel title={t("settings.tenantSubdomain")} description={t("settings.tenantSubdomainHint")}>
       <Code>{subdomain}</Code>
-    </GlassCard>
+    </Panel>
   );
 }
 
@@ -196,10 +193,7 @@ export function GeneralSettings() {
     <div className="space-y-6">
       <PageHeader title={t("settings.generalTitle")} description={t("settings.generalDescription")} />
 
-      <GlassCard className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.workspaceProfile")}</h2>
-        </div>
+      <Panel title={t("settings.workspaceProfile")}>
         <form onSubmit={renameWorkspace} className="max-w-md">
           <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>
             <div className="flex gap-2">
@@ -210,7 +204,7 @@ export function GeneralSettings() {
             </div>
           </Field>
         </form>
-      </GlassCard>
+      </Panel>
 
       {role === "owner" && <WorkspaceAddress />}
 
@@ -219,37 +213,29 @@ export function GeneralSettings() {
       <ExtensionSlot name="settings-workspace" />
 
       {isAdminOrOwner && (
-        <GlassCard className="p-6 space-y-4">
-          <div>
-            <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("export.title")}</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              {t("export.desc")}
-            </p>
-          </div>
+        <Panel title={t("export.title")} description={t("export.desc")}>
           <div className="pt-2">
             <Button variant="outline" onClick={handleExport} disabled={exporting}>
               {exporting ? t("export.downloading") : t("export.button")}
             </Button>
           </div>
-        </GlassCard>
+        </Panel>
       )}
 
       {isAdminOrOwner && (
         <>
-          <GlassCard className="p-6 border-danger-border bg-danger-bg/50 space-y-6">
-            <div className="flex items-center gap-2 text-danger-fg">
-              <ShieldAlert size={20} />
-              <h2 className="text-base font-bold">{t("settings.dangerZone")}</h2>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t("settings.dangerZoneDesc")}
-            </p>
+          <Panel
+            title={<span className="text-danger-fg">{t("settings.dangerZone")}</span>}
+            icon={<ShieldAlert size={20} className="text-danger-fg" />}
+            description={t("settings.dangerZoneDesc")}
+            className="border-danger-border bg-danger-bg/50 space-y-6"
+          >
             <div className="pt-2">
               <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
                 {t("settings.deleteWorkspace")}
               </Button>
             </div>
-          </GlassCard>
+          </Panel>
         </>
       )}
 

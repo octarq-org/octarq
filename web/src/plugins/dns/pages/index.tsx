@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, GlassCard, PageHeader, ScreenWrap, TabBar, toast } from "@octarq/plugin-sdk";
+import { Button, GlassCard, PageHeader, Panel, ScreenWrap, TabBar, toast } from "@octarq/plugin-sdk";
 import { api, Domain, ProviderAccount } from "../../../api";
 import { dnsApi } from "../api";
 import { Globe, RefreshCw, Plus, ArrowLeft } from "lucide-react";
@@ -200,11 +200,10 @@ export default function DomainsPage() {
                   {t("domains.backToDomains")}
                 </Button>
               </div>
-              <GlassCard className="p-6">
-                <h2 className="mb-4 text-lg font-bold text-foreground flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-accent-fg" />
-                  {t("domains.addDomainZone")}
-                </h2>
+              <Panel
+                title={t("domains.addDomainZone")}
+                icon={<Globe className="h-5 w-5 text-accent-fg" />}
+              >
                 <DomainEditorForm
                   domain={null}
                   accounts={accounts}
@@ -215,7 +214,7 @@ export default function DomainsPage() {
                     setActiveSubTab("records");
                   }}
                 />
-              </GlassCard>
+              </Panel>
             </div>
           ) : active ? (
             <DomainDetailWorkspace

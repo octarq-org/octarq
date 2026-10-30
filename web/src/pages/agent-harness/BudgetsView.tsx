@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useState } from "react";
 import {
+  Panel,
   GlassCard,
   Button,
   Badge,
@@ -242,16 +243,10 @@ export function BudgetsView() {
       </div>
 
       {/* Auto-Halt Guard Configuration */}
-      <GlassCard className="p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-bold text-foreground">
-              {t("agentHarness.runawayGuard", "Runaway Spending Protection")}
-            </h4>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {t("agentHarness.runawayGuardDesc", "When enabled, agents enter paused state if total workspace spend hits limit.")}
-            </p>
-          </div>
+      <Panel
+        title={t("agentHarness.runawayGuard", "Runaway Spending Protection")}
+        description={t("agentHarness.runawayGuardDesc", "When enabled, agents enter paused state if total workspace spend hits limit.")}
+        action={
           <div className="flex items-center gap-3">
             <Switch checked={autoHalt} onCheckedChange={handleToggleAutoHalt} aria-label={t("agentHarness.runawayGuard", "Runaway Spending Protection")} />
             <span className="text-xs font-semibold text-foreground">
@@ -260,16 +255,15 @@ export function BudgetsView() {
                 : t("agentHarness.budgetDisabled", "Disabled")}
             </span>
           </div>
-        </div>
-      </GlassCard>
+        }
+      />
 
       {/* Spend Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <GlassCard className="p-5 space-y-3">
-          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-accent-fg" />
-            {t("agentHarness.spendByAgent", "Spend by Agent")}
-          </h4>
+        <Panel
+          title={t("agentHarness.spendByAgent", "Spend by Agent")}
+          icon={<BarChart3 className="h-4 w-4 text-accent-fg" />}
+        >
           <div className="space-y-3 pt-2 text-xs">
             {spendByAgent.length === 0 && (
               <div className="py-4 text-center text-muted-foreground">
@@ -293,13 +287,12 @@ export function BudgetsView() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </Panel>
 
-        <GlassCard className="p-5 space-y-3">
-          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-accent-fg" />
-            {t("agentHarness.spendByProvider", "Spend by Model Provider")}
-          </h4>
+        <Panel
+          title={t("agentHarness.spendByProvider", "Spend by Model Provider")}
+          icon={<Cpu className="h-4 w-4 text-accent-fg" />}
+        >
           <div className="space-y-3 pt-2 text-xs">
             {spendByProvider.length === 0 && (
               <div className="py-4 text-center text-muted-foreground">
@@ -323,7 +316,7 @@ export function BudgetsView() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </Panel>
       </div>
 
       {/* Recent Spend: the ledger behind the totals above. */}
@@ -331,19 +324,14 @@ export function BudgetsView() {
 
       {/* Model Prices: the price source the billing path uses. A model with
           no price cannot bill a turn. */}
-      <GlassCard className="p-5 space-y-4">
-        <div>
-          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Coins className="h-4 w-4 text-accent-fg" />
-            {t("agentHarness.modelPrices", "Model Prices")}
-          </h4>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {t(
-              "agentHarness.modelPricesDesc",
-              "Set the price of each model the agents use. An agent turn is billed at these prices."
-            )}
-          </p>
-        </div>
+      <Panel
+        title={t("agentHarness.modelPrices", "Model Prices")}
+        icon={<Coins className="h-4 w-4 text-accent-fg" />}
+        description={t(
+          "agentHarness.modelPricesDesc",
+          "Set the price of each model the agents use. An agent turn is billed at these prices."
+        )}
+      >
 
         {priceError && <div className="text-xs text-danger-fg">{priceError}</div>}
 
@@ -427,7 +415,7 @@ export function BudgetsView() {
             {t("agentHarness.savePrice", "Save Price")}
           </Button>
         </form>
-      </GlassCard>
+      </Panel>
     </div>
   );
 }

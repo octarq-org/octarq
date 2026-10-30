@@ -198,9 +198,9 @@ export default function MailPage() {
         </div>
       )}
 
-      {tab === "inbound" && <GlassCard className="p-6"><MailSettings /></GlassCard>}
-      {tab === "smtp" && <GlassCard className="p-6"><SMTPSenders /></GlassCard>}
-      {tab === "suppressions" && <GlassCard className="p-6"><SuppressionList /></GlassCard>}
+      {tab === "inbound" && <MailSettings />}
+      {tab === "smtp" && <SMTPSenders />}
+      {tab === "suppressions" && <SuppressionList />}
 
       {newBox && <MailboxEditor box={null} hosts={mailHostOptions} onClose={() => setNewBox(false)} onSaved={() => { setNewBox(false); loadBoxes(); }} />}
       {editBox && <MailboxEditor box={editBox} hosts={mailHostOptions} onClose={() => setEditBox(null)} onSaved={() => { setEditBox(null); loadBoxes(); loadEmails(true); }} />}

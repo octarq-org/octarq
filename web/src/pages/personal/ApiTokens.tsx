@@ -82,9 +82,8 @@ export function ApiTokens() {
         {loading ? (
           <div className="text-muted-foreground text-sm py-6 text-center">{t("personal.loading")}</div>
         ) : tokens.length === 0 ? (
-          <Empty>
-            <Key className="h-8 w-8 text-muted-foreground mb-1" />
-            <div className="text-xs text-muted-foreground">{t("personal.noTokens")}</div>
+          <Empty reason={t("personal.noTokens")}>
+            <Key />
           </Empty>
         ) : (
           <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
