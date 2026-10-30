@@ -605,6 +605,8 @@ export interface RecordWorkforceSpendInput {
 export interface WorkforceDefaultAgentDTO {
   /** Empty when the workspace bills no default. */
   agentId: string;
+  /** Display name of the agent. Empty when the setting outlives its agent. */
+  name: string;
 }
 
 export interface WorkforceOverviewDTO {

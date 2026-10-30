@@ -50,12 +50,13 @@ const agentFetch = (
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url === "/api/workforce/default-agent") {
       const body = init?.method === "PUT" ? JSON.parse(String(init.body)) : { agentId: opts.defaultAgentId ?? "" };
+      const agentId = String(body.agentId ?? "");
       return Promise.resolve({
         ok: true,
         status: 200,
         statusText: "OK",
         headers: { get: () => "application/json" },
-        json: async () => ({ agentId: String(body.agentId ?? "") }),
+        json: async () => ({ agentId, name: agents.find((a) => a.id === agentId)?.name ?? "" }),
       } as unknown as Response);
     }
     if (url === "/api/workforce/agents") {
@@ -399,8 +400,8 @@ describe("AICopilotDrawer", () => {
     expect(screen.getByTestId("copilot-empty-state")).not.toBeNull();
   });
 
-  it("9. does not offer attribution to a non-admin", () => {
-    const mockFetch = agentFetch([workforceAgent()], { ok: true, chunks: [] });
+  it("9. tells a non-admin where the turn is billed without offering a choice", async () => {
+    const mockFetch = agentFetch([workforceAgent()], { ok: true, chunks: [] }, { defaultAgentId: "agent-1" });
     global.fetch = mockFetch as unknown as typeof fetch;
 
     useAICopilotStore.getState().openDrawer();
@@ -412,10 +413,13 @@ describe("AICopilotDrawer", () => {
       </I18nProvider>,
     );
 
+    // The setting carries the agent name, so the member learns it without the
+    // admin-only list. Their turns bill the workspace default, which the
+    // server applies without the client asking.
+    expect(await screen.findByText("Ops Agent")).not.toBeNull();
+    expect(screen.getByText("Bill to")).not.toBeNull();
     expect(screen.queryByLabelText("Agent to bill")).toBeNull();
-    // A member has no attribution control. Their turns bill the workspace
-    // default, which the server applies without the client asking.
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockFetch.mock.calls.some(([url]) => url === "/api/workforce/agents")).toBe(false);
   });
 
   it("10. saves the workspace default and leaves the turn to the server", async () => {
