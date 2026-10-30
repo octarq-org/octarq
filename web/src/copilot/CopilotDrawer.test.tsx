@@ -139,7 +139,7 @@ describe("CopilotDrawer", () => {
 
   it("surfaces the backend failure verbatim instead of a simulated reply", async () => {
     (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (url: string) => {
-      if (String(url).includes("/api/ai/chat/stream") || String(url).includes("/api/agui")) {
+      if (String(url).includes("/api/ai/chat/stream")) {
         return {
           ok: false,
           status: 400,

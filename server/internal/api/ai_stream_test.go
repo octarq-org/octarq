@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -183,6 +184,44 @@ func TestAIChatStream_Unconfigured(t *testing.T) {
 	}
 }
 
+// aguiEvents decodes the AG-UI frames of a streamed response.
+func aguiEvents(t *testing.T, body string) []map[string]any {
+	t.Helper()
+	var events []map[string]any
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		var ev map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data:"))), &ev); err != nil {
+			t.Fatalf("bad AG-UI frame %q: %v", line, err)
+		}
+		events = append(events, ev)
+	}
+	return events
+}
+
+// findAGUI returns the first event of the given type.
+func findAGUI(events []map[string]any, typ string) (map[string]any, bool) {
+	for _, ev := range events {
+		if ev["type"] == typ {
+			return ev, true
+		}
+	}
+	return nil, false
+}
+
+// requireAGUI fails the test when the event is absent.
+func requireAGUI(t *testing.T, events []map[string]any, typ string) map[string]any {
+	t.Helper()
+	ev, ok := findAGUI(events, typ)
+	if !ok {
+		t.Fatalf("missing %s event in %v", typ, events)
+	}
+	return ev
+}
+
 func TestAIChatStream_StreamingSuccess(t *testing.T) {
 	fake := &fakeStreamingLLM{
 		thinking: []string{"Thinking...", " deeply."},
@@ -215,18 +254,27 @@ func TestAIChatStream_StreamingSuccess(t *testing.T) {
 		t.Fatalf("expected Content-Type text/event-stream, got %q", ct)
 	}
 
-	output := rec.Body.String()
-	if !strings.Contains(output, "event: thinking") {
-		t.Errorf("missing event: thinking in SSE stream: %s", output)
+	events := aguiEvents(t, rec.Body.String())
+	if events[0]["type"] != "RUN_STARTED" {
+		t.Fatalf("first event = %v, want RUN_STARTED", events[0])
 	}
-	if !strings.Contains(output, "event: text") {
-		t.Errorf("missing event: text in SSE stream: %s", output)
+	if ev, ok := findAGUI(events, "THINKING_TEXT_MESSAGE_CONTENT"); !ok || ev["delta"] != "Thinking..." {
+		t.Errorf("missing thinking delta in %v", events)
 	}
-	if !strings.Contains(output, "event: done") {
-		t.Errorf("missing event: done in SSE stream: %s", output)
+	if ev, ok := findAGUI(events, "TEXT_MESSAGE_CONTENT"); !ok || ev["delta"] != "Hello " {
+		t.Errorf("missing text delta in %v", events)
 	}
-	if !strings.Contains(output, "reasoningTokens") {
-		t.Errorf("missing reasoningTokens in done payload: %s", output)
+	finished, ok := findAGUI(events, "RUN_FINISHED")
+	if !ok {
+		t.Fatalf("missing RUN_FINISHED in %v", events)
+	}
+	usage, _ := finished["usage"].([]any)
+	if len(usage) != 1 {
+		t.Fatalf("usage = %v, want one entry", finished["usage"])
+	}
+	entry, _ := usage[0].(map[string]any)
+	if entry["reasoningTokens"] != float64(4) || entry["inputTokens"] != float64(10) {
+		t.Errorf("usage entry = %v, want the turn totals", entry)
 	}
 }
 
@@ -250,12 +298,16 @@ func TestAIChatStream_StreamError(t *testing.T) {
 		t.Fatalf("expected 200 OK (stream started), got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	output := rec.Body.String()
-	if !strings.Contains(output, "event: error") {
-		t.Errorf("expected event: error in stream, got %s", output)
+	events := aguiEvents(t, rec.Body.String())
+	errEvent, ok := findAGUI(events, "RUN_ERROR")
+	if !ok {
+		t.Fatalf("expected RUN_ERROR in stream, got %v", events)
 	}
-	if !strings.Contains(output, "upstream API error") {
-		t.Errorf("expected upstream error message in stream, got %s", output)
+	if msg, _ := errEvent["message"].(string); !strings.Contains(msg, "upstream API error") {
+		t.Errorf("expected upstream error message, got %q", msg)
+	}
+	if _, ok := findAGUI(events, "RUN_FINISHED"); ok {
+		t.Errorf("a failed run must not finish successfully: %v", events)
 	}
 }
 
@@ -284,12 +336,75 @@ func TestAIChatStream_ToolStream(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	output := rec.Body.String()
-	if !strings.Contains(output, "event: tool") {
-		t.Errorf("expected event: tool in stream, got %s", output)
+	events := aguiEvents(t, rec.Body.String())
+	started, ok := findAGUI(events, "TOOL_CALL_START")
+	if !ok || started["toolCallName"] != "search" {
+		t.Fatalf("expected a TOOL_CALL_START for search, got %v", events)
 	}
-	if !strings.Contains(output, `"name":"search"`) {
-		t.Errorf("expected tool name in stream data, got %s", output)
+	args, ok := findAGUI(events, "TOOL_CALL_ARGS")
+	if !ok || args["delta"] != `{"q":"golang"}` {
+		t.Fatalf("expected the tool arguments, got %v", events)
+	}
+	if _, ok := findAGUI(events, "TOOL_CALL_RESULT"); !ok {
+		t.Fatalf("expected a tool result, got %v", events)
+	}
+}
+
+// TestAIChatStream_RefusesUnsupportedRunInput pins the fields the server
+// would otherwise drop. A client that sends them must learn they have no
+// effect, not run with a false belief about the turn.
+func TestAIChatStream_RefusesUnsupportedRunInput(t *testing.T) {
+	user := `{"role":"user","content":"hi"}`
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"client tools", `{"messages":[` + user + `],"tools":[{"name":"x"}]}`, "Client tools are not supported"},
+		{"run state", `{"messages":[` + user + `],"state":{"a":1}}`, "Run state is not supported."},
+		{"context", `{"messages":[` + user + `],"context":[{"value":"x"}]}`, "Context entries are not supported."},
+		{"forwarded props", `{"messages":[` + user + `],"forwardedProps":{"a":1}}`, "Forwarded properties are not supported."},
+		{"resume", `{"messages":[` + user + `],"resume":[{"interruptId":"i"}]}`, "Run resume is not supported."},
+		{"structured content", `{"messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}`, "Message content must be text."},
+		{"tool role", `{"messages":[{"role":"tool","content":"out"},` + user + `]}`, "Only user and assistant messages are accepted."},
+		{"last is assistant", `{"messages":[` + user + `,{"role":"assistant","content":"yo"}]}`, "The last message must come from the user."},
+		{"empty last", `{"messages":[{"role":"user","content":"   "}]}`, "The last message must have text."},
+		{"long run id", `{"runId":"` + strings.Repeat("r", 65) + `","messages":[` + user + `]}`, "The run ID must have 1 to 64 characters."},
+		{"long thread id", `{"threadId":"` + strings.Repeat("t", 129) + `","messages":[` + user + `]}`, "The thread ID must have 1 to 128 characters."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, _ := newAIStreamTestHandler(t, &fakeStreamingLLM{})
+			rec := do(srv, "POST", "/api/ai/chat/stream", sessionCookies(t, 1, 1), tc.body)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400 (%s)", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), tc.want) {
+				t.Fatalf("body = %s, want %q", rec.Body.String(), tc.want)
+			}
+		})
+	}
+}
+
+// TestAIChatStream_EmptyRunInputIsAccepted pins the standard shape: an AG-UI
+// client sends null or empty containers for fields it does not use.
+func TestAIChatStream_EmptyRunInputIsAccepted(t *testing.T) {
+	srv, _ := newAIStreamTestHandler(t, &fakeStreamingLLM{texts: []string{"ok"}})
+	body := `{"threadId":"t-1","runId":"r-1","messages":[{"role":"user","content":"hi"}],"tools":[],"state":null,"context":[],"forwardedProps":{}}`
+	rec := do(srv, "POST", "/api/ai/chat/stream", sessionCookies(t, 1, 1), body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body.String())
+	}
+	events := aguiEvents(t, rec.Body.String())
+	if len(events) == 0 || events[0]["type"] != "RUN_STARTED" {
+		t.Fatalf("first event = %v, want RUN_STARTED", events)
+	}
+	if events[0]["threadId"] != "t-1" || events[0]["runId"] != "r-1" {
+		t.Fatalf("run started = %v", events[0])
+	}
+	last := events[len(events)-1]
+	if last["type"] != "RUN_FINISHED" {
+		t.Fatalf("last event = %v, want RUN_FINISHED", last)
 	}
 }
 
@@ -345,5 +460,68 @@ func TestAIChatStream_IgnoresClientSystemPrompt(t *testing.T) {
 	}
 	if !strings.Contains(fake.lastReq.System, "Octarq workspace assistant") {
 		t.Fatalf("expected the compiled system prompt, got %q", fake.lastReq.System)
+	}
+}
+
+// TestAIChatStream_WireFraming locks the SSE shape a client parses: each
+// frame is an optional "id:" line and one "data: <json>" line, frames end
+// with a blank line, and the stream carries no named "event:" lines. A
+// keep-alive comment is the one other frame a client can receive.
+func TestAIChatStream_WireFraming(t *testing.T) {
+	fake := &fakeStreamingLLM{texts: []string{"ok"}, resp: llmprovider.Response{StopReason: "end_turn"}}
+	srv, _ := newAIStreamTestHandler(t, fake)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream",
+		strings.NewReader(`{"threadId":"thread-wire","runId":"run-wire","messages":[{"role":"user","content":"hi"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	for _, c := range sessionCookies(t, 1, 1) {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	body := rec.Body.String()
+	if !strings.HasSuffix(body, "\n\n") {
+		t.Fatalf("the last frame does not end with a blank line: %q", body)
+	}
+	frames := strings.Split(strings.TrimSuffix(body, "\n\n"), "\n\n")
+	if len(frames) < 3 {
+		t.Fatalf("frames = %d, want at least RUN_STARTED, text and RUN_FINISHED", len(frames))
+	}
+
+	types := make([]string, 0, len(frames))
+	for _, frame := range frames {
+		if strings.HasPrefix(frame, ": ") {
+			if frame != ": ping" {
+				t.Fatalf("unexpected comment frame %q", frame)
+			}
+			continue
+		}
+		lines := strings.Split(frame, "\n")
+		if lines[0] != "" && strings.HasPrefix(lines[0], "id: ") {
+			lines = lines[1:]
+		}
+		if len(lines) != 1 || !strings.HasPrefix(lines[0], "data: ") {
+			t.Fatalf("frame %q is not one data line", frame)
+		}
+		raw := strings.TrimPrefix(lines[0], "data: ")
+		var ev map[string]any
+		if err := json.Unmarshal([]byte(raw), &ev); err != nil {
+			t.Fatalf("frame %q is not JSON: %v", frame, err)
+		}
+		typ, _ := ev["type"].(string)
+		if typ == "" {
+			t.Fatalf("frame has no type: %q", frame)
+		}
+		types = append(types, typ)
+	}
+	if types[0] != "RUN_STARTED" || types[len(types)-1] != "RUN_FINISHED" {
+		t.Fatalf("event order = %v, want RUN_STARTED first and RUN_FINISHED last", types)
+	}
+	if strings.Contains(body, "event:") {
+		t.Fatalf("the stream carries named event lines: %q", body)
 	}
 }

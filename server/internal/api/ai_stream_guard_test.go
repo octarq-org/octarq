@@ -183,12 +183,13 @@ func TestAIChatStream_ReadOnlyGuard_HaltsOnApprovalRequired(t *testing.T) {
 		t.Fatalf("approval required endpoint was executed but should have been vetoed")
 	}
 
-	output := rec.Body.String()
-	if !strings.Contains(output, "event: error") {
-		t.Fatalf("expected event: error in stream output, got %s", output)
+	events := aguiEvents(t, rec.Body.String())
+	errEvent, ok := findAGUI(events, "RUN_ERROR")
+	if !ok {
+		t.Fatalf("expected RUN_ERROR in stream output, got %v", events)
 	}
-	if !strings.Contains(output, "requires operator approval") {
-		t.Fatalf("expected approval required error message, got %s", output)
+	if msg, _ := errEvent["message"].(string); !strings.Contains(msg, "requires operator approval") {
+		t.Fatalf("expected approval required error message, got %q", msg)
 	}
 }
 

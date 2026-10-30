@@ -202,8 +202,8 @@ describe("AICopilotDrawer", () => {
 
   it("3. clicking a prompt card immediately sends the message and streams response", async () => {
     const streamChunks = [
-      'event: text\ndata: {"delta": "DNS records are currently healthy across all edge locations."}\n\n',
-      'event: done\ndata: {}\n\n',
+      'data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"DNS records are currently healthy across all edge locations."}\n\n',
+      'data: {"type":"RUN_FINISHED","threadId":"t1","runId":"r1"}\n\n',
     ];
 
     const mockFetch = vi.fn().mockResolvedValue({
@@ -231,7 +231,7 @@ describe("AICopilotDrawer", () => {
         "/api/ai/chat/stream",
         expect.objectContaining({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
         }),
       );
     });
@@ -246,9 +246,9 @@ describe("AICopilotDrawer", () => {
 
   it("4. supports manual input, Enter to send, Shift+Enter for newline", async () => {
     const streamChunks = [
-      'event: thinking\ndata: {"delta": "Analyzing query...", "tokens": 24}\n\n',
-      'event: text\ndata: {"delta": "Here is the response."}\n\n',
-      'event: done\ndata: {}\n\n',
+      'data: {"type":"THINKING_TEXT_MESSAGE_CONTENT","delta":"Analyzing query..."}\n\n',
+      'data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"Here is the response."}\n\n',
+      'data: {"type":"RUN_FINISHED","threadId":"t1","runId":"r1"}\n\n',
     ];
 
     const mockFetch = vi.fn().mockResolvedValue({
@@ -284,7 +284,8 @@ describe("AICopilotDrawer", () => {
     await waitFor(() => {
       expect(screen.getByText("Line 1")).not.toBeNull();
       expect(screen.getByText("Here is the response.")).not.toBeNull();
-      expect(screen.getByText("(24 tokens)")).not.toBeNull();
+      // The protocol carries no per-delta token count; usage arrives with
+      // the finished run.
     });
   });
 
@@ -425,7 +426,10 @@ describe("AICopilotDrawer", () => {
   it("10. saves the workspace default and leaves the turn to the server", async () => {
     const mockFetch = agentFetch([workforceAgent()], {
       ok: true,
-      chunks: ['event: text\ndata: {"delta": "Billed reply"}\n\n', "event: done\ndata: {}\n\n"],
+      chunks: [
+        'data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"Billed reply"}\n\n',
+        'data: {"type":"RUN_FINISHED","threadId":"t1","runId":"r1"}\n\n',
+      ],
     });
     global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -458,9 +462,11 @@ describe("AICopilotDrawer", () => {
     expect(chatCall).toBeDefined();
     // The server applies the default, so the turn names no agent. That keeps a
     // member's turn eligible, which an explicit agentId would refuse.
-    expect(JSON.parse(String(chatCall![1].body))).toEqual({
-      messages: [{ role: "user", content: "Run the report" }],
-    });
+    const chatBody = JSON.parse(String(chatCall![1].body));
+    expect(chatBody.messages).toEqual([{ role: "user", content: "Run the report" }]);
+    expect(typeof chatBody.threadId).toBe("string");
+    expect(typeof chatBody.runId).toBe("string");
+    expect(chatBody).not.toHaveProperty("agentId");
 
     // The list is read again after the turn, so the spend shown is current.
     await waitFor(() => {

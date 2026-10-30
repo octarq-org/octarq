@@ -4,7 +4,7 @@ import { AlertCircle, Mail, Search, Send, Sparkles, Square, Sunrise, TrendingUp,
 import { cn } from "@octarq/plugin-sdk";
 import { useTranslation } from "../i18n";
 import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
-import { streamChatResponse } from "./command/streamChat";
+import { newChatRunId, newChatThreadId, streamChatResponse } from "./command/streamChat";
 import type { ChatMessage } from "./command/types";
 import { A2UIRenderer, type A2UIWidget } from "../components/a2ui";
 import { CopilotAgentPicker } from "./CopilotAgentPicker";
@@ -15,6 +15,9 @@ import { roleSatisfies, useCurrentRole } from "./role";
 
 export interface AICopilotUIState {
   isOpen: boolean;
+  // threadId groups the turns of the open conversation. A new conversation
+  // gets a new id.
+  threadId: string;
   messages: ChatMessage[];
   input: string;
   isStreaming: boolean;
@@ -35,6 +38,7 @@ export interface AICopilotUIState {
 
 export const useAICopilotStore = create<AICopilotUIState>((set) => ({
   isOpen: false,
+  threadId: newChatThreadId(),
   messages: [],
   input: "",
   isStreaming: false,
@@ -68,9 +72,16 @@ export const useAICopilotStore = create<AICopilotUIState>((set) => ({
 
   setIsStreaming: (isStreaming) => set({ isStreaming }),
   setError: (error) => set({ error }),
-  clearMessages: () => set({ messages: [], input: "", error: null }),
+  clearMessages: () => set({ messages: [], input: "", error: null, threadId: newChatThreadId() }),
   resetDrawer: () =>
-    set({ isOpen: false, messages: [], input: "", isStreaming: false, error: null }),
+    set({
+      isOpen: false,
+      messages: [],
+      input: "",
+      isStreaming: false,
+      error: null,
+      threadId: newChatThreadId(),
+    }),
 }));
 
 /**
@@ -121,6 +132,7 @@ export function AICopilotDrawer() {
     closeDrawer,
     toggleDrawer,
     openDrawer,
+    threadId,
     messages,
     setMessages,
     updateLastMessage,
@@ -251,6 +263,8 @@ export function AICopilotDrawer() {
 
       await streamChatResponse({
         messages: outboundMessages,
+        threadId,
+        runId: newChatRunId(),
         signal: controller.signal,
         onThinking: (delta, tokens) => {
           updateLastMessage((prev) => ({
