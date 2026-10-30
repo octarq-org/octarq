@@ -62,6 +62,7 @@ import type {
   SetWorkforceModelPriceInput,
   WorkforceSpendEventDTO,
   RecordWorkforceSpendInput,
+  WorkforceDefaultAgentDTO,
 } from "./types";
 
 export class ApiError extends Error {
@@ -523,4 +524,8 @@ export const api = {
       `/api/workforce/agents/${encodeURIComponent(id)}/spend`,
       input
     ),
+  workforceDefaultAgent: (): Promise<WorkforceDefaultAgentDTO> =>
+    req<WorkforceDefaultAgentDTO>("GET", "/api/workforce/default-agent"),
+  setWorkforceDefaultAgent: (agentId: string): Promise<WorkforceDefaultAgentDTO> =>
+    req<WorkforceDefaultAgentDTO>("PUT", "/api/workforce/default-agent", { agentId }),
 };

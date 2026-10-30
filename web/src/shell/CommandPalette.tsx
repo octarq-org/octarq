@@ -14,6 +14,7 @@ import { type ChatMessage } from "./command/types";
 import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
 import { streamChatResponse } from "./command/streamChat";
 import { ChatView } from "./command/ChatView";
+import { agentFailureText } from "./agentFailureText";
 
 export { type ChatMessage } from "./command/types";
 export { ThinkingCollapsible } from "./command/ThinkingCollapsible";
@@ -258,8 +259,8 @@ export function CommandPalette({
             ),
           );
         },
-        onError: (err) => {
-          setChatError(err);
+        onError: (err, failure) => {
+          setChatError(agentFailureText(t, failure, err));
           setIsStreaming(false);
         },
         onDone: () => {
@@ -267,7 +268,7 @@ export function CommandPalette({
         },
       });
     },
-    [chatInput, isStreaming, messages],
+    [chatInput, isStreaming, messages, t],
   );
 
   const startChatWithQuery = useCallback(

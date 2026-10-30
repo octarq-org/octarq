@@ -332,6 +332,8 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/approvals/{id}", Summary: "Decide Task Approval", Tags: []string{"Workforce"}}, h.decideWorkforceApproval)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/overview", Summary: "Get Workforce Overview", Tags: []string{"Workforce"}}, h.getWorkforceOverview)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/workforce/budgets/auto-halt", Summary: "Toggle Budget Auto-Halt", Tags: []string{"Workforce"}}, h.toggleWorkforceAutoHalt)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/default-agent", Summary: "Get Default Agent", Tags: []string{"Workforce"}}, h.getDefaultAgent)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/workforce/default-agent", Summary: "Set Default Agent", Tags: []string{"Workforce"}}, h.setDefaultAgent)
 	// Billing: model prices and the spend ledger that accrues agent budgets.
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/workforce/model-prices", Summary: "List Model Prices", Tags: []string{"Workforce"}}, h.listModelPrices)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/workforce/model-prices", Summary: "Set Model Price", Tags: []string{"Workforce"}}, h.setModelPrice)

@@ -601,6 +601,12 @@ export interface RecordWorkforceSpendInput {
   turnId: string;
 }
 
+/** The agent a chat turn is billed to when the request names none. */
+export interface WorkforceDefaultAgentDTO {
+  /** Empty when the workspace bills no default. */
+  agentId: string;
+}
+
 export interface WorkforceOverviewDTO {
   activeAgents: number;
   runningTasks: number;

@@ -139,7 +139,19 @@ func toTaskDTO(t models.WorkforceTask, steps []models.WorkforceTaskStep) Workfor
 	}
 }
 
+// workforceCaller authenticates a workspace admin: it guards the endpoints that
+// configure the fleet and its billing.
 func (h *Handler) workforceCaller(ctx huma.Context) (*http.Request, uint, *agentstore.WorkforceStore, error) {
+	return h.workforceCallerAs(ctx, true)
+}
+
+// workforceMemberCaller authenticates any member of the workspace. It serves the
+// read-only surfaces a member needs to see where their turns are billed.
+func (h *Handler) workforceMemberCaller(ctx huma.Context) (*http.Request, uint, *agentstore.WorkforceStore, error) {
+	return h.workforceCallerAs(ctx, false)
+}
+
+func (h *Handler) workforceCallerAs(ctx huma.Context, needAdmin bool) (*http.Request, uint, *agentstore.WorkforceStore, error) {
 	if ctx == nil {
 		return nil, 0, nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
@@ -148,8 +160,10 @@ func (h *Handler) workforceCaller(ctx huma.Context) (*http.Request, uint, *agent
 	if !ok {
 		return nil, 0, nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
-	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, 0, nil, err
+	if needAdmin {
+		if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+			return nil, 0, nil, err
+		}
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {

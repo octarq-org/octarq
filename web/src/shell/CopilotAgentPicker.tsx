@@ -53,6 +53,11 @@ export function CopilotAgentPicker({ agents, value, onChange, loadFailed, autoHa
           </span>
         )}
       </div>
+      {selected && (
+        <p className="text-[10px] text-muted-foreground">
+          {t("copilot.agentWorkspaceDefault", "Every chat turn in this workspace bills this agent.")}
+        </p>
+      )}
       {loadFailed && (
         <p className="text-[10px] text-warning-fg">{t("copilot.agentLoadError", "Could not load agents.")}</p>
       )}

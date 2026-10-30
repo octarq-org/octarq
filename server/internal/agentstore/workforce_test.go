@@ -454,3 +454,59 @@ func TestWorkforceStore_GeneratedIDsAreNotClockDerived(t *testing.T) {
 		t.Errorf("unexpected task ID shape: %q", task.ID)
 	}
 }
+
+// TestWorkforce_DefaultAgentSetting pins the workspace setting that decides
+// which agent an unattributed chat turn is billed to.
+func TestWorkforce_DefaultAgentSetting(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(701)
+
+	agent, err := store.CreateAgent(ctx, orgID, models.WorkforceAgent{
+		Name: "Default Bot", Role: "Operator", Department: "Operations",
+		Model: "m", BudgetLimit: 10,
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+
+	if got, err := store.GetDefaultAgent(ctx, orgID); err != nil || got != "" {
+		t.Fatalf("new workspace default = %q (err %v), want empty", got, err)
+	}
+	if err := store.SetDefaultAgent(ctx, orgID, agent.ID); err != nil {
+		t.Fatalf("SetDefaultAgent: %v", err)
+	}
+	if got, err := store.GetDefaultAgent(ctx, orgID); err != nil || got != agent.ID {
+		t.Fatalf("default = %q (err %v), want %q", got, err, agent.ID)
+	}
+
+	// Another workspace has its own answer.
+	if got, err := store.GetDefaultAgent(ctx, 702); err != nil || got != "" {
+		t.Fatalf("other workspace default = %q (err %v), want empty", got, err)
+	}
+
+	// The setting cannot point at an agent this workspace does not own.
+	if err := store.SetDefaultAgent(ctx, 702, agent.ID); !errors.Is(err, ErrAgentNotFound) {
+		t.Fatalf("cross-workspace default = %v, want ErrAgentNotFound", err)
+	}
+
+	// An empty value clears it.
+	if err := store.SetDefaultAgent(ctx, orgID, ""); err != nil {
+		t.Fatalf("SetDefaultAgent clear: %v", err)
+	}
+	if got, err := store.GetDefaultAgent(ctx, orgID); err != nil || got != "" {
+		t.Fatalf("default after clear = %q (err %v), want empty", got, err)
+	}
+
+	// Deleting the agent clears the default that pointed at it.
+	if err := store.SetDefaultAgent(ctx, orgID, agent.ID); err != nil {
+		t.Fatalf("SetDefaultAgent again: %v", err)
+	}
+	if err := store.DeleteAgent(ctx, orgID, agent.ID); err != nil {
+		t.Fatalf("DeleteAgent: %v", err)
+	}
+	if got, err := store.GetDefaultAgent(ctx, orgID); err != nil || got != "" {
+		t.Fatalf("default after deleting its agent = %q (err %v), want empty", got, err)
+	}
+}

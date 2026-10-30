@@ -39,14 +39,25 @@ const workforceAgent = (overrides: Partial<WorkforceAgentDTO> = {}): WorkforceAg
   ...overrides,
 });
 
-// agentFetch answers the agent list and the chat stream from one fetch mock.
+// agentFetch answers the agent list, the default-agent setting, and the chat
+// stream from one fetch mock.
 const agentFetch = (
   agents: WorkforceAgentDTO[],
   chat: { ok: true; chunks: string[] } | { ok: false; status: number; body: Record<string, string> },
-  opts: { autoHalt?: boolean } = {},
+  opts: { autoHalt?: boolean; defaultAgentId?: string } = {},
 ) =>
-  vi.fn((input: string | URL | Request) => {
+  vi.fn((input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url === "/api/workforce/default-agent") {
+      const body = init?.method === "PUT" ? JSON.parse(String(init.body)) : { agentId: opts.defaultAgentId ?? "" };
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: { get: () => "application/json" },
+        json: async () => ({ agentId: String(body.agentId ?? "") }),
+      } as unknown as Response);
+    }
     if (url === "/api/workforce/agents") {
       return Promise.resolve({
         ok: true,
@@ -260,7 +271,7 @@ describe("AICopilotDrawer", () => {
     // Shift+Enter should NOT send
     fireEvent.change(textarea, { target: { value: "Line 1" } });
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockFetch.mock.calls.filter(([url]) => url === "/api/ai/chat/stream")).toHaveLength(0);
 
     // Plain Enter sends
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
@@ -402,10 +413,12 @@ describe("AICopilotDrawer", () => {
     );
 
     expect(screen.queryByLabelText("Agent to bill")).toBeNull();
+    // A member has no attribution control. Their turns bill the workspace
+    // default, which the server applies without the client asking.
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("10. bills an admin turn to the selected agent and refreshes the spend", async () => {
+  it("10. saves the workspace default and leaves the turn to the server", async () => {
     const mockFetch = agentFetch([workforceAgent()], {
       ok: true,
       chunks: ['event: text\ndata: {"delta": "Billed reply"}\n\n', "event: done\ndata: {}\n\n"],
@@ -417,6 +430,15 @@ describe("AICopilotDrawer", () => {
     const select = await screen.findByLabelText("Agent to bill");
     fireEvent.change(select, { target: { value: "agent-1" } });
     expect(screen.getByText("$1.50 of $10.00")).not.toBeNull();
+
+    // The picker writes the workspace setting, not a per-session value.
+    await waitFor(() => {
+      const put = mockFetch.mock.calls.find(
+        ([url, init]) => url === "/api/workforce/default-agent" && init?.method === "PUT",
+      );
+      expect(put).toBeDefined();
+      expect(JSON.parse(String(put![1]!.body))).toEqual({ agentId: "agent-1" });
+    });
 
     const textarea = screen.getByPlaceholderText(/Ask anything about your workspace/);
     fireEvent.change(textarea, { target: { value: "Run the report" } });
@@ -430,7 +452,11 @@ describe("AICopilotDrawer", () => {
       | [string, RequestInit]
       | undefined;
     expect(chatCall).toBeDefined();
-    expect(JSON.parse(String(chatCall![1].body))).toMatchObject({ agentId: "agent-1" });
+    // The server applies the default, so the turn names no agent. That keeps a
+    // member's turn eligible, which an explicit agentId would refuse.
+    expect(JSON.parse(String(chatCall![1].body))).toEqual({
+      messages: [{ role: "user", content: "Run the report" }],
+    });
 
     // The list is read again after the turn, so the spend shown is current.
     await waitFor(() => {

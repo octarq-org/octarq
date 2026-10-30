@@ -151,15 +151,33 @@ select the provider route or the price row.
 | External agent runtime | `runtime` | `POST /api/workforce/agents/{id}/spend` |
 
 The chat stream authorizes before the SSE response opens, so a refusal is a
-real HTTP status. It requires the workspace admin role, the same authority the
-workforce page needs. It records the turn after the run and before the `done`
+real HTTP status. It records the turn after the run and before the `done`
 event; a failed write is surfaced as an SSE `error` event and logged.
 
-The Copilot drawer is the only UI producer. An admin selects an agent in the
-**Bill to** control; the drawer sends `agentId` on each turn and shows the
-agent spend. A member does not see the control, and the server refuses a member
-request with `403 forbidden`. Refusals carry a stable code the drawer
-translates into the next action:
+### Default agent
+
+`workspace_settings.workforce.default_agent` names the agent an unattributed
+chat turn is billed to. It is the single answer to "who pays for this turn", so
+every chat surface reads it rather than keeping its own selection.
+
+- `GET /api/workforce/default-agent` serves any member of the workspace.
+- `PUT /api/workforce/default-agent` is admin-only. An empty `agentId` clears
+  the setting; an absent field is a 400, and an agent of another workspace is
+  a 404.
+- `aiChatStream` fills an absent `agentId` from this setting. An explicit
+  `agentId` still requires the admin role: a caller who names an agent spends
+  workspace money. A turn that runs on the default needs no role, because an
+  admin chose that agent for every member.
+- No client sends `agentId`. The drawer picker writes the setting and the chat
+  surfaces let the server fill it. A client that sent the default explicitly
+  would be refused for a member, which is why attribution stays server-side.
+- A failure to read the setting refuses the turn with 500. Running it unbilled
+  instead would hide a broken store behind free spend.
+- `DeleteAgent` clears a default that pointed at the removed agent. A dangling
+  setting would refuse every chat turn with `workforce_agent_not_found`.
+
+Refusals carry a stable code the clients
+translate into the next action:
 
 | Code | Status | Next action |
 |---|---|---|
