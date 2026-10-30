@@ -1,4 +1,4 @@
-import { GlassCard } from "@octarq/plugin-sdk";
+import { Panel } from "@octarq/plugin-sdk";
 import { AreaChart } from "../../../app-ui";
 import { useTranslation } from "../../../i18n";
 import { useOverviewData, StatKV } from "../../../api";
@@ -21,17 +21,19 @@ export default function ClicksChartWidget() {
     : t("links.botHiddenLabel", { count: botClicks30d });
 
   return (
-    <GlassCard className="mb-6 p-5">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="font-display font-semibold text-foreground">{t("links.clicksLast30")}</h3>
+    <Panel
+      className="mb-6"
+      title={t("links.clicksLast30")}
+      action={
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">
             {t("links.clicksTotal", { count: clicks30d })} · {botLabel}
           </span>
           <BotToggle value={includeBot} onChange={setIncludeBot} />
         </div>
-      </div>
+      }
+    >
       <AreaChart series={series} />
-    </GlassCard>
+    </Panel>
   );
 }

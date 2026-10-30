@@ -1,4 +1,4 @@
-import { Button, Modal, Field, Input, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
+import { Button, Modal, Field, Input, Badge, Empty, Panel, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { mailApi, MailSuppression } from "../api";
 import { useTranslation } from "../../../i18n";
@@ -65,25 +65,23 @@ export function SuppressionList() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{t("mail.suppressionList")}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{t("mail.suppressionListDesc")}</p>
-        </div>
+    <Panel
+      title={t("mail.suppressionList")}
+      description={t("mail.suppressionListDesc")}
+      action={
         <Button variant="primary" onClick={() => setShowAdd(true)} className="gap-1.5 py-1 text-xs">
           <Plus className="h-3.5 w-3.5" />
           {t("mail.addSuppression")}
         </Button>
-      </div>
+      }
+    >
 
       {loading && items.length === 0 ? (
         <div className="p-8 text-center text-xs text-muted-foreground">{t("mail.loading")}</div>
       ) : items.length === 0 ? (
-        <div className="p-8 text-center border border-dashed border-border rounded-lg">
-          <ShieldAlert className="h-8 w-8 mx-auto text-foreground/20 mb-2" />
-          <p className="text-xs text-muted-foreground">{t("mail.noSuppressions")}</p>
-        </div>
+        <Empty reason={t("mail.noSuppressions")}>
+          <ShieldAlert />
+        </Empty>
       ) : (
         <div className="overflow-x-auto border border-border rounded-lg">
           <Table>
@@ -144,6 +142,6 @@ export function SuppressionList() {
           </div>
         </Modal>
       )}
-    </div>
+    </Panel>
   );
 }

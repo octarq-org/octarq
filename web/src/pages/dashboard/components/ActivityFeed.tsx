@@ -1,4 +1,4 @@
-import { GlassCard, Skeleton, timeAgo } from "@octarq/plugin-sdk";
+import { Skeleton, timeAgo, Panel } from "@octarq/plugin-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Bell, Inbox, ScrollText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -67,12 +67,11 @@ export function ActivityFeed() {
   });
 
   return (
-    <GlassCard className="mb-8 p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="font-display text-[1.25rem] font-semibold tracking-[-0.02em] text-foreground">{t("overview.activityFeedTitle")}</h2>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">{t("overview.activityFeedDesc")}</p>
-        </div>
+    <Panel
+      className="mb-8"
+      title={t("overview.activityFeedTitle")}
+      description={t("overview.activityFeedDesc")}
+      action={
         <button
           onClick={() => nav("/notifications")}
           className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-accent-fg transition-colors hover:bg-accent-soft"
@@ -80,7 +79,8 @@ export function ActivityFeed() {
           {t("overview.activityFeedViewAll")}
           <ArrowRight size={14} />
         </button>
-      </div>
+      }
+    >
 
       {isLoading ? (
         <div className="space-y-3" aria-busy="true" aria-label={t("overview.loading")}>
@@ -130,6 +130,6 @@ export function ActivityFeed() {
           ))}
         </ul>
       )}
-    </GlassCard>
+    </Panel>
   );
 }

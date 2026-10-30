@@ -139,11 +139,8 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
           {t("domains.loadingTokens")}
         </div>
       ) : tokens.length === 0 ? (
-        <Empty>
-          <KeyRound className="h-8 w-8 text-muted-foreground/60 mb-2" />
-          <p className="text-sm text-muted-foreground">
-            {t("domains.noDdnsTokens")}
-          </p>
+        <Empty reason={t("domains.noDdnsTokens")}>
+          <KeyRound />
         </Empty>
       ) : (
         <div className="space-y-3">

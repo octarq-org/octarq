@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Badge, Button, confirmDialog, GlassCard, TabBar, toast } from "@octarq/plugin-sdk";
+import { Badge, Button, confirmDialog, Panel, TabBar, toast } from "@octarq/plugin-sdk";
 import { api, Domain, ProviderAccount } from "../../../api";
 import { dnsApi, DNSVerifyResult } from "../api";
 import {
@@ -155,26 +155,14 @@ export function DomainDetailWorkspace({
 
       {/* Sub-tab 1: DNS Records */}
       {activeSubTab === "records" && (
-        <GlassCard className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">{t("domains.dnsRecords")}</h3>
-              <p className="text-xs text-muted-foreground">{t("domains.pageDescription")}</p>
-            </div>
-          </div>
+        <Panel title={t("domains.dnsRecords")} description={t("domains.pageDescription")}>
           <RecordsView domain={domain} />
-        </GlassCard>
+        </Panel>
       )}
 
       {/* Sub-tab 2: Subdomain Routing */}
       {activeSubTab === "routing" && (
-        <GlassCard className="p-6 space-y-5">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">{t("domains.managedHosts")}</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {t("domains.syncToggleHint")}
-            </p>
-          </div>
+        <Panel title={t("domains.managedHosts")} description={t("domains.syncToggleHint")}>
           <DomainHostManager
             domain={domain}
             onReload={async (updatedDomain?: Domain) => {
@@ -192,26 +180,23 @@ export function DomainDetailWorkspace({
               }
             }}
           />
-        </GlassCard>
+        </Panel>
       )}
 
       {/* Sub-tab 3: Health & Verification */}
       {activeSubTab === "verification" && (() => {
         const repScore = dnsStatus ? calculateReputationScore(dnsStatus, domain.name) : null;
         return (
-          <GlassCard className="p-6 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">{t("domains.dnsSetupVerification")}</h3>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {t("domains.verificationHint")}
-                </p>
-              </div>
+          <Panel
+            title={t("domains.dnsSetupVerification")}
+            description={t("domains.verificationHint")}
+            action={
               <Button variant="primary" size="sm" onClick={() => verifyDns(domain)} disabled={verifying}>
                 <RefreshCw className={`h-3.5 w-3.5 ${verifying ? "animate-spin" : ""}`} />
                 {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
               </Button>
-            </div>
+            }
+          >
 
             {verifying && dnsStatus === null ? (
               <div className="flex flex-col items-center justify-center p-10 rounded-2xl bg-well border border-border space-y-3">
@@ -271,14 +256,13 @@ export function DomainDetailWorkspace({
               </div>
             )}
             <LinkHostGuide apex={domain.name} />
-          </GlassCard>
+          </Panel>
         );
       })()}
 
       {/* Sub-tab 4: Domain Settings */}
       {activeSubTab === "settings" && (
-        <GlassCard className="p-6">
-          <h3 className="text-base font-semibold text-foreground mb-4">{t("domains.domainSettings")}</h3>
+        <Panel title={t("domains.domainSettings")}>
           <DomainEditorForm
             key={domain.id}
             domain={domain}
@@ -290,7 +274,7 @@ export function DomainDetailWorkspace({
               toast.success(t("domains.saveBasicInfo"));
             }}
           />
-        </GlassCard>
+        </Panel>
       )}
 
       {showBlueprintModal && (

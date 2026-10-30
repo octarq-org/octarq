@@ -321,7 +321,7 @@ describe("Mail Forms", () => {
       renderWithProviders(<Compose onClose={vi.fn()} />);
 
       await waitFor(() => {
-        expect(screen.getByText("No SMTP outgoing senders configured yet. Add a sender below.")).toBeDefined();
+        expect(screen.getByText("No SMTP outgoing senders configured.")).toBeDefined();
         expect((screen.getByRole("button", { name: "Send mail" }) as HTMLButtonElement).disabled).toBe(true);
       });
     });
@@ -496,7 +496,7 @@ describe("Mail Forms", () => {
       renderWithProviders(<SMTPSenders />);
 
       await waitFor(() => {
-        expect(screen.getByText("No SMTP outgoing senders configured yet. Add a sender below.")).toBeDefined();
+        expect(screen.getByText("No SMTP outgoing senders configured.")).toBeDefined();
         expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
       });
     });

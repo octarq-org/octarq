@@ -1,4 +1,4 @@
-import { Field, PageHeader, GlassCard, Button, Select, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
+import { Field, PageHeader, Panel, Button, Select, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type SMTPSender } from "../../api";
 import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
@@ -112,13 +112,11 @@ export function InstanceSettings() {
       />
 
       {/* App configuration */}
-      <GlassCard className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Server className="h-5 w-5 text-accent-fg" />
-            <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.generalInfo")}</h2>
-          </div>
-        </div>
+      <Panel
+        title={t("settings.generalInfo")}
+        icon={<Server className="h-5 w-5 text-accent-fg" />}
+        className="space-y-6"
+      >
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Field label={t("settings.instanceAppName")} hint={t("settings.instanceAppNameHint")}>
             <Input
@@ -241,15 +239,15 @@ export function InstanceSettings() {
             {busy ? t("settings.saving") : t("settings.save")}
           </Button>
         </div>
-      </GlassCard>
+      </Panel>
 
       {/* Rate limits */}
-      <GlassCard className="p-6 space-y-6">
-        <div className="flex items-center gap-2">
-          <Sliders className="h-5 w-5 text-accent-fg" />
-          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.rateLimiting")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.instanceRlHint")}</p>
+      <Panel
+        title={t("settings.rateLimiting")}
+        icon={<Sliders className="h-5 w-5 text-accent-fg" />}
+        description={t("settings.instanceRlHint")}
+        className="space-y-6"
+      >
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <Field label={t("settings.instanceRlAuth")}>
             <Input
@@ -284,17 +282,16 @@ export function InstanceSettings() {
             {busy ? t("settings.saving") : t("settings.save")}
           </Button>
         </div>
-      </GlassCard>
+      </Panel>
 
       {/* Build stamp. Authenticated endpoint, values from the binary via
           ldflags; dev/unknown are legit values for a non-git build, so they
           render as-is. builtAt is the raw UTC string — no local-time masquerade. */}
       {build && (
-        <GlassCard className="p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Cpu className="h-5 w-5 text-accent-fg" />
-            <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.buildTitle")}</h2>
-          </div>
+        <Panel
+          title={t("settings.buildTitle")}
+          icon={<Cpu className="h-5 w-5 text-accent-fg" />}
+        >
           <div className="grid grid-cols-1 gap-4 max-w-2xl sm:grid-cols-3">
             <Field label={t("settings.buildVersion")}>
               <div className="font-mono text-sm text-foreground">{build.version}</div>
@@ -308,7 +305,7 @@ export function InstanceSettings() {
               <div className="font-mono tnum text-sm text-foreground">{build.builtAt}</div>
             </Field>
           </div>
-        </GlassCard>
+        </Panel>
       )}
 
       {/* Database backup. The endpoint has shipped since the backup work but had
@@ -316,18 +313,17 @@ export function InstanceSettings() {
           or a hand-written curl. Instance-admin only, and deliberately blunt
           about what the file is: a full dump of every workspace on this
           instance, encrypted secrets included. */}
-      <GlassCard className="p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <DatabaseBackup className="h-5 w-5 text-accent-fg" />
-          <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.backupTitle")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.backupDesc")}</p>
+      <Panel
+        title={t("settings.backupTitle")}
+        icon={<DatabaseBackup className="h-5 w-5 text-accent-fg" />}
+        description={t("settings.backupDesc")}
+      >
         <div className="border-t border-border pt-4">
           <Button variant="outline" onClick={handleBackup} disabled={backingUp}>
             {backingUp ? t("settings.backupPreparing") : t("settings.backupDownload")}
           </Button>
         </div>
-      </GlassCard>
+      </Panel>
 
       {/* Operator-level extension slot. Named "System Settings", NOT
           "Infrastructure": that word already labels the plugin CATEGORY

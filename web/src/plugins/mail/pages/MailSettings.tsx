@@ -1,4 +1,4 @@
-import { Field, Input, Textarea, Switch, Button, toast } from "@octarq/plugin-sdk";
+import { Field, Input, Textarea, Switch, Button, Panel, toast } from "@octarq/plugin-sdk";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../api";
 import { useTranslation } from "../../../i18n";
@@ -77,10 +77,7 @@ export function MailSettings() {
   const displayed = tokenLoaded && revealed ? inboundToken : MASK;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">{t("settings.inboundMailboxesSettings")}</h2>
-      </div>
+    <Panel title={t("settings.inboundMailboxesSettings")} className="space-y-6">
       <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
         <Textarea className="font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
       </Field>
@@ -130,6 +127,6 @@ export function MailSettings() {
       <div className="border-t border-border pt-4 flex justify-end">
         <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
-    </div>
+    </Panel>
   );
 }

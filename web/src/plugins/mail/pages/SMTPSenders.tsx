@@ -1,4 +1,4 @@
-import { Empty, Field, Input, Modal, Badge, Button, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
+import { Empty, Field, Input, Modal, Badge, Button, Panel, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { api } from "../../../api";
@@ -90,25 +90,23 @@ export function SMTPSenders() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="text-xs font-semibold text-muted-foreground">
-          {t("settings.smtpOutgoingGateways")}
-          <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{t("settings.smtpOutgoingGatewaysDesc")}</div>
-        </div>
-        {canManageSMTP && mode === "local" && (
+    <Panel
+      title={t("settings.smtpOutgoingGateways")}
+      description={t("settings.smtpOutgoingGatewaysDesc")}
+      action={
+        canManageSMTP && mode === "local" ? (
           <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
             {t("settings.addSmtp")}
           </Button>
-        )}
-        {canManageSMTP && mode === "integration" && (
+        ) : canManageSMTP && mode === "integration" ? (
           <NavLink to="/settings/integrations?category=communication">
             <Button variant="primary" className="text-xs py-1 px-2.5">
               {t("settings.openIntegrationsHub")}
             </Button>
           </NavLink>
-        )}
-      </div>
+        ) : null
+      }
+    >
 
       {mode === "integration" && (
         <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-accent-soft text-xs text-foreground">
@@ -128,21 +126,10 @@ export function SMTPSenders() {
       {loading ? (
         <div className="text-muted-foreground text-sm py-6 text-center">{t("settings.loadingLower")}</div>
       ) : senders.length === 0 ? (
-        <Empty>
-          <Send className="h-8 w-8 text-muted-foreground mb-1" />
-          <div className="text-xs text-muted-foreground">{t("settings.noSmtpSenders")}</div>
-          {canManageSMTP && mode === "integration" && (
-            <NavLink to="/settings/integrations?category=communication">
-              <Button variant="outline" size="sm" className="mt-3 text-xs">
-                {t("settings.openIntegrationsHub")}
-              </Button>
-            </NavLink>
-          )}
-          {canManageSMTP && mode === "local" && (
-            <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => setCreating(true)}>
-              {t("settings.addSmtp")}
-            </Button>
-          )}
+        // The heading carries the add/open control, so the empty state states
+        // the fact and adds no second button.
+        <Empty reason={t("settings.noSmtpSenders")}>
+          <Send />
         </Empty>
       ) : (
         <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
@@ -215,7 +202,7 @@ export function SMTPSenders() {
           onSaved={() => { setCreating(false); setEditing(null); load(); }}
         />
       )}
-    </div>
+    </Panel>
   );
 }
 

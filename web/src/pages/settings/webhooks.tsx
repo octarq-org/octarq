@@ -4,11 +4,12 @@ import {
   Modal,
   Switch,
   PageHeader,
-  GlassCard,
+  Panel,
   Button,
   toast,
   confirmDialog,
   Alert,
+  Empty,
   Tabs,
   type TabItem,
   cn,
@@ -242,15 +243,17 @@ export function WebhooksSettings() {
       </div>
 
       {activeTab === "outbound" && (
-        <GlassCard className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">{t("settings.outboundEventWebhooks")}</h2>
+        <Panel
+          title={
+            <>
+              {t("settings.outboundEventWebhooks")}
               <span className="rounded-full bg-accent-soft text-accent-fg px-2 py-0.5 text-[10px] font-semibold">
                 HMAC-SHA256 Signatures
               </span>
-            </div>
-            {canManage && (
+            </>
+          }
+          action={
+            canManage && (
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -265,8 +268,9 @@ export function WebhooksSettings() {
               >
                 <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
               </Button>
-            )}
-          </div>
+            )
+          }
+        >
           {loading ? (
             <ListSkeleton rows={4} ariaLabel={t("settings.loadingWebhooks")} />
           ) : error ? (
@@ -302,7 +306,7 @@ export function WebhooksSettings() {
               </div>
             </Alert>
           ) : webhooks.length === 0 ? (
-            <div className="select-none rounded border border-dashed border-border py-4 text-center text-xs text-muted-foreground">{t("settings.noWebhooks")}</div>
+            <Empty reason={t("settings.noWebhooks")} className="select-none" />
           ) : (
             <div className="space-y-3.5">
               {webhooks.map((w) => (
@@ -344,34 +348,24 @@ export function WebhooksSettings() {
               ))}
             </div>
           )}
-        </GlassCard>
+        </Panel>
       )}
 
       {activeTab === "inbound" && (
         <div className="space-y-6" data-testid="inbound-relays-panel">
           {/* Section 1: Inbound Webhook Relays */}
-          <GlassCard className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-                  {t("settings.inboundRelaysHeading", "Inbound Webhook Relays")}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("settings.inboundRelaysDesc", "Receive and verify webhooks from third-party services with cryptographic signatures.")}
-                </p>
-              </div>
-            </div>
+          <Panel
+            title={t("settings.inboundRelaysHeading", "Inbound Webhook Relays")}
+            description={t("settings.inboundRelaysDesc", "Receive and verify webhooks from third-party services with cryptographic signatures.")}
+          >
 
             <div className="space-y-3">
               {inboundEndpoints.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground space-y-1">
-                  <div className="font-semibold text-foreground">
-                    {t("settings.noInboundEndpoints", "No inbound webhook relays configured")}
-                  </div>
-                  <div>
-                    {t("settings.noInboundEndpointsDesc", "Inbound relays allow external services (like Stripe or GitHub) to securely trigger automation rules.")}
-                  </div>
-                </div>
+                <Empty
+                  reason={t("settings.noInboundEndpoints", "No inbound webhook relays configured")}
+                  detail={t("settings.noInboundEndpointsDesc", "Inbound relays allow external services (like Stripe or GitHub) to securely trigger automation rules.")}
+                  className="py-8"
+                />
               ) : (
                 inboundEndpoints.map((relay) => (
                   <div
@@ -397,20 +391,13 @@ export function WebhooksSettings() {
                 ))
               )}
             </div>
-          </GlassCard>
+          </Panel>
 
           {/* Section 2: Dead-Letter Queue (DLQ) Audit */}
-          <GlassCard className="p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-                  {t("settings.dlqHeading", "Dead-Letter Queue (DLQ) Audit")}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("settings.dlqDesc", "Deliveries that exhausted all retry attempts. Inspect errors and replay when ready.")}
-                </p>
-              </div>
-
+          <Panel
+            title={t("settings.dlqHeading", "Dead-Letter Queue (DLQ) Audit")}
+            description={t("settings.dlqDesc", "Deliveries that exhausted all retry attempts. Inspect errors and replay when ready.")}
+            action={
               <div className="w-full sm:w-64">
                 <Input
                   className="text-xs"
@@ -419,18 +406,16 @@ export function WebhooksSettings() {
                   onChange={(e) => setDlqSearch(e.target.value)}
                 />
               </div>
-            </div>
+            }
+          >
 
             {filteredDeadLetters.length === 0 ? (
-              <div
+              <Empty
                 data-testid="dlq-empty-state"
-                className="select-none rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground space-y-1"
-              >
-                <div className="font-semibold text-foreground">
-                  {t("settings.dlqEmptyTitle", "Dead-letter queue is clear")}
-                </div>
-                <div>{t("settings.dlqEmptyDesc", "All outbound deliveries succeeded or were manually resolved.")}</div>
-              </div>
+                reason={t("settings.dlqEmptyTitle", "Dead-letter queue is clear")}
+                detail={t("settings.dlqEmptyDesc", "All outbound deliveries succeeded or were manually resolved.")}
+                className="select-none py-8"
+              />
             ) : (
               <div className="space-y-3" data-testid="dlq-list">
                 {filteredDeadLetters.map((entry) => (
@@ -480,7 +465,7 @@ export function WebhooksSettings() {
                 ))}
               </div>
             )}
-          </GlassCard>
+          </Panel>
         </div>
       )}
 

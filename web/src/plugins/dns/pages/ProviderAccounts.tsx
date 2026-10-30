@@ -99,26 +99,27 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
       {loading ? (
         <div className="text-muted-foreground text-sm py-4 text-center">{t("settings.loadingLower")}</div>
       ) : mode === null ? (
-        <Empty>
-          <Cloud className="h-8 w-8 text-muted-foreground mb-1" />
-          <div className="text-xs text-muted-foreground">{t("settings.dnsProvidersUnavailable")}</div>
+        <Empty reason={t("settings.dnsProvidersUnavailable")}>
+          <Cloud />
         </Empty>
       ) : accounts.length === 0 ? (
-        <Empty>
-          <Cloud className="h-8 w-8 text-muted-foreground mb-1" />
-          <div className="text-xs text-muted-foreground">{t("settings.noDnsProviders")}</div>
-          {canManageProviders && mode === "local" && (
-            <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => setCreating(true)}>
-              {t("settings.addProvider")}
-            </Button>
-          )}
-          {canManageProviders && mode === "integration" && (
-            <NavLink to="/settings/integrations?category=dns">
-              <Button variant="outline" size="sm" className="mt-3 text-xs">
-                {t("settings.openIntegrationsHub")}
+        <Empty
+          reason={t("settings.noDnsProviders")}
+          action={
+            canManageProviders && mode === "local" ? (
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setCreating(true)}>
+                {t("settings.addProvider")}
               </Button>
-            </NavLink>
-          )}
+            ) : canManageProviders && mode === "integration" ? (
+              <NavLink to="/settings/integrations?category=dns">
+                <Button variant="outline" size="sm" className="text-xs">
+                  {t("settings.openIntegrationsHub")}
+                </Button>
+              </NavLink>
+            ) : undefined
+          }
+        >
+          <Cloud />
         </Empty>
       ) : (
         <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">

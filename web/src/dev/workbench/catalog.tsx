@@ -124,7 +124,7 @@ export const CATALOG: CatalogEntry[] = [
     group: "layout",
     covers: ["Empty"],
     copy: ["Nothing here yet"],
-    Component: () => <Empty>Nothing here yet</Empty>,
+    Component: () => <Empty reason="Nothing here yet" />,
   },
 
   {
