@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -30,6 +32,7 @@ type WorkforceSpendEventDTO struct {
 	CostUSD         float64   `json:"costUsd"`
 	Source          string    `json:"source"`
 	SessionID       string    `json:"sessionId,omitempty"`
+	TurnID          string    `json:"turnId,omitempty"`
 	CreatedAt       time.Time `json:"createdAt"`
 }
 
@@ -44,7 +47,7 @@ func toModelPriceDTO(p models.WorkforceModelPrice) WorkforceModelPriceDTO {
 }
 
 func toSpendEventDTO(e models.WorkforceSpendEvent) WorkforceSpendEventDTO {
-	return WorkforceSpendEventDTO{
+	dto := WorkforceSpendEventDTO{
 		ID:              e.ID,
 		AgentID:         e.AgentID,
 		Model:           e.Model,
@@ -56,6 +59,10 @@ func toSpendEventDTO(e models.WorkforceSpendEvent) WorkforceSpendEventDTO {
 		SessionID:       e.SessionID,
 		CreatedAt:       e.CreatedAt,
 	}
+	if e.TurnID != nil {
+		dto.TurnID = *e.TurnID
+	}
+	return dto
 }
 
 // ListModelPricesInput input for listing model prices.
@@ -238,6 +245,10 @@ type RecordAgentSpendInput struct {
 		InputTokens     int    `json:"inputTokens"`
 		OutputTokens    int    `json:"outputTokens"`
 		ReasoningTokens int    `json:"reasoningTokens,omitempty"`
+		// TurnID is the runner's identifier for this turn. It is required, so a
+		// retried report answers with the original charge instead of billing the
+		// same work twice.
+		TurnID string `json:"turnId"`
 	}
 }
 
@@ -263,6 +274,10 @@ func (h *Handler) recordAgentSpend(ctx context.Context, input *RecordAgentSpendI
 	if input.Body.Model == "" {
 		return nil, huma.Error400BadRequest("Model is required.")
 	}
+	turnID := strings.TrimSpace(input.Body.TurnID)
+	if turnID == "" || len(turnID) > 64 {
+		return nil, huma.Error400BadRequest("Turn ID must have 1 to 64 characters.")
+	}
 	if input.Body.InputTokens < 0 || input.Body.OutputTokens < 0 || input.Body.ReasoningTokens < 0 {
 		return nil, huma.Error400BadRequest("Token counts cannot be negative.")
 	}
@@ -277,7 +292,18 @@ func (h *Handler) recordAgentSpend(ctx context.Context, input *RecordAgentSpendI
 		OutputTokens:    input.Body.OutputTokens,
 		ReasoningTokens: input.Body.ReasoningTokens,
 		Source:          models.WorkforceSpendSourceRuntime,
+		TurnID:          turnID,
 	})
+	replayed := false
+	if errors.Is(err, agentstore.ErrSpendReplayed) {
+		// The first report owns the charge. Answer with that row so a retrying
+		// runner sees the same result instead of an error it would retry again.
+		replayed = true
+		event, agent, err = store.SpendByTurn(r.Context(), orgID, input.ID, turnID)
+		if err == nil {
+			input.Ctx.SetStatus(http.StatusOK)
+		}
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, agentstore.ErrAgentNotFound):
@@ -290,9 +316,11 @@ func (h *Handler) recordAgentSpend(ctx context.Context, input *RecordAgentSpendI
 			return nil, huma.Error500InternalServerError("Could not record agent spend; retry the request")
 		}
 	}
-	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.spend.record", "workforce_agent", 0, map[string]any{
-		"agentId": event.AgentID, "model": event.Model, "costUsd": event.CostUSD, "source": event.Source,
-	})
+	if !replayed {
+		h.auditAs(r, orgID, h.auth.UserID(r), "workforce.spend.record", "workforce_agent", 0, map[string]any{
+			"agentId": event.AgentID, "model": event.Model, "costUsd": event.CostUSD, "source": event.Source,
+		})
+	}
 
 	out := &RecordAgentSpendOutput{}
 	out.Body.Event = toSpendEventDTO(*event)

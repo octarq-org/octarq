@@ -289,7 +289,7 @@ func TestWorkforce_OverviewAndAutoHaltEndpoints(t *testing.T) {
 		t.Fatalf("set model price: %d (%s)", rec.Code, rec.Body.String())
 	}
 	if rec := do(srv, "POST", "/api/workforce/agents/"+ops.ID+"/spend", cookies,
-		`{"model":"GPT-4o","inputTokens":1000000,"outputTokens":0}`); rec.Code != http.StatusCreated {
+		`{"model":"GPT-4o","inputTokens":1000000,"outputTokens":0,"turnId":"turn-overview-1"}`); rec.Code != http.StatusCreated {
 		t.Fatalf("record spend: %d (%s)", rec.Code, rec.Body.String())
 	}
 
