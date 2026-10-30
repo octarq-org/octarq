@@ -9,6 +9,9 @@ import { api } from "../api";
 // turn stays unbilled, which is what the server does when no default is set.
 export function useDefaultAgent(enabled: boolean) {
   const [agentId, setAgentId] = useState("");
+  // name lets a member see where a turn is billed: the agent list is an admin
+  // read, so the setting carries the label with the id.
+  const [name, setName] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const mounted = useRef(true);
@@ -25,6 +28,7 @@ export function useDefaultAgent(enabled: boolean) {
       const res = await api.workforceDefaultAgent();
       if (!mounted.current) return;
       setAgentId(res.agentId ?? "");
+      setName(res.name ?? "");
       setFailed(false);
     } catch {
       if (mounted.current) setFailed(true);
@@ -41,20 +45,27 @@ export function useDefaultAgent(enabled: boolean) {
   // save writes the setting and rolls back on failure, so the picker never
   // shows a choice the server did not keep.
   const save = useCallback(
-    async (next: string) => {
-      const previous = agentId;
+    async (next: string, nextName: string) => {
+      const previous = { agentId, name };
       setAgentId(next);
+      setName(nextName);
       try {
         const res = await api.setWorkforceDefaultAgent(next);
-        if (mounted.current) setAgentId(res.agentId ?? "");
+        if (mounted.current) {
+          setAgentId(res.agentId ?? "");
+          setName(res.name ?? "");
+        }
         return true;
       } catch {
-        if (mounted.current) setAgentId(previous);
+        if (mounted.current) {
+          setAgentId(previous.agentId);
+          setName(previous.name);
+        }
         return false;
       }
     },
-    [agentId]
+    [agentId, name]
   );
 
-  return { agentId, loaded, failed, refresh, save };
+  return { agentId, name, loaded, failed, refresh, save };
 }

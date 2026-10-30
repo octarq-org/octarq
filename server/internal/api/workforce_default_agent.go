@@ -13,6 +13,9 @@ import (
 type DefaultAgentDTO struct {
 	// AgentID is empty when the workspace bills no default.
 	AgentID string `json:"agentId"`
+	// Name is the display name of the agent, so a surface can say where a turn
+	// is billed without reading the admin-only fleet list.
+	Name string `json:"name"`
 }
 
 // GetDefaultAgentInput input for reading the default agent.
@@ -42,7 +45,23 @@ func (h *Handler) getDefaultAgent(ctx context.Context, input *GetDefaultAgentInp
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Could not read the default agent; retry the request.")
 	}
-	return &DefaultAgentOutput{Body: DefaultAgentDTO{AgentID: agentID}}, nil
+	return &DefaultAgentOutput{Body: defaultAgentDTO(r.Context(), store, orgID, agentID)}, nil
+}
+
+// defaultAgentDTO resolves the display name of the default agent. A setting
+// that outlives its agent is left as the bare id: the chat refuses that turn
+// with workforce_agent_not_found, and inventing a name would hide the cause.
+func defaultAgentDTO(ctx context.Context, store *agentstore.WorkforceStore, orgID uint, agentID string) DefaultAgentDTO {
+	dto := DefaultAgentDTO{AgentID: agentID}
+	if agentID == "" {
+		return dto
+	}
+	agent, err := store.GetAgent(ctx, orgID, agentID)
+	if err != nil {
+		return dto
+	}
+	dto.Name = agent.Name
+	return dto
 }
 
 // SetDefaultAgentInput input for setting or clearing the default agent.
@@ -80,5 +99,5 @@ func (h *Handler) setDefaultAgent(ctx context.Context, input *SetDefaultAgentInp
 	}
 	h.auditAs(r, orgID, h.auth.UserID(r), "workforce.default_agent.set", "workspace_setting", 0, map[string]any{"agentId": agentID})
 
-	return &DefaultAgentOutput{Body: DefaultAgentDTO{AgentID: agentID}}, nil
+	return &DefaultAgentOutput{Body: defaultAgentDTO(r.Context(), store, orgID, agentID)}, nil
 }

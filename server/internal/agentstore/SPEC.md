@@ -160,7 +160,11 @@ event; a failed write is surfaced as an SSE `error` event and logged.
 chat turn is billed to. It is the single answer to "who pays for this turn", so
 every chat surface reads it rather than keeping its own selection.
 
-- `GET /api/workforce/default-agent` serves any member of the workspace.
+- `GET /api/workforce/default-agent` serves any member of the workspace. Both
+  verbs answer `{agentId, name}`. The name is resolved from the agent row so a
+  member can label the setting without the admin-only fleet list. An orphan
+  setting answers the bare id with an empty name; the chat refuses that turn
+  with `workforce_agent_not_found` rather than hide the cause behind a 500.
 - `PUT /api/workforce/default-agent` is admin-only. An empty `agentId` clears
   the setting; an absent field is a 400, and an agent of another workspace is
   a 404.
