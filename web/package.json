@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@acme/octarq-plugin-hello": "workspace:*",
-    "@ag-ui/client": "^0.0.59",
     "@base-ui/react": "^1.6.0",
     "@octarq/plugin-sdk": "workspace:*",
     "@tanstack/react-query": "^5.102.8",

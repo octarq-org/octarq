@@ -12,7 +12,7 @@ import {
 } from "./navI18n";
 import { type ChatMessage } from "./command/types";
 import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
-import { streamChatResponse } from "./command/streamChat";
+import { newChatRunId, newChatThreadId, streamChatResponse } from "./command/streamChat";
 import { ChatView } from "./command/ChatView";
 import { agentFailureText } from "./agentFailureText";
 
@@ -48,6 +48,7 @@ export function CommandPalette({
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const threadIdRef = useRef(newChatThreadId());
 
   const { t } = useTranslation();
 
@@ -221,6 +222,8 @@ export function CommandPalette({
 
       await streamChatResponse({
         messages: outboundMessages,
+        threadId: threadIdRef.current,
+        runId: newChatRunId(),
         signal: controller.signal,
         onThinking: (delta, tokens) => {
           setMessages((prev) =>

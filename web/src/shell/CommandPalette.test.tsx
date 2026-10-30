@@ -156,10 +156,12 @@ describe("CommandPalette", () => {
     const onClose = vi.fn();
 
     const streamChunks = [
-      'event: thinking\ndata: {"delta": "Analyzing traffic data...", "tokens": 48}\n\n',
-      'event: text\ndata: {"delta": "Here is the summary of link visits:"}\n\n',
-      'event: tool\ndata: {"kind": "chart", "title": "Visit Stats", "data": {"labels": ["Mon", "Tue"], "series": [{"name": "Visits", "values": [120, 250]}]}}\n\n',
-      'event: done\ndata: {}\n\n',
+      'data: {"type":"THINKING_TEXT_MESSAGE_CONTENT","delta":"Analyzing traffic data..."}\n\n',
+      'data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"Here is the summary of link visits:"}\n\n',
+      'data: {"type":"TOOL_CALL_START","toolCallId":"c1","toolCallName":"render_chart"}\n\n',
+      'data: {"type":"TOOL_CALL_ARGS","toolCallId":"c1","delta":"{\\"kind\\":\\"chart\\",\\"title\\":\\"Visit Stats\\",\\"data\\":{\\"labels\\":[\\"Mon\\",\\"Tue\\"],\\"series\\":[{\\"name\\":\\"Visits\\",\\"values\\":[120,250]}]}}"}\n\n',
+      'data: {"type":"TOOL_CALL_RESULT","messageId":"m1","toolCallId":"c1","content":"ok"}\n\n',
+      'data: {"type":"RUN_FINISHED","threadId":"t1","runId":"r1"}\n\n',
     ];
 
     const mockFetch = vi.fn().mockResolvedValue({
@@ -196,10 +198,8 @@ describe("CommandPalette", () => {
         "/api/ai/chat/stream",
         expect.objectContaining({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: "Show link stats" }],
-          }),
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
+          body: expect.any(String),
         }),
       );
     });
@@ -210,7 +210,7 @@ describe("CommandPalette", () => {
       expect(screen.getByText("Visit Stats")).not.toBeNull();
       expect(screen.getByText("Mon")).not.toBeNull();
       expect(screen.getByText("Tue")).not.toBeNull();
-      expect(screen.getByText("(48 tokens)")).not.toBeNull();
+      // Usage arrives with the finished run, not with each delta.
     });
   });
 
@@ -427,9 +427,13 @@ describe("CommandPalette", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/ai/chat/stream",
         expect.objectContaining({
-          body: JSON.stringify({ messages: [{ role: "user", content: "Show link stats" }] }),
+          body: expect.any(String),
         }),
       );
+      const chatCall = mockFetch.mock.calls.find(([url]) => url === "/api/ai/chat/stream");
+      const body = JSON.parse(String(chatCall![1].body));
+      expect(body.messages).toEqual([{ role: "user", content: "Show link stats" }]);
+      expect(body).not.toHaveProperty("agentId");
     });
 
     // A refusal becomes the next action, not the raw server prose.

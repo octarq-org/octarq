@@ -28,7 +28,6 @@ export interface CopilotChatTabProps {
   streamLocked: boolean;
   onSendMessage: (text?: string) => Promise<void>;
   onStopGenerating: () => void;
-  transport?: "agui" | "legacy";
 }
 
 export function CopilotChatTab({

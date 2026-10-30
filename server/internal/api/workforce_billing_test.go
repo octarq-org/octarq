@@ -84,6 +84,35 @@ func streamAgentTurn(t *testing.T, srv http.Handler, cookies []*http.Cookie, age
 	return do(srv, "POST", "/api/ai/chat/stream", cookies, body)
 }
 
+// TestWorkforceBilling_RunIDReplayChargesOnce pins the reason the run id is
+// the ledger key: a client that retries a turn must not spend twice.
+func TestWorkforceBilling_RunIDReplayChargesOnce(t *testing.T) {
+	srv, db, _ := newBillingTestHandler(t)
+	cookies := loginCookies(t, srv)
+	agent := createBillingAgent(t, srv, cookies, "10")
+	setModelPrice(t, srv, cookies, fakeStreamModel, 1, 1)
+
+	body := `{"runId":"run-fixed","messages":[{"role":"user","content":"hello"}],"agentId":"` + agent.ID + `"}`
+	for i := 0; i < 2; i++ {
+		rec := do(srv, "POST", "/api/ai/chat/stream", cookies, body)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("attempt %d: %d (%s)", i+1, rec.Code, rec.Body.String())
+		}
+		requireAGUI(t, aguiEvents(t, rec.Body.String()), "RUN_FINISHED")
+	}
+
+	if updated := readAgent(t, srv, cookies, agent.ID); updated.BudgetUsed != 0.0015 {
+		t.Fatalf("budgetUsed = %v, want one charge of 0.0015", updated.BudgetUsed)
+	}
+	var count int64
+	if err := db.Model(&models.WorkforceSpendEvent{}).Where("agent_id = ?", agent.ID).Count(&count).Error; err != nil {
+		t.Fatalf("count spend rows: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("spend rows = %d, want 1", count)
+	}
+}
+
 // TestWorkforceBilling_ModelPriceEndpoints covers the price CRUD over HTTP,
 // including the fail-closed validations.
 func TestWorkforceBilling_ModelPriceEndpoints(t *testing.T) {
@@ -262,8 +291,10 @@ func TestWorkforceBilling_ChatStreamBillsTheAgent(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("stream: %d (%s)", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "event: done") {
-		t.Fatalf("stream did not finish: %s", rec.Body.String())
+	finished := requireAGUI(t, aguiEvents(t, rec.Body.String()), "RUN_FINISHED")
+	runID, _ := finished["runId"].(string)
+	if runID == "" {
+		t.Fatalf("RUN_FINISHED carries no run id: %v", finished)
 	}
 
 	// 1000 input + 500 output tokens at $1/M each.
@@ -279,8 +310,13 @@ func TestWorkforceBilling_ChatStreamBillsTheAgent(t *testing.T) {
 	if event.Source != models.WorkforceSpendSourceChat {
 		t.Fatalf("source = %q, want chat", event.Source)
 	}
-	if !strings.HasPrefix(event.SessionID, "sess-") {
-		t.Fatalf("session id not recorded: %q", event.SessionID)
+	if event.SessionID == "" {
+		t.Fatal("thread id not recorded")
+	}
+	// The run id is the ledger's idempotency key: a retried request charges
+	// once, and the row names the run that spent the money.
+	if event.TurnID == nil || *event.TurnID != runID {
+		t.Fatalf("turn id = %v, want the run id %q", event.TurnID, runID)
 	}
 	if event.InputTokens != 1000 || event.OutputTokens != 500 {
 		t.Fatalf("ledger tokens = %d/%d, want 1000/500", event.InputTokens, event.OutputTokens)

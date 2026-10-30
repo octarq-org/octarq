@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/models"
@@ -141,7 +140,7 @@ func TestWorkforceBilling_ChatStreamBillsTheDefaultAgent(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("member stream: %d (%s)", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "event: done") {
+	if _, ok := findAGUI(aguiEvents(t, rec.Body.String()), "RUN_FINISHED"); !ok {
 		t.Fatalf("stream did not finish: %s", rec.Body.String())
 	}
 	updated := readAgent(t, srv, admin, agent.ID)

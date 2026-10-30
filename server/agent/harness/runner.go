@@ -296,7 +296,7 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 		}
 
 		// Execute each tool call.
-		if err := r.executeSteps(ctx, s, t, step, calls, remaining, invalid); err != nil {
+		if err := r.executeSteps(ctx, s, t, step, calls, remaining, invalid, nil); err != nil {
 			if errors.Is(err, ErrApprovalRequired) {
 				t.Status = TurnStatusAwaitingApproval
 				return err
@@ -346,12 +346,22 @@ func reportInvalidCalls(s *Session, text string, invalid []string) {
 	})
 }
 
+// StepObserver watches the tool calls the loop actually runs.
+//
+// A stream handler implements it to project each guarded call onto the wire.
+// The runner reports a call only after the guard accepts it and before the
+// tool executes, so a client never sees a call that cannot happen.
+type StepObserver interface {
+	OnToolStart(step int, tool, argsJSON string)
+	OnToolEnd(step int, tool, output string, err error)
+}
+
 // executeSteps executes parsed tool calls with guard checks and tracing,
 // appending results to history.
 //
 // A call the model wrote wrongly is reported after the calls that ran, so the
 // model learns about both in one turn.
-func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, step int, calls []toolCall, remaining string, invalid []string) error {
+func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, step int, calls []toolCall, remaining string, invalid []string, obs StepObserver) error {
 	if remaining != "" {
 		s.History = append(s.History, Message{
 			Role:    "assistant",
@@ -380,6 +390,10 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 				Status:    guardStatus,
 				ErrorCode: traceErrorCode(guardErr),
 			})
+			if obs != nil {
+				obs.OnToolStart(step, tc.Name, string(tc.ArgsJSON))
+				obs.OnToolEnd(step, tc.Name, "", guardErr)
+			}
 			if errors.Is(guardErr, ErrApprovalRequired) {
 				return guardErr
 			}
@@ -392,9 +406,15 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		}
 
 		// Execute tool.
+		if obs != nil {
+			obs.OnToolStart(step, tc.Name, string(tc.ArgsJSON))
+		}
 		start := time.Now()
 		output, execErr := r.executor.Execute(ctx, s.OrgID, tc.Name, string(tc.ArgsJSON))
 		st.DurationMS = time.Since(start).Milliseconds()
+		if obs != nil {
+			obs.OnToolEnd(step, tc.Name, output, execErr)
+		}
 
 		if execErr != nil {
 			// Preserve AgentError.AgentGuidance through the Step.

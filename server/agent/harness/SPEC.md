@@ -62,6 +62,20 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   carries **no tool arguments and no tool output**: those belong to the
   session, not to the trace.
 
+- **StepObserver** (`runner.go`): an optional second seam, implemented by a
+  `StreamHandler` that wants to render tool calls. `Run` passes `nil`; `Stream`
+  passes the handler when it implements the interface.
+  ```go
+  type StepObserver interface {
+      OnToolStart(step int, tool, argsJSON string)
+      OnToolEnd(step int, tool, output string, err error)
+  }
+  ```
+  The runner reports a call only after the guard and spec accept it, and
+  reports a denied call with the guard error as its output. It never reports
+  the raw tool-call chunks of the model: those are proposals, not calls.
+
+
 - **Tool Catalog & Prompt Compiler** (`catalog.go`):
   ```go
   type Catalog struct { Tools []ToolDescriptor }

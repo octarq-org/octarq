@@ -101,7 +101,11 @@ func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp 
 		}
 
 		// Execute each tool call.
-		if err := r.executeSteps(ctx, s, t, step, calls, remaining, invalid); err != nil {
+		var obs StepObserver
+		if o, ok := h.(StepObserver); ok {
+			obs = o
+		}
+		if err := r.executeSteps(ctx, s, t, step, calls, remaining, invalid, obs); err != nil {
 			if errors.Is(err, ErrApprovalRequired) {
 				t.Status = TurnStatusAwaitingApproval
 				return err

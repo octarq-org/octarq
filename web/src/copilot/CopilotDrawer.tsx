@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Sparkles, X, Trash2, ShieldAlert, MessageSquare, Sunrise, Bot } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { useCopilotStore } from "./store";
-import { AIStreamError, fetchApprovals, useAIStatusQuery, streamAIChat, streamAGUIChat } from "./api";
+import { AIStreamError, fetchApprovals, useAIStatusQuery, streamAIChat } from "./api";
 import type { ActionDiff, ChatMessage, AIStatus } from "./types";
 import { QueryClientContext } from "@tanstack/react-query";
 import { CopilotChatTab } from "./CopilotChatTab";
@@ -32,7 +32,6 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
     addActionDiff,
     setApprovals,
     setApprovalsError,
-    transport,
     threadId,
     activeArtifactId,
     artifacts,
@@ -135,11 +134,8 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
       content: m.content,
     }));
 
-    const streamFn = transport === "agui" ? streamAGUIChat : streamAIChat;
-
-    await streamFn({
+    await streamAIChat({
       messages: chatHistory,
-      threadId,
       signal: controller.signal,
       onThinking: (delta) => {
         updateLastMessage((prev) => ({

@@ -39,7 +39,6 @@ export interface CopilotUIState {
   isStreaming: boolean;
   pendingApprovals: ActionDiff[];
   approvalsError: string | null;
-  transport: "agui" | "legacy";
   threadId?: string;
 
   // Artifact & Canvas layout slice
@@ -52,7 +51,6 @@ export interface CopilotUIState {
   toggleCopilot: () => void;
   setActiveTab: (tab: "chat" | "briefing" | "approvals") => void;
   setInput: (input: string) => void;
-  setTransport: (transport: "agui" | "legacy") => void;
   setThreadId: (threadId?: string) => void;
   addMessage: (message: ChatMessage) => void;
   updateLastMessage: (updater: Partial<ChatMessage> | ((prev: ChatMessage) => ChatMessage)) => void;
@@ -105,7 +103,6 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   isStreaming: false,
   pendingApprovals: [],
   approvalsError: null,
-  transport: "agui",
   threadId: undefined,
 
   artifacts: {},
@@ -117,7 +114,6 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   toggleCopilot: () => set((state) => ({ isOpen: !state.isOpen })),
   setActiveTab: (activeTab) => set({ activeTab }),
   setInput: (input) => set({ input }),
-  setTransport: (transport) => set({ transport }),
   setThreadId: (threadId) => set({ threadId }),
 
   addMessage: (message) =>
@@ -199,7 +195,6 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
       pendingApprovals: [],
       approvalsError: null,
       isStreaming: false,
-      transport: "agui",
       threadId: undefined,
       artifacts: {},
       activeArtifactId: null,
