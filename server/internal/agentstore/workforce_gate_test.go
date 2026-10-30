@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
 )
@@ -238,20 +239,21 @@ func TestWorkforceStore_AutoHaltAcceptsOnlyFalseAsOff(t *testing.T) {
 }
 
 // TestWorkforceStore_ProviderBreakdownCoversEveryFamily pins that spend is
-// grouped by the provider that bills for each model label, including labels
-// the mapping does not recognise.
+// grouped by the provider that bills for each billed model, including labels
+// the mapping does not recognise. The breakdown reads the ledger, not the
+// agent's display label.
 func TestWorkforceStore_ProviderBreakdownCoversEveryFamily(t *testing.T) {
 	t.Parallel()
-	store, _ := newTestWorkforceStore(t)
+	store, db := newTestWorkforceStore(t)
 	ctx := context.Background()
 	orgID := uint(307)
 
-	for i, model := range []string{"Claude 3.5 Sonnet", "GPT-4o", "DeepSeek-V3", "Gemini 2.5 Pro", "Llama 3", "Mistral Large"} {
-		if _, err := store.CreateAgent(ctx, orgID, models.WorkforceAgent{
-			Name: "Agent " + model, Role: "Operator", Department: "Ops", Model: model,
-			BudgetLimit: 10, BudgetUsed: float64(i + 1),
-		}); err != nil {
-			t.Fatalf("CreateAgent %q: %v", model, err)
+	for _, model := range []string{"Claude 3.5 Sonnet", "GPT-4o", "DeepSeek-V3", "Gemini 2.5 Pro", "Llama 3", "Mistral Large"} {
+		if err := db.Create(&models.WorkforceSpendEvent{
+			OrgID: orgID, AgentID: "agent-x", Model: model, CostUSD: 1,
+			Source: models.WorkforceSpendSourceRuntime, CreatedAt: time.Now().UTC(),
+		}).Error; err != nil {
+			t.Fatalf("seed ledger row for %q: %v", model, err)
 		}
 	}
 

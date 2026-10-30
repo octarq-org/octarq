@@ -43,6 +43,7 @@ const workforceAgent = (overrides: Partial<WorkforceAgentDTO> = {}): WorkforceAg
 const agentFetch = (
   agents: WorkforceAgentDTO[],
   chat: { ok: true; chunks: string[] } | { ok: false; status: number; body: Record<string, string> },
+  opts: { autoHalt?: boolean } = {},
 ) =>
   vi.fn((input: string | URL | Request) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -53,6 +54,27 @@ const agentFetch = (
         statusText: "OK",
         headers: { get: () => "application/json" },
         json: async () => ({ items: agents }),
+      } as unknown as Response);
+    }
+    if (url === "/api/workforce/overview") {
+      // Only the governance switch matters here: it decides whether a budget
+      // limit blocks a turn.
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: { get: () => "application/json" },
+        json: async () => ({
+          monthlySpend: 0,
+          monthlyLimit: 0,
+          autoHalt: opts.autoHalt ?? false,
+          activeAgents: agents.length,
+          runningTasks: 0,
+          queuedTasks: 0,
+          pendingApprovals: 0,
+          spendByAgent: [],
+          spendByProvider: [],
+        }),
       } as unknown as Response);
     }
     if (!chat.ok) {
@@ -474,5 +496,46 @@ describe("AICopilotDrawer", () => {
     await waitFor(() => {
       expect(screen.getByText("Only an admin can bill a turn to an agent.")).not.toBeNull();
     });
+  });
+
+  it("15. warns about an exhausted budget when auto-halt makes the limit blocking", async () => {
+    global.fetch = agentFetch(
+      [workforceAgent({ budgetUsed: 10, budgetLimit: 10 })],
+      { ok: true, chunks: [] },
+      { autoHalt: true },
+    ) as unknown as typeof fetch;
+
+    renderAdminDrawer();
+
+    const select = await screen.findByLabelText("Agent to bill");
+    fireEvent.change(select, { target: { value: "agent-1" } });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("This agent reached its monthly budget limit. Raise the limit in AI Workforce."),
+      ).not.toBeNull();
+    });
+  });
+
+  it("16. stays quiet about an exhausted budget while auto-halt is off", async () => {
+    global.fetch = agentFetch(
+      [workforceAgent({ budgetUsed: 10, budgetLimit: 10 })],
+      { ok: true, chunks: [] },
+      { autoHalt: false },
+    ) as unknown as typeof fetch;
+
+    renderAdminDrawer();
+
+    const select = await screen.findByLabelText("Agent to bill");
+    fireEvent.change(select, { target: { value: "agent-1" } });
+    // The agent list has loaded, so the absence below is the picker's choice,
+    // not a pending request.
+    await waitFor(() => {
+      expect((select as HTMLSelectElement).value).toBe("agent-1");
+    });
+
+    expect(
+      screen.queryByText("This agent reached its monthly budget limit. Raise the limit in AI Workforce."),
+    ).toBeNull();
   });
 });

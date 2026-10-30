@@ -491,7 +491,6 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 
 	var totalSpend, totalLimit float64
 	byAgent := make([]WorkforceSpendAgent, 0, len(agents))
-	providerSpend := map[string]float64{}
 	now := time.Now().UTC()
 	for _, a := range agents {
 		// A counter from an earlier month reads as zero: the dashboard shows
@@ -500,7 +499,6 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 		totalSpend += a.BudgetUsed
 		totalLimit += a.BudgetLimit
 		byAgent = append(byAgent, WorkforceSpendAgent{Name: a.Name, Model: a.Model, Spend: a.BudgetUsed})
-		providerSpend[providerForModel(a.Model)] += a.BudgetUsed
 	}
 
 	pctOf := func(v, total float64) int {
@@ -514,9 +512,32 @@ func (s *WorkforceStore) GetOverview(ctx context.Context, orgID uint) (*Workforc
 	}
 	sort.SliceStable(byAgent, func(i, j int) bool { return byAgent[i].Spend > byAgent[j].Spend })
 
+	// Provider attribution comes from the ledger, not from the agent's display
+	// label: workforce_agents.model does not select the price or the route, so
+	// summing the counter by that label would charge a provider that never ran
+	// the turn. The ledger rows carry the model that was actually billed.
+	var modelSpend []struct {
+		Model string
+		Spend float64
+	}
+	if err := s.db.WithContext(ctx).Model(&models.WorkforceSpendEvent{}).
+		Select("model, COALESCE(SUM(cost_usd), 0) AS spend").
+		Where("owner_id = ? AND created_at >= ?", orgID, monthStart(now)).
+		Group("model").
+		Scan(&modelSpend).Error; err != nil {
+		return nil, err
+	}
+
+	providerSpend := map[string]float64{}
+	var providerTotal float64
+	for _, row := range modelSpend {
+		providerSpend[providerForModel(row.Model)] += row.Spend
+		providerTotal += row.Spend
+	}
+
 	byProvider := make([]WorkforceSpendProvider, 0, len(providerSpend))
 	for name, spend := range providerSpend {
-		byProvider = append(byProvider, WorkforceSpendProvider{Provider: name, Spend: spend, Pct: pctOf(spend, totalSpend)})
+		byProvider = append(byProvider, WorkforceSpendProvider{Provider: name, Spend: spend, Pct: pctOf(spend, providerTotal)})
 	}
 	sort.SliceStable(byProvider, func(i, j int) bool { return byProvider[i].Spend > byProvider[j].Spend })
 

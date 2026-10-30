@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -319,5 +320,43 @@ func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
 		t.Fatalf("exhausted budget: expected 409, got %d (%s)", rec.Code, rec.Body.String())
 	} else {
 		wantErrCode(t, rec, apierror.CodeWorkforceBudgetExceeded)
+	}
+}
+
+// TestWorkforceBilling_SpendSurvivesACancelledRequest pins the write that
+// follows the stream. A client that closes the tab cancels the request
+// context; the turn already ran and the provider billed it, so the ledger row
+// must still be written.
+func TestWorkforceBilling_SpendSurvivesACancelledRequest(t *testing.T) {
+	srv, db, h := newBillingTestHandler(t)
+	cookies := loginCookies(t, srv)
+	agent := createBillingAgent(t, srv, cookies, "10")
+	setModelPrice(t, srv, cookies, fakeStreamModel, 3, 15)
+
+	var row models.WorkforceAgent
+	if err := db.Where("id = ?", agent.ID).First(&row).Error; err != nil {
+		t.Fatalf("load agent: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := recordTurnSpend(ctx, h.getWorkforceStore(), row.OrgID, agentstore.SpendInput{
+		AgentID:         agent.ID,
+		Model:           fakeStreamModel,
+		InputTokens:     1_000,
+		OutputTokens:    500,
+		ReasoningTokens: 100,
+		Source:          models.WorkforceSpendSourceChat,
+		SessionID:       "sess-cancelled",
+	}); err != nil {
+		t.Fatalf("recordTurnSpend on a cancelled request: %v", err)
+	}
+
+	var count int64
+	if err := db.Model(&models.WorkforceSpendEvent{}).Where("agent_id = ?", agent.ID).Count(&count).Error; err != nil {
+		t.Fatalf("count ledger: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("ledger rows = %d, want 1", count)
 	}
 }
