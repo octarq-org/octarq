@@ -27,8 +27,15 @@ var (
 	// negative token counts, or an unknown source.
 	ErrInvalidSpend = errors.New("agentstore: invalid spend event")
 	// ErrInvalidPrice is returned for a price with an empty or over-long model
-	// label, or a negative or non-finite amount.
+	// label, or an amount outside the column range.
 	ErrInvalidPrice = errors.New("agentstore: invalid model price")
+	// ErrSpendReplayed is returned when a runtime turn that was already billed
+	// is reported again. The first write owns the charge.
+	ErrSpendReplayed = errors.New("agentstore: spend turn already recorded")
+	// ErrSpendTurnNotFound is returned when a turn ID has no ledger row. A
+	// caller reaches it only when a row vanished between two statements; the
+	// ledger is append-only, so a retry finds the row.
+	ErrSpendTurnNotFound = errors.New("agentstore: spend turn not found")
 )
 
 // priceTokenUnit is the token count a price row is quoted for: prices are per
@@ -50,6 +57,10 @@ type SpendInput struct {
 	ReasoningTokens int
 	Source          string
 	SessionID       string
+	// TurnID is the producer's identifier for a runtime turn. A retry with the
+	// same identifier is refused with ErrSpendReplayed instead of charging a
+	// second time. A chat turn leaves it empty.
+	TurnID string
 }
 
 // monthStart returns the first instant of t's calendar month in UTC.
@@ -265,6 +276,14 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 	if !models.InStatusSet(in.Source, models.WorkforceSpendSources) {
 		return nil, nil, ErrInvalidSpend
 	}
+	// A runtime turn carries an identifier so a retry cannot charge twice. The
+	// identifier is scoped to the workspace and the agent. An external reporter
+	// always has one, so a runtime turn without it is a caller bug, not a chat
+	// turn: it is refused instead of billed without protection.
+	turnID := strings.TrimSpace(in.TurnID)
+	if len(turnID) > 64 || (in.Source == models.WorkforceSpendSourceRuntime && turnID == "") {
+		return nil, nil, ErrInvalidSpend
+	}
 
 	autoHalt, err := s.GetAutoHalt(ctx, orgID)
 	if err != nil {
@@ -276,6 +295,7 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 
 	var event models.WorkforceSpendEvent
 	var updated models.WorkforceAgent
+	replayed := false
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		agent := models.WorkforceAgent{}
 		if err := tx.Where("id = ? AND owner_id = ?", in.AgentID, orgID).First(&agent).Error; err != nil {
@@ -283,6 +303,22 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 				return ErrAgentNotFound
 			}
 			return err
+		}
+
+		// A replayed turn is answered before the price lookup: the price may
+		// have changed or gone since the first report, and the first write owns
+		// the charge either way.
+		if turnID != "" {
+			var existing models.WorkforceSpendEvent
+			err := tx.Where("owner_id = ? AND agent_id = ? AND external_id = ?", orgID, in.AgentID, turnID).
+				First(&existing).Error
+			if err == nil {
+				replayed = true
+				return nil
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
 		}
 
 		price, err := priceForDB(tx, orgID, model)
@@ -304,8 +340,25 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 			SessionID:       in.SessionID,
 			CreatedAt:       now,
 		}
-		if err := tx.Create(&event).Error; err != nil {
-			return err
+		if turnID != "" {
+			event.TurnID = &turnID
+		}
+		// Two identical turns can pass the lookup above together. The unique
+		// turn index decides which insert wins; the loser charges nothing.
+		create := tx
+		if turnID != "" {
+			create = tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "owner_id"}, {Name: "agent_id"}, {Name: "external_id"}},
+				DoNothing: true,
+			})
+		}
+		res := create.Create(&event)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			replayed = true
+			return nil
 		}
 
 		// The accrual is one statement on the stored counter, never a
@@ -342,6 +395,9 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 	if err != nil {
 		return nil, nil, err
 	}
+	if replayed {
+		return nil, nil, ErrSpendReplayed
+	}
 	return &event, &updated, nil
 }
 
@@ -372,4 +428,31 @@ func (s *WorkforceStore) ListSpendEvents(ctx context.Context, orgID uint, agentI
 		return nil, err
 	}
 	return events, nil
+}
+
+// SpendByTurn returns the ledger row a producer already recorded under turnID.
+// A replayed ingest answers with the original row, so the caller sees the same
+// charge instead of a second one.
+func (s *WorkforceStore) SpendByTurn(ctx context.Context, orgID uint, agentID, turnID string) (*models.WorkforceSpendEvent, *models.WorkforceAgent, error) {
+	if s == nil || s.db == nil {
+		return nil, nil, errors.New("agentstore: workforce store is not configured")
+	}
+	turnID = strings.TrimSpace(turnID)
+	if turnID == "" {
+		return nil, nil, ErrInvalidSpend
+	}
+	agent, err := s.GetAgent(ctx, orgID, agentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	var event models.WorkforceSpendEvent
+	if err := s.db.WithContext(ctx).
+		Where("owner_id = ? AND agent_id = ? AND external_id = ?", orgID, agentID, turnID).
+		First(&event).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, ErrSpendTurnNotFound
+		}
+		return nil, nil, err
+	}
+	return &event, agent, nil
 }

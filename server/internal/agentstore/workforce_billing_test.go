@@ -12,6 +12,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 func seedBillingAgent(t *testing.T, store *WorkforceStore, orgID uint, limit float64) models.WorkforceAgent {
@@ -190,7 +191,7 @@ func TestWorkforceBilling_RolloverReleasesTheBudget(t *testing.T) {
 	event, updated, err := store.RecordSpend(ctx, orgID, SpendInput{
 		AgentID: agent.ID, Model: "claude-opus-4-8",
 		InputTokens: 1_000_000, OutputTokens: 0,
-		Source: models.WorkforceSpendSourceRuntime,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-rollover",
 	})
 	if err != nil {
 		t.Fatalf("RecordSpend: %v", err)
@@ -227,6 +228,7 @@ func TestWorkforceBilling_RecordSpendAccrues(t *testing.T) {
 		ReasoningTokens: 50_000,
 		Source:          models.WorkforceSpendSourceRuntime,
 		SessionID:       "sess-1",
+		TurnID:          "turn-accrue-1",
 	})
 	if err != nil {
 		t.Fatalf("RecordSpend: %v", err)
@@ -260,6 +262,7 @@ func TestWorkforceBilling_RecordSpendAccrues(t *testing.T) {
 		ReasoningTokens: 50_000,
 		Source:          models.WorkforceSpendSourceRuntime,
 		SessionID:       "sess-2",
+		TurnID:          "turn-accrue-2",
 	}); err != nil {
 		t.Fatalf("second RecordSpend: %v", err)
 	} else if !closeEnough(second.BudgetUsed, 12) {
@@ -305,7 +308,8 @@ func TestWorkforceBilling_AutoPause(t *testing.T) {
 	}
 
 	_, updated, err := store.RecordSpend(ctx, orgID, SpendInput{
-		AgentID: agent.ID, Model: "m", InputTokens: 2_000_000, Source: models.WorkforceSpendSourceRuntime,
+		AgentID: agent.ID, Model: "m", InputTokens: 2_000_000,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-limit",
 	})
 	if err != nil {
 		t.Fatalf("RecordSpend: %v", err)
@@ -328,7 +332,8 @@ func TestWorkforceBilling_AutoPause(t *testing.T) {
 		t.Fatalf("SetModelPrice: %v", err)
 	}
 	_, updated2, err := store2.RecordSpend(ctx, orgID2, SpendInput{
-		AgentID: agent2.ID, Model: "m", InputTokens: 2_000_000, Source: models.WorkforceSpendSourceRuntime,
+		AgentID: agent2.ID, Model: "m", InputTokens: 2_000_000,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-limit-off",
 	})
 	if err != nil {
 		t.Fatalf("RecordSpend advisory: %v", err)
@@ -358,14 +363,16 @@ func TestWorkforceBilling_RecordSpendValidation(t *testing.T) {
 		in   SpendInput
 		want error
 	}{
-		{"unknown agent", SpendInput{AgentID: "agent-missing", Model: "m", Source: models.WorkforceSpendSourceRuntime}, ErrAgentNotFound},
-		{"unpriced model", SpendInput{AgentID: agent.ID, Model: "nope", Source: models.WorkforceSpendSourceRuntime}, ErrModelPriceMissing},
-		{"no model", SpendInput{AgentID: agent.ID, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
-		{"over-long model", SpendInput{AgentID: agent.ID, Model: strings.Repeat("m", 65), Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
-		{"bad source", SpendInput{AgentID: agent.ID, Model: "m", Source: "webhook"}, ErrInvalidSpend},
-		{"negative input", SpendInput{AgentID: agent.ID, Model: "m", InputTokens: -1, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
-		{"negative output", SpendInput{AgentID: agent.ID, Model: "m", OutputTokens: -1, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
-		{"negative reasoning", SpendInput{AgentID: agent.ID, Model: "m", ReasoningTokens: -1, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
+		{"unknown agent", SpendInput{AgentID: "agent-missing", Model: "m", Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-unknown"}, ErrAgentNotFound},
+		{"unpriced model", SpendInput{AgentID: agent.ID, Model: "nope", Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-unpriced"}, ErrModelPriceMissing},
+		{"no model", SpendInput{AgentID: agent.ID, Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-no-model"}, ErrInvalidSpend},
+		{"over-long model", SpendInput{AgentID: agent.ID, Model: strings.Repeat("m", 65), Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-long-model"}, ErrInvalidSpend},
+		{"bad source", SpendInput{AgentID: agent.ID, Model: "m", Source: "webhook", TurnID: "turn-bad-source"}, ErrInvalidSpend},
+		{"runtime turn without an id", SpendInput{AgentID: agent.ID, Model: "m", Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
+		{"over-long turn id", SpendInput{AgentID: agent.ID, Model: "m", Source: models.WorkforceSpendSourceRuntime, TurnID: strings.Repeat("t", 65)}, ErrInvalidSpend},
+		{"negative input", SpendInput{AgentID: agent.ID, Model: "m", InputTokens: -1, Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-neg-in"}, ErrInvalidSpend},
+		{"negative output", SpendInput{AgentID: agent.ID, Model: "m", OutputTokens: -1, Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-neg-out"}, ErrInvalidSpend},
+		{"negative reasoning", SpendInput{AgentID: agent.ID, Model: "m", ReasoningTokens: -1, Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-neg-reasoning"}, ErrInvalidSpend},
 	}
 	for _, tc := range cases {
 		if _, _, err := store.RecordSpend(ctx, orgID, tc.in); !errors.Is(err, tc.want) {
@@ -390,7 +397,8 @@ func TestWorkforceBilling_TenantIsolation(t *testing.T) {
 
 	// Org 2 has no price for the model, so it cannot price a turn at all.
 	if _, _, err := store.RecordSpend(ctx, org2, SpendInput{
-		AgentID: agent.ID, Model: "m", InputTokens: 1, Source: models.WorkforceSpendSourceRuntime,
+		AgentID: agent.ID, Model: "m", InputTokens: 1,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-cross-org",
 	}); !errors.Is(err, ErrAgentNotFound) {
 		t.Fatalf("cross-tenant spend = %v, want ErrAgentNotFound", err)
 	}
@@ -408,13 +416,15 @@ func TestWorkforceBilling_TenantIsolation(t *testing.T) {
 		t.Fatalf("authorize priced from another workspace: %v", err)
 	}
 	if _, _, err := store.RecordSpend(ctx, org2, SpendInput{
-		AgentID: agent2.ID, Model: "m", InputTokens: 1, Source: models.WorkforceSpendSourceRuntime,
+		AgentID: agent2.ID, Model: "m", InputTokens: 1,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-cross-org-2",
 	}); !errors.Is(err, ErrModelPriceMissing) {
 		t.Fatalf("spend priced from another workspace: %v", err)
 	}
 
 	if _, _, err := store.RecordSpend(ctx, org1, SpendInput{
-		AgentID: agent.ID, Model: "m", InputTokens: 1_000_000, Source: models.WorkforceSpendSourceRuntime,
+		AgentID: agent.ID, Model: "m", InputTokens: 1_000_000,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-org1",
 	}); err != nil {
 		t.Fatalf("RecordSpend org1: %v", err)
 	}
@@ -441,7 +451,8 @@ func TestWorkforceBilling_ListSpendEvents(t *testing.T) {
 	}
 	for i := 0; i < 3; i++ {
 		if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
-			AgentID: agent.ID, Model: "m", InputTokens: 1_000_000, Source: models.WorkforceSpendSourceRuntime,
+			AgentID: agent.ID, Model: "m", InputTokens: 1_000_000,
+			Source: models.WorkforceSpendSourceRuntime, TurnID: fmt.Sprintf("turn-list-%d", i),
 		}); err != nil {
 			t.Fatalf("RecordSpend %d: %v", i, err)
 		}
@@ -477,7 +488,7 @@ func TestWorkforceBilling_ZeroPriceModelIsBillable(t *testing.T) {
 	}
 	event, updated, err := store.RecordSpend(ctx, orgID, SpendInput{
 		AgentID: agent.ID, Model: "local-llama", InputTokens: 1000, OutputTokens: 1000,
-		Source: models.WorkforceSpendSourceRuntime,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-zero-price",
 	})
 	if err != nil {
 		t.Fatalf("RecordSpend: %v", err)
@@ -531,7 +542,7 @@ func TestWorkforceBilling_SubCentTurnsAccrue(t *testing.T) {
 	for i := 0; i < turns; i++ {
 		if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
 			AgentID: agent.ID, Model: "m", InputTokens: 1_000, OutputTokens: 100,
-			Source: models.WorkforceSpendSourceRuntime,
+			Source: models.WorkforceSpendSourceRuntime, TurnID: fmt.Sprintf("turn-subcent-%d", i),
 		}); err != nil {
 			t.Fatalf("RecordSpend %d: %v", i, err)
 		}
@@ -598,7 +609,7 @@ func TestWorkforceBilling_RecordSpendTrimsTheModelLabel(t *testing.T) {
 	}
 	event, _, err := store.RecordSpend(ctx, orgID, SpendInput{
 		AgentID: agent.ID, Model: "  m  ", InputTokens: 10,
-		Source: models.WorkforceSpendSourceRuntime,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-trim",
 	})
 	if err != nil {
 		t.Fatalf("RecordSpend: %v", err)
@@ -626,7 +637,7 @@ func TestWorkforceBilling_ProviderSpendFollowsTheLedger(t *testing.T) {
 	}
 	if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
 		AgentID: agent.ID, Model: "gpt-4o", InputTokens: 1_000_000,
-		Source: models.WorkforceSpendSourceRuntime,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-provider",
 	}); err != nil {
 		t.Fatalf("RecordSpend: %v", err)
 	}
@@ -674,5 +685,157 @@ func TestWorkforceBilling_PriceBounds(t *testing.T) {
 	}
 	if price.InputPerMTok != 0.0001 {
 		t.Fatalf("stored input price = %v, want 0.0001", price.InputPerMTok)
+	}
+}
+
+// TestWorkforceBilling_TurnIDMakesIngestIdempotent pins the contract a
+// retrying runtime depends on: the same turn identifier bills once, and the
+// retry answers with the original charge.
+func TestWorkforceBilling_TurnIDMakesIngestIdempotent(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(611)
+
+	agent := seedBillingAgent(t, store, orgID, 10)
+	other := seedBillingAgent(t, store, orgID, 10)
+	if _, err := store.SetModelPrice(ctx, orgID, "m", 1, 0); err != nil {
+		t.Fatalf("SetModelPrice: %v", err)
+	}
+
+	input := SpendInput{
+		AgentID: agent.ID, Model: "m", InputTokens: 1_000_000,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-1",
+	}
+	first, _, err := store.RecordSpend(ctx, orgID, input)
+	if err != nil {
+		t.Fatalf("RecordSpend: %v", err)
+	}
+
+	if _, _, err := store.RecordSpend(ctx, orgID, input); !errors.Is(err, ErrSpendReplayed) {
+		t.Fatalf("replayed turn = %v, want ErrSpendReplayed", err)
+	}
+
+	events, err := store.ListSpendEvents(ctx, orgID, agent.ID, 10)
+	if err != nil {
+		t.Fatalf("ListSpendEvents: %v", err)
+	}
+	if len(events) != 1 || events[0].ID != first.ID {
+		t.Fatalf("replay wrote a ledger row: %+v", events)
+	}
+	after, err := store.GetAgent(ctx, orgID, agent.ID)
+	if err != nil {
+		t.Fatalf("GetAgent: %v", err)
+	}
+	if !closeEnough(after.BudgetUsed, 1) {
+		t.Fatalf("BudgetUsed after replay = %v, want 1", after.BudgetUsed)
+	}
+
+	// The replay reader answers with the row the first report wrote.
+	got, owner, err := store.SpendByTurn(ctx, orgID, agent.ID, "turn-1")
+	if err != nil {
+		t.Fatalf("SpendByTurn: %v", err)
+	}
+	if got.ID != first.ID || !closeEnough(got.CostUSD, 1) {
+		t.Fatalf("SpendByTurn = %+v, want event %d costing 1", got, first.ID)
+	}
+	if owner == nil || !closeEnough(owner.BudgetUsed, 1) {
+		t.Fatalf("SpendByTurn agent counter = %+v, want 1", owner)
+	}
+	if _, _, err := store.SpendByTurn(ctx, orgID, agent.ID, "turn-unknown"); !errors.Is(err, ErrSpendTurnNotFound) {
+		t.Fatalf("SpendByTurn on an unknown turn = %v, want ErrSpendTurnNotFound", err)
+	}
+
+	// The identifier is scoped to the agent: the same id on another agent is a
+	// new charge.
+	if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
+		AgentID: other.ID, Model: "m", InputTokens: 1_000_000,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-1",
+	}); err != nil {
+		t.Fatalf("second agent, same turn id: %v", err)
+	}
+	if otherAfter, err := store.GetAgent(ctx, orgID, other.ID); err != nil || !closeEnough(otherAfter.BudgetUsed, 1) {
+		t.Fatalf("second agent counter = %+v (err %v), want 1", otherAfter, err)
+	}
+
+	// A chat turn carries no identifier, and the unique index lets every one of
+	// them through.
+	for i := 0; i < 2; i++ {
+		if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
+			AgentID: agent.ID, Model: "m", InputTokens: 1_000_000,
+			Source: models.WorkforceSpendSourceChat, SessionID: "sess-chat",
+		}); err != nil {
+			t.Fatalf("chat turn %d: %v", i, err)
+		}
+	}
+	events, err = store.ListSpendEvents(ctx, orgID, agent.ID, 10)
+	if err != nil {
+		t.Fatalf("ListSpendEvents: %v", err)
+	}
+	if len(events) != 3 {
+		t.Fatalf("ledger rows = %d, want 3", len(events))
+	}
+
+	// A price removed after the first report does not erase the charge. The
+	// retry still answers with the row; a new turn is refused.
+	if err := store.DeleteModelPrice(ctx, orgID, "m"); err != nil {
+		t.Fatalf("DeleteModelPrice: %v", err)
+	}
+	if _, _, err := store.RecordSpend(ctx, orgID, input); !errors.Is(err, ErrSpendReplayed) {
+		t.Fatalf("replay after the price was removed = %v, want ErrSpendReplayed", err)
+	}
+	if _, _, err := store.SpendByTurn(ctx, orgID, agent.ID, "turn-1"); err != nil {
+		t.Fatalf("SpendByTurn after the price was removed: %v", err)
+	}
+	if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
+		AgentID: agent.ID, Model: "m", InputTokens: 1,
+		Source: models.WorkforceSpendSourceRuntime, TurnID: "turn-2",
+	}); !errors.Is(err, ErrModelPriceMissing) {
+		t.Fatalf("new turn on an unpriced model = %v, want ErrModelPriceMissing", err)
+	}
+}
+
+// TestWorkforceBilling_TurnIndexIsUnique pins the DDL that makes ingest
+// idempotent on a server that enforces constraints. A plain index would let two
+// concurrent reports of one turn each take a ledger row and a charge.
+func TestWorkforceBilling_TurnIndexIsUnique(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(
+		postgres.New(postgres.Config{DSN: "host=127.0.0.1 port=1 user=test dbname=test sslmode=disable"}),
+		&gorm.Config{DisableAutomaticPing: true},
+	)
+	if err != nil {
+		t.Fatalf("open postgres dialector: %v", err)
+	}
+	stmt := &gorm.Statement{DB: db}
+	if err := stmt.Parse(&models.WorkforceSpendEvent{}); err != nil {
+		t.Fatalf("parse model: %v", err)
+	}
+	var idx *schema.Index
+	for _, candidate := range stmt.Schema.ParseIndexes() {
+		if candidate.Name == "idx_workforce_spend_turn" {
+			idx = candidate
+			break
+		}
+	}
+	if idx == nil {
+		t.Fatal("idx_workforce_spend_turn is not declared on the ledger")
+	}
+	if idx.Class != "UNIQUE" {
+		t.Fatalf("idx_workforce_spend_turn is not unique: a replayed turn could be billed twice")
+	}
+	var columns []string
+	for _, f := range idx.Fields {
+		columns = append(columns, f.DBName)
+	}
+	want := []string{"owner_id", "agent_id", "external_id"}
+	if len(columns) != len(want) {
+		t.Fatalf("index columns = %v, want %v", columns, want)
+	}
+	for i := range want {
+		if columns[i] != want[i] {
+			t.Fatalf("index columns = %v, want %v (a replay must match the same workspace, agent, and turn)", columns, want)
+		}
 	}
 }

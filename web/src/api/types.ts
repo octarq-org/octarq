@@ -587,6 +587,8 @@ export interface WorkforceSpendEventDTO {
   costUsd: number;
   source: WorkforceSpendSource;
   sessionId?: string;
+  /** Set on a runtime turn: the producer's identifier for it. */
+  turnId?: string;
   createdAt: string;
 }
 
@@ -595,6 +597,8 @@ export interface RecordWorkforceSpendInput {
   inputTokens: number;
   outputTokens: number;
   reasoningTokens?: number;
+  /** The runner's identifier for this turn. A retry with the same value bills once. */
+  turnId: string;
 }
 
 export interface WorkforceOverviewDTO {

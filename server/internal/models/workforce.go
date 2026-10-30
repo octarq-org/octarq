@@ -122,9 +122,9 @@ func (WorkforceModelPrice) TableName() string {
 type WorkforceSpendEvent struct {
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 	// OrgID scopes the event to one workspace.
-	OrgID uint `gorm:"index:idx_workforce_spend_org_agent;not null;column:owner_id" json:"orgId"`
+	OrgID uint `gorm:"index:idx_workforce_spend_org_agent;uniqueIndex:idx_workforce_spend_turn,priority:1;not null;column:owner_id" json:"orgId"`
 	// AgentID references WorkforceAgent.ID.
-	AgentID string `gorm:"size:64;index:idx_workforce_spend_org_agent;not null" json:"agentId"`
+	AgentID string `gorm:"size:64;index:idx_workforce_spend_org_agent;uniqueIndex:idx_workforce_spend_turn,priority:2;not null" json:"agentId"`
 	// Model is the provider model identifier that was billed.
 	Model string `gorm:"size:64;not null" json:"model"`
 	// InputTokens is the prompt token count of the turn.
@@ -140,7 +140,10 @@ type WorkforceSpendEvent struct {
 	// Source is where the usage was reported from: chat or runtime.
 	Source string `gorm:"size:32;not null" json:"source"`
 	// SessionID links a chat turn to its session.
-	SessionID string    `gorm:"size:64" json:"sessionId,omitempty"`
+	SessionID string `gorm:"size:64" json:"sessionId,omitempty"`
+	// TurnID is the producer's identifier for a runtime turn. A replay of the
+	// same identifier never charges twice; a chat turn leaves it NULL.
+	TurnID    *string   `gorm:"column:external_id;size:64;uniqueIndex:idx_workforce_spend_turn,priority:3" json:"turnId,omitempty"`
 	CreatedAt time.Time `gorm:"index" json:"createdAt"`
 }
 

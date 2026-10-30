@@ -13,7 +13,7 @@ a price: every row was written through the API or by a real agent turn.
 | `workforce_tasks` | this package | Primary key `(id, owner_id)`. Status follows the ticket state machine. |
 | `workforce_task_steps` | this package | Append-only execution log, scoped by `owner_id` and `task_id`. |
 | `workforce_model_prices` | this package | Primary key `(owner_id, model)`. Price per million tokens in USD. |
-| `workforce_spend_events` | this package | Append-only ledger. Rows are never updated or deleted by the store. |
+| `workforce_spend_events` | this package | Append-only ledger. Rows are never updated or deleted by the store. Unique index `(owner_id, agent_id, external_id)` makes a replayed runtime turn a no-op. |
 | `workspace_settings` | shared | `workforce.auto_halt` holds the enforcement switch. Absent means on. |
 
 ## Ticket state machine
@@ -78,19 +78,41 @@ covers. The boundary is the first instant of the month in UTC.
 `RecordSpend` runs one transaction:
 
 1. Load the agent scoped by `(id, owner_id)`.
-2. Resolve the price scoped by `(owner_id, model)`. The model label is trimmed
+2. If the input carries a turn ID, look for a ledger row with the same
+   `(owner_id, agent_id, external_id)`. A hit returns `ErrSpendReplayed` before
+   the price lookup, so a price that changed or was removed after the first
+   report cannot rewrite or block the answer.
+3. Resolve the price scoped by `(owner_id, model)`. The model label is trimmed
    before the lookup and stored as the price row spells it.
-3. Insert the ledger row.
-4. Accrue `budget_used` in a single statement, never a read-modify-write: a
+4. Insert the ledger row. With a turn ID, the insert is
+   `ON CONFLICT (owner_id, agent_id, external_id) DO NOTHING`: two reports of
+   one turn that pass step 2 together both reach the insert, and only one takes
+   a row. The loser returns `ErrSpendReplayed`.
+5. Accrue `budget_used` in a single statement, never a read-modify-write: a
    counter stamped with an earlier period restarts at this turn's cost, and a
    current counter adds to the stored value. Two turns that finish together
    both land.
-5. Re-read the row. If auto-halt is on and the new total is at or above the
+6. Re-read the row. If auto-halt is on and the new total is at or above the
    limit, set `status = 'paused'`.
 
 A turn is recorded even when it failed partway: the provider bills the tokens it
 generated. The chat path writes the ledger row on a context that outlives the
 request, so a client that closes the tab does not lose the charge.
+
+### Ingest idempotency
+
+A runtime turn must carry a turn ID. The store refuses `source = runtime`
+without one with `ErrInvalidSpend`; the HTTP handler refuses it with 400. The
+chat path has no turn ID: it writes one row per completed turn, and the unique
+index ignores the NULL column, so every chat turn is a new charge.
+
+- Uniqueness scope is `(owner_id, agent_id, external_id)`. The same ID on
+  another agent or in another workspace is a different turn.
+- The first report owns the charge and the price frozen into it.
+- `SpendByTurn(orgID, agentID, turnID)` reads that row back. The HTTP handler
+  answers a replay with 200 and the original event; a first report answers 201.
+- `idx_workforce_spend_turn` is a unique index. A plain index would let two
+  concurrent reports each take a row and a charge.
 
 `budget_used` keeps six decimals, the same scale as `cost_usd`. A coarser
 column would round every sub-cent turn away from the ledger sum it is
@@ -148,7 +170,8 @@ translates into the next action:
 | `workforce_spend_not_recorded` | SSE `error` | Check the billing setup |
 
 The ingestion endpoint takes token counts, never a cost. A caller cannot set
-what it owes.
+what it owes. It requires `turnId` (1 to 64 characters) and answers `201` for a
+new turn, `200` with the original event for a replay.
 
 `GET /api/workforce/agents/{id}/spend` reads the ledger, newest first, and the
 Budgets tab renders it. A turn that is absent from the ledger was not charged.
@@ -171,9 +194,13 @@ never ran the turn.
 
 ## Errors
 
-`ErrInvalidSpend` covers an unknown source, an empty or over-long model label,
-and a negative token count. `ErrInvalidPrice` covers an empty or over-long
-model label and a price outside the column range. The API answers 400 for both.
+`ErrInvalidSpend` covers an unknown source, an empty or over-long model label, a
+negative token count, and a runtime turn without a turn ID or with one longer
+than 64 characters. `ErrInvalidPrice` covers an empty or over-long model label
+and a price outside the column range. The API answers 400 for both.
+`ErrSpendReplayed` is not an error the client sees: the handler turns it into
+the original event with 200. `ErrSpendTurnNotFound` from `SpendByTurn` means
+the ledger row is gone between two statements; the handler answers 500.
 
 ## Non-goals
 

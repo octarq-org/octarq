@@ -146,7 +146,7 @@ func TestWorkforceBilling_RecordAgentSpendEndpoint(t *testing.T) {
 	setModelPrice(t, srv, cookies, fakeStreamModel, 1, 1)
 
 	rec := do(srv, "POST", "/api/workforce/agents/"+agent.ID+"/spend", cookies,
-		`{"model":"`+fakeStreamModel+`","inputTokens":1000000,"outputTokens":0}`)
+		`{"model":"`+fakeStreamModel+`","inputTokens":1000000,"outputTokens":0,"turnId":"turn-1"}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("record spend: %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -181,13 +181,57 @@ func TestWorkforceBilling_RecordAgentSpendEndpoint(t *testing.T) {
 		t.Fatalf("expected one ledger row, got %d", len(ledger.Items))
 	}
 
+	// A retried report answers 200 with the original charge. The counter keeps
+	// the first charge: a second one would bill the same work twice.
+	rec = do(srv, "POST", "/api/workforce/agents/"+agent.ID+"/spend", cookies,
+		`{"model":"`+fakeStreamModel+`","inputTokens":1000000,"outputTokens":0,"turnId":"turn-1"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("replayed spend: expected 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var replayed struct {
+		Event WorkforceSpendEventDTO `json:"event"`
+		Agent WorkforceAgentDTO      `json:"agent"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &replayed); err != nil {
+		t.Fatalf("decode replay: %v", err)
+	}
+	if replayed.Event.ID != recorded.Event.ID || replayed.Event.CostUSD != recorded.Event.CostUSD {
+		t.Fatalf("replay answered %+v, want event %d costing %v", replayed.Event, recorded.Event.ID, recorded.Event.CostUSD)
+	}
+	if replayed.Event.TurnID != "turn-1" {
+		t.Fatalf("turn id = %q, want turn-1", replayed.Event.TurnID)
+	}
+	if replayed.Agent.BudgetUsed != 1 {
+		t.Fatalf("budgetUsed after replay = %v, want 1", replayed.Agent.BudgetUsed)
+	}
+	rec = do(srv, "GET", "/api/workforce/agents/"+agent.ID+"/spend", cookies, "")
+	if err := json.Unmarshal(rec.Body.Bytes(), &ledger); err != nil {
+		t.Fatalf("decode ledger: %v", err)
+	}
+	if len(ledger.Items) != 1 {
+		t.Fatalf("replay added a ledger row: got %d", len(ledger.Items))
+	}
+
+	// A different turn of the same agent is a new charge.
+	rec = do(srv, "POST", "/api/workforce/agents/"+agent.ID+"/spend", cookies,
+		`{"model":"`+fakeStreamModel+`","inputTokens":1000000,"outputTokens":0,"turnId":"turn-2"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("second turn: expected 201, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if got := readAgent(t, srv, cookies, agent.ID).BudgetUsed; got != 2 {
+		t.Fatalf("budgetUsed after two turns = %v, want 2", got)
+	}
+
 	// Fail-closed inputs.
 	badBodies := []string{
-		`{"model":"","inputTokens":1,"outputTokens":0}`,
-		`{"model":"` + fakeStreamModel + `","inputTokens":-1,"outputTokens":0}`,
-		`{"model":"` + fakeStreamModel + `","inputTokens":0,"outputTokens":-1}`,
-		`{"model":"` + fakeStreamModel + `","inputTokens":1,"outputTokens":1,"reasoningTokens":2}`,
-		`{"model":"unpriced","inputTokens":1,"outputTokens":0}`,
+		`{"model":"","inputTokens":1,"outputTokens":0,"turnId":"turn-bad-1"}`,
+		`{"model":"` + fakeStreamModel + `","inputTokens":-1,"outputTokens":0,"turnId":"turn-bad-2"}`,
+		`{"model":"` + fakeStreamModel + `","inputTokens":0,"outputTokens":-1,"turnId":"turn-bad-3"}`,
+		`{"model":"` + fakeStreamModel + `","inputTokens":1,"outputTokens":1,"reasoningTokens":2,"turnId":"turn-bad-4"}`,
+		`{"model":"unpriced","inputTokens":1,"outputTokens":0,"turnId":"turn-bad-5"}`,
+		// A turn without an identifier cannot be deduplicated, so it is refused.
+		`{"model":"` + fakeStreamModel + `","inputTokens":1,"outputTokens":0}`,
+		`{"model":"` + fakeStreamModel + `","inputTokens":1,"outputTokens":0,"turnId":"` + strings.Repeat("t", 65) + `"}`,
 	}
 	for _, body := range badBodies {
 		if rec := do(srv, "POST", "/api/workforce/agents/"+agent.ID+"/spend", cookies, body); rec.Code != http.StatusBadRequest {
@@ -195,7 +239,7 @@ func TestWorkforceBilling_RecordAgentSpendEndpoint(t *testing.T) {
 		}
 	}
 	if rec := do(srv, "POST", "/api/workforce/agents/agent-missing/spend", cookies,
-		`{"model":"`+fakeStreamModel+`","inputTokens":1,"outputTokens":0}`); rec.Code != http.StatusNotFound {
+		`{"model":"`+fakeStreamModel+`","inputTokens":1,"outputTokens":0,"turnId":"turn-missing"}`); rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown agent spend: expected 404, got %d (%s)", rec.Code, rec.Body.String())
 	}
 	if rec := do(srv, "GET", "/api/workforce/agents/agent-missing/spend", cookies, ""); rec.Code != http.StatusNotFound {
@@ -310,7 +354,7 @@ func TestWorkforceBilling_ChatStreamRefusals(t *testing.T) {
 		t.Fatalf("resume: %d", rec.Code)
 	}
 	if rec := do(srv, "POST", "/api/workforce/agents/"+agent.ID+"/spend", cookies,
-		`{"model":"`+fakeStreamModel+`","inputTokens":20000000,"outputTokens":0}`); rec.Code != http.StatusCreated {
+		`{"model":"`+fakeStreamModel+`","inputTokens":20000000,"outputTokens":0,"turnId":"turn-over-limit"}`); rec.Code != http.StatusCreated {
 		t.Fatalf("spend over limit: %d (%s)", rec.Code, rec.Body.String())
 	}
 	if rec := do(srv, "POST", "/api/workforce/budgets/auto-halt", cookies, `{"autoHalt":true}`); rec.Code != http.StatusOK {
