@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { I18nProvider } from "../../../i18n";
 
@@ -51,6 +51,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+// Each test renders the whole page. Without this, the next test counts the
+// previous render's buttons too.
+afterEach(cleanup);
+
 describe("LinksPage empty state", () => {
   it("renders the shared Empty when there are no links (not a handwritten copy)", async () => {
     render(
@@ -64,5 +68,24 @@ describe("LinksPage empty state", () => {
     await waitFor(() => {
       expect(screen.getAllByTestId("shared-empty").length).toBeGreaterThan(0);
     });
+  });
+
+  it("offers one create button while the list is empty", async () => {
+    render(
+      <MemoryRouter initialEntries={["/links"]}>
+        <I18nProvider>
+          <LinksPage />
+        </I18nProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("shared-empty").length).toBeGreaterThan(0);
+    });
+
+    // The header and the empty state used to open the same dialog from two
+    // buttons with the same label. The test harness renders keys, so the label
+    // here is the key both buttons use.
+    expect(screen.getAllByRole("button", { name: "links.newLink" })).toHaveLength(1);
   });
 });
