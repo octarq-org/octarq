@@ -164,16 +164,24 @@ export default function LinksPage() {
     }
   };
 
+  // The empty state below carries the same action. Two primary buttons that do
+  // the same thing on one screen split attention, so the header keeps it only
+  // when the empty state cannot show it: another tab, a load failure, a search
+  // with no hits, or a list still loading.
+  const emptyStateOwnsCreate = tab === "links" && !error && !loading && links.length === 0 && !q;
+
   return (
     <ScreenWrap>
       <PageHeader
         title={t("links.pageTitle")}
         description={t("links.pageDescription")}
         action={
-          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            {t("links.newLink")}
-          </Button>
+          emptyStateOwnsCreate ? undefined : (
+            <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              {t("links.newLink")}
+            </Button>
+          )
         }
       />
 
