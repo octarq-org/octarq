@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
  */
 
 export type SectionViolation = {
-  kind: "hand-rolled-heading" | "empty-copy-in-children";
+  kind: "hand-rolled-heading" | "empty-block-markup";
   line: number;
   snippet: string;
 };
@@ -24,8 +24,9 @@ export type SectionViolation = {
 const PANEL_HEADING = "font-display text-[15px]";
 
 const H2_TAG = /<h2\b[^>]*>/g;
-// Everything from an opening Empty to its closer. Empty has no children other
-// than the icon glyph, so any paragraph or heading inside is misplaced copy.
+// Everything from an opening Empty to its closer. Empty renders detail inside a
+// single paragraph and everything else into a 48px tile, so block-level markup
+// anywhere inside it either nests paragraphs or crushes the text.
 const EMPTY_ELEMENT = /<Empty\b[\s\S]*?<\/Empty>/g;
 
 export function scanSectionSource(raw: string): SectionViolation[] {
@@ -46,7 +47,7 @@ export function scanSectionSource(raw: string): SectionViolation[] {
     const copy = m[0].match(/<(p|h[1-6])\b/);
     if (copy) {
       out.push({
-        kind: "empty-copy-in-children",
+        kind: "empty-block-markup",
         line: lineOf(m.index! + copy.index!),
         snippet: copy[0],
       });
@@ -97,11 +98,11 @@ describe("scanSectionSource", () => {
     expect(scanSectionSource(src)).toHaveLength(0);
   });
 
-  it("flags copy passed as Empty children", () => {
+  it("flags block-level markup inside an empty state", () => {
     const src = `<Empty>\n  <Key />\n  <p className="text-sm">No keys yet.</p>\n</Empty>\n`;
     const hits = scanSectionSource(src);
     expect(hits).toHaveLength(1);
-    expect(hits[0].kind).toBe("empty-copy-in-children");
+    expect(hits[0].kind).toBe("empty-block-markup");
     expect(hits[0].line).toBe(3);
   });
 
@@ -137,10 +138,10 @@ describe("section contract in the page modules", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("every empty state keeps its copy out of the icon tile", () => {
+  it("no empty state carries block-level markup", () => {
     const offenders = sectionFiles.flatMap((file) =>
       scanSectionSource(fs.readFileSync(file, "utf8"))
-        .filter((v) => v.kind === "empty-copy-in-children")
+        .filter((v) => v.kind === "empty-block-markup")
         .map((v) => `${path.relative(webSrc, file)}:${v.line}`),
     );
     expect(offenders).toEqual([]);
