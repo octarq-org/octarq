@@ -199,8 +199,9 @@ type AIChatStreamRequest struct {
 	Model    string                `json:"model,omitempty"`
 	Thinking *bool                 `json:"thinking,omitempty"`
 	// AgentID attributes the turn to a workforce agent. An attributed turn is
-	// priced and charged to that agent's budget; an absent value leaves the
-	// turn unbilled.
+	// priced and charged to that agent's budget. An absent value bills the
+	// workspace default agent when one is set, and leaves the turn unbilled
+	// when it is not.
 	AgentID string `json:"agentId,omitempty"`
 }
 
@@ -278,25 +279,35 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// price and the budget are checked before the stream starts: once the
 	// response is open, a refusal can no longer become an HTTP error.
 	//
-	// Attribution spends workspace money, so it carries the same authority as
-	// the workforce page that configures the agent.
+	// A caller that names an agent spends workspace money, so it carries the
+	// same authority as the workforce page that configures the agent. A turn
+	// that names none bills the workspace default agent: an admin chose that
+	// agent for every member, so a member needs no extra role to use it. When
+	// the default cannot be read, the turn is refused rather than run free.
 	var billingStore *agentstore.WorkforceStore
-	billingAgent := ""
-	if req.AgentID != "" {
-		if !h.callerHoldsRole(r, authz.RoleAdmin) {
-			writeErr(w, r, http.StatusForbidden, "", "Workspace permission denied; higher workspace role required")
+	billingAgent := req.AgentID
+	if billingAgent != "" && !h.callerHoldsRole(r, authz.RoleAdmin) {
+		writeErr(w, r, http.StatusForbidden, "", "Workspace permission denied; higher workspace role required")
+		return
+	}
+	billingStore = h.getWorkforceStore()
+	if billingStore == nil {
+		writeErr(w, r, http.StatusInternalServerError, "", "The workforce store is not configured; retry the request.")
+		return
+	}
+	if billingAgent == "" {
+		defaultAgent, err := billingStore.GetDefaultAgent(r.Context(), orgID)
+		if err != nil {
+			writeErr(w, r, http.StatusInternalServerError, "", "Could not read the default agent; retry the request.")
 			return
 		}
-		billingStore = h.getWorkforceStore()
-		if billingStore == nil {
-			writeErr(w, r, http.StatusInternalServerError, "", "The workforce store is not configured; retry the request.")
-			return
-		}
-		if _, err := billingStore.AuthorizeTurn(r.Context(), orgID, req.AgentID, model); err != nil {
+		billingAgent = defaultAgent
+	}
+	if billingAgent != "" {
+		if _, err := billingStore.AuthorizeTurn(r.Context(), orgID, billingAgent, model); err != nil {
 			writeBillingRefusal(w, r, err)
 			return
 		}
-		billingAgent = req.AgentID
 	}
 
 	// Prepare SSE response headers

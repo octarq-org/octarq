@@ -390,6 +390,53 @@ describe("CommandPalette", () => {
 
     window.removeEventListener("octarq:open-copilot", customListener);
   });
+
+  it("10. leaves attribution to the server and explains a billing refusal", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      headers: { get: () => "application/json" },
+      json: async () => ({
+        code: "workforce_budget_exceeded",
+        message: "The agent budget is exhausted.",
+      }),
+    });
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    render(
+      <I18nProvider>
+        <CommandPalette
+          open={true}
+          onClose={vi.fn()}
+          areas={dummyAreas}
+          settingsArea={dummySettingsArea}
+          onNavigate={vi.fn()}
+          actions={dummyActions}
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
+    const textarea = screen.getByLabelText("AI chat message input");
+    fireEvent.change(textarea, { target: { value: "Show link stats" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+
+    // The palette names no agent: the server bills the workspace default.
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/ai/chat/stream",
+        expect.objectContaining({
+          body: JSON.stringify({ messages: [{ role: "user", content: "Show link stats" }] }),
+        }),
+      );
+    });
+
+    // A refusal becomes the next action, not the raw server prose.
+    await waitFor(() => {
+      expect(screen.getByText(/This agent reached its monthly budget limit/)).not.toBeNull();
+    });
+  });
 });
 
 describe("ThinkingCollapsible", () => {

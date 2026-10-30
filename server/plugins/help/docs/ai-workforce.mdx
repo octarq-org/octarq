@@ -99,11 +99,13 @@ The ledger is the record behind the budget counter. A turn that is missing from 
 
 ### Bill a Chat Turn to an Agent
 
-A workspace admin can charge chat turns to an agent.
+A workspace admin chooses the agent that pays for chat turns.
 
 1. Press ⌘J to open **AI Copilot**.
 2. Select the agent in **Bill to**.
 3. Send the turn.
+
+The choice is the workspace default. Every chat turn bills it, from any surface. That includes the command palette and the turns of members.
 
 The selector shows the agent spend beside the agent name.
 
@@ -114,7 +116,7 @@ The platform refuses an attributed turn in four cases:
 - The agent is paused. Resume the agent first.
 - The agent reached its limit and the guard is on. Raise the limit first.
 - The model has no price. Add the price first.
-- A member starts the turn. Only an admin can bill a turn.
+- A member names an agent. Only the default agent bills a member's turn.
 
 ## Access Permissions
 

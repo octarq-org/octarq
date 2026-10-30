@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { create } from "zustand";
 import { AlertCircle, Mail, Search, Send, Sparkles, Square, Sunrise, TrendingUp, Trash2, X } from "lucide-react";
 import { cn } from "@octarq/plugin-sdk";
-import { useTranslation, type TFunc } from "../i18n";
+import { useTranslation } from "../i18n";
 import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
-import { streamChatResponse, type ChatFailure } from "./command/streamChat";
+import { streamChatResponse } from "./command/streamChat";
 import type { ChatMessage } from "./command/types";
 import { A2UIRenderer, type A2UIWidget } from "../components/a2ui";
 import { CopilotAgentPicker } from "./CopilotAgentPicker";
+import { agentFailureText } from "./agentFailureText";
 import { useWorkforceAgents } from "../lib/useWorkforceAgents";
+import { useDefaultAgent } from "../lib/useDefaultAgent";
 import { roleSatisfies, useCurrentRole } from "./role";
 
 export interface AICopilotUIState {
@@ -17,9 +19,6 @@ export interface AICopilotUIState {
   input: string;
   isStreaming: boolean;
   error: string | null;
-  // agentId charges the next turns to a workforce agent's budget. An empty
-  // value leaves the turns unbilled.
-  agentId: string;
 
   openDrawer: () => void;
   closeDrawer: () => void;
@@ -30,7 +29,6 @@ export interface AICopilotUIState {
   updateLastMessage: (updater: Partial<ChatMessage> | ((prev: ChatMessage) => ChatMessage)) => void;
   setIsStreaming: (isStreaming: boolean) => void;
   setError: (error: string | null) => void;
-  setAgentId: (agentId: string) => void;
   clearMessages: () => void;
   resetDrawer: () => void;
 }
@@ -41,13 +39,11 @@ export const useAICopilotStore = create<AICopilotUIState>((set) => ({
   input: "",
   isStreaming: false,
   error: null,
-  agentId: "",
 
   openDrawer: () => set({ isOpen: true }),
   closeDrawer: () => set({ isOpen: false }),
   toggleDrawer: () => set((state) => ({ isOpen: !state.isOpen })),
   setInput: (input) => set({ input }),
-  setAgentId: (agentId) => set({ agentId }),
 
   setMessages: (messages) =>
     set((state) => ({
@@ -74,32 +70,8 @@ export const useAICopilotStore = create<AICopilotUIState>((set) => ({
   setError: (error) => set({ error }),
   clearMessages: () => set({ messages: [], input: "", error: null }),
   resetDrawer: () =>
-    set({ isOpen: false, messages: [], input: "", isStreaming: false, error: null, agentId: "" }),
+    set({ isOpen: false, messages: [], input: "", isStreaming: false, error: null }),
 }));
-
-// agentFailureText turns a billing refusal into the next action an operator
-// can take. The server message is the last resort, not the default.
-function agentFailureText(t: TFunc, failure: ChatFailure | undefined, fallback: string): string {
-  switch (failure?.code) {
-    case "workforce_agent_paused":
-      return t("copilot.agentPaused", "This agent is paused. Resume it in AI Workforce.");
-    case "workforce_budget_exceeded":
-      return t(
-        "copilot.agentBudgetExceeded",
-        "This agent reached its monthly budget limit. Raise the limit in AI Workforce.",
-      );
-    case "workforce_model_price_missing":
-      return t("copilot.agentPriceMissing", "No price is set for this model. Add the price in AI Workforce.");
-    case "workforce_spend_not_recorded":
-      return t("copilot.agentSpendNotRecorded", "The turn finished. Its spend was not saved. Check the billing setup.");
-    case "workforce_agent_not_found":
-      return t("copilot.agentNotFound", "This agent no longer exists. Select another agent.");
-  }
-  if (failure?.status === 403 && failure.code === "forbidden") {
-    return t("copilot.agentForbidden", "Only an admin can bill a turn to an agent.");
-  }
-  return fallback;
-}
 
 /**
  * Sparkles trigger button in global TopBar header.
@@ -159,8 +131,6 @@ export function AICopilotDrawer() {
     error,
     setError,
     clearMessages,
-    agentId,
-    setAgentId,
   } = useAICopilotStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -168,22 +138,27 @@ export function AICopilotDrawer() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Attribution spends workspace money, so the control only exists for an
-  // admin. The server enforces the same rule.
+  // admin. The server enforces the same rule. A member's turns bill the
+  // workspace default the admin set, which is why the setting is read for
+  // every caller.
   const { role, isInstanceAdmin } = useCurrentRole();
   const canAttribute = roleSatisfies("admin", role, isInstanceAdmin);
-  const { agents, autoHalt, failed: agentsFailed, loaded: agentsLoaded, refresh: refreshAgents } =
-    useWorkforceAgents(isOpen && canAttribute);
+  const {
+    agents,
+    autoHalt,
+    failed: agentsFailed,
+    loaded: agentsLoaded,
+    refresh: refreshAgents,
+  } = useWorkforceAgents(isOpen && canAttribute);
+  const { agentId, save: saveDefaultAgent } = useDefaultAgent(isOpen && canAttribute);
 
-  // Drop a selection whose agent was deleted since the list was read.
+  // Drop a picker value whose agent was deleted since the list was read. The
+  // server clears the stored default on delete; this keeps the open drawer in
+  // step with it.
   useEffect(() => {
     if (!agentsLoaded || !agentId) return;
-    if (!agents.some((a) => a.id === agentId)) setAgentId("");
-  }, [agents, agentsLoaded, agentId, setAgentId]);
-
-  // Drop the selection when the caller is no longer allowed to bill a turn.
-  useEffect(() => {
-    if (role !== undefined && !canAttribute && agentId) setAgentId("");
-  }, [role, canAttribute, agentId, setAgentId]);
+    if (!agents.some((a) => a.id === agentId)) void saveDefaultAgent("");
+  }, [agents, agentsLoaded, agentId, saveDefaultAgent]);
 
   // Global keydown listeners for Mod+J and Mod+/ shortcuts
   useEffect(() => {
@@ -276,7 +251,6 @@ export function AICopilotDrawer() {
 
       await streamChatResponse({
         messages: outboundMessages,
-        agentId: canAttribute && agentId ? agentId : undefined,
         signal: controller.signal,
         onThinking: (delta, tokens) => {
           updateLastMessage((prev) => ({
@@ -298,7 +272,7 @@ export function AICopilotDrawer() {
           }));
         },
         onError: (err, failure) => {
-          setError(canAttribute && agentId ? agentFailureText(t, failure, err) : err);
+          setError(agentFailureText(t, failure, err));
           setIsStreaming(false);
         },
         onDone: () => {
@@ -308,7 +282,7 @@ export function AICopilotDrawer() {
 
       // The response body ends after the server records the spend, so the
       // refreshed figures include this turn.
-      if (canAttribute && agentId) void refreshAgents();
+      if (canAttribute) void refreshAgents();
     },
     [
       input,
@@ -320,7 +294,6 @@ export function AICopilotDrawer() {
       setMessages,
       updateLastMessage,
       canAttribute,
-      agentId,
       refreshAgents,
       t,
     ],
@@ -528,7 +501,7 @@ export function AICopilotDrawer() {
             <CopilotAgentPicker
               agents={agents}
               value={agentId}
-              onChange={setAgentId}
+              onChange={(next) => void saveDefaultAgent(next)}
               loadFailed={agentsFailed}
               autoHalt={autoHalt}
             />

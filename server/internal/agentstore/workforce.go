@@ -246,6 +246,13 @@ func (s *WorkforceStore) DeleteAgent(ctx context.Context, orgID uint, id string)
 	if res.RowsAffected == 0 {
 		return ErrAgentNotFound
 	}
+	// Clear a default that pointed at the removed agent. A dangling setting
+	// would refuse every chat turn, and no operator action would fix it.
+	if err := s.db.WithContext(ctx).
+		Where("org_id = ? AND key = ? AND value = ?", orgID, defaultAgentSettingKey, id).
+		Delete(&models.WorkspaceSetting{}).Error; err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -647,6 +654,62 @@ func (s *WorkforceStore) SetAutoHalt(ctx context.Context, orgID uint, autoHalt b
 		Value: strconv.FormatBool(autoHalt),
 	}
 
+	return s.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "org_id"}, {Name: "key"}},
+			DoUpdates: clause.AssignmentColumns([]string{"value"}),
+		}).
+		Create(&setting).Error
+}
+
+// defaultAgentSettingKey holds the agent a chat turn is billed to when the
+// request names none. Every chat surface reads this key, so one workspace has
+// one answer to "who pays for this turn".
+const defaultAgentSettingKey = "workforce.default_agent"
+
+// GetDefaultAgent returns the default agent of a workspace. An empty string
+// means the workspace set none.
+func (s *WorkforceStore) GetDefaultAgent(ctx context.Context, orgID uint) (string, error) {
+	if s == nil || s.db == nil {
+		return "", errors.New("agentstore: workforce store is not configured")
+	}
+
+	var setting models.WorkspaceSetting
+	err := s.db.WithContext(ctx).
+		Where("org_id = ? AND key = ?", orgID, defaultAgentSettingKey).
+		First(&setting).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(setting.Value), nil
+}
+
+// SetDefaultAgent stores the default agent, or clears it when agentID is
+// empty. An agent in another workspace is refused, so the setting never points
+// at a row this workspace cannot bill.
+func (s *WorkforceStore) SetDefaultAgent(ctx context.Context, orgID uint, agentID string) error {
+	if s == nil || s.db == nil {
+		return errors.New("agentstore: workforce store is not configured")
+	}
+
+	agentID = strings.TrimSpace(agentID)
+	if agentID == "" {
+		return s.db.WithContext(ctx).
+			Where("org_id = ? AND key = ?", orgID, defaultAgentSettingKey).
+			Delete(&models.WorkspaceSetting{}).Error
+	}
+	if _, err := s.GetAgent(ctx, orgID, agentID); err != nil {
+		return err
+	}
+
+	setting := models.WorkspaceSetting{
+		OrgID: orgID,
+		Key:   defaultAgentSettingKey,
+		Value: agentID,
+	}
 	return s.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "org_id"}, {Name: "key"}},
