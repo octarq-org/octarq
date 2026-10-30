@@ -39,6 +39,7 @@ import { HarnessLessonModal } from "./lesson-modal";
 import { EvidenceViewer } from "./evidence";
 import { Bot, BookOpen, Lock, Plus, UploadCloud, Terminal, ShieldAlert, Coins, Sliders } from "lucide-react";
 import { FleetView } from "./FleetView";
+import { formatUSD } from "../../lib/money";
 import { TasksView } from "./TasksView";
 import { BoardApprovalsView } from "./BoardApprovalsView";
 import { BudgetsView } from "./BudgetsView";
@@ -431,10 +432,10 @@ function AgentHarnessContent({
             </div>
             <div className="mt-auto flex items-baseline gap-1.5 pt-2">
               <span className="tnum font-display text-[1.5rem] leading-none tracking-[-0.02em] text-foreground">
-                {overview ? `$${overview.monthlySpend.toFixed(2)}` : "—"}
+                {overview ? formatUSD(overview.monthlySpend) : "—"}
               </span>
               <span className="text-[11px] text-muted-foreground">
-                / {overview ? `$${overview.monthlyLimit.toFixed(0)}` : "—"}
+                / {overview ? formatUSD(overview.monthlyLimit) : "—"}
               </span>
             </div>
           </div>

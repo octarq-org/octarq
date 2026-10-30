@@ -25,8 +25,11 @@ type WorkforceAgent struct {
 	Heartbeat string `gorm:"size:64;not null;default:'Every 15m'" json:"heartbeat"`
 	// BudgetLimit is the maximum spend allocated for the billing cycle.
 	BudgetLimit float64 `gorm:"type:decimal(10,2);not null;default:10.00" json:"budgetLimit"`
-	// BudgetUsed is the current spend accrued for the billing period.
-	BudgetUsed float64 `gorm:"type:decimal(10,2);not null;default:0.00" json:"budgetUsed"`
+	// BudgetUsed is the current spend accrued for the billing period. The
+	// column keeps six decimals, the same scale as the ledger cost: a billed
+	// turn can cost less than one cent, and a coarse column would round every
+	// turn away from the ledger sum the dashboard reconciles against.
+	BudgetUsed float64 `gorm:"type:decimal(12,6);not null;default:0.000000" json:"budgetUsed"`
 	// BudgetPeriodStart is the first instant of the billing period BudgetUsed
 	// covers. The first spend event of a new calendar month resets the counter,
 	// so a budget limit is always a monthly limit.

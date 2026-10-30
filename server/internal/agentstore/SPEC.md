@@ -43,6 +43,10 @@ per token.
 Prices are quoted per million tokens. The unit is fixed in code
 (`priceTokenUnit`) and never travels in an API payload.
 
+A price outside `[0, 99999999.9999]` is refused (`ErrInvalidPrice`), the range
+the column holds. A non-zero price below the column scale is refused too: the
+column would store it as zero and the model would bill as free.
+
 ### Cost of one turn
 
 ```
@@ -74,14 +78,23 @@ covers. The boundary is the first instant of the month in UTC.
 `RecordSpend` runs one transaction:
 
 1. Load the agent scoped by `(id, owner_id)`.
-2. Resolve the price scoped by `(owner_id, model)`.
+2. Resolve the price scoped by `(owner_id, model)`. The model label is trimmed
+   before the lookup and stored as the price row spells it.
 3. Insert the ledger row.
-4. Set `budget_used` and `budget_period_start`.
-5. If auto-halt is on and the new total is at or above the limit, set
-   `status = 'paused'` in the same write.
+4. Accrue `budget_used` in a single statement, never a read-modify-write: a
+   counter stamped with an earlier period restarts at this turn's cost, and a
+   current counter adds to the stored value. Two turns that finish together
+   both land.
+5. Re-read the row. If auto-halt is on and the new total is at or above the
+   limit, set `status = 'paused'`.
 
 A turn is recorded even when it failed partway: the provider bills the tokens it
-generated.
+generated. The chat path writes the ledger row on a context that outlives the
+request, so a client that closes the tab does not lose the charge.
+
+`budget_used` keeps six decimals, the same scale as `cost_usd`. A coarser
+column would round every sub-cent turn away from the ledger sum it is
+reconciled against.
 
 ### Enforcement
 
@@ -139,6 +152,13 @@ what it owes.
 
 `GET /api/workforce/agents/{id}/spend` reads the ledger, newest first, and the
 Budgets tab renders it. A turn that is absent from the ledger was not charged.
+The list returns at most 500 rows (default 100); the card reads 100 and says so
+when it is full.
+
+The provider breakdown on the Budgets tab groups `workforce_spend_events.model`,
+not `workforce_agents.model`: the agent's model is a display label that selects
+neither the route nor the price, so summing by it would charge a provider that
+never ran the turn.
 
 ## Closed vocabularies
 
@@ -153,7 +173,7 @@ Budgets tab renders it. A turn that is absent from the ledger was not charged.
 
 `ErrInvalidSpend` covers an unknown source, an empty or over-long model label,
 and a negative token count. `ErrInvalidPrice` covers an empty or over-long
-model label and a negative or non-finite amount. The API answers 400 for both.
+model label and a price outside the column range. The API answers 400 for both.
 
 ## Non-goals
 

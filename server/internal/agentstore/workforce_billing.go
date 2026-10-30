@@ -143,8 +143,17 @@ func (s *WorkforceStore) DeleteModelPrice(ctx context.Context, orgID uint, model
 	return nil
 }
 
+// maxPricePerMTok is the largest price the column holds: decimal(12,4) keeps
+// four decimals and eight integer digits.
+const maxPricePerMTok = 99_999_999.9999
+
 func validPrice(v float64) bool {
-	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0
+	if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > maxPricePerMTok {
+		return false
+	}
+	// A non-zero price below the column scale would be stored as zero, making
+	// the model free while the workspace believes it is priced. Refuse it.
+	return v == 0 || roundPrice(v) > 0
 }
 
 func roundPrice(v float64) float64 {
@@ -242,7 +251,12 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 	if s == nil || s.db == nil {
 		return nil, nil, errors.New("agentstore: workforce store is not configured")
 	}
-	if strings.TrimSpace(in.AgentID) == "" || strings.TrimSpace(in.Model) == "" {
+	// The model label is stored as the price row spells it: a surrounding
+	// space would find the price but ledger a label that never matches it
+	// again. An over-long label would fail the column bound on a server that
+	// enforces it, so it is refused here as a client error instead.
+	model := strings.TrimSpace(in.Model)
+	if strings.TrimSpace(in.AgentID) == "" || model == "" || len(model) > 64 {
 		return nil, nil, ErrInvalidSpend
 	}
 	if in.InputTokens < 0 || in.OutputTokens < 0 || in.ReasoningTokens < 0 {
@@ -263,31 +277,25 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 	var event models.WorkforceSpendEvent
 	var updated models.WorkforceAgent
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var agent models.WorkforceAgent
-		err := tx.Where("id = ? AND owner_id = ?", in.AgentID, orgID).First(&agent).Error
-		if err != nil {
+		agent := models.WorkforceAgent{}
+		if err := tx.Where("id = ? AND owner_id = ?", in.AgentID, orgID).First(&agent).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrAgentNotFound
 			}
 			return err
 		}
 
-		price, err := priceForDB(tx, orgID, in.Model)
+		price, err := priceForDB(tx, orgID, model)
 		if err != nil {
 			return err
 		}
 
 		cost := turnCost(*price, in.InputTokens, in.OutputTokens)
-		base := agent.BudgetUsed
-		if stalePeriod(agent.BudgetPeriodStart, now) {
-			base = 0
-		}
-		newUsed := roundSpend(base + cost)
 
 		event = models.WorkforceSpendEvent{
 			OrgID:           orgID,
 			AgentID:         in.AgentID,
-			Model:           in.Model,
+			Model:           model,
 			InputTokens:     in.InputTokens,
 			OutputTokens:    in.OutputTokens,
 			ReasoningTokens: in.ReasoningTokens,
@@ -300,26 +308,33 @@ func (s *WorkforceStore) RecordSpend(ctx context.Context, orgID uint, in SpendIn
 			return err
 		}
 
-		updates := map[string]any{
-			"budget_used":         newUsed,
-			"budget_period_start": period,
-			"updated_at":          now,
-		}
-		pause := autoHalt && newUsed >= agent.BudgetLimit && agent.Status != "paused"
-		if pause {
-			updates["status"] = "paused"
-		}
+		// The accrual is one statement on the stored counter, never a
+		// read-modify-write: two turns that finish together must both land.
+		// A counter stamped with an earlier period restarts at this turn's
+		// cost instead of adding to last month's total.
 		if err := tx.Model(&models.WorkforceAgent{}).
 			Where("id = ? AND owner_id = ?", in.AgentID, orgID).
-			Updates(updates).Error; err != nil {
+			Updates(map[string]any{
+				"budget_used": gorm.Expr(
+					"CASE WHEN budget_period_start IS NULL OR budget_period_start < ? THEN ? ELSE budget_used + ? END",
+					period, cost, cost),
+				"budget_period_start": period,
+				"updated_at":          now,
+			}).Error; err != nil {
 			return err
 		}
 
-		updated = agent
-		updated.BudgetUsed = newUsed
-		updated.BudgetPeriodStart = period
-		updated.UpdatedAt = now
-		if pause {
+		// Read the counter back after the write: the pause decision must see
+		// this turn's cost, not the value read before it.
+		if err := tx.Where("id = ? AND owner_id = ?", in.AgentID, orgID).First(&updated).Error; err != nil {
+			return err
+		}
+		if autoHalt && updated.Status != "paused" && updated.BudgetUsed >= updated.BudgetLimit {
+			if err := tx.Model(&models.WorkforceAgent{}).
+				Where("id = ? AND owner_id = ?", in.AgentID, orgID).
+				Update("status", "paused").Error; err != nil {
+				return err
+			}
 			updated.Status = "paused"
 		}
 		return nil

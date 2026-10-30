@@ -1247,7 +1247,9 @@ describe("AgentHarnessPage", () => {
     vi.mocked(api.workforceModelPrices).mockResolvedValue([]);
     renderPage("/workforce?tab=budgets");
     await waitFor(() => {
-      expect(screen.getByText("No model price is set. Agent turns are not billed.")).toBeDefined();
+      expect(
+        screen.getByText("No model price is set. Agent turns are refused until you add a price."),
+      ).toBeDefined();
     });
   });
 

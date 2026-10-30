@@ -19,6 +19,7 @@ import {
   Plus,
 } from "lucide-react";
 import { api, type WorkforceOverviewDTO, type WorkforceModelPriceDTO } from "../../api";
+import { formatUSD } from "../../lib/money";
 import { SpendLedger } from "./SpendLedger";
 
 // fmtPrice renders a per-million-token price without trailing zeros.
@@ -194,10 +195,10 @@ export function BudgetsView() {
             <Coins className="h-4 w-4 text-accent-fg" />
           </div>
           <div className="text-2xl font-bold font-mono text-foreground">
-            ${currentSpend.toFixed(2)}
+            {formatUSD(currentSpend)}
           </div>
           <div className="text-[11px] text-muted-foreground">
-            {t("agentHarness.budgetLimit", "Limit:")} <strong className="text-foreground">${monthlyLimit.toFixed(2)}</strong> ({pct}{t("agentHarness.consumedPct", "% allocated")})
+            {t("agentHarness.budgetLimit", "Limit:")} <strong className="text-foreground">{formatUSD(monthlyLimit)}</strong> ({pct}{t("agentHarness.consumedPct", "% allocated")})
           </div>
           <div className="h-2 w-full rounded-full bg-border overflow-hidden mt-1">
             <div
@@ -280,7 +281,7 @@ export function BudgetsView() {
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">{row.name}</span>
                   <span className="font-mono text-muted-foreground">
-                    ${row.spend.toFixed(2)} ({row.pct}%)
+                    {formatUSD(row.spend)} ({row.pct}%)
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
@@ -310,7 +311,7 @@ export function BudgetsView() {
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">{row.provider}</span>
                   <span className="font-mono text-muted-foreground">
-                    ${row.spend.toFixed(2)} ({row.pct}%)
+                    {formatUSD(row.spend)} ({row.pct}%)
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
@@ -347,9 +348,9 @@ export function BudgetsView() {
         {priceError && <div className="text-xs text-danger-fg">{priceError}</div>}
 
         <div className="space-y-2">
-          {prices.length === 0 && (
+          {!priceError && prices.length === 0 && (
             <div className="py-2 text-xs text-muted-foreground">
-              {t("agentHarness.noPrices", "No model price is set. Agent turns are not billed.")}
+              {t("agentHarness.noPrices", "No model price is set. Agent turns are refused until you add a price.")}
             </div>
           )}
           {prices.map((price) => (

@@ -3,11 +3,15 @@ package agentstore
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func seedBillingAgent(t *testing.T, store *WorkforceStore, orgID uint, limit float64) models.WorkforceAgent {
@@ -357,6 +361,7 @@ func TestWorkforceBilling_RecordSpendValidation(t *testing.T) {
 		{"unknown agent", SpendInput{AgentID: "agent-missing", Model: "m", Source: models.WorkforceSpendSourceRuntime}, ErrAgentNotFound},
 		{"unpriced model", SpendInput{AgentID: agent.ID, Model: "nope", Source: models.WorkforceSpendSourceRuntime}, ErrModelPriceMissing},
 		{"no model", SpendInput{AgentID: agent.ID, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
+		{"over-long model", SpendInput{AgentID: agent.ID, Model: strings.Repeat("m", 65), Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
 		{"bad source", SpendInput{AgentID: agent.ID, Model: "m", Source: "webhook"}, ErrInvalidSpend},
 		{"negative input", SpendInput{AgentID: agent.ID, Model: "m", InputTokens: -1, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
 		{"negative output", SpendInput{AgentID: agent.ID, Model: "m", OutputTokens: -1, Source: models.WorkforceSpendSourceRuntime}, ErrInvalidSpend},
@@ -505,5 +510,169 @@ func TestWorkforceBilling_StoreNotConfigured(t *testing.T) {
 	}
 	if _, err := store.ListSpendEvents(ctx, 1, "a", 10); err == nil {
 		t.Error("ListSpendEvents on a nil store did not fail")
+	}
+}
+
+// TestWorkforceBilling_SubCentTurnsAccrue pins the ledger and the counter to
+// the same scale. A billed turn can cost less than one cent, so a counter that
+// rounds each accrual disagrees with the ledger it is reconciled against.
+func TestWorkforceBilling_SubCentTurnsAccrue(t *testing.T) {
+	t.Parallel()
+	store, db := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(571)
+
+	agent := seedBillingAgent(t, store, orgID, 10)
+	// $3/M input and $15/M output: 1,000 in and 100 out is $0.0045 a turn.
+	if _, err := store.SetModelPrice(ctx, orgID, "m", 3, 15); err != nil {
+		t.Fatalf("SetModelPrice: %v", err)
+	}
+	const turns = 100
+	for i := 0; i < turns; i++ {
+		if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
+			AgentID: agent.ID, Model: "m", InputTokens: 1_000, OutputTokens: 100,
+			Source: models.WorkforceSpendSourceRuntime,
+		}); err != nil {
+			t.Fatalf("RecordSpend %d: %v", i, err)
+		}
+	}
+
+	var ledgerSum float64
+	if err := db.Model(&models.WorkforceSpendEvent{}).
+		Where("owner_id = ? AND agent_id = ?", orgID, agent.ID).
+		Select("COALESCE(SUM(cost_usd), 0)").Scan(&ledgerSum).Error; err != nil {
+		t.Fatalf("sum ledger: %v", err)
+	}
+	fresh, err := store.GetAgent(ctx, orgID, agent.ID)
+	if err != nil {
+		t.Fatalf("GetAgent: %v", err)
+	}
+	if !closeEnough(ledgerSum, 0.45) {
+		t.Fatalf("ledger sum = %v, want 0.45", ledgerSum)
+	}
+	if !closeEnough(fresh.BudgetUsed, ledgerSum) {
+		t.Fatalf("BudgetUsed %v != ledger sum %v: the counter lost sub-cent spend", fresh.BudgetUsed, ledgerSum)
+	}
+}
+
+// TestWorkforceBilling_BudgetCounterColumnKeepsLedgerScale pins the DDL of the
+// counter column. SQLite stores every number as a REAL, so the accrual tests
+// cannot see a column that rounds sub-cent spend away; Postgres enforces the
+// declared scale. Two decimals would make a $0.0045 turn accrue $0.00.
+func TestWorkforceBilling_BudgetCounterColumnKeepsLedgerScale(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(
+		postgres.New(postgres.Config{DSN: "host=127.0.0.1 port=1 user=test dbname=test sslmode=disable"}),
+		&gorm.Config{DisableAutomaticPing: true},
+	)
+	if err != nil {
+		t.Fatalf("open postgres dialector: %v", err)
+	}
+	stmt := &gorm.Statement{DB: db}
+	if err := stmt.Parse(&models.WorkforceAgent{}); err != nil {
+		t.Fatalf("parse model: %v", err)
+	}
+	field := stmt.Schema.LookUpField("BudgetUsed")
+	if field == nil {
+		t.Fatal("BudgetUsed field missing from the agent schema")
+	}
+	ddl := fmt.Sprint(db.Migrator().FullDataTypeOf(field).SQL)
+	if !strings.Contains(ddl, "decimal(12,6)") {
+		t.Fatalf("budget_used DDL = %q, want decimal(12,6): the ledger keeps six decimals", ddl)
+	}
+}
+
+// TestWorkforceBilling_RecordSpendTrimsTheModelLabel pins the stored label to
+// the spelling the price row uses, so a turn cannot ledger a label that never
+// matches a price.
+func TestWorkforceBilling_RecordSpendTrimsTheModelLabel(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(581)
+
+	agent := seedBillingAgent(t, store, orgID, 10)
+	if _, err := store.SetModelPrice(ctx, orgID, "m", 1, 1); err != nil {
+		t.Fatalf("SetModelPrice: %v", err)
+	}
+	event, _, err := store.RecordSpend(ctx, orgID, SpendInput{
+		AgentID: agent.ID, Model: "  m  ", InputTokens: 10,
+		Source: models.WorkforceSpendSourceRuntime,
+	})
+	if err != nil {
+		t.Fatalf("RecordSpend: %v", err)
+	}
+	if event.Model != "m" {
+		t.Fatalf("stored model label = %q, want %q", event.Model, "m")
+	}
+}
+
+// TestWorkforceBilling_ProviderSpendFollowsTheLedger pins the provider
+// breakdown to the model that was billed. An agent's display model does not
+// select the price or the route, so attributing its spend to that label would
+// charge a provider that never ran the turn.
+func TestWorkforceBilling_ProviderSpendFollowsTheLedger(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(591)
+
+	// The agent is labelled as an Anthropic model but its turn is billed on an
+	// OpenAI model, which is what the request named.
+	agent := seedBillingAgent(t, store, orgID, 10)
+	if _, err := store.SetModelPrice(ctx, orgID, "gpt-4o", 5, 15); err != nil {
+		t.Fatalf("SetModelPrice: %v", err)
+	}
+	if _, _, err := store.RecordSpend(ctx, orgID, SpendInput{
+		AgentID: agent.ID, Model: "gpt-4o", InputTokens: 1_000_000,
+		Source: models.WorkforceSpendSourceRuntime,
+	}); err != nil {
+		t.Fatalf("RecordSpend: %v", err)
+	}
+
+	overview, err := store.GetOverview(ctx, orgID)
+	if err != nil {
+		t.Fatalf("GetOverview: %v", err)
+	}
+	if len(overview.SpendByProvider) != 1 || overview.SpendByProvider[0].Provider != "OpenAI" {
+		t.Fatalf("provider breakdown = %+v, want only OpenAI", overview.SpendByProvider)
+	}
+	if !closeEnough(overview.SpendByProvider[0].Spend, 5) {
+		t.Fatalf("provider spend = %v, want 5", overview.SpendByProvider[0].Spend)
+	}
+}
+
+// TestWorkforceBilling_PriceBounds pins the price range to what the column can
+// hold. A price the column cannot store must be a client error, and a price
+// that rounds to zero must not silently make a model free.
+func TestWorkforceBilling_PriceBounds(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestWorkforceStore(t)
+	ctx := context.Background()
+	orgID := uint(601)
+
+	cases := []struct {
+		name string
+		in   float64
+	}{
+		{"above the column range", 1e12},
+		{"below the column scale", 0.00004},
+		{"infinite", math.Inf(1)},
+		{"not a number", math.NaN()},
+	}
+	for _, tc := range cases {
+		if _, err := store.SetModelPrice(ctx, orgID, "m", tc.in, 1); !errors.Is(err, ErrInvalidPrice) {
+			t.Errorf("%s: err = %v, want ErrInvalidPrice", tc.name, err)
+		}
+	}
+
+	// The smallest representable non-zero price is accepted and kept.
+	price, err := store.SetModelPrice(ctx, orgID, "m", 0.0001, 0)
+	if err != nil {
+		t.Fatalf("SetModelPrice at the smallest step: %v", err)
+	}
+	if price.InputPerMTok != 0.0001 {
+		t.Fatalf("stored input price = %v, want 0.0001", price.InputPerMTok)
 	}
 }

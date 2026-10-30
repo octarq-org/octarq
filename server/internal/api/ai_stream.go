@@ -150,6 +150,20 @@ func (h *Handler) auditAgentTurn(
 	h.auditAs(r, orgID, h.auth.UserID(r), "agent.turn", "agent_session", 0, meta)
 }
 
+// spendWriteTimeout bounds the detached ledger write. The turn has already run
+// when this happens, so a stalled database must not hold the stream open.
+const spendWriteTimeout = 10 * time.Second
+
+// recordTurnSpend writes one ledger row on a context that outlives the request.
+// A client that closes the tab cancels r.Context(), but the turn already ran and
+// the provider bills its tokens, so the spend must still reach the ledger.
+func recordTurnSpend(parent context.Context, store *agentstore.WorkforceStore, orgID uint, in agentstore.SpendInput) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), spendWriteTimeout)
+	defer cancel()
+	_, _, err := store.RecordSpend(ctx, orgID, in)
+	return err
+}
+
 // writeBillingRefusal answers a turn the agent budget cannot accept. Each
 // message names the next action an operator can take, and each code lets the
 // client translate that action instead of showing raw prose.
@@ -391,7 +405,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// failure is surfaced, not swallowed — an unrecorded turn would leave the
 	// budget unaware of real spend.
 	if billingAgent != "" {
-		if _, _, err := billingStore.RecordSpend(r.Context(), orgID, agentstore.SpendInput{
+		if err := recordTurnSpend(r.Context(), billingStore, orgID, agentstore.SpendInput{
 			AgentID:         billingAgent,
 			Model:           model,
 			InputTokens:     turn.InputTokens,

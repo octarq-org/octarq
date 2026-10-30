@@ -1,40 +1,28 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Badge, GlassCard, Table, TBody, TD, TH, THead, TR, useTranslation } from "@octarq/plugin-sdk";
 import { Receipt } from "lucide-react";
-import { api, type WorkforceAgentDTO, type WorkforceSpendEventDTO } from "../../api";
+import { api, type WorkforceSpendEventDTO } from "../../api";
 import { formatUSD } from "../../lib/money";
+import { useWorkforceAgents } from "../../lib/useWorkforceAgents";
+
+// SPEND_PAGE is how many ledger rows the card reads. The list is a sample of
+// the newest turns, not the whole ledger, and the card says so when it is full.
+const SPEND_PAGE = 100;
 
 // SpendLedger shows the append-only ledger behind an agent's budget: one row
 // per billed turn, with the model, the tokens, and the cost that was charged.
 export function SpendLedger() {
   const { t } = useTranslation();
-  const [agents, setAgents] = useState<WorkforceAgentDTO[]>([]);
+  const { agents, failed: agentsFailed, loaded: agentsLoaded } = useWorkforceAgents(true);
   const [agentId, setAgentId] = useState("");
   const [events, setEvents] = useState<WorkforceSpendEventDTO[]>([]);
-  const [agentsLoading, setAgentsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
+  // Bill the first agent until the operator picks another one.
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const list = await api.workforceAgents();
-        if (cancelled) return;
-        setAgents(list);
-        setAgentId((current) => current || list[0]?.id || "");
-      } catch {
-        if (cancelled) return;
-        setLoadError(true);
-      } finally {
-        if (!cancelled) setAgentsLoading(false);
-      }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!agentId && agents.length > 0) setAgentId(agents[0].id);
+  }, [agents, agentId]);
 
   useEffect(() => {
     if (!agentId) return;
@@ -42,7 +30,7 @@ export function SpendLedger() {
     const load = async () => {
       setEventsLoading(true);
       try {
-        const list = await api.workforceAgentSpend(agentId);
+        const list = await api.workforceAgentSpend(agentId, SPEND_PAGE);
         if (cancelled) return;
         setEvents(list);
         setLoadError(false);
@@ -60,13 +48,13 @@ export function SpendLedger() {
   }, [agentId]);
 
   let body: ReactNode;
-  if (agentsLoading || eventsLoading) {
+  if (!agentsLoaded || eventsLoading) {
     body = (
       <p className="py-4 text-center text-xs text-muted-foreground">
         {t("agentHarness.spendLoading", "Loading spend…")}
       </p>
     );
-  } else if (loadError) {
+  } else if (agentsFailed || loadError) {
     body = (
       <p className="py-4 text-center text-xs text-danger-fg">
         {t("agentHarness.spendLoadError", "Could not load spend data.")}
@@ -155,6 +143,11 @@ export function SpendLedger() {
         )}
       </div>
       {body}
+      {agentsLoaded && !agentsFailed && !eventsLoading && !loadError && events.length >= SPEND_PAGE && (
+        <p className="text-[11px] text-muted-foreground">
+          {t("agentHarness.spendTruncated", "Showing the most recent {{count}} turns.", { count: SPEND_PAGE })}
+        </p>
+      )}
     </GlassCard>
   );
 }

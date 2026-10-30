@@ -1,61 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "../i18n";
-import { api } from "../api/client";
 import type { WorkforceAgentDTO } from "../api/types";
 import { formatUSD } from "../lib/money";
-
-// Loads the workforce agents an admin can bill a chat turn to. Failures are
-// reported, never thrown: attribution is optional, and the chat keeps working
-// unbilled when the list cannot load.
-export function useWorkforceAgents(enabled: boolean) {
-  const [agents, setAgents] = useState<WorkforceAgentDTO[]>([]);
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const mounted = useRef(true);
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const refresh = useCallback(async () => {
-    try {
-      const list = await api.workforceAgents();
-      if (!mounted.current) return;
-      setAgents(list);
-      setFailed(false);
-    } catch {
-      if (!mounted.current) return;
-      setFailed(true);
-    } finally {
-      if (mounted.current) setLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!enabled) return;
-    void refresh();
-  }, [enabled, refresh]);
-
-  return { agents, failed, loaded, refresh };
-}
 
 export interface CopilotAgentPickerProps {
   agents: WorkforceAgentDTO[];
   value: string;
   onChange: (agentId: string) => void;
   loadFailed: boolean;
+  // autoHalt is the workspace switch that makes a budget limit blocking. When
+  // it is unknown, the picker does not claim the limit stops the agent.
+  autoHalt: boolean | null;
 }
 
 // Admin-only control in the chat footer: picks the workforce agent the next
 // turns are charged to. An empty value leaves the turns unbilled.
-export function CopilotAgentPicker({ agents, value, onChange, loadFailed }: CopilotAgentPickerProps) {
+export function CopilotAgentPicker({ agents, value, onChange, loadFailed, autoHalt }: CopilotAgentPickerProps) {
   const { t } = useTranslation();
   const selected = agents.find((a) => a.id === value);
   const paused = selected?.status === "paused";
-  const atLimit = selected != null && paused !== true && selected.budgetUsed >= selected.budgetLimit;
+  const atLimit =
+    autoHalt === true && selected != null && paused !== true && selected.budgetUsed >= selected.budgetLimit;
 
   return (
     <div className="space-y-1">
