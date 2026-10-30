@@ -1,0 +1,1 @@
+import{j as s}from"./vendor-motion-8pz7gm9z.js";import{r as m}from"./vendor-react-DkI3_DdZ.js";import{G as t,e as l}from"./index-BO_V-RTR.js";const p=m.forwardRef(({title:a,children:r,className:e},o)=>s.jsxs(t,{ref:o,className:l("p-6",e),children:[s.jsx("h3",{className:"eyebrow mb-4",children:a}),r]}));p.displayName="Panel";export{p as P};
