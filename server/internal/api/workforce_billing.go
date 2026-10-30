@@ -130,7 +130,7 @@ func (h *Handler) setModelPrice(ctx context.Context, input *SetModelPriceInput) 
 	price, err := store.SetModelPrice(r.Context(), orgID, input.Body.Model, input.Body.InputPerMTok, input.Body.OutputPerMTok)
 	if err != nil {
 		if errors.Is(err, agentstore.ErrInvalidPrice) {
-			return nil, huma.Error400BadRequest("Model must have 1 to 64 characters. Prices must be zero or more.")
+			return nil, huma.Error400BadRequest("Model must have 1 to 64 characters. The price is out of range.")
 		}
 		return nil, huma.Error500InternalServerError("Could not save model price; retry the request")
 	}

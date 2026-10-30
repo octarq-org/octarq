@@ -249,12 +249,19 @@ func TestWorkforce_OverviewAndAutoHaltEndpoints(t *testing.T) {
 	}
 
 	// Two agents give the overview real numbers to aggregate.
-	for _, body := range []string{
+	var ops WorkforceAgentDTO
+	for i, body := range []string{
 		`{"name":"Ops Bot","role":"Operator","department":"Operations","model":"GPT-4o","budgetLimit":20}`,
 		`{"name":"Audit Bot","role":"Auditor","department":"Security","model":"Claude 3.5 Sonnet","budgetLimit":10}`,
 	} {
-		if rec := do(srv, "POST", "/api/workforce/agents", cookies, body); rec.Code != http.StatusCreated {
+		rec := do(srv, "POST", "/api/workforce/agents", cookies, body)
+		if rec.Code != http.StatusCreated {
 			t.Fatalf("create agent: %d (%s)", rec.Code, rec.Body.String())
+		}
+		if i == 0 {
+			if err := json.Unmarshal(rec.Body.Bytes(), &ops); err != nil {
+				t.Fatalf("decode agent: %v", err)
+			}
 		}
 	}
 
@@ -269,8 +276,33 @@ func TestWorkforce_OverviewAndAutoHaltEndpoints(t *testing.T) {
 	if overview.MonthlyLimit != 30 {
 		t.Errorf("expected 30 monthly limit, got %f", overview.MonthlyLimit)
 	}
-	if len(overview.SpendByAgent) != 2 || len(overview.SpendByProvider) == 0 {
-		t.Errorf("expected real spend breakdown, got agents=%d providers=%d", len(overview.SpendByAgent), len(overview.SpendByProvider))
+	// Both agents appear in the breakdown. No turn has been billed yet, so no
+	// provider has spend to report: the provider rows come from the ledger.
+	if len(overview.SpendByAgent) != 2 || len(overview.SpendByProvider) != 0 {
+		t.Errorf("expected two agents and no provider spend, got agents=%d providers=%d", len(overview.SpendByAgent), len(overview.SpendByProvider))
+	}
+
+	// One priced, billed turn attributes its cost to the provider that was
+	// actually billed.
+	if rec := do(srv, "PUT", "/api/workforce/model-prices", cookies,
+		`{"model":"GPT-4o","inputPerMTok":5,"outputPerMTok":15}`); rec.Code != http.StatusOK {
+		t.Fatalf("set model price: %d (%s)", rec.Code, rec.Body.String())
+	}
+	if rec := do(srv, "POST", "/api/workforce/agents/"+ops.ID+"/spend", cookies,
+		`{"model":"GPT-4o","inputTokens":1000000,"outputTokens":0}`); rec.Code != http.StatusCreated {
+		t.Fatalf("record spend: %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	rec = do(srv, "GET", "/api/workforce/overview", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &overview)
+	if overview.MonthlySpend != 5 {
+		t.Errorf("expected monthly spend 5, got %f", overview.MonthlySpend)
+	}
+	if len(overview.SpendByProvider) != 1 || overview.SpendByProvider[0].Provider != "OpenAI" {
+		t.Errorf("expected one OpenAI provider row, got %+v", overview.SpendByProvider)
 	}
 
 	// Toggle auto-halt

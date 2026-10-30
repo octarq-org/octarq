@@ -26,6 +26,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { api, type WorkforceAgentDTO } from "../../api";
+import { formatUSD } from "../../lib/money";
 
 export type AIEmployee = WorkforceAgentDTO;
 
@@ -366,9 +367,9 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                       <span>{t("agentHarness.cycleSpend")}</span>
                     </div>
                     <div className="text-xs font-mono font-semibold text-foreground">
-                      ${emp.budgetUsed.toFixed(2)}{" "}
+                      {formatUSD(emp.budgetUsed)}{" "}
                       <span className="text-[10px] text-muted-foreground font-normal">
-                        / ${emp.budgetLimit.toFixed(2)}
+                        / {formatUSD(emp.budgetLimit)}
                       </span>
                     </div>
                   </div>

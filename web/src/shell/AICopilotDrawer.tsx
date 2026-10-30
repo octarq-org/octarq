@@ -7,7 +7,8 @@ import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
 import { streamChatResponse, type ChatFailure } from "./command/streamChat";
 import type { ChatMessage } from "./command/types";
 import { A2UIRenderer, type A2UIWidget } from "../components/a2ui";
-import { CopilotAgentPicker, useWorkforceAgents } from "./CopilotAgentPicker";
+import { CopilotAgentPicker } from "./CopilotAgentPicker";
+import { useWorkforceAgents } from "../lib/useWorkforceAgents";
 import { roleSatisfies, useCurrentRole } from "./role";
 
 export interface AICopilotUIState {
@@ -170,7 +171,7 @@ export function AICopilotDrawer() {
   // admin. The server enforces the same rule.
   const { role, isInstanceAdmin } = useCurrentRole();
   const canAttribute = roleSatisfies("admin", role, isInstanceAdmin);
-  const { agents, failed: agentsFailed, loaded: agentsLoaded, refresh: refreshAgents } =
+  const { agents, autoHalt, failed: agentsFailed, loaded: agentsLoaded, refresh: refreshAgents } =
     useWorkforceAgents(isOpen && canAttribute);
 
   // Drop a selection whose agent was deleted since the list was read.
@@ -529,6 +530,7 @@ export function AICopilotDrawer() {
               value={agentId}
               onChange={setAgentId}
               loadFailed={agentsFailed}
+              autoHalt={autoHalt}
             />
           )}
           <div className="relative flex items-center rounded-xl border border-input bg-card p-1 shadow-[inset_0_1px_1px_rgb(0_0_0/0.02)] transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-out)] focus-within:border-accent-border focus-within:ring-2 focus-within:ring-accent-soft">
