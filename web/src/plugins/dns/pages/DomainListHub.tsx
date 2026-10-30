@@ -44,13 +44,16 @@ export function DomainListHub({
         reason={t("domains.addFirstDomain")}
         detail={
           <>
-            <p className="text-sm text-muted-foreground leading-relaxed">{t("domains.addFirstDomainHint")}</p>
+            {/* Empty renders detail inside one paragraph, so these lines are
+                block-level spans: a nested <p> would split the element and
+                drop the styling. */}
+            <span className="block text-sm text-muted-foreground leading-relaxed">{t("domains.addFirstDomainHint")}</span>
             {accounts.length > 0 ? (
-              <p className="mt-3 text-xs text-muted-foreground">
+              <span className="mt-3 block text-xs text-muted-foreground">
                 {t("domains.connectedProvidersPre")} <span className="font-mono tnum">{accounts.length}</span>
-              </p>
+              </span>
             ) : (
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{t("domains.providerBlockerDetail")}</p>
+              <span className="mt-3 block text-xs leading-relaxed text-muted-foreground">{t("domains.providerBlockerDetail")}</span>
             )}
           </>
         }
