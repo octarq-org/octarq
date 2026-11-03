@@ -48,6 +48,11 @@ func New(sink Sink, threadID, runID string) *Stream {
 	return &Stream{sink: sink, threadID: threadID, runID: runID}
 }
 
+// NewStream constructs an AG-UI Stream with runID and sink.
+func NewStream(runID string, sink Sink) *Stream {
+	return New(sink, runID, runID)
+}
+
 // Err reports the first sink failure, if any.
 func (s *Stream) Err() error { return s.err }
 

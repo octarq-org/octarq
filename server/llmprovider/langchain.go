@@ -16,6 +16,7 @@ package llmprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/tmc/langchaingo/llms"
@@ -78,11 +79,47 @@ func (p *langchainProvider) buildMessages(req Request) ([]llms.MessageContent, e
 		msgs = append(msgs, llms.TextParts(llms.ChatMessageTypeSystem, req.System))
 	}
 	for _, m := range req.Messages {
-		role := llms.ChatMessageTypeHuman
-		if m.Role == RoleAssistant {
-			role = llms.ChatMessageTypeAI
+		switch m.Role {
+		case RoleAssistant:
+			var parts []llms.ContentPart
+			if m.Content != "" {
+				parts = append(parts, llms.TextPart(m.Content))
+			}
+			for _, tc := range m.ToolCalls {
+				parts = append(parts, llms.ToolCall{
+					ID:   tc.ID,
+					Type: "function",
+					FunctionCall: &llms.FunctionCall{
+						Name:      tc.Name,
+						Arguments: string(tc.ArgsJSON),
+					},
+				})
+			}
+			if len(parts) == 0 {
+				parts = append(parts, llms.TextPart(""))
+			}
+			msgs = append(msgs, llms.MessageContent{
+				Role:  llms.ChatMessageTypeAI,
+				Parts: parts,
+			})
+		case RoleTool:
+			var parts []llms.ContentPart
+			for _, tr := range m.ToolResults {
+				parts = append(parts, llms.ToolCallResponse{
+					ToolCallID: tr.ToolCallID,
+					Content:    tr.Content,
+				})
+			}
+			if len(parts) == 0 && m.Content != "" {
+				parts = append(parts, llms.TextPart(m.Content))
+			}
+			msgs = append(msgs, llms.MessageContent{
+				Role:  llms.ChatMessageTypeTool,
+				Parts: parts,
+			})
+		default: // RoleUser
+			msgs = append(msgs, llms.TextParts(llms.ChatMessageTypeHuman, m.Content))
 		}
-		msgs = append(msgs, llms.TextParts(role, m.Content))
 	}
 	return msgs, nil
 }
@@ -112,13 +149,29 @@ func (p *langchainProvider) Complete(ctx context.Context, req Request) (Response
 	c := resp.Choices[0]
 	in, out := tokensFromInfo(c.GenerationInfo)
 	reasoning := reasoningTokensFromInfo(c.GenerationInfo)
+	cacheRead, cacheCreation := cacheTokensFromInfo(c.GenerationInfo)
+
+	var toolCalls []ToolCall
+	for _, tc := range c.ToolCalls {
+		if tc.FunctionCall != nil {
+			toolCalls = append(toolCalls, ToolCall{
+				ID:       tc.ID,
+				Name:     tc.FunctionCall.Name,
+				ArgsJSON: json.RawMessage(tc.FunctionCall.Arguments),
+			})
+		}
+	}
+
 	return Response{
-		Text:            c.Content,
-		Model:           model,
-		InputTokens:     in,
-		OutputTokens:    out,
-		ReasoningTokens: reasoning,
-		StopReason:      c.StopReason,
+		Text:                c.Content,
+		Model:               model,
+		ToolCalls:           toolCalls,
+		InputTokens:         in,
+		OutputTokens:        out,
+		ReasoningTokens:     reasoning,
+		CacheReadTokens:     cacheRead,
+		CacheCreationTokens: cacheCreation,
+		StopReason:          c.StopReason,
 	}, nil
 }
 
@@ -185,13 +238,16 @@ func (p *langchainProvider) StreamComplete(ctx context.Context, req Request, h S
 	c := resp.Choices[0]
 	in, out := tokensFromInfo(c.GenerationInfo)
 	reasoning := reasoningTokensFromInfo(c.GenerationInfo)
+	cacheRead, cacheCreation := cacheTokensFromInfo(c.GenerationInfo)
 	return Response{
-		Text:            c.Content,
-		Model:           model,
-		InputTokens:     in,
-		OutputTokens:    out,
-		ReasoningTokens: reasoning,
-		StopReason:      c.StopReason,
+		Text:                c.Content,
+		Model:               model,
+		InputTokens:         in,
+		OutputTokens:        out,
+		ReasoningTokens:     reasoning,
+		CacheReadTokens:     cacheRead,
+		CacheCreationTokens: cacheCreation,
+		StopReason:          c.StopReason,
 	}, nil
 }
 
@@ -236,6 +292,31 @@ func reasoningTokensFromInfo(info map[string]any) int {
 		return 0
 	}
 	return pick("ReasoningTokens", "reasoning_tokens", "ReasoningTokenCount", "reasoning_token_count")
+}
+
+// cacheTokensFromInfo extracts prompt cache read / creation token counts.
+func cacheTokensFromInfo(info map[string]any) (read, creation int) {
+	if info == nil {
+		return 0, 0
+	}
+	pick := func(keys ...string) int {
+		for _, k := range keys {
+			if v, ok := info[k]; ok {
+				switch n := v.(type) {
+				case int:
+					return n
+				case int64:
+					return int(n)
+				case float64:
+					return int(n)
+				}
+			}
+		}
+		return 0
+	}
+	read = pick("cached_tokens", "cache_read_input_tokens", "prompt_cache_hit_tokens", "prompt_tokens_details.cached_tokens")
+	creation = pick("cache_creation_input_tokens", "cache_creation_tokens")
+	return read, creation
 }
 
 // --- per-vendor factories ---

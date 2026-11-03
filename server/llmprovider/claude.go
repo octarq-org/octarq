@@ -103,11 +103,38 @@ func (c *Claude) buildParams(req Request) (anthropic.MessageNewParams, string, e
 		params.System = []anthropic.TextBlockParam{{Text: system}}
 	}
 	for _, m := range req.Messages {
-		block := anthropic.NewTextBlock(m.Content)
-		if m.Role == RoleAssistant {
-			params.Messages = append(params.Messages, anthropic.NewAssistantMessage(block))
-		} else {
-			params.Messages = append(params.Messages, anthropic.NewUserMessage(block))
+		switch m.Role {
+		case RoleAssistant:
+			var blocks []anthropic.ContentBlockParamUnion
+			if m.Content != "" {
+				blocks = append(blocks, anthropic.NewTextBlock(m.Content))
+			}
+			for _, tc := range m.ToolCalls {
+				var input any
+				if len(tc.ArgsJSON) > 0 {
+					_ = json.Unmarshal(tc.ArgsJSON, &input)
+				}
+				if input == nil {
+					input = map[string]any{}
+				}
+				blocks = append(blocks, anthropic.NewToolUseBlock(tc.ID, input, tc.Name))
+			}
+			if len(blocks) == 0 {
+				blocks = append(blocks, anthropic.NewTextBlock(""))
+			}
+			params.Messages = append(params.Messages, anthropic.NewAssistantMessage(blocks...))
+		case RoleTool:
+			var blocks []anthropic.ContentBlockParamUnion
+			for _, tr := range m.ToolResults {
+				blocks = append(blocks, anthropic.NewToolResultBlock(tr.ToolCallID, tr.Content, tr.IsError))
+			}
+			if len(blocks) == 0 && m.Content != "" {
+				blocks = append(blocks, anthropic.NewTextBlock(m.Content))
+			}
+			params.Messages = append(params.Messages, anthropic.NewUserMessage(blocks...))
+		default: // RoleUser
+			blocks := []anthropic.ContentBlockParamUnion{anthropic.NewTextBlock(m.Content)}
+			params.Messages = append(params.Messages, anthropic.NewUserMessage(blocks...))
 		}
 	}
 
@@ -147,19 +174,31 @@ func (c *Claude) Complete(ctx context.Context, req Request) (Response, error) {
 	}
 
 	var text strings.Builder
+	var toolCalls []ToolCall
 	for _, block := range resp.Content {
-		if t, ok := block.AsAny().(anthropic.TextBlock); ok {
-			text.WriteString(t.Text)
+		switch b := block.AsAny().(type) {
+		case anthropic.TextBlock:
+			text.WriteString(b.Text)
+		case anthropic.ToolUseBlock:
+			rawJSON, _ := json.Marshal(b.Input)
+			toolCalls = append(toolCalls, ToolCall{
+				ID:       b.ID,
+				Name:     b.Name,
+				ArgsJSON: rawJSON,
+			})
 		}
 	}
 
 	return Response{
-		Text:            text.String(),
-		Model:           orDefault(string(resp.Model), model),
-		InputTokens:     int(resp.Usage.InputTokens),
-		OutputTokens:    int(resp.Usage.OutputTokens),
-		ReasoningTokens: 0,
-		StopReason:      string(resp.StopReason),
+		Text:                text.String(),
+		Model:               orDefault(string(resp.Model), model),
+		ToolCalls:           toolCalls,
+		InputTokens:         int(resp.Usage.InputTokens),
+		OutputTokens:        int(resp.Usage.OutputTokens),
+		ReasoningTokens:     0,
+		CacheReadTokens:     int(resp.Usage.CacheReadInputTokens),
+		CacheCreationTokens: int(resp.Usage.CacheCreationInputTokens),
+		StopReason:          string(resp.StopReason),
 	}, nil
 }
 
@@ -181,6 +220,7 @@ func (c *Claude) StreamComplete(ctx context.Context, req Request, h StreamHandle
 	var text strings.Builder
 	modelName := model
 	var inputTokens, outputTokens int
+	var cacheReadTokens, cacheCreationTokens int
 	var stopReason string
 	toolsByIndex := make(map[int64]toolBlockInfo)
 	var guard streamOrderGuard
@@ -193,6 +233,8 @@ func (c *Claude) StreamComplete(ctx context.Context, req Request, h StreamHandle
 				modelName = string(ev.Message.Model)
 			}
 			inputTokens = int(ev.Message.Usage.InputTokens)
+			cacheReadTokens = int(ev.Message.Usage.CacheReadInputTokens)
+			cacheCreationTokens = int(ev.Message.Usage.CacheCreationInputTokens)
 		case anthropic.ContentBlockStartEvent:
 			if tu, ok := ev.ContentBlock.AsAny().(anthropic.ToolUseBlock); ok {
 				toolsByIndex[ev.Index] = toolBlockInfo{id: tu.ID, name: tu.Name}
@@ -237,11 +279,13 @@ func (c *Claude) StreamComplete(ctx context.Context, req Request, h StreamHandle
 	}
 
 	return Response{
-		Text:            text.String(),
-		Model:           orDefault(modelName, model),
-		InputTokens:     inputTokens,
-		OutputTokens:    outputTokens,
-		ReasoningTokens: 0, // Anthropic API rolls thinking tokens into output_tokens without a separate count.
-		StopReason:      stopReason,
+		Text:                text.String(),
+		Model:               orDefault(modelName, model),
+		InputTokens:         inputTokens,
+		OutputTokens:        outputTokens,
+		ReasoningTokens:     0, // Anthropic API rolls thinking tokens into output_tokens without a separate count.
+		CacheReadTokens:     cacheReadTokens,
+		CacheCreationTokens: cacheCreationTokens,
+		StopReason:          stopReason,
 	}, nil
 }

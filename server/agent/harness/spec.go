@@ -40,11 +40,11 @@ const (
 	MaxToolNameLen  = 64
 	MinSpecMaxSteps = 1
 	// MaxSpecMaxSteps is the highest step budget a spec may ask for: the
-	// ceiling of the most generous profile (MaxStepsNormal). A value above it
+	// ceiling of the most generous profile (MaxStepsWorker). A value above it
 	// would be clamped at run time, so accepting it would store a number the
 	// agent never honours — the operator would read the spec, believe the
-	// budget was 32, and watch the agent stop at 8.
-	MaxSpecMaxSteps = MaxStepsNormal
+	// budget was 64, and watch the agent stop at 8.
+	MaxSpecMaxSteps = MaxStepsWorker
 	// DefaultMaxStepsFor is the budget a spec gets when it asks for none.
 	DefaultMaxStepsFor = MaxStepsNormal
 )

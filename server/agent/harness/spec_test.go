@@ -268,7 +268,7 @@ func TestValidateRefusesAStepBudgetTheRunnerWouldIgnore(t *testing.T) {
 	}
 	// The ceiling the profile owns is the highest one, so the spec's range
 	// and the runner's range cannot drift apart.
-	if harness.MaxSpecMaxSteps != harness.MaxStepsNormal {
-		t.Fatalf("the spec accepts %d steps but the profile allows %d", harness.MaxSpecMaxSteps, harness.MaxStepsNormal)
+	if harness.MaxSpecMaxSteps != harness.MaxStepsWorker {
+		t.Fatalf("the spec accepts %d steps but the profile allows %d", harness.MaxSpecMaxSteps, harness.MaxStepsWorker)
 	}
 }

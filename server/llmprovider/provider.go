@@ -19,12 +19,13 @@ import (
 	"strings"
 )
 
-// Role constants for Message.Role. Only user/assistant turns are modelled; the
-// system prompt is carried separately on Request.System (matching the Anthropic
-// Messages API, where system is a top-level field rather than a message).
+// Role constants for Message.Role. The system prompt is carried separately on
+// Request.System (matching the Anthropic Messages API, where system is a
+// top-level field rather than a message).
 const (
 	RoleUser      = "user"
 	RoleAssistant = "assistant"
+	RoleTool      = "tool"
 )
 
 // Recommended Claude model IDs, surfaced as constants so callers don't hardcode
@@ -40,12 +41,26 @@ const (
 	ModelClaudeHaiku = "claude-haiku-4-5" // cheap classification / summary
 )
 
-// Message is one conversational turn. Content is plain text; multimodal blocks
-// (images, PDFs for invoice OCR) are a later extension and deliberately omitted
-// from the v1 surface.
+// ToolCall represents a structured function/tool call requested by the model.
+type ToolCall struct {
+	ID       string          `json:"id"`
+	Name     string          `json:"name"`
+	ArgsJSON json.RawMessage `json:"argsJson"`
+}
+
+// ToolResult represents the output of a tool call executed on behalf of the model.
+type ToolResult struct {
+	ToolCallID string `json:"toolCallId"`
+	Content    string `json:"content"`
+	IsError    bool   `json:"isError,omitempty"`
+}
+
+// Message is one conversational turn.
 type Message struct {
-	Role    string // RoleUser | RoleAssistant
-	Content string
+	Role        string       `json:"role"` // RoleUser | RoleAssistant | RoleTool
+	Content     string       `json:"content,omitempty"`
+	ToolCalls   []ToolCall   `json:"toolCalls,omitempty"`
+	ToolResults []ToolResult `json:"toolResults,omitempty"`
 }
 
 // ToolDef defines a tool/function that the model can invoke.
@@ -82,12 +97,15 @@ type Request struct {
 
 // Response is a completed generation plus token accounting for cost tracking.
 type Response struct {
-	Text            string
-	Model           string
-	InputTokens     int
-	OutputTokens    int
-	ReasoningTokens int
-	StopReason      string
+	Text                string     `json:"text"`
+	Model               string     `json:"model"`
+	ToolCalls           []ToolCall `json:"toolCalls,omitempty"`
+	InputTokens         int        `json:"inputTokens"`
+	OutputTokens        int        `json:"outputTokens"`
+	ReasoningTokens     int        `json:"reasoningTokens"`
+	CacheReadTokens     int        `json:"cacheReadTokens,omitempty"`
+	CacheCreationTokens int        `json:"cacheCreationTokens,omitempty"`
+	StopReason          string     `json:"stopReason,omitempty"`
 }
 
 // Provider is the LLM backend contract. Implementations must be safe for

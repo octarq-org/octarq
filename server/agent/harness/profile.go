@@ -8,8 +8,9 @@ import (
 // Step-count ceilings — design invariant #6 quantitative values.
 const (
 	MaxStepsNormal   = 8
-	MaxStepsReactor  = 3 // destructive reactor hard cap, cannot be relaxed
-	MaxStepsReadOnly = 5 // read-only reactor cap, ≤ Normal
+	MaxStepsReactor  = 3  // destructive reactor hard cap, cannot be relaxed
+	MaxStepsReadOnly = 5  // read-only reactor cap, ≤ Normal
+	MaxStepsWorker   = 64 // autonomous long-horizon task ceiling
 )
 
 // Profile selects which step budget applies to a session.
@@ -19,6 +20,7 @@ const (
 	ProfileNormal          Profile = iota // interactive multi-turn session
 	ProfileReactor                        // event-driven unattended session
 	ProfileReactorReadOnly                // read-only reactor (no writes)
+	ProfileWorker                         // autonomous long-horizon task session
 )
 
 // String returns the canonical profile name for tracing and audit logs.
@@ -28,6 +30,8 @@ func (p Profile) String() string {
 		return "reactor"
 	case ProfileReactorReadOnly:
 		return "reactor_readonly"
+	case ProfileWorker:
+		return "worker"
 	default:
 		return "normal"
 	}
@@ -50,6 +54,8 @@ func (p Profile) MaxSteps(hasDestructive bool) int {
 			return MaxStepsReactor
 		}
 		return MaxStepsReadOnly
+	case ProfileWorker:
+		return MaxStepsWorker
 	default: // ProfileNormal
 		return MaxStepsNormal
 	}

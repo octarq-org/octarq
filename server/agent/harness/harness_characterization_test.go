@@ -25,6 +25,8 @@ func TestHarnessCharacterization_ProfilesAndLimits(t *testing.T) {
 		{harness.ProfileReactor, true, harness.MaxStepsReactor},
 		{harness.ProfileReactorReadOnly, false, harness.MaxStepsReadOnly},
 		{harness.ProfileReactorReadOnly, true, harness.MaxStepsReactor},
+		{harness.ProfileWorker, false, harness.MaxStepsWorker},
+		{harness.ProfileWorker, true, harness.MaxStepsWorker},
 		{harness.Profile(999), false, harness.MaxStepsNormal},
 	}
 
@@ -45,6 +47,9 @@ func TestHarnessCharacterization_ProfilesAndLimits(t *testing.T) {
 	}
 	if harness.MaxStepsReadOnly != 5 {
 		t.Errorf("expected MaxStepsReadOnly=5, got %d", harness.MaxStepsReadOnly)
+	}
+	if harness.MaxStepsWorker != 64 {
+		t.Errorf("expected MaxStepsWorker=64, got %d", harness.MaxStepsWorker)
 	}
 }
 
