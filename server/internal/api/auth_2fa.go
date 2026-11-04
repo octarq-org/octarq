@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
@@ -103,7 +104,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		if err != nil {
 			switch {
 			case errors.Is(err, errNoWorkspace):
-				return nil, huma.Error403Forbidden("This account has no workspace; ask an administrator for an invitation")
+				return nil, apierror.New(http.StatusForbidden, apierror.CodeNoWorkspace, "This account has no workspace; ask an administrator for an invitation")
 			case errors.Is(err, errInvalidCredentials):
 				h.loginLimiter.recordFailure(ip)
 				h.publishLoginFailed(r, loginUser, "invalid credentials")
@@ -122,7 +123,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		user.EmailVerified = true
 	}
 	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
-		return nil, huma.NewError(http.StatusForbidden, "Email verification required; verify your email before signing in")
+		return nil, apierror.New(http.StatusForbidden, apierror.CodeEmailVerificationRequired, "Email verification required; verify your email before signing in")
 	}
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {

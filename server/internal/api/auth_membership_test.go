@@ -3,8 +3,10 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -53,6 +55,20 @@ func assertNoCookies(t *testing.T, rec interface{ Result() *http.Response }, wha
 	}
 }
 
+// refusedCode reports the machine-readable code of a refused response. The
+// client branches on it, so a refusal without the right code sends the user
+// down the wrong recovery path.
+func refusedCode(t *testing.T, rec *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode error body %q: %v", rec.Body.String(), err)
+	}
+	return body.Code
+}
+
 // TestLoginWithoutWorkspaceIsRefused covers the escalation a removed member
 // used to get: the account still has its password, and sign-in minted a fresh
 // owner membership so the removed person was back inside, now with full rights.
@@ -65,6 +81,9 @@ func TestLoginWithoutWorkspaceIsRefused(t *testing.T) {
 		t.Fatalf("login of an account in no workspace: got %d (%s), want 403", rec.Code, rec.Body.String())
 	}
 	assertNoCookies(t, rec, "refused login")
+	if code := refusedCode(t, rec); code != apierror.CodeNoWorkspace {
+		t.Fatalf("refusal code = %q, want %q", code, apierror.CodeNoWorkspace)
+	}
 
 	var memberships int64
 	if err := db.Model(&models.OrgMember{}).Where("user_id = ?", user.ID).Count(&memberships).Error; err != nil {
@@ -105,6 +124,35 @@ func TestTwoFactorLoginWithoutWorkspaceIsRefused(t *testing.T) {
 		t.Fatalf("2fa login of an account in no workspace: got %d (%s), want 403", rec.Code, rec.Body.String())
 	}
 	assertNoCookies(t, rec, "refused 2fa login")
+	if code := refusedCode(t, rec); code != apierror.CodeNoWorkspace {
+		t.Fatalf("refusal code = %q, want %q", code, apierror.CodeNoWorkspace)
+	}
+}
+
+// TestLoginRequiresVerificationReportsItsOwnCode keeps the two 403 refusals
+// apart. This one tells the client to offer the verification email; the
+// no-workspace one tells it to ask an administrator for an invitation.
+func TestLoginRequiresVerificationReportsItsOwnCode(t *testing.T) {
+	srv, db := newTestHandler(t)
+	user := seedPasswordUser(t, db, "unverified@example.com")
+	if err := db.Model(&user).Update("email_verified", false).Error; err != nil {
+		t.Fatalf("clear verification: %v", err)
+	}
+	org := models.Org{Name: "unverified workspace", Slug: "unverified-workspace", InboundToken: "unverified-token"}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	if err := db.Create(&models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "member"}).Error; err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"unverified@example.com","password":"pw"}`)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("login before email verification: got %d (%s), want 403", rec.Code, rec.Body.String())
+	}
+	if code := refusedCode(t, rec); code != apierror.CodeEmailVerificationRequired {
+		t.Fatalf("refusal code = %q, want %q", code, apierror.CodeEmailVerificationRequired)
+	}
 }
 
 // TestLoginWrongPasswordStaysUnauthorized keeps the two refusals apart: only a
