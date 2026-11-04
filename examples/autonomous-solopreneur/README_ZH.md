@@ -78,7 +78,7 @@ node scripts/run-all.mjs
 
 在后台启动 Octarq：
 ```bash
-cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .
+cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev-admin-password go run .
 ```
 
 在 Octarq 控制台（**个人设置 -> API 令牌**）生成一个 API Token，然后执行：

@@ -44,11 +44,12 @@ OCTARQ_SECRET_KEY=$(openssl rand -hex 32)
 
 ### `OCTARQ_ADMIN_PASSWORD`
 
-Absent → generated and written next to the database, and **printed to the log
-in cleartext** on first boot. Fine for a laptop, not for a host whose logs are
-shipped somewhere.
+Absent → generated (20 characters) and written next to the database. The log
+names the file, never the password.
 
-- [ ] Set explicitly, or first-boot logs rotated/purged after you change it
+- [ ] Set explicitly, at least 12 characters
+- [ ] If you rely on the generated file instead, keep it on persistent storage
+      and include it in backups
 
 ---
 

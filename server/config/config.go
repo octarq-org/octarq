@@ -15,6 +15,11 @@ import (
 // report can name the same threshold Load enforces instead of restating it.
 const MinSecretKeyLen = 16
 
+// MinAdminPasswordLen is the minimum acceptable length for OCTARQ_ADMIN_PASSWORD.
+// The instance admin password is the only credential that opens every workspace
+// on the host, so a short one is guessable by anyone who reaches the login page.
+const MinAdminPasswordLen = 12
+
 // DefaultAppName is the fallback product name shown in the UI when the
 // `app_name` runtime setting (Settings → General) is empty. Downstream
 // distributions override via -ldflags -X github.com/octarq-org/octarq/server/config.DefaultAppName=...

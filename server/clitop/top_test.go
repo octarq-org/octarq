@@ -77,7 +77,7 @@ func TestValidateSetup(t *testing.T) {
 	}
 
 	if _, err := ValidateSetup(map[string]string{
-		"OCTARQ_ADMIN_PASSWORD": "x",
+		"OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
 		"OCTARQ_DB_DRIVER":      "oracle",
 		"OCTARQ_SECRET_KEY":     "long-enough-secret-key!!",
 	}); err == nil {
@@ -85,7 +85,7 @@ func TestValidateSetup(t *testing.T) {
 	}
 
 	if _, err := ValidateSetup(map[string]string{
-		"OCTARQ_ADMIN_PASSWORD": "",
+		"OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
 		"OCTARQ_DB_DRIVER":      "sqlite",
 		"OCTARQ_DB_DSN":         filepath.Join(t.TempDir(), "s.db"),
 		"OCTARQ_SECRET_KEY":     "long-enough-secret-key!!",
@@ -100,7 +100,7 @@ func TestWriteEnvFileRefusesOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	resolved := map[string]string{
-		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "b",
+		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
 		"OCTARQ_DB_DRIVER": "sqlite", "OCTARQ_DB_DSN": "c",
 		"OCTARQ_LISTEN": ":1", "OCTARQ_SECRET_KEY": "d",
 	}
@@ -319,7 +319,7 @@ func TestWriteEnvFileBackupFailure(t *testing.T) {
 	defer os.Chmod(dir, 0o700) // cleanup
 
 	resolved := map[string]string{
-		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "b",
+		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
 		"OCTARQ_DB_DRIVER": "sqlite", "OCTARQ_DB_DSN": "c",
 		"OCTARQ_LISTEN": ":1", "OCTARQ_SECRET_KEY": "d",
 	}
@@ -344,7 +344,7 @@ func TestWriteEnvFileReadFailure(t *testing.T) {
 	defer os.Chmod(path, 0o600) // cleanup
 
 	resolved := map[string]string{
-		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "b",
+		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
 		"OCTARQ_DB_DRIVER": "sqlite", "OCTARQ_DB_DSN": "c",
 		"OCTARQ_LISTEN": ":1", "OCTARQ_SECRET_KEY": "d",
 	}

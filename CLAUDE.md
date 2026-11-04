@@ -12,7 +12,7 @@ Conventions for how changes are made here. Core open-source library and single-b
 ## Running & Dev Servers
 
 - **Always start dev servers with `--host`**: `cd web && pnpm dev --host`.
-- Backend: `cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
+- Backend: `cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev-admin-password go run .` (serves `:8080`).
 - From repo root: `make dev` runs both backend (Air hot reload) and frontend (Vite).
 - Full release build: `make release` (or `make build`).
 

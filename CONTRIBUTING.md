@@ -14,7 +14,7 @@ are built, with no fork), see the **[plugin development guide](website/src/conte
 
 ## Running it
 
-- Backend: `OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
+- Backend: `OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev-admin-password go run .` (serves `:8080`).
 - Frontend dev: `cd web && pnpm dev --host`.
 - Full build: `make release`.
 

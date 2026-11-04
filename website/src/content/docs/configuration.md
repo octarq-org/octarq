@@ -18,7 +18,7 @@ The primary configuration options are:
 | --- | --- |
 | `OCTARQ_SECRET_KEY` | Signs session cookies and encrypts stored credentials. **Required.** Must be at least 16 bytes; once a domain is registered, this length floor is strictly enforced and the instance will refuse to start if shorter. |
 | `OCTARQ_ADMIN_USER` | First admin username (default `admin`). |
-| `OCTARQ_ADMIN_PASSWORD` | First admin password. **Required.** |
+| `OCTARQ_ADMIN_PASSWORD` | First admin password. **Required.** Must be at least 12 characters. When absent, the binary generates a 20-character password next to the database and names the file in the log. |
 | `OCTARQ_ALLOW_PRIVATE_WEBHOOKS` | Allow webhook & notification delivery to private/loopback IPs. Default `false`. |
 | `OCTARQ_ALLOW_PRIVATE_SMTP` | Allow outbound SMTP mail delivery to private/loopback IPs (e.g. local Postfix or Mailhog). Default `false`. |
 | `OCTARQ_TRUST_PROXY` | Honour `X-Forwarded-For` / `X-Real-IP` / `X-Forwarded-Proto`. Enable only behind a reverse proxy you control. Default `false`. |

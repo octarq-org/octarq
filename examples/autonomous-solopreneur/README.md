@@ -79,7 +79,7 @@ node scripts/run-all.mjs
 Start Octarq backend locally:
 ```bash
 # In another terminal:
-cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .
+cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev-admin-password go run .
 ```
 
 Generate an API Token in the Octarq Dashboard (**Settings -> Personal Settings -> API Tokens**), then run:

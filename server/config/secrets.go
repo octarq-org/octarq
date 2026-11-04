@@ -122,7 +122,10 @@ func (c *Config) ensureAutoSecrets() error {
 		}
 		c.AdminPassword = pass
 		if created {
-			log.Printf("octarq: generated an initial admin login — user %q, password %q (saved to %s)", c.AdminUser, pass, filepath.Join(dir, autoAdminPassFile))
+			// The password never reaches the log: a log line is readable by
+			// everyone with journal or container-log access, and that is not
+			// the same set of people who may administer the instance.
+			log.Printf("octarq: generated an initial admin login for user %q and saved the password to %s", c.AdminUser, filepath.Join(dir, autoAdminPassFile))
 		}
 	}
 
