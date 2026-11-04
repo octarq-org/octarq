@@ -66,9 +66,9 @@ func TestInstanceAdminBoundToConfiguredAdmin_NotOrg1(t *testing.T) {
 	}
 
 	// --- Operator logs in second via the configured admin credential. ---
-	uid, _, ok := h.authenticate("operator@example.com", "pw")
-	if !ok {
-		t.Fatal("configured admin credential should authenticate")
+	uid, _, err := h.authenticate("operator@example.com", "pw")
+	if err != nil {
+		t.Fatalf("configured admin credential should authenticate: %v", err)
 	}
 	if uid == attacker.ID {
 		t.Fatal("operator resolved to the attacker's user id")
@@ -116,9 +116,9 @@ func TestInstanceAdminBackfillMigration(t *testing.T) {
 
 func TestInstanceAdminEnvHasVerifiedEmail(t *testing.T) {
 	h, db := newHandlerForAdminTest(t)
-	uid, _, ok := h.authenticate("operator@example.com", "pw")
-	if !ok {
-		t.Fatal("configured admin credential should authenticate")
+	uid, _, err := h.authenticate("operator@example.com", "pw")
+	if err != nil {
+		t.Fatalf("configured admin credential should authenticate: %v", err)
 	}
 	var user models.User
 	if err := db.First(&user, uid).Error; err != nil {

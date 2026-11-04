@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -97,12 +98,19 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		loginUser = user.Email
 		meta = map[string]any{"email": user.Email, "method": "oauth"}
 	} else {
-		var ok bool
-		uid, orgID, ok = h.authenticate(loginUser, input.Body.Password)
-		if !ok {
-			h.loginLimiter.recordFailure(ip)
-			h.publishLoginFailed(r, loginUser, "invalid credentials")
-			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
+		var err error
+		uid, orgID, err = h.authenticate(loginUser, input.Body.Password)
+		if err != nil {
+			switch {
+			case errors.Is(err, errNoWorkspace):
+				return nil, huma.Error403Forbidden("This account has no workspace; ask an administrator for an invitation")
+			case errors.Is(err, errInvalidCredentials):
+				h.loginLimiter.recordFailure(ip)
+				h.publishLoginFailed(r, loginUser, "invalid credentials")
+				return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
+			default:
+				return nil, huma.Error500InternalServerError("Could not read the account; retry the request")
+			}
 		}
 		if err := h.db.First(&user, uid).Error; err != nil {
 			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")

@@ -34,6 +34,7 @@ Every HTTP error returned by the API—whether triggered by validation failure, 
 - **Org Scoping (`requireOrg`)**: A handler accessing workspace data must resolve an active `orgID > 0`. If unauthenticated or no active organization is bound, the handler strictly fails closed (`401 Unauthorized` or `403 Forbidden`).
 - **Owner Role Invariant**: An organization must never be left without an active owner. Demoting or removing the final owner of a workspace is rejected with `400 Bad Request`.
 - **Session Revocation Invariant**: Any modification of a member's role (promotion, demotion, or removal) immediately purges all stateful session rows (`models.Session`) and invalidates cache keys (`session:<token>`) for that user in that workspace.
+- **Sign-In Grants Nothing**: A successful sign-in admits an account only to the workspaces it already belongs to. It never creates an `OrgMember` row. An account with a correct password and no membership is refused with `403 Forbidden`, so removing a member is final until an administrator invites them again.
 
 ### 2.3 Rate Limiter Budget Isolation
 To prevent Denial of Service and credential stuffing, rate limits are enforced via `ulule/limiter/v3` across isolated budgets:

@@ -56,11 +56,18 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 
 	loginUser := strings.TrimSpace(input.Body.Email)
 
-	uid, orgID, ok := h.authenticate(loginUser, input.Body.Password)
-	if !ok {
-		h.loginLimiter.recordFailure(ip)
-		h.publishLoginFailed(r, loginUser, "invalid credentials")
-		return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
+	uid, orgID, err := h.authenticate(loginUser, input.Body.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, errNoWorkspace):
+			return nil, huma.Error403Forbidden("This account has no workspace; ask an administrator for an invitation")
+		case errors.Is(err, errInvalidCredentials):
+			h.loginLimiter.recordFailure(ip)
+			h.publishLoginFailed(r, loginUser, "invalid credentials")
+			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
+		default:
+			return nil, huma.Error500InternalServerError("Could not read the account; retry the request")
+		}
 	}
 
 	var user models.User
@@ -259,40 +266,59 @@ func (h *Handler) getAuthMethods(ctx context.Context, input *struct{}) (*AuthMet
 	return &AuthMethodsOutput{Body: auth.List()}, nil
 }
 
+// Errors authenticate reports to its callers, after it has separated the three
+// outcomes a sign-in can have.
+var (
+	// errInvalidCredentials means neither credential source matched.
+	errInvalidCredentials = errors.New("auth: invalid credentials")
+	// errNoWorkspace means the password is correct and the account belongs to
+	// no workspace.
+	errNoWorkspace = errors.New("auth: account belongs to no workspace")
+)
+
 // authenticate resolves username+password to a (userID, orgID) pair. It accepts
 // two credential sources, in order:
 //  1. the instance admin credential (config-backed) → the admin's bootstrap org
 //  2. a database user carrying a bcrypt password hash (invited members and
 //     self-serve sign-ups) → the first org they belong to
 //
-// It returns ok=false when neither matches. Callers arm the failed-login limiter.
-func (h *Handler) authenticate(username, password string) (uid, orgID uint, ok bool) {
+// A correct password admits an account to the workspaces it already belongs
+// to, and to no others. Signing in never creates a membership: removing a
+// member deletes that row, so creating one here would hand the removed person
+// an owner seat on their next attempt.
+//
+// Callers arm the failed-login limiter on errInvalidCredentials only. A
+// correct password is not a failed attempt.
+func (h *Handler) authenticate(username, password string) (uid, orgID uint, err error) {
 	if h.auth.Check(username, password) {
 		orgID = h.bootstrapOrgID()
-		return h.bootstrapUserID(username, orgID), orgID, true
+		return h.bootstrapUserID(username, orgID), orgID, nil
 	}
 
 	email := strings.ToLower(strings.TrimSpace(username))
 	var user models.User
 	if h.db.Where("LOWER(email) = ?", email).First(&user).Error != nil {
-		return 0, 0, false
+		return 0, 0, errInvalidCredentials
 	}
 	if user.PasswordHash != "" {
 		if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
-			return 0, 0, false
+			return 0, 0, errInvalidCredentials
 		}
 	} else if user.IsInstanceAdmin {
 		if !h.auth.CheckAdminPassword(password) {
-			return 0, 0, false
+			return 0, 0, errInvalidCredentials
 		}
 	} else {
-		return 0, 0, false
+		return 0, 0, errInvalidCredentials
 	}
 	var member models.OrgMember
-	if h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error != nil {
-		orgID = h.bootstrapOrgID()
-		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
-		return user.ID, orgID, true
+	memberErr := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error
+	switch {
+	case memberErr == nil:
+		return user.ID, member.OrgID, nil
+	case errors.Is(memberErr, gorm.ErrRecordNotFound):
+		return 0, 0, errNoWorkspace
+	default:
+		return 0, 0, memberErr
 	}
-	return user.ID, member.OrgID, true
 }
