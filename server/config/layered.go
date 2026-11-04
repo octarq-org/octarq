@@ -190,6 +190,9 @@ func buildFromValues(values map[string]string) (*Config, error) {
 	if c.AdminPassword == "" {
 		return nil, fmt.Errorf("OCTARQ_ADMIN_PASSWORD is required")
 	}
+	if len(c.AdminPassword) < MinAdminPasswordLen {
+		return nil, fmt.Errorf("OCTARQ_ADMIN_PASSWORD must be at least %d characters", MinAdminPasswordLen)
+	}
 	if len(c.SecretKey) < MinSecretKeyLen {
 		if c.Provisioned() {
 			return nil, fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes when octarq is pointed at provisioned infrastructure (%s)", MinSecretKeyLen, c.provisionedBecause())

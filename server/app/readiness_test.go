@@ -18,7 +18,7 @@ func loadReadinessConfig(t *testing.T, env map[string]string) *config.Config {
 		"OCTARQ_DB_DRIVER":      "sqlite",
 		"OCTARQ_DB_DSN":         filepath.Join(dir, "octarq.db"),
 		"OCTARQ_SECRET_KEY":     "0123456789abcdef0123456789abcdef",
-		"OCTARQ_ADMIN_PASSWORD": "pw",
+		"OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
 	}
 	for k, v := range env {
 		base[k] = v

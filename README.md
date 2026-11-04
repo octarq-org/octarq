@@ -52,7 +52,7 @@ Zero config — one command, no `.env`:
 docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 
 # Or instant local eval (log in immediately with admin / admin):
-docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=admin -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=change-this-admin-password -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
 On first boot without environment variables, Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs (or use `admin` if specified above), and log in. Mail, DNS and GeoIP are all opt-in — configure them later from **Settings**, nothing is required to start.
@@ -188,7 +188,7 @@ export const helloPlugin: UIPlugin = {
 ```bash
 make dev                                                  # backend (Air hot reload) + Vite frontend
 # or run individually:
-(cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .)
+(cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev-admin-password go run .)
 (cd server && go test ./... -race)
 ```
 

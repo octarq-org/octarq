@@ -52,7 +52,7 @@ Octarq 是**面向独立开发者、一人公司与 AI-native 小团队的自托
 docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 
 # 或极速本地体验（使用 admin / admin 快速登录）：
-docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=admin -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=change-this-admin-password -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
 未设置环境变量时，首次启动 Octarq 会自动生成密钥与初始 `admin` 密码（两者都持久化在 `/data`，并在日志里打印一次），默认用 SQLite 起来。打开 `http://localhost:8080`，从容器日志里拿到密码（或使用上述预设的 `admin`）即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置，启动时什么都不需要。
@@ -188,7 +188,7 @@ export const helloPlugin: UIPlugin = {
 ```bash
 make dev                                                  # 后端 (Air 热重载) + Vite 前端开发服务
 # 或分别单独启动:
-(cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .)
+(cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev-admin-password go run .)
 (cd server && go test ./... -race)
 ```
 

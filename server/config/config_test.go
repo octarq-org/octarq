@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -67,7 +69,7 @@ func TestLoadAutoSecretsStableAcrossRestart(t *testing.T) {
 func TestLoadEnvSecretsWin(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "hunter2")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 
@@ -75,7 +77,7 @@ func TestLoadEnvSecretsWin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.AdminPassword != "hunter2" {
+	if cfg.AdminPassword != "octarq-test-pw" {
 		t.Errorf("AdminPassword = %q, want env value", cfg.AdminPassword)
 	}
 	if _, err := os.Stat(filepath.Join(dir, autoSecretFile)); !os.IsNotExist(err) {
@@ -85,7 +87,7 @@ func TestLoadEnvSecretsWin(t *testing.T) {
 
 func TestLoadRejectsBadDriver(t *testing.T) {
 	t.Setenv("OCTARQ_SECRET_KEY", "s")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "invalid_driver")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error for unsupported driver")
@@ -95,7 +97,7 @@ func TestLoadRejectsBadDriver(t *testing.T) {
 
 func TestLoadAcceptsMySQLDriver(t *testing.T) {
 	t.Setenv("OCTARQ_SECRET_KEY", "32-bytes-very-long-secret-key-for-test!!")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "mysql")
 	t.Setenv("OCTARQ_DB_DSN", "root:secret@tcp(127.0.0.1:3306)/octarq")
 	cfg, err := Load()
@@ -112,7 +114,7 @@ func TestLoadAcceptsMySQLDriver(t *testing.T) {
 
 func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("OCTARQ_SECRET_KEY", "s")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	cfg, err := Load()
 	if err != nil {
@@ -155,7 +157,7 @@ func TestSecretKeyFloor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			t.Setenv("OCTARQ_SECRET_KEY", tc.key)
-			t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+			t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 			t.Setenv("OCTARQ_DB_DRIVER", tc.driver)
 			t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 			t.Setenv("OCTARQ_REDIS_URL", tc.redis)
@@ -186,7 +188,7 @@ func TestSecretKeyFloor(t *testing.T) {
 func TestLoadDropsRemovedVariables(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 	t.Setenv("OCTARQ_BASE_URL", "not a url at all")
@@ -250,7 +252,7 @@ func setLevelEnv(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 }
@@ -331,7 +333,7 @@ func TestLogLevelFeedsSlogLogger(t *testing.T) {
 func TestDevWebProxyConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "1234567890123456")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "secret")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 	t.Setenv("OCTARQ_DEV_WEB_PROXY", "http://localhost:5173")
@@ -348,7 +350,7 @@ func TestDevWebProxyConfig(t *testing.T) {
 func TestBackupS3Config(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "1234567890123456")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "secret")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 
@@ -404,5 +406,49 @@ func TestBackupS3Config(t *testing.T) {
 	}
 	if cfg2.BackupCron != "0 4 * * *" {
 		t.Errorf("BackupCron = %q, want '0 4 * * *'", cfg2.BackupCron)
+	}
+}
+
+// TestAdminPasswordFloor pins the rule: a supplied admin password shorter than
+// MinAdminPasswordLen refuses to start.
+func TestAdminPasswordFloor(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", strings.Repeat("a", MinAdminPasswordLen-1))
+	if _, err := Load(); err == nil {
+		t.Fatalf("Load accepted a %d-character admin password", MinAdminPasswordLen-1)
+	}
+
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", strings.Repeat("a", MinAdminPasswordLen))
+	if _, err := Load(); err != nil {
+		t.Fatalf("Load refused a %d-character admin password: %v", MinAdminPasswordLen, err)
+	}
+}
+
+// TestGeneratedAdminPasswordStaysOutOfTheLog pins the privacy rule: journald
+// and container logs are readable by people who must not administer the host.
+func TestGeneratedAdminPasswordStaysOutOfTheLog(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("OCTARQ_SECRET_KEY", "")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+
+	var buf bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&buf)
+	cfg, err := Load()
+	log.SetOutput(previous)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if strings.Contains(buf.String(), cfg.AdminPassword) {
+		t.Fatal("the generated admin password reached the log")
+	}
+	if !strings.Contains(buf.String(), autoAdminPassFile) {
+		t.Errorf("the log must name the file that holds the password, got %q", buf.String())
 	}
 }

@@ -42,7 +42,7 @@ func TestCoverageLiftRegisterTenantViewAndRunWithPlugins(t *testing.T) {
 
 	// 3. RunWithPlugins db open error with unopenable sqlite DSN
 	t.Setenv("OCTARQ_SECRET_KEY", "abcdefghijklmnopqrstuvwxyz1234567890")
-	t.Setenv("OCTARQ_ADMIN_PASSWORD", "admin123456")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", "/dev/null/nonexistent/db.sqlite")
 	err = RunWithPlugins(context.Background(), nil, nil)
