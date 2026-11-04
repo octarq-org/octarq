@@ -50,6 +50,11 @@ const (
 	// (the address is taken, the workspace slug is taken) and the client has
 	// to tell them apart to show the right next step.
 	CodeEmailInUse = "email_in_use"
+	// Sign-in refusals that both answer 403. The client must tell them apart:
+	// one asks the user to open the verification email, the other tells the user
+	// that an administrator must grant a workspace.
+	CodeEmailVerificationRequired = "email_verification_required"
+	CodeNoWorkspace               = "no_workspace"
 	// Workforce billing refusals. A chat turn attributed to an agent is
 	// refused before the stream opens, and the client must show the operator
 	// the exact next action: pick another agent, resume it, raise its limit,
@@ -82,6 +87,8 @@ var codes = []string{
 	CodeMethodNotAllowed,
 	CodeConflict,
 	CodeEmailInUse,
+	CodeEmailVerificationRequired,
+	CodeNoWorkspace,
 	CodeWorkforceAgentNotFound,
 	CodeWorkforceAgentPaused,
 	CodeWorkforceBudgetExceeded,

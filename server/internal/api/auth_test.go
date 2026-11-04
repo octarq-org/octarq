@@ -22,6 +22,12 @@ func TestLogin(t *testing.T) {
 	}
 	db.Create(&user)
 
+	// A password account signs in to the workspace it belongs to. Sign-in grants
+	// no membership, so the workspace is part of the fixture.
+	org := models.Org{Name: "test workspace", Slug: "test-workspace", InboundToken: "test-token"}
+	db.Create(&org)
+	db.Create(&models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "member"})
+
 	t.Run("success", func(t *testing.T) {
 		rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"test@example.com","password":"password123"}`)
 		if rec.Code != http.StatusOK {

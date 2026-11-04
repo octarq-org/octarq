@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
@@ -97,12 +99,19 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		loginUser = user.Email
 		meta = map[string]any{"email": user.Email, "method": "oauth"}
 	} else {
-		var ok bool
-		uid, orgID, ok = h.authenticate(loginUser, input.Body.Password)
-		if !ok {
-			h.loginLimiter.recordFailure(ip)
-			h.publishLoginFailed(r, loginUser, "invalid credentials")
-			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
+		var err error
+		uid, orgID, err = h.authenticate(loginUser, input.Body.Password)
+		if err != nil {
+			switch {
+			case errors.Is(err, errNoWorkspace):
+				return nil, apierror.New(http.StatusForbidden, apierror.CodeNoWorkspace, "This account has no workspace; ask an administrator for an invitation")
+			case errors.Is(err, errInvalidCredentials):
+				h.loginLimiter.recordFailure(ip)
+				h.publishLoginFailed(r, loginUser, "invalid credentials")
+				return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
+			default:
+				return nil, huma.Error500InternalServerError("Could not read the account; retry the request")
+			}
 		}
 		if err := h.db.First(&user, uid).Error; err != nil {
 			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
@@ -114,7 +123,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		user.EmailVerified = true
 	}
 	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
-		return nil, huma.NewError(http.StatusForbidden, "Email verification required; verify your email before signing in")
+		return nil, apierror.New(http.StatusForbidden, apierror.CodeEmailVerificationRequired, "Email verification required; verify your email before signing in")
 	}
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
