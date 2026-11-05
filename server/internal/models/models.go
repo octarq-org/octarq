@@ -467,6 +467,19 @@ func (NotificationPreference) TableName() string {
 	return "notification_preferences"
 }
 
+// SchemaMigration records one applied schema version. The highest version
+// present is the version the database was last migrated to: a binary older
+// than that refuses to boot, so a downgrade cannot run against a schema it
+// does not know.
+type SchemaMigration struct {
+	Version   int64     `gorm:"primaryKey;autoIncrement:false" json:"version"`
+	AppliedAt time.Time `json:"appliedAt"`
+}
+
+func (SchemaMigration) TableName() string {
+	return "schema_migrations"
+}
+
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
@@ -477,5 +490,6 @@ func AllModels() []any {
 		&AgentHarnessSpec{}, &AgentHarnessLesson{},
 		&WorkforceAgent{}, &WorkforceTask{}, &WorkforceTaskStep{},
 		&WorkforceModelPrice{}, &WorkforceSpendEvent{},
+		&SchemaMigration{},
 	}
 }
