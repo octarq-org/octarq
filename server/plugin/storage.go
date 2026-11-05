@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
 // ErrStorageObjectNotFound indicates that the requested object key does not exist.
@@ -229,7 +231,7 @@ func (s *LocalStorageService) presign(action, key string, expire time.Duration) 
 }
 
 func (s *LocalStorageService) sign(action, key string, expTime int64) string {
-	mac := hmac.New(sha256.New, s.secretKey)
+	mac := hmac.New(sha256.New, crypto.DeriveKey(s.secretKey, crypto.PurposeStorageURL))
 	_, _ = fmt.Fprintf(mac, "%s:%s:%d", action, key, expTime)
 	return hex.EncodeToString(mac.Sum(nil))
 }
@@ -257,7 +259,7 @@ func (s *LocalStorageService) GenerateDownloadToken(fileID string, expire time.D
 }
 
 func (s *LocalStorageService) signDownloadToken(fileID string, expTime int64) string {
-	mac := hmac.New(sha256.New, s.secretKey)
+	mac := hmac.New(sha256.New, crypto.DeriveKey(s.secretKey, crypto.PurposeDownloadToken))
 	_, _ = fmt.Fprintf(mac, "download:%s:%d", fileID, expTime)
 	return hex.EncodeToString(mac.Sum(nil))
 }

@@ -43,10 +43,12 @@ type SecretStore interface {
 var ErrDEKMissing = errors.New("crypto: the key that decrypts saved values is missing. Restore the database backup taken before the upgrade, or set the affected values again: notification channels, webhook secrets, two-factor authentication, and OAuth client secrets")
 
 // Cipher encrypts secrets at rest (under the DEK) and signs session cookies
-// (under the KEK). The KEK is derived from OCTARQ_SECRET_KEY; the DEK is loaded by
-// EnableEnvelope. Until then only Sign/Verify (which use the KEK) are usable.
+// (under a key derived from the master secret for that purpose alone). The KEK
+// is derived from OCTARQ_SECRET_KEY; the DEK is loaded by EnableEnvelope. Until
+// then only Sign/Verify are usable.
 type Cipher struct {
 	kek   [32]byte
+	mac   [32]byte
 	dek   [32]byte
 	ready bool // DEK loaded (EnableEnvelope ran)
 }
@@ -54,7 +56,16 @@ type Cipher struct {
 // New derives a Cipher from the master secret. The DEK is loaded separately by
 // EnableEnvelope once the settings store is available.
 func New(secret string) *Cipher {
-	return &Cipher{kek: sha256.Sum256([]byte(secret))}
+	c := &Cipher{
+		// The KEK keeps the unlabelled SHA-256 derivation: the wrapped DEK
+		// already in the settings table was sealed under it, so changing it
+		// would make saved data unreadable. Every other use of the master
+		// secret derives a labelled subkey (DeriveKey), which leaves this
+		// derivation as the KEK's only consumer.
+		kek: sha256.Sum256([]byte(secret)),
+	}
+	copy(c.mac[:], DeriveKey([]byte(secret), PurposeCookieMAC))
+	return c
 }
 
 // EnableEnvelope loads the wrapped DEK from the store (generating a fresh random
@@ -163,10 +174,10 @@ func newGCM(key [32]byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-// Sign returns base64(HMAC-SHA256(msg)) under the KEK (the master key, not the
-// DEK), so cookie signing is independent of data-at-rest.
+// Sign returns base64(HMAC-SHA256(msg)) under the cookie-MAC subkey, not the
+// KEK: a signature oracle must never expose the key that wraps the DEK.
 func (c *Cipher) Sign(msg []byte) string {
-	mac := hmac.New(sha256.New, c.kek[:])
+	mac := hmac.New(sha256.New, c.mac[:])
 	mac.Write(msg)
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/origin"
 )
 
@@ -60,7 +61,7 @@ func (m *Manager) mintChallenge(uid uint, expiry time.Time) (string, error) {
 	if _, err := rand.Read(payload[16:]); err != nil {
 		return "", err
 	}
-	sig := hmac.New(sha256.New, []byte(m.cfg.SecretKey))
+	sig := hmac.New(sha256.New, crypto.DeriveKey([]byte(m.cfg.SecretKey), crypto.PurposeTwoFAChallenge))
 	sig.Write(payload)
 	return base64.RawURLEncoding.EncodeToString(payload) + "." +
 		base64.RawURLEncoding.EncodeToString(sig.Sum(nil)), nil
@@ -127,7 +128,7 @@ func (m *Manager) VerifyTwoFAChallenge(token string) uint {
 	if err != nil {
 		return 0
 	}
-	want := hmac.New(sha256.New, []byte(m.cfg.SecretKey))
+	want := hmac.New(sha256.New, crypto.DeriveKey([]byte(m.cfg.SecretKey), crypto.PurposeTwoFAChallenge))
 	want.Write(payload)
 	if !hmac.Equal(sig, want.Sum(nil)) {
 		return 0

@@ -29,7 +29,7 @@ var (
 // 10-minute lifetime bound the state to the in-flight login rather than letting
 // it linger for weeks (gorilla's default).
 func InitGothStore(secretKey string) {
-	store := sessions.NewCookieStore([]byte(secretKey))
+	store := sessions.NewCookieStore(oauthStateKey(secretKey))
 	store.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   600,
@@ -37,6 +37,13 @@ func InitGothStore(secretKey string) {
 		SameSite: http.SameSiteLaxMode,
 	}
 	gothic.Store = requestSecureStore{store}
+}
+
+// oauthStateKey derives the key for the OAuth state cookie store. The store
+// signs and encrypts the state cookie, so it gets its own subkey instead of
+// the master secret the session and CSRF signatures also use.
+func oauthStateKey(secretKey string) []byte {
+	return crypto.DeriveKey([]byte(secretKey), crypto.PurposeOAuthState)
 }
 
 // requestSecureStore marks the OAuth state cookie Secure exactly when the

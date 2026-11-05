@@ -3,7 +3,10 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
 func TestLocalStorageService_ComputeMD5(t *testing.T) {
@@ -233,5 +238,41 @@ func TestLocalStorageService_DownloadTokens(t *testing.T) {
 	otherSvc, _ := NewLocalStorageService(tmp, []byte("different-secret"), "")
 	if otherSvc.VerifyDownloadToken(token, fileID) {
 		t.Fatal("VerifyDownloadToken should fail when secret key differs")
+	}
+}
+
+// Presigned URLs and download tokens must be keyed by their own subkeys, not by
+// the raw master secret the session cookies and CSRF tokens also use.
+func TestStorageSignaturesUsePurposeSubkeys(t *testing.T) {
+	secret := []byte("master-secret")
+	s, err := NewLocalStorageService(t.TempDir(), secret, "")
+	if err != nil {
+		t.Fatalf("NewLocalStorageService: %v", err)
+	}
+	exp := time.Now().Add(time.Minute).Unix()
+
+	pinned := func(purpose, format string, args ...any) string {
+		mac := hmac.New(sha256.New, crypto.DeriveKey(secret, purpose))
+		fmt.Fprintf(mac, format, args...)
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+	rawKeyed := func(format string, args ...any) string {
+		mac := hmac.New(sha256.New, secret)
+		fmt.Fprintf(mac, format, args...)
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+
+	if got, want := s.sign("get", "some/key.txt", exp), pinned("octarq/storage-url/v1", "get:%s:%d", "some/key.txt", exp); got != want {
+		t.Fatalf("presigned URL must use the storage subkey: got %q want %q", got, want)
+	}
+	if s.sign("get", "some/key.txt", exp) == rawKeyed("get:%s:%d", "some/key.txt", exp) {
+		t.Fatal("presigned URL must not be keyed by the raw master secret")
+	}
+
+	if got, want := s.signDownloadToken("file-1", exp), pinned("octarq/download-token/v1", "download:%s:%d", "file-1", exp); got != want {
+		t.Fatalf("download token must use the download subkey: got %q want %q", got, want)
+	}
+	if s.signDownloadToken("file-1", exp) == rawKeyed("download:%s:%d", "file-1", exp) {
+		t.Fatal("download token must not be keyed by the raw master secret")
 	}
 }

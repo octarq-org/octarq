@@ -11,6 +11,8 @@ import (
 	"encoding/base64"
 	"net/http"
 	"time"
+
+	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
 // CookieName is the readable (non-HttpOnly) half of the double submit. The
@@ -28,10 +30,10 @@ const HeaderName = "X-CSRF-Token"
 const CookieTTL = 7 * 24 * time.Hour
 
 // GenerateToken derives a double-submit CSRF token from a session token using
-// HMAC-SHA256 keyed by the instance secret. Compare results with hmac.Equal,
-// never ==.
+// HMAC-SHA256 keyed by the CSRF subkey of the instance secret. Compare
+// results with hmac.Equal, never ==.
 func GenerateToken(secretKey, sessionToken string) string {
-	h := hmac.New(sha256.New, []byte(secretKey))
+	h := hmac.New(sha256.New, crypto.DeriveKey([]byte(secretKey), crypto.PurposeCSRF))
 	h.Write([]byte(sessionToken))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
