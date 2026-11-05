@@ -49,6 +49,8 @@ var (
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
 	_ plugin.HelpDocsFS   = (*Plugin)(nil)
+
+	_ plugin.EncryptedDataReporter = (*Plugin)(nil)
 )
 
 // Compile-time service contract assertions: these methods are provided to the

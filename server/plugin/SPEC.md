@@ -34,11 +34,13 @@ stateDiagram-v2
 4. **Compile-Time Assertions**: Every plugin must include compile-time assertions for all implemented interfaces:
    ```go
    var (
-       _ plugin.Plugin       = (*Plugin)(nil)
-       _ plugin.Starter      = (*Plugin)(nil)
-       _ plugin.MenuProvider = (*Plugin)(nil)
+       _ plugin.Plugin                = (*Plugin)(nil)
+       _ plugin.Starter               = (*Plugin)(nil)
+       _ plugin.MenuProvider          = (*Plugin)(nil)
+       _ plugin.EncryptedDataReporter = (*Plugin)(nil)
    )
    ```
+5. **Encrypted Data Reporting**: A plugin that stores ciphertext only the envelope DEK can read implements `EncryptedDataReporter`. The app asks `HasEncryptedData()` after Mount when the boot had to generate a fresh DEK, and stops the boot if the answer is `true`: the key that sealed those values is gone, and serving would fail on every later read. Table names, columns, and queries stay inside the plugin.
 
 ---
 
