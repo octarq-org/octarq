@@ -70,7 +70,8 @@ const settingsRefreshInterval = 30 * time.Second
 // middleware needs. All funcs are optional (nil = built-in defaults); they are
 // polled at most once per settingsRefreshInterval.
 type RuntimeSettings struct {
-	// MetricsToken returns the /metrics bearer token; empty = loopback-only.
+	// MetricsToken returns the /metrics bearer token. /metrics is not served
+	// while this is empty.
 	MetricsToken func() string
 	// RateLimits returns the per-IP RPM budgets for the auth/api/redirect tiers.
 	RateLimits func() (authRPM, apiRPM, redirectRPM int)
@@ -294,9 +295,20 @@ func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start 
 // serveMetrics gates and serves metrics. When client requests ?format=json,
 // it returns the JSON expvar snapshot. Otherwise, it defaults to standard Prometheus
 // text exposition format.
+//
+// A bearer token is the only credential the endpoint accepts. A loopback peer
+// is not a credential: a reverse proxy on the same host makes every remote
+// client a loopback peer, which turned "loopback-only" into "public" for every
+// deployment behind a local proxy.
 func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
+	if mw.currentMetricsToken() == "" {
+		// No token configured: the endpoint is off, exactly as if it were
+		// disabled, so a missing credential never exposes the counters.
+		http.NotFound(w, r)
+		return
+	}
 	if !mw.metricsAllowed(r) {
-		http.Error(w, "forbidden: loopback or OCTARQ_METRICS_TOKEN required", http.StatusForbidden)
+		http.Error(w, "forbidden: send the OCTARQ_METRICS_TOKEN bearer token", http.StatusForbidden)
 		return
 	}
 
@@ -322,15 +334,12 @@ func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mw *middleware) metricsAllowed(r *http.Request) bool {
-	if isLoopback(r) {
-		return true
+	token := mw.currentMetricsToken()
+	if token == "" {
+		return false
 	}
-	if token := mw.currentMetricsToken(); token != "" {
-		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		got = strings.TrimSpace(got)
-		return got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
-	}
-	return false
+	got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	return got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
 }
 
 func (mw *middleware) metricsEnabled() bool {

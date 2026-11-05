@@ -176,23 +176,6 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-// isLoopback reports whether the direct peer (RemoteAddr, ignoring proxy
-// headers) is a loopback address. Used to bind /metrics to localhost when no
-// token is configured.
-func isLoopback(r *http.Request) bool {
-	host := r.RemoteAddr
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	if host == "" {
-		return false
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		return ip.IsLoopback()
-	}
-	return host == "localhost"
-}
-
 // setRateLimitHeaders publishes the caller's remaining budget on every response
 // the limiter governs, allowed or refused. Enforcing a limit without telling
 // anyone what it is makes every integrator discover it by tripping it: the

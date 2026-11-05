@@ -35,6 +35,11 @@ construction.
 
 ## Error Handling
 
+- **Metrics Gate**: `/metrics` answers with a bearer token (`OCTARQ_METRICS_TOKEN`
+  or the DB-backed instance metrics token) and nothing else. With no token
+  configured the route answers `404`, as if metrics were disabled. A loopback
+  peer is not a credential: a reverse proxy on the same host makes every remote
+  client a loopback peer, so `RemoteAddr` never grants access.
 - JSON body write failures in `writeRateLimited` and `serveMetrics` are now
   logged via `slog.Warn` instead of ignored.
 - `fs.ReadFile` failure during dev-proxy mode is logged.

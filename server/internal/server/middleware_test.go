@@ -129,45 +129,37 @@ func TestRequestIDHeader(t *testing.T) {
 	}
 }
 
-// TestMetricsGating checks /metrics is closed by default, open to loopback when
-// no token is set, and open to the correct bearer token.
+// TestMetricsGating checks /metrics is off with no token, and that a token is
+// the only credential: a loopback peer gets nothing without it.
 func TestMetricsGating(t *testing.T) {
-	// No token configured: remote (non-loopback) is refused.
+	// No token configured: the endpoint is off for every peer, local included.
 	mwNoToken := &middleware{
 		limiter: newRateLimiter(),
 		metrics: newMetrics(),
 	}
-	reqRemote := httptest.NewRequest("GET", "/metrics", nil)
-	reqRemote.RemoteAddr = "8.8.8.8:9999"
-	recRemote := httptest.NewRecorder()
-	mwNoToken.handle(recRemote, reqRemote, okHandler)
-	if recRemote.Code != http.StatusForbidden {
-		t.Fatalf("remote /metrics without token: want 403 got %d", recRemote.Code)
+	for _, remote := range []string{"8.8.8.8:9999", "127.0.0.1:5555"} {
+		req := httptest.NewRequest("GET", "/metrics", nil)
+		req.RemoteAddr = remote
+		rec := httptest.NewRecorder()
+		mwNoToken.handle(rec, req, okHandler)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("/metrics from %s without a configured token: want 404 got %d", remote, rec.Code)
+		}
 	}
 
-	// No token configured: loopback is allowed.
-	reqLocal := httptest.NewRequest("GET", "/metrics", nil)
-	reqLocal.RemoteAddr = "127.0.0.1:5555"
-	recLocal := httptest.NewRecorder()
-	mwNoToken.handle(recLocal, reqLocal, okHandler)
-	if recLocal.Code != http.StatusOK {
-		t.Fatalf("loopback /metrics: want 200 got %d", recLocal.Code)
-	}
-	if ct := recLocal.Header().Get("Content-Type"); ct == "" {
-		t.Fatal("expected JSON content type on metrics")
-	}
-
-	// Token configured: wrong/absent token refused, correct token served even
-	// from a remote address.
+	// Token configured: absent token refused even from loopback, correct token
+	// served even from a remote address.
 	// Token supplied through the DB-backed settings seam, picked up by the
 	// first refreshConfig.
 	mwToken := newMiddleware(RuntimeSettings{MetricsToken: func() string { return "s3cret" }})
-	reqBad := httptest.NewRequest("GET", "/metrics", nil)
-	reqBad.RemoteAddr = "8.8.8.8:1"
-	recBad := httptest.NewRecorder()
-	mwToken.handle(recBad, reqBad, okHandler)
-	if recBad.Code != http.StatusForbidden {
-		t.Fatalf("wrong token /metrics: want 403 got %d", recBad.Code)
+	for _, remote := range []string{"8.8.8.8:1", "127.0.0.1:1"} {
+		reqBad := httptest.NewRequest("GET", "/metrics", nil)
+		reqBad.RemoteAddr = remote
+		recBad := httptest.NewRecorder()
+		mwToken.handle(recBad, reqBad, okHandler)
+		if recBad.Code != http.StatusForbidden {
+			t.Fatalf("/metrics from %s without the token: want 403 got %d", remote, recBad.Code)
+		}
 	}
 
 	reqGood := httptest.NewRequest("GET", "/metrics", nil)
@@ -177,6 +169,9 @@ func TestMetricsGating(t *testing.T) {
 	mwToken.handle(recGood, reqGood, okHandler)
 	if recGood.Code != http.StatusOK {
 		t.Fatalf("correct token /metrics: want 200 got %d", recGood.Code)
+	}
+	if ct := recGood.Header().Get("Content-Type"); ct == "" {
+		t.Fatal("expected a content type on metrics")
 	}
 }
 

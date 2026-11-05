@@ -128,6 +128,10 @@ func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback 
 		origins:      origin.NewResolver(db),
 	}
 
+	if s.mw.metricsEnabled() && s.mw.currentMetricsToken() == "" {
+		slog.Warn("metrics are off: set OCTARQ_METRICS_TOKEN or the instance metrics token to serve /metrics")
+	}
+
 	for _, m := range mounts {
 		mIdx, err := fs.ReadFile(m.FS, "index.html")
 		if err != nil {

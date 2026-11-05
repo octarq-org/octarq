@@ -9,12 +9,20 @@ import (
 	"testing"
 )
 
+const testMetricsToken = "metrics-token-for-tests"
+
+// newMetricsTokenMiddleware builds edge middleware with a metrics token set.
+func newMetricsTokenMiddleware() *middleware {
+	return newMiddleware(RuntimeSettings{MetricsToken: func() string { return testMetricsToken }})
+}
+
 // Test 1: Default Prometheus format returns 200 OK, text/plain Content-Type,
 // and contains standard Go runtime and Octarq metrics.
 func TestMetrics_DefaultPrometheusFormat(t *testing.T) {
-	mw := newMiddleware(RuntimeSettings{})
+	mw := newMetricsTokenMiddleware()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	req.RemoteAddr = "127.0.0.1:12345"
+	req.Header.Set("Authorization", "Bearer "+testMetricsToken)
 	rec := httptest.NewRecorder()
 
 	mw.handle(rec, req, okHandler)
@@ -53,8 +61,8 @@ func TestMetrics_DefaultPrometheusFormat(t *testing.T) {
 
 // Test 2: Security interception tests loopback vs remote token verification.
 func TestMetrics_SecurityInterception(t *testing.T) {
-	// Subtest 2.1: Remote peer without token is rejected with 403 Forbidden.
-	t.Run("RemoteWithoutToken", func(t *testing.T) {
+	// Subtest 2.1: No token configured turns the endpoint off.
+	t.Run("NoTokenConfigured", func(t *testing.T) {
 		mw := newMiddleware(RuntimeSettings{})
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 		req.RemoteAddr = "198.51.100.23:54321"
@@ -62,17 +70,48 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 
 		mw.handle(rec, req, okHandler)
 
-		if rec.Code != http.StatusForbidden {
-			t.Fatalf("remote request without token: want 403 Forbidden, got %d", rec.Code)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("no token configured: want 404 Not Found, got %d", rec.Code)
 		}
-		if !strings.Contains(rec.Body.String(), "forbidden: loopback or OCTARQ_METRICS_TOKEN required") {
+	})
+
+	// Subtest 2.1b: A loopback peer is not a credential. A reverse proxy on the
+	// same host makes every remote client a loopback peer, so this request must
+	// be refused exactly like any other unauthenticated one.
+	t.Run("LoopbackPeerWithoutToken", func(t *testing.T) {
+		mw := newMetricsTokenMiddleware()
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req.RemoteAddr = "127.0.0.1:54321"
+		rec := httptest.NewRecorder()
+
+		mw.handle(rec, req, okHandler)
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("loopback request without token: want 403 Forbidden, got %d", rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "forbidden: send the OCTARQ_METRICS_TOKEN bearer token") {
 			t.Errorf("expected forbidden message, got %q", rec.Body.String())
+		}
+	})
+
+	// Subtest 2.1c: The same loopback peer with the token is served.
+	t.Run("LoopbackPeerWithToken", func(t *testing.T) {
+		mw := newMetricsTokenMiddleware()
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req.RemoteAddr = "127.0.0.1:54321"
+		req.Header.Set("Authorization", "Bearer "+testMetricsToken)
+		rec := httptest.NewRecorder()
+
+		mw.handle(rec, req, okHandler)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("loopback request with the token: want 200 OK, got %d", rec.Code)
 		}
 	})
 
 	// Subtest 2.2: Remote peer with wrong token is rejected with 403 Forbidden.
 	t.Run("RemoteWithWrongToken", func(t *testing.T) {
-		mw := newMiddleware(RuntimeSettings{MetricsToken: func() string { return "secret-token-xyz" }})
+		mw := newMetricsTokenMiddleware()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 		req.RemoteAddr = "198.51.100.23:54321"
 		req.Header.Set("Authorization", "Bearer invalid-token")
@@ -87,10 +126,10 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 
 	// Subtest 2.3: Remote peer with correct Bearer token configured via settings returns 200 OK.
 	t.Run("RemoteWithCorrectSettingsToken", func(t *testing.T) {
-		mw := newMiddleware(RuntimeSettings{MetricsToken: func() string { return "secret-token-xyz" }})
+		mw := newMetricsTokenMiddleware()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 		req.RemoteAddr = "198.51.100.23:54321"
-		req.Header.Set("Authorization", "Bearer secret-token-xyz")
+		req.Header.Set("Authorization", "Bearer "+testMetricsToken)
 		rec := httptest.NewRecorder()
 
 		mw.handle(rec, req, okHandler)
@@ -115,27 +154,14 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 			t.Fatalf("remote request with correct env token: want 200 OK, got %d", rec.Code)
 		}
 	})
-
-	// Subtest 2.5: Loopback request without token returns 200 OK.
-	t.Run("LoopbackWithoutToken", func(t *testing.T) {
-		mw := newMiddleware(RuntimeSettings{})
-		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-		req.RemoteAddr = "127.0.0.1:44332"
-		rec := httptest.NewRecorder()
-
-		mw.handle(rec, req, okHandler)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("loopback request without token: want 200 OK, got %d", rec.Code)
-		}
-	})
 }
 
 // Test 3: Backward compatibility for ?format=json returns valid JSON expvar snapshot.
 func TestMetrics_JSONFormatCompatibility(t *testing.T) {
-	mw := newMiddleware(RuntimeSettings{})
+	mw := newMetricsTokenMiddleware()
 	req := httptest.NewRequest(http.MethodGet, "/metrics?format=json", nil)
 	req.RemoteAddr = "127.0.0.1:12345"
+	req.Header.Set("Authorization", "Bearer "+testMetricsToken)
 	rec := httptest.NewRecorder()
 
 	mw.handle(rec, req, okHandler)
