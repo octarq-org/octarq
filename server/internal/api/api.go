@@ -60,10 +60,13 @@ type Handler struct {
 	abuseLimiter    *rateLimiter
 	sendLimiter     *rateLimiter // outbound-email rate cap, keyed by org
 	statusLimiter   *rateLimiter
-	plugins         []plugin.Plugin
-	lookupTXT       func(name string) ([]string, error)
-	lookupCNAME     func(name string) (string, error)
-	queue           queue.Queue
+	// initErr is the first dependency that could not be built. The host must not
+	// serve requests while it is set.
+	initErr     error
+	plugins     []plugin.Plugin
+	lookupTXT   func(name string) ([]string, error)
+	lookupCNAME func(name string) (string, error)
+	queue       queue.Queue
 
 	// llmResolver supplies the LLM backend for the single-step AI assists
 	// (ai.go). Defaults to the env-backed envLLMResolver; the Pro ai plugin
@@ -139,29 +142,52 @@ func (h *Handler) Huma() huma.API {
 	return h.humaAPI
 }
 
+// InitErr reports the first dependency that could not be built, such as a
+// configured Redis server that does not answer. The host checks it once and
+// refuses to serve while it is set: a limiter that silently fell back to
+// per-process counters would weaken every budget in a multi-instance
+// deployment without any signal.
+func (h *Handler) InitErr() error {
+	return h.initErr
+}
+
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
 	trustProxy.Store(cfg.TrustProxy)
 	h := &Handler{
-		cfg:          cfg,
-		db:           db,
-		cipher:       c,
-		auth:         a,
-		geo:          g,
-		queue:        q,
-		loginLimiter: newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute), // 5 fails / 15 mins
-		// 10 fails per account / 15 mins: twice the IP budget, so a shared NAT
-		// that exhausts its own budget is not also locked out per account.
-		loginAccountLimiter: newRateLimiter(cfg.RedisURL, "login-acct", 10, 15*time.Minute),
-		recoveryLimiter:     newRateLimiter(cfg.RedisURL, "recovery", 5, 15*time.Minute), // 5 reset/verify requests / 15 mins
-		registerLimiter:     newRateLimiter(cfg.RedisURL, "register", 5, time.Hour),      // 5 sign-ups / hour
-		abuseLimiter:        newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),         // 5 reports / 1 hour
-		sendLimiter:         newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),        // 100 outbound emails / org / hour
-		statusLimiter:       newRateLimiter(cfg.RedisURL, "status", 60, time.Minute),     // 60 requests / minute
-		lookupTXT:           net.LookupTXT,
-		lookupCNAME:         net.LookupCNAME,
-		llmResolver:         envLLMResolver(),
-		origins:             origin.NewResolver(db),
+		cfg:         cfg,
+		db:          db,
+		cipher:      c,
+		auth:        a,
+		geo:         g,
+		queue:       q,
+		lookupTXT:   net.LookupTXT,
+		lookupCNAME: net.LookupCNAME,
+		llmResolver: envLLMResolver(),
+		origins:     origin.NewResolver(db),
 	}
+	// Each budget is built through the same counter store. A configured store
+	// that cannot be reached leaves the matching limiter nil and records the
+	// error; InitErr reports it so the host refuses to serve.
+	newLimiter := func(prefix string, limit int, window time.Duration) *rateLimiter {
+		rl, err := newRateLimiter(cfg.RedisURL, prefix, limit, window)
+		if err != nil {
+			if h.initErr == nil {
+				h.initErr = err
+			}
+			return nil
+		}
+		return rl
+	}
+	h.loginLimiter = newLimiter("login", 5, 15*time.Minute) // 5 fails / 15 mins
+	// 10 fails per account / 15 mins: twice the IP budget, so a shared NAT
+	// that exhausts its own budget is not also locked out per account.
+	h.loginAccountLimiter = newLimiter("login-acct", 10, 15*time.Minute)
+	h.recoveryLimiter = newLimiter("recovery", 5, 15*time.Minute) // 5 reset/verify requests / 15 mins
+	h.registerLimiter = newLimiter("register", 5, time.Hour)      // 5 sign-ups / hour
+	h.abuseLimiter = newLimiter("abuse", 5, time.Hour)            // 5 reports / 1 hour
+	h.sendLimiter = newLimiter("send", 100, time.Hour)            // 100 outbound emails / org / hour
+	h.statusLimiter = newLimiter("status", 60, time.Minute)       // 60 requests / minute
+
 	h.oauth = auth.NewOAuthHandler(db, a, c)
 	h.registerQueueHandlers(q)
 

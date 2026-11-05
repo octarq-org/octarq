@@ -6,7 +6,10 @@ import (
 )
 
 func TestRateLimiter(t *testing.T) {
-	rl := newRateLimiter("", "test", 2, 100*time.Millisecond)
+	rl, err := newRateLimiter("", "test", 2, 100*time.Millisecond)
+	if err != nil {
+		t.Fatalf("memory limiter: %v", err)
+	}
 
 	// 1. Initially allowed
 	if !rl.allow("1.1.1.1") {
@@ -43,4 +46,14 @@ func TestRateLimiter(t *testing.T) {
 	if !rl.allow("2.2.2.2") {
 		t.Error("expected allow to be true after window elapsed")
 	}
+}
+
+// mustRateLimiter builds a limiter over the in-process counter store.
+func mustRateLimiter(t *testing.T, redisURL, prefix string, limit int, window time.Duration) *rateLimiter {
+	t.Helper()
+	rl, err := newRateLimiter(redisURL, prefix, limit, window)
+	if err != nil {
+		t.Fatalf("newRateLimiter(%q): %v", redisURL, err)
+	}
+	return rl
 }

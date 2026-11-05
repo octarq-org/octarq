@@ -67,7 +67,7 @@ func TestLoginLimiterCountsFailuresForTheAccountAcrossAddresses(t *testing.T) {
 // than a credential-stuffing defence.
 func TestLoginAllowedIgnoresABlankAccountKey(t *testing.T) {
 	h := &Handler{
-		loginLimiter:        newRateLimiter("", "test-ip", 5, time.Minute),
+		loginLimiter:        mustRateLimiter(t, "", "test-ip", 5, time.Minute),
 		loginAccountLimiter: &rateLimiter{store: failingStore{}, rate: limiter.Rate{Limit: 10, Period: time.Minute}},
 	}
 	if !h.loginAllowed("198.51.100.7", "") {
