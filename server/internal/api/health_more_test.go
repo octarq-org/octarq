@@ -27,7 +27,7 @@ func TestHealthAndSubsystems(t *testing.T) {
 	}
 
 	// 3. Subsystem status rate limiting
-	h.statusLimiter = newRateLimiter("", "status", 2, time.Minute)
+	h.statusLimiter = mustRateLimiter(t, "", "status", 2, time.Minute)
 	// Trigger 2 failures to exhaust rate limit
 	h.statusLimiter.recordFailure("192.0.2.1")
 	h.statusLimiter.recordFailure("192.0.2.1")

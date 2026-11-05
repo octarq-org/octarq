@@ -15,7 +15,10 @@ import (
 
 func TestRateLimiterMore(t *testing.T) {
 	// 1. In-memory store
-	rl := newRateLimiter("", "test", 3, time.Minute)
+	rl, err := newRateLimiter("", "test", 3, time.Minute)
+	if err != nil {
+		t.Fatalf("memory limiter: %v", err)
+	}
 
 	// Initial requests allowed
 	if !rl.allow("1.2.3.4") {
@@ -38,21 +41,15 @@ func TestRateLimiterMore(t *testing.T) {
 		t.Error("expected allow after reset")
 	}
 
-	// 5. Test with unreachable redis URL (falls back to memory store)
-	rlRedisFail := newRateLimiter("redis://127.0.0.1:65534", "test", 2, time.Minute)
-	if !rlRedisFail.allow("5.6.7.8") {
-		t.Error("expected allow on fallback memory store")
-	}
-	rlRedisFail.recordFailure("5.6.7.8")
-	rlRedisFail.recordFailure("5.6.7.8")
-	if rlRedisFail.allow("5.6.7.8") {
-		t.Error("expected reject after 2 failures")
+	// 5. An unreachable store is an error, never a quiet fall back to memory:
+	// per-process counters would multiply every budget by the replica count.
+	if rlRedisFail, err := newRateLimiter("redis://127.0.0.1:65534", "test", 2, time.Minute); err == nil || rlRedisFail != nil {
+		t.Errorf("unreachable redis: limiter %v, err %v; want nil and an error", rlRedisFail, err)
 	}
 
-	// 6. Test with invalid redis URL
-	rlInvalidRedis := newRateLimiter("invalid://redis", "test", 5, time.Minute)
-	if !rlInvalidRedis.allow("9.9.9.9") {
-		t.Error("expected allow on invalid redis url fallback")
+	// 6. An unparsable store URL is the same error.
+	if rlInvalidRedis, err := newRateLimiter("invalid://redis", "test", 5, time.Minute); err == nil || rlInvalidRedis != nil {
+		t.Errorf("invalid redis URL: limiter %v, err %v; want nil and an error", rlInvalidRedis, err)
 	}
 }
 

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -17,38 +18,38 @@ type rateLimiter struct {
 	rate  limiter.Rate
 }
 
-func newRateLimiter(redisURL string, prefix string, limit int, window time.Duration) *rateLimiter {
+// newRateLimiter builds the counter store for one budget. Without a Redis URL
+// the counters live in this process. A configured Redis server that cannot be
+// reached returns an error: falling back to memory would multiply every budget
+// by the number of running instances, and the deployment would never learn that
+// its shared counters are gone.
+func newRateLimiter(redisURL string, prefix string, limit int, window time.Duration) (*rateLimiter, error) {
 	rate := limiter.Rate{
 		Limit:  int64(limit),
 		Period: window,
 	}
 
-	var store limiter.Store
-	if redisURL != "" {
-		opts, err := redis.ParseURL(redisURL)
-		if err == nil {
-			client := redis.NewClient(opts)
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			if client.Ping(ctx).Err() == nil {
-				s, err := redisstore.NewStoreWithOptions(client, limiter.StoreOptions{
-					Prefix: "octarq:limit:" + prefix + ":",
-				})
-				if err == nil {
-					store = s
-				}
-			}
-		}
+	if redisURL == "" {
+		return &rateLimiter{store: memory.NewStore(), rate: rate}, nil
 	}
 
-	if store == nil {
-		store = memory.NewStore()
+	opts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse the Redis URL for the %q limiter: %w", prefix, err)
 	}
-
-	return &rateLimiter{
-		store: store,
-		rate:  rate,
+	client := redis.NewClient(opts)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("reach the Redis server for the %q limiter: %w", prefix, err)
 	}
+	store, err := redisstore.NewStoreWithOptions(client, limiter.StoreOptions{
+		Prefix: "octarq:limit:" + prefix + ":",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build the %q limiter store: %w", prefix, err)
+	}
+	return &rateLimiter{store: store, rate: rate}, nil
 }
 
 func (rl *rateLimiter) allow(ip string) bool {

@@ -80,6 +80,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	taskQueue := queue.New(a.cfg.RedisURL)
 	go taskQueue.Start(ctx)
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
+	if err := apiHandler.InitErr(); err != nil {
+		return fmt.Errorf("rate limiting is unavailable: %w", err)
+	}
 	apiHandler.SetPlugins(a.plugins)
 	throwaway := apiHandler.Routes()
 	services := plugin.NewRegistry()
@@ -220,6 +223,9 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
+	if err := apiHandler.InitErr(); err != nil {
+		return fmt.Errorf("rate limiting is unavailable: %w", err)
+	}
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	services := plugin.NewRegistry()

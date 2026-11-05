@@ -46,6 +46,8 @@ To prevent Denial of Service and credential stuffing, rate limits are enforced v
 6. **Send Budget (`sendLimiter`)**: 100 outbound emails per organization per hour.
 7. **Subsystem Status Budget (`statusLimiter`)**: 60 status checks per minute per IP.
 
+**Fail-Closed Counter Store**: a budget either counts in the configured store or the boot stops. When `OCTARQ_REDIS_URL` is set and the server cannot be reached, `newRateLimiter` returns an error, the handler records it in `InitErr`, and the app refuses to serve. Falling back to per-process counters would multiply every budget by the replica count and hide a broken deployment. Without a Redis URL the counters live in this process, which is exact for a single instance.
+
 **Fail-Closed Counter Reads**: a budget that cannot be read admits nothing. When the store returns an error (a configured Redis that is unreachable, for example), `allow` refuses the request and logs the failure. Allowing instead would turn any counter outage into an unlimited window for the attack the budget exists to stop.
 
 ---
