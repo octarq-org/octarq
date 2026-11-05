@@ -40,6 +40,12 @@ type Handler struct {
 	// the request that asks for them. See origin and h.origin below.
 	origins      *origin.Resolver
 	loginLimiter *rateLimiter
+	// loginAccountLimiter bounds failed sign-ins per account. The IP budget
+	// alone lets an attacker with a pool of addresses try one account without
+	// limit, so failures are charged to the account too. It is looser than the
+	// IP budget: a shared NAT burns the IP budget on typos, and the account
+	// budget must not lock a real user out on the same typos.
+	loginAccountLimiter *rateLimiter
 	// recoveryLimiter bounds the unauthenticated password-reset / verification-resend
 	// endpoints. It is deliberately SEPARATE from loginLimiter: those endpoints must
 	// count every request (there is no "failed" reset to count), and sharing the
@@ -136,22 +142,25 @@ func (h *Handler) Huma() huma.API {
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
 	trustProxy.Store(cfg.TrustProxy)
 	h := &Handler{
-		cfg:             cfg,
-		db:              db,
-		cipher:          c,
-		auth:            a,
-		geo:             g,
-		queue:           q,
-		loginLimiter:    newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute),    // 5 fails / 15 mins
-		recoveryLimiter: newRateLimiter(cfg.RedisURL, "recovery", 5, 15*time.Minute), // 5 reset/verify requests / 15 mins
-		registerLimiter: newRateLimiter(cfg.RedisURL, "register", 5, time.Hour),      // 5 sign-ups / hour
-		abuseLimiter:    newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),         // 5 reports / 1 hour
-		sendLimiter:     newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),        // 100 outbound emails / org / hour
-		statusLimiter:   newRateLimiter(cfg.RedisURL, "status", 60, time.Minute),     // 60 requests / minute
-		lookupTXT:       net.LookupTXT,
-		lookupCNAME:     net.LookupCNAME,
-		llmResolver:     envLLMResolver(),
-		origins:         origin.NewResolver(db),
+		cfg:          cfg,
+		db:           db,
+		cipher:       c,
+		auth:         a,
+		geo:          g,
+		queue:        q,
+		loginLimiter: newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute), // 5 fails / 15 mins
+		// 10 fails per account / 15 mins: twice the IP budget, so a shared NAT
+		// that exhausts its own budget is not also locked out per account.
+		loginAccountLimiter: newRateLimiter(cfg.RedisURL, "login-acct", 10, 15*time.Minute),
+		recoveryLimiter:     newRateLimiter(cfg.RedisURL, "recovery", 5, 15*time.Minute), // 5 reset/verify requests / 15 mins
+		registerLimiter:     newRateLimiter(cfg.RedisURL, "register", 5, time.Hour),      // 5 sign-ups / hour
+		abuseLimiter:        newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),         // 5 reports / 1 hour
+		sendLimiter:         newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),        // 100 outbound emails / org / hour
+		statusLimiter:       newRateLimiter(cfg.RedisURL, "status", 60, time.Minute),     // 60 requests / minute
+		lookupTXT:           net.LookupTXT,
+		lookupCNAME:         net.LookupCNAME,
+		llmResolver:         envLLMResolver(),
+		origins:             origin.NewResolver(db),
 	}
 	h.oauth = auth.NewOAuthHandler(db, a, c)
 	h.registerQueueHandlers(q)

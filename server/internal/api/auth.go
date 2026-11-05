@@ -51,11 +51,11 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	r, w := humago.Unwrap(input.Ctx)
 
 	ip := reporterIP(r)
-	if !h.loginLimiter.allow(ip) {
+	loginUser := strings.TrimSpace(input.Body.Email)
+	account := accountLoginKey(loginUser)
+	if !h.loginAllowed(ip, account) {
 		return nil, huma.Error429TooManyRequests("Too many failed login attempts; wait a few minutes before trying again")
 	}
-
-	loginUser := strings.TrimSpace(input.Body.Email)
 
 	uid, orgID, err := h.authenticate(loginUser, input.Body.Password)
 	if err != nil {
@@ -63,7 +63,7 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 		case errors.Is(err, errNoWorkspace):
 			return nil, apierror.New(http.StatusForbidden, apierror.CodeNoWorkspace, "This account has no workspace; ask an administrator for an invitation")
 		case errors.Is(err, errInvalidCredentials):
-			h.loginLimiter.recordFailure(ip)
+			h.recordLoginFailure(ip, account)
 			h.publishLoginFailed(r, loginUser, "invalid credentials")
 			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
 		default:
@@ -93,7 +93,7 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 		return out, nil
 	}
 
-	h.loginLimiter.reset(ip)
+	h.resetLoginFailures(ip, account)
 	h.auditAs(r, orgID, user.ID, "user.login", "user", user.ID, map[string]any{"email": loginUser})
 	h.auth.SetSessionFromRequest(r, w, user.ID, orgID)
 
