@@ -49,3 +49,26 @@ are enforced both in the DSN via `EnsureSQLiteWALDSN` and immediately on live ha
 
 ## Non-Goals
 - No help docs (internal package).
+
+## Schema Version Guard
+`schema_migrations(version PK, applied_at)` records the schema this database was
+last migrated to. `SchemaVersion` is the version the running binary writes.
+
+- `CheckSchemaVersion` returns `ErrSchemaNewer` when the recorded version is
+  greater than `SchemaVersion`. The boot stops; a newer binary must run again.
+- A database without the table or without rows reads as version `0`. The boot
+  continues, and the upgrade path applies.
+- Bump `SchemaVersion` in the same change that alters a model, and only then.
+  A stale constant defeats the guard in both directions.
+- `RecordSchemaVersion` inserts with `ON CONFLICT DO NOTHING`, so a repeated
+  boot at the same version is a no-op.
+
+## Pre-Migration Backup
+`app.prepareMigrationAndCipher` writes `backups/octarq-premigrate-<UTC>.db`
+(`.sql` for Postgres and MySQL) under the parent of `OCTARQ_STORAGE_DIR` when
+`CheckSchemaVersion` reports an upgrade and the `users` table already exists.
+
+- A failed backup stops the boot. `AutoMigrate` has no downgrade path, so the
+  copy is the only way back.
+- Postgres and MySQL upgrades therefore need `pg_dump` / `mysqldump` on `PATH`.
+  A missing tool is a boot failure, not a silent skip.
