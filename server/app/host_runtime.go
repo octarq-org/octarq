@@ -198,6 +198,7 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	}
 
 	var authGuard func(http.Handler) http.Handler
+	var authenticateRequest func(r *http.Request) (*http.Request, bool)
 	var bindIdentity func(r *http.Request, id plugin.ExternalIdentity) error
 	var cacheGet func(ctx context.Context, key string, val any) bool
 	var cacheSet func(ctx context.Context, key string, val any, ttl time.Duration) error
@@ -206,6 +207,7 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 
 	if authMgr != nil {
 		authGuard = authMgr.Require
+		authenticateRequest = authMgr.AuthenticateRequest
 		bindIdentity = authMgr.BindIdentity
 		if authMgr.Cache() != nil {
 			cacheGet = authMgr.Cache().Get
@@ -266,9 +268,10 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				notify.Register(typ, send)
 			}
 		},
-		LoginByEmail:    loginByEmail,
-		LoginByIdentity: loginByIdentity,
-		BindIdentity:    bindIdentity,
+		LoginByEmail:        loginByEmail,
+		LoginByIdentity:     loginByIdentity,
+		BindIdentity:        bindIdentity,
+		AuthenticateRequest: authenticateRequest,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:        m.ID,
