@@ -311,7 +311,11 @@ func (p *Plugin) testSMTPSender(ctx context.Context, input *TestSMTPSenderInput)
 
 	orgKey := fmt.Sprintf("org:%d", p.orgID(r))
 	if p.testLimiter != nil {
-		if !p.testLimiter.allow(orgKey) {
+		withinLimit, limitErr := p.testLimiter.allow(orgKey)
+		if limitErr != nil {
+			return nil, huma.Error500InternalServerError("Could not check the test limit. Try again later.")
+		}
+		if !withinLimit {
 			return nil, huma.Error429TooManyRequests("too many test attempts. Wait a moment before trying again.")
 		}
 		p.testLimiter.recordFailure(orgKey)

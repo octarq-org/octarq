@@ -280,8 +280,14 @@ func (p *Plugin) handleSendEmail(ctx context.Context, in SendEmailToolInput) (*S
 	}
 
 	orgKey := fmt.Sprintf("org:%d", orgID)
-	if p.sendLimiter != nil && !p.sendLimiter.allow(orgKey) {
-		return nil, plugin.NewAgentError(429, "RATE_LIMIT_EXCEEDED", "outbound send rate limit exceeded", "Wait before sending more emails.", false)
+	if p.sendLimiter != nil {
+		withinLimit, limitErr := p.sendLimiter.allow(orgKey)
+		if limitErr != nil {
+			return nil, plugin.NewAgentError(500, "RATE_LIMIT_UNAVAILABLE", "could not check the send limit", "Try again later.", false)
+		}
+		if !withinLimit {
+			return nil, plugin.NewAgentError(429, "RATE_LIMIT_EXCEEDED", "outbound send rate limit exceeded", "Wait before sending more emails.", false)
+		}
 	}
 
 	sender, senderFrom, resolveErr := p.resolveSender(ctx, orgID, in.SMTPSenderID, in.SMTPSenderSource)

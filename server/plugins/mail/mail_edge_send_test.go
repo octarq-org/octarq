@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,9 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	internalmail "github.com/octarq-org/octarq/server/internal/mail"
 	"github.com/octarq-org/octarq/server/internal/usagemetric"
+	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/links"
+	"github.com/ulule/limiter/v3"
 )
 
 func TestSendEmailEdgeBranches(t *testing.T) {
@@ -51,6 +54,18 @@ func TestSendEmailEdgeBranches(t *testing.T) {
 	p.sendLimiter = newRateLimiter("", "send2", 0, time.Hour)
 	if _, err := p.sendEmail(ctx, send()); err == nil {
 		t.Error("sendEmail past the rate limit must fail")
+	}
+
+	// Counter store failure: the send is refused, and the caller is told the
+	// check failed rather than a limit the caller never reached.
+	p.sendLimiter = &rateLimiter{store: failStore{}, rate: limiter.Rate{Limit: 100, Period: time.Hour}}
+	_, limitErr := p.sendEmail(ctx, send())
+	var statusErr huma.StatusError
+	if !errors.As(limitErr, &statusErr) || statusErr.GetStatus() != http.StatusInternalServerError {
+		t.Fatalf("want 500 for an unreadable send budget, got %v", limitErr)
+	}
+	if !strings.Contains(limitErr.Error(), "Could not check the send limit") {
+		t.Fatalf("want the check-failure message, got %v", limitErr)
 	}
 	p.sendLimiter = newRateLimiter("", "send2", 100, time.Hour)
 
@@ -372,3 +387,22 @@ func TestResolveMethodsSetContextMail(t *testing.T) {
 }
 
 var errNoCtx = fmt.Errorf("huma context not stored")
+
+// The agent tool reports an unreadable send budget as a failed check, so the
+// model is told to retry rather than that it hit a limit the server cannot
+// see.
+func TestSendEmailToolReportsStoreFailure(t *testing.T) {
+	p, _ := setupFullMailTestDB(t)
+	p.sendLimiter = &rateLimiter{store: failStore{}, rate: limiter.Rate{Limit: 100, Period: time.Hour}}
+
+	_, err := p.handleSendEmail(plugin.WithOrgID(context.Background(), 1), SendEmailToolInput{
+		To: []string{"to@example.com"}, Subject: "s", Body: "b",
+	})
+	var agentErr *plugin.AgentError
+	if !errors.As(err, &agentErr) {
+		t.Fatalf("want an agent error, got %v", err)
+	}
+	if agentErr.Code != "RATE_LIMIT_UNAVAILABLE" || agentErr.HTTPCode != http.StatusInternalServerError {
+		t.Fatalf("want 500 RATE_LIMIT_UNAVAILABLE, got %d %s", agentErr.HTTPCode, agentErr.Code)
+	}
+}

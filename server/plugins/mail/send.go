@@ -65,7 +65,11 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	// Rate-limit outbound mail per org so a leaked API token or a runaway client
 	// can't burn the sending domain's / relay IP's reputation into an RBL.
 	orgKey := fmt.Sprintf("org:%d", p.orgID(r))
-	if !p.sendLimiter.allow(orgKey) {
+	withinLimit, limitErr := p.sendLimiter.allow(orgKey)
+	if limitErr != nil {
+		return nil, huma.Error500InternalServerError("Could not check the send limit. Try again later.")
+	}
+	if !withinLimit {
 		return nil, huma.Error429TooManyRequests("Outbound send rate limit exceeded (maximum 100 per hour). Wait before trying again.")
 	}
 

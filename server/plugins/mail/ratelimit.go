@@ -50,14 +50,19 @@ func newRateLimiter(redisURL string, prefix string, limit int, window time.Durat
 	}
 }
 
-func (rl *rateLimiter) allow(ip string) bool {
+// allow reports whether the next send may proceed within the key's budget.
+// A store error is returned to the caller instead of being swallowed: the
+// budget guards the sending domain's reputation, so an unreadable counter must
+// stop sending, and the caller can then say the check failed instead of
+// claiming a limit the caller never reached.
+func (rl *rateLimiter) allow(ip string) (bool, error) {
 	ctx := context.Background()
 	limiterCtx, err := rl.store.Peek(ctx, ip, rl.rate)
 	if err != nil {
-		// On store failure, default to allow (fail-soft)
-		return true
+		log.Printf("mail: rate limit store read failed for %s: %v", ip, err)
+		return false, err
 	}
-	return limiterCtx.Remaining > 0
+	return limiterCtx.Remaining > 0, nil
 }
 
 func (rl *rateLimiter) recordFailure(ip string) {
