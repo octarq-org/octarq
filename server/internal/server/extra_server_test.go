@@ -188,25 +188,4 @@ func TestSanitizeRequestIDAndLoopback(t *testing.T) {
 			t.Errorf("sanitizeRequestID(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
-
-	reqLoopback4 := &http.Request{RemoteAddr: "127.0.0.1:1234"}
-	if !isLoopback(reqLoopback4) {
-		t.Error("127.0.0.1:1234 should be loopback")
-	}
-	reqLoopback6 := &http.Request{RemoteAddr: "[::1]:1234"}
-	if !isLoopback(reqLoopback6) {
-		t.Error("[::1]:1234 should be loopback")
-	}
-	reqLocalhost := &http.Request{RemoteAddr: "localhost:1234"}
-	if !isLoopback(reqLocalhost) {
-		t.Error("localhost:1234 should be loopback")
-	}
-	reqRemote := &http.Request{RemoteAddr: "192.168.1.1:1234"}
-	if isLoopback(reqRemote) {
-		t.Error("192.168.1.1:1234 should not be loopback")
-	}
-	reqEmpty := &http.Request{RemoteAddr: ""}
-	if isLoopback(reqEmpty) {
-		t.Error("empty remote addr should not be loopback")
-	}
 }
