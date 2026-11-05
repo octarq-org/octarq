@@ -236,5 +236,6 @@ export const pt = {
     probeFailedAt: "Falha na verificação às {{time}}",
     requestId: "solicitação {{requestId}}",
     footerLine: "{{count}} subsistemas · verificação a cada 15 s · última verificação {{time}}",
+    footerBuild: "compilação {{build}}",
   },
 };

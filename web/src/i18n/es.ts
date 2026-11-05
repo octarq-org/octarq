@@ -236,5 +236,6 @@ export const es = {
     probeFailedAt: "Comprobación fallida a las {{time}}",
     requestId: "solicitud {{requestId}}",
     footerLine: "{{count}} subsistemas · comprobación cada 15 s · última comprobación {{time}}",
+    footerBuild: "compilación {{build}}",
   },
 };

@@ -2,6 +2,7 @@ import { Badge } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { CheckCircle2, AlertTriangle, XCircle, MinusCircle, RefreshCw, Sun, Moon } from "lucide-react";
 import { api, SubsystemStatusResponse } from "../api";
+import { buildLabel } from "../lib/buildLabel";
 import { BrandMark } from "../shell/BrandMark";
 import { useI18n } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
@@ -42,6 +43,7 @@ export default function StatusPage() {
   }, []);
 
   const overall = data?.overall || (error ? "down" : "ok");
+  const build = buildLabel(data?.version, data?.revision);
 
   const getOverallBanner = () => {
     if (overall === "ok") {
@@ -221,7 +223,7 @@ export default function StatusPage() {
 
       {/* Footer: what this page actually monitors, when it last got an answer.
           The timestamp is machine-produced → mono. */}
-      <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-muted-foreground border-t border-border mt-12">
+      <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-muted-foreground border-t border-border mt-12 space-y-1">
         {data && (
           <p className="font-mono tnum">
             {t("status.footerLine", {
@@ -229,6 +231,9 @@ export default function StatusPage() {
               time: new Date(data.time).toLocaleTimeString(),
             })}
           </p>
+        )}
+        {build && (
+          <p className="font-mono">{t("status.footerBuild", { build })}</p>
         )}
       </footer>
     </div>
