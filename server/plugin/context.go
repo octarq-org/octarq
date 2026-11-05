@@ -237,6 +237,14 @@ type Context struct {
 	// context (pass nil to omit). Mirrors the core h.audit() helper so plugins
 	// never import octarq's internal/api or internal/models directly.
 	Audit func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
+	// AuthenticateRequest resolves the request's credentials and returns a copy
+	// carrying them in its context. It accepts the session cookie and the "oct_"
+	// API bearer token, the same two credentials the core API accepts. A plugin
+	// route registers on the mux outside the core middleware, so it must call
+	// this before it reads the workspace, user, or role. A request with no valid
+	// credential returns the original request and false. nil on hosts without
+	// authentication.
+	AuthenticateRequest func(r *http.Request) (*http.Request, bool)
 	// DNS manages DNS records for a domain through the core's configured provider
 	// (Cloudflare, …) so a plugin can change real records without importing octarq's
 	// internal/dnsprovider. This is what makes "point the A record at a new IP"
