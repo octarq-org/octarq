@@ -38,7 +38,7 @@ func TestEnvelopePersistsDEK(t *testing.T) {
 	if err := c.EnableEnvelope(store); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	if _, ok := store.Get(dekSettingKey); !ok {
+	if _, ok := store.Get(DEKSettingKey); !ok {
 		t.Fatal("DEK not persisted on first run")
 	}
 	enc, err := c.Encrypt([]byte("token"))
@@ -91,7 +91,7 @@ func TestEnvelopeRefusesANewDEKWhenCiphertextExists(t *testing.T) {
 	if !errors.Is(err, ErrDEKMissing) {
 		t.Fatalf("EnableEnvelope error = %v, want ErrDEKMissing", err)
 	}
-	if _, ok := store.Get(dekSettingKey); ok {
+	if _, ok := store.Get(DEKSettingKey); ok {
 		t.Fatal("EnableEnvelope saved a DEK although it refused to create one")
 	}
 	if _, err := c.Encrypt([]byte("token")); err == nil {

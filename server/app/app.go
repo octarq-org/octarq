@@ -180,6 +180,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
+	if err := a.verifyNoOrphanedPluginData(); err != nil {
+		return err
+	}
 	for _, p := range a.plugins {
 		if v, ok := p.(plugin.Validator); ok {
 			if err := v.Validate(ctx, pctx.Host); err != nil {
@@ -338,6 +341,9 @@ func (a *App) Run(ctx context.Context) error {
 		return err
 	}
 	if err := services.Err(); err != nil {
+		return err
+	}
+	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
 	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "links.trust_proxy"); ok {

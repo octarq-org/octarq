@@ -103,7 +103,7 @@ func TestEnvelopeKeyRotation(t *testing.T) {
 
 	// Perform key rotation on the store:
 	// 1. Read existing wrapped DEK
-	wrappedOld, ok := store.Get(dekSettingKey)
+	wrappedOld, ok := store.Get(DEKSettingKey)
 	if !ok {
 		t.Fatal("dek not found in store")
 	}
@@ -119,7 +119,7 @@ func TestEnvelopeKeyRotation(t *testing.T) {
 		t.Fatalf("sealWith new master: %v", err)
 	}
 	// 4. Update store with new wrapped DEK
-	if err := store.Set(dekSettingKey, wrappedNew); err != nil {
+	if err := store.Set(DEKSettingKey, wrappedNew); err != nil {
 		t.Fatalf("store.Set: %v", err)
 	}
 

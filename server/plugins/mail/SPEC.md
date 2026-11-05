@@ -499,6 +499,8 @@ CREATE INDEX idx_mail_drafts_in_reply_to_id ON mail_drafts(in_reply_to_id);
     - OTP extraction (`ExtractOTP`) always runs on the raw message, so adversarial mail keeps 100% OTP accuracy while agents only ever see the wrapped output.
 10. **MCP Resources Push** (`internal/mcp/resources_extra.go`, PD-73):
     - `octarq://mailboxes/{id}/latest` (template, metadata only, org-scoped) and `octarq://links/trending` complement the existing `octarq://domains/health`; `resources/subscribe` is served with per-URI fan-out via `NotifyMailboxLatest` / `NotifyLinksTrending`, eliminating polling.
-11. **Fail-Closed Send Budget**:
+11. **Lost-Key Detection (`dek_guard.go`)**:
+    - `HasEncryptedData()` reports whether any `smtp_senders.pass` row holds ciphertext. The app asks it after Mount when this boot had to generate a fresh DEK, and stops the boot on `true` — a fresh key cannot read the stored passwords, so every send would fail later instead.
+12. **Fail-Closed Send Budget**:
     - `rateLimiter.allow` returns the counter store's error instead of swallowing it. An unreadable budget (a configured Redis that is unreachable, for example) refuses the send: `POST /api/mail/emails/send` answers `500` with `Could not check the send limit. Try again later.`, and the agent tool `send_email` answers code `RATE_LIMIT_UNAVAILABLE`. The refusal is never reported as `429` — the caller did not reach a limit the server could observe.
     - `newRateLimiter` still falls back to an in-process memory store when `OCTARQ_REDIS_URL` is set but unreachable at boot. The fallback gives each instance its own budget instead of the shared one, and is tracked as a known gap.

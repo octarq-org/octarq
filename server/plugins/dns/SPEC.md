@@ -164,6 +164,8 @@ type HostList []Host
   - In audit log payloads, config maps are sanitized so all keys map to `"[REDACTED]"` (`providers.go:157-159`).
   - Decryption via `p.decrypt` occurs exclusively in `providerFor(dom Domain)` immediately before initializing `dnsprovider.Provider`.
 
+- **Lost-Key Detection (`dek_guard.go`)**: `HasEncryptedData()` reports whether any `provider_accounts.config` row holds ciphertext. The app asks it after Mount when this boot had to generate a fresh DEK, and stops the boot on `true` — a fresh key cannot read the stored credentials, so every DNS call would fail later instead.
+
 ### 3.2 Tenant Isolation & Anti-Oracle Protections (`providers.go:191-205`)
 - All database queries strictly enforce `owner_id = orgID`.
 - When deleting a provider account (`deleteProviderAccount`):

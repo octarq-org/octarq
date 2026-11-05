@@ -155,6 +155,15 @@ type Validator interface {
 	Validate(ctx context.Context, host Host) error
 }
 
+// EncryptedDataReporter is an optional interface a Plugin implements when it
+// stores ciphertext that only the envelope DEK can read. The host asks after
+// Mount, and only when this boot had to generate a fresh DEK: a positive answer
+// means the key that sealed those values is gone, so the boot stops before the
+// instance serves a page.
+type EncryptedDataReporter interface {
+	HasEncryptedData() (bool, error)
+}
+
 // MCPProvider is an optional interface a Plugin may implement if it registers
 // dynamic MCP tools. MCP tools MUST use plugin.OrgIDFromContext(ctx) to retrieve
 // the caller's org ID, and MUST NOT read org fields cached on the plugin during Mount

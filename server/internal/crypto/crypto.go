@@ -22,8 +22,8 @@ import (
 	"io"
 )
 
-// dekSettingKey is where the wrapped DEK lives in the settings table.
-const dekSettingKey = "crypto.dek"
+// DEKSettingKey is where the wrapped DEK lives in the settings table.
+const DEKSettingKey = "crypto.dek"
 
 // SecretStore is the minimal key/value access the envelope bootstrap needs to
 // persist the wrapped DEK. The app backs it with the settings table; keeping it
@@ -47,10 +47,11 @@ var ErrDEKMissing = errors.New("crypto: the key that decrypts saved values is mi
 // is derived from OCTARQ_SECRET_KEY; the DEK is loaded by EnableEnvelope. Until
 // then only Sign/Verify are usable.
 type Cipher struct {
-	kek   [32]byte
-	mac   [32]byte
-	dek   [32]byte
-	ready bool // DEK loaded (EnableEnvelope ran)
+	kek     [32]byte
+	mac     [32]byte
+	dek     [32]byte
+	ready   bool // DEK loaded (EnableEnvelope ran)
+	created bool // EnableEnvelope generated the DEK in this process
 }
 
 // New derives a Cipher from the master secret. The DEK is loaded separately by
@@ -75,7 +76,7 @@ func New(secret string) *Cipher {
 // operator restores the key or clears the values, and no stored value becomes
 // unreadable behind their back.
 func (c *Cipher) EnableEnvelope(store SecretStore) error {
-	if wrapped, ok := store.Get(dekSettingKey); ok && wrapped != "" {
+	if wrapped, ok := store.Get(DEKSettingKey); ok && wrapped != "" {
 		dek, err := c.unwrapDEK(wrapped)
 		if err != nil {
 			return fmt.Errorf("crypto: cannot unwrap DEK with OCTARQ_SECRET_KEY: %w", err)
@@ -98,11 +99,20 @@ func (c *Cipher) EnableEnvelope(store SecretStore) error {
 		return fmt.Errorf("crypto: generate DEK: %w", err)
 	}
 	c.ready = true
+	c.created = true
 	w, err := sealWith(c.kek, c.dek[:])
 	if err != nil {
 		return err
 	}
-	return store.Set(dekSettingKey, w)
+	return store.Set(DEKSettingKey, w)
+}
+
+// DEKCreated reports whether EnableEnvelope generated the DEK in this process
+// instead of loading one that was already stored. A caller uses this to ask the
+// rest of the application whether anything still holds ciphertext the new key
+// cannot read.
+func (c *Cipher) DEKCreated() bool {
+	return c.created
 }
 
 // unwrapDEK opens the wrapped DEK with the current KEK.
