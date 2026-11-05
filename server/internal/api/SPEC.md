@@ -52,6 +52,13 @@ To prevent Denial of Service and credential stuffing, rate limits are enforced v
 
 ---
 
+### 2.4 Public Status Carries the Build Identity
+`GET /api/status` reports `version` and `revision` next to the subsystem list, so a deployed instance answers which build it runs. Both come from the stamp the Go toolchain writes into the binary: the main module version, and the VCS revision cut to twelve characters (`internal/api/buildinfo.go`).
+
+- A build with no stamp (a local `go build -buildvcs=false`, or a `go test` binary) reports empty strings. Clients hide the line instead of printing a guess.
+- `"(devel)"` is never reported as a version; it names a working-directory build, not a release.
+- The fields are additive on a public endpoint: they carry no workspace data, no configuration value, and no secret.
+
 ## 3. Module File Architecture & God File Ceiling
 
 All production code files in `internal/api` strictly adhere to the **< 500 LOC** hard limit:

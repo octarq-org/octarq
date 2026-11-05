@@ -56,6 +56,10 @@ type StatusStatusOutputBody struct {
 	Overall    string                `json:"overall"`
 	Subsystems []StatusSubsystemItem `json:"subsystems"`
 	Time       string                `json:"time"`
+	// Version and Revision name the binary that answered. Both are empty for a
+	// build the toolchain did not stamp, so a client hides the line.
+	Version  string `json:"version,omitempty"`
+	Revision string `json:"revision,omitempty"`
 }
 
 type StatusStatusOutput struct {
@@ -106,8 +110,11 @@ func (h *Handler) subsystemStatus(ctx context.Context, input *StatusStatusInput)
 		overall = "degraded"
 	}
 
+	build := ReadBuildInfo()
 	out := &StatusStatusOutput{}
 	out.Body.Overall = overall
+	out.Body.Version = build.Version
+	out.Body.Revision = build.Revision
 	out.Body.Subsystems = []StatusSubsystemItem{
 		{Name: "database", Status: dbStatus},
 		{Name: "mail", Status: mailStatus},
