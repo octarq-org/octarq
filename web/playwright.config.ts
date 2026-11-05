@@ -50,8 +50,8 @@ export default defineConfig({
     // Builds whatever a clean checkout lacks (dashboard + Go binary) and boots
     // the backend with the env above; see tests/e2e-server.mjs.
     command: "node tests/e2e-server.mjs",
-    // /api/health returns 503 until the database answers, so Playwright only
-    // considers the server ready once the app is actually usable.
+    // The server migrates before it listens, so the liveness probe answers
+    // only once the app can serve; Playwright waits on it.
     url: `${baseURL}/api/health`,
     timeout: 240_000,
     // Local reruns reuse a still-running server for speed; CI always starts

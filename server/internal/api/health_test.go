@@ -28,8 +28,13 @@ func TestHealthEndpoint(t *testing.T) {
 		t.Errorf("expected status 'healthy', got %v", resp["status"])
 	}
 
-	if resp["database"] != "up" {
-		t.Errorf("expected database 'up', got %v", resp["database"])
+	// The probe must not report dependency state: a database outage would
+	// otherwise restart a healthy process. Dependency state lives in
+	// /api/status.
+	for _, key := range []string{"database", "error"} {
+		if _, ok := resp[key]; ok {
+			t.Errorf("liveness probe exposed %q: %v", key, resp[key])
+		}
 	}
 
 	timeStr, ok := resp["time"].(string)
