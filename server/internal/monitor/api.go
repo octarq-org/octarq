@@ -35,8 +35,7 @@ func RegisterRoutes(api huma.API, collector *Collector) {
 		Path:        "/api/monitor/health",
 		Summary:     "Get aggregated health status",
 		Description: "Returns aggregated health check status and diagnostic metrics across runtime, database, storage, and registered plugin health providers.",
-		Tags:        []string{"Monitor", "Public"},
-		Metadata:    map[string]any{"public": true},
+		Tags:        []string{"Monitor"},
 		Errors:      []int{http.StatusServiceUnavailable},
 	}, func(ctx context.Context, input *HealthInput) (*HealthOutput, error) {
 		report := collector.LatestReport(ctx)
