@@ -55,11 +55,12 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	if !h.loginLimiter.allow(ip) {
+	loginUser := strings.TrimSpace(input.Body.Email)
+	account := accountLoginKey(loginUser)
+	if !h.loginAllowed(ip, account) {
 		return nil, huma.Error429TooManyRequests("Too many failed login attempts; wait a few minutes before trying again")
 	}
 
-	loginUser := strings.TrimSpace(input.Body.Email)
 	var (
 		uid, orgID uint
 		user       models.User
@@ -76,27 +77,35 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 			// clear the cookie — the challenge is still good, and clearing
 			// would turn a typo into a full OAuth restart.)
 			h.auth.ClearTwoFAChallengeCookie(w, r)
-			h.loginLimiter.recordFailure(ip)
+			h.recordLoginFailure(ip, account)
 			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		if err := h.db.First(&user, uid).Error; err != nil {
-			h.loginLimiter.recordFailure(ip)
+			h.recordLoginFailure(ip, account)
 			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		// A challenge exists only for logins pending a second factor; an
 		// account that disabled TOTP since the challenge was minted must start
 		// its login over rather than ride the stale challenge to a session.
 		if !user.TOTPEnabled {
-			h.loginLimiter.recordFailure(ip)
+			h.recordLoginFailure(ip, account)
 			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		var member models.OrgMember
 		if err := h.db.Where("user_id = ?", user.ID).First(&member).Error; err != nil {
-			h.loginLimiter.recordFailure(ip)
+			h.recordLoginFailure(ip, account)
 			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		orgID = member.OrgID
 		loginUser = user.Email
+		// A challenge sign-in may carry no email in the body, so the account
+		// budget becomes chargeable only once the challenge names the user.
+		if account == "" {
+			account = accountLoginKey(user.Email)
+			if !h.loginAccountLimiter.allow(account) {
+				return nil, huma.Error429TooManyRequests("Too many failed login attempts; wait a few minutes before trying again")
+			}
+		}
 		meta = map[string]any{"email": user.Email, "method": "oauth"}
 	} else {
 		var err error
@@ -106,7 +115,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 			case errors.Is(err, errNoWorkspace):
 				return nil, apierror.New(http.StatusForbidden, apierror.CodeNoWorkspace, "This account has no workspace; ask an administrator for an invitation")
 			case errors.Is(err, errInvalidCredentials):
-				h.loginLimiter.recordFailure(ip)
+				h.recordLoginFailure(ip, account)
 				h.publishLoginFailed(r, loginUser, "invalid credentials")
 				return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
 			default:
@@ -127,12 +136,12 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	}
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
-			h.loginLimiter.recordFailure(ip)
+			h.recordLoginFailure(ip, account)
 			h.publishLoginFailed(r, loginUser, "invalid 2FA code")
 			return nil, huma.Error401Unauthorized("Invalid two-factor authentication code; check the code from your authenticator app and try again")
 		}
 	}
-	h.loginLimiter.reset(ip)
+	h.resetLoginFailures(ip, account)
 	h.auditAs(r, orgID, user.ID, "user.login", "user", user.ID, meta)
 	h.auth.SetSessionFromRequest(r, w, uid, orgID)
 	if challenge {

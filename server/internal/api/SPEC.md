@@ -39,11 +39,14 @@ Every HTTP error returned by the API—whether triggered by validation failure, 
 ### 2.3 Rate Limiter Budget Isolation
 To prevent Denial of Service and credential stuffing, rate limits are enforced via `ulule/limiter/v3` across isolated budgets:
 1. **Login Budget (`loginLimiter`)**: 5 failed login attempts per 15 minutes per IP.
-2. **Recovery Budget (`recoveryLimiter`)**: 5 reset/verification requests per 15 minutes per IP (deliberately independent of login).
-3. **Register Budget (`registerLimiter`)**: 5 public sign-ups per hour per IP.
-4. **Abuse Budget (`abuseLimiter`)**: 5 abuse reports per hour per IP.
-5. **Send Budget (`sendLimiter`)**: 100 outbound emails per organization per hour.
-6. **Subsystem Status Budget (`statusLimiter`)**: 60 status checks per minute per IP.
+2. **Login Account Budget (`loginAccountLimiter`)**: 10 failed login attempts per 15 minutes per account (the submitted email, case-folded). Failures are charged to both login budgets and a successful sign-in clears both, so a pool of client addresses cannot turn one account into an unlimited guessing target while a single bad typist is not locked out. A blank email is never used as a key — it would make one shared bucket that any anonymous caller could exhaust.
+3. **Recovery Budget (`recoveryLimiter`)**: 5 reset/verification requests per 15 minutes per IP (deliberately independent of login).
+4. **Register Budget (`registerLimiter`)**: 5 public sign-ups per hour per IP.
+5. **Abuse Budget (`abuseLimiter`)**: 5 abuse reports per hour per IP.
+6. **Send Budget (`sendLimiter`)**: 100 outbound emails per organization per hour.
+7. **Subsystem Status Budget (`statusLimiter`)**: 60 status checks per minute per IP.
+
+**Fail-Closed Counter Reads**: a budget that cannot be read admits nothing. When the store returns an error (a configured Redis that is unreachable, for example), `allow` refuses the request and logs the failure. Allowing instead would turn any counter outage into an unlimited window for the attack the budget exists to stop.
 
 ---
 
