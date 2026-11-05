@@ -168,3 +168,19 @@ func TestAPI_RegisterRoutesHuma(t *testing.T) {
 		t.Errorf("HealthInput.Resolve returned errs: %v", errs)
 	}
 }
+
+// TestMonitorHealthRequiresAuthentication pins the route tier: the report
+// carries host and database diagnostics, so it must not answer unauthenticated
+// callers the way the bare /api/health probe does.
+func TestMonitorHealthRequiresAuthentication(t *testing.T) {
+	api := humago.New(http.NewServeMux(), huma.DefaultConfig("test", "1.0.0"))
+	RegisterRoutes(api, NewCollector(DefaultInterval))
+
+	path := api.OpenAPI().Paths["/api/monitor/health"]
+	if path == nil || path.Get == nil {
+		t.Fatal("the monitor health route is not registered")
+	}
+	if public, _ := path.Get.Metadata["public"].(bool); public {
+		t.Fatal("the monitor health route is marked public; it must require a session")
+	}
+}
