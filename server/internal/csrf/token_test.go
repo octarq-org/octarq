@@ -1,8 +1,13 @@
 package csrf
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"net/http"
 	"testing"
+
+	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
 // TestGenerateTokenDerivesDeterministicHMAC pins the derived token: same inputs
@@ -59,5 +64,26 @@ func TestClearCookieExpires(t *testing.T) {
 	c := ClearCookie()
 	if c.Name != CookieName || c.Value != "" || c.MaxAge != -1 {
 		t.Errorf("ClearCookie = %+v", c)
+	}
+}
+
+// The CSRF token must be keyed by the CSRF subkey, not by the master secret:
+// the same secret also signs session cookies and the second-factor challenge,
+// and a token verifier in one use must not accept a signature from another.
+func TestGenerateTokenUsesTheCSRFSubkey(t *testing.T) {
+	const secret = "master-secret"
+	const session = "session-token"
+
+	derived := hmac.New(sha256.New, crypto.DeriveKey([]byte(secret), "octarq/csrf/v1"))
+	derived.Write([]byte(session))
+	want := base64.RawURLEncoding.EncodeToString(derived.Sum(nil))
+	if got := GenerateToken(secret, session); got != want {
+		t.Fatalf("token must use the CSRF subkey: got %q want %q", got, want)
+	}
+
+	raw := hmac.New(sha256.New, []byte(secret))
+	raw.Write([]byte(session))
+	if GenerateToken(secret, session) == base64.RawURLEncoding.EncodeToString(raw.Sum(nil)) {
+		t.Fatal("token must not be keyed by the raw master secret")
 	}
 }

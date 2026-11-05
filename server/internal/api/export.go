@@ -21,6 +21,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/server/internal/authz"
+	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
 )
@@ -45,7 +46,7 @@ func (h *Handler) GenerateExportSignedToken(orgID uint, expire time.Duration) (s
 	if h.storage != nil {
 		return h.storage.GenerateDownloadToken(fmt.Sprintf("export:%d", orgID), expire), nil
 	}
-	secret := []byte(h.cfg.SecretKey)
+	secret := crypto.DeriveKey([]byte(h.cfg.SecretKey), crypto.PurposeDownloadToken)
 	expTime := time.Now().Add(expire).Unix()
 	fileID := fmt.Sprintf("export:%d", orgID)
 	mac := hmac.New(sha256.New, secret)
@@ -173,7 +174,7 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 				if len(parts) == 3 && strings.HasPrefix(parts[0], "export:") {
 					exp, _ := strconv.ParseInt(parts[1], 10, 64)
 					if time.Now().Unix() <= exp {
-						mac := hmac.New(sha256.New, []byte(h.cfg.SecretKey))
+						mac := hmac.New(sha256.New, crypto.DeriveKey([]byte(h.cfg.SecretKey), crypto.PurposeDownloadToken))
 						fmt.Fprintf(mac, "download:%s:%d", parts[0], exp)
 						expectedSig := hex.EncodeToString(mac.Sum(nil))
 						if hmac.Equal([]byte(expectedSig), []byte(parts[2])) {

@@ -32,9 +32,11 @@ type Config struct {
 	DBDriver string // "sqlite" | "postgres" | "mysql"
 	DBDSN    string // sqlite: file path; postgres/mysql: connection string
 
-	// SecretKey seeds both the session-cookie HMAC and the AES-GCM used to
-	// encrypt provider credentials at rest. Must be stable across restarts.
-	// With envelope encryption it is the KEK that wraps the data key (DEK).
+	// SecretKey is the master secret for every key in the instance. It derives
+	// the KEK that wraps the data key (DEK), and each signing use — session
+	// cookies, CSRF, the second-factor challenge, OAuth state, export links,
+	// storage URLs — gets its own labelled subkey from it
+	// (internal/crypto.DeriveKey). Must be stable across restarts.
 	SecretKey string
 
 	AdminUser     string
