@@ -46,15 +46,16 @@ func TestHealthAndSubsystems(t *testing.T) {
 		t.Errorf("subsystemStatus with nil db = %+v, err=%v", out, err)
 	}
 
-	// 5. Unhealthy database ping failure -> 503
+	// 5. A database outage must not fail the liveness probe: the supervisor
+	// restarts the process on this answer, and a restart cannot fix the DB.
 	_, srv2, db2 := newTestHandlerRaw(t)
 	sqlDB, _ := db2.DB()
 	sqlDB.Close()
 	reqClosed := httptest.NewRequest("GET", "/api/health", nil)
 	recClosed := httptest.NewRecorder()
 	srv2.ServeHTTP(recClosed, reqClosed)
-	if recClosed.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected 503 for unhealthy DB, got %d", recClosed.Code)
+	if recClosed.Code != http.StatusOK {
+		t.Errorf("liveness probe failed while the database was down: got %d", recClosed.Code)
 	}
 
 	// 6. Direct calls with nil Ctx
