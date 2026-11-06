@@ -259,6 +259,8 @@ export const en = {
     // Public status-page footer: subsystems count, fixed 15s probe interval,
     // last successful probe timestamp (mono).
     footerLine: "{{count}} subsystems · probe every 15s · last check {{time}}",
+    // Footer line naming the running build. Empty when the build carries no stamp.
+    footerBuild: "build {{build}}",
   },
 };
 

@@ -236,5 +236,6 @@ export const ja = {
     probeFailedAt: "{{time}} にプローブ失敗",
     requestId: "リクエスト {{requestId}}",
     footerLine: "サブシステム {{count}} 件・15 秒ごとにプローブ・最終確認 {{time}}",
+    footerBuild: "ビルド {{build}}",
   },
 };

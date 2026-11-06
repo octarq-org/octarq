@@ -210,6 +210,10 @@ export interface SubsystemStatusResponse {
   overall: "ok" | "degraded" | "down";
   subsystems: SubsystemHealth[];
   time: string;
+  // version and revision name the running build. A build the toolchain did not
+  // stamp reports neither.
+  version?: string;
+  revision?: string;
 }
 
 export interface Overview extends Record<string, unknown> {

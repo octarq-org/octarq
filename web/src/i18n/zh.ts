@@ -237,5 +237,6 @@ export const zh: Resources = {
     probeFailedAt: "探测失败于 {{time}}",
     requestId: "请求 {{requestId}}",
     footerLine: "{{count}} 个子系统 · 每 15 秒探测一次 · 最后检查 {{time}}",
+    footerBuild: "构建 {{build}}",
   },
 };
