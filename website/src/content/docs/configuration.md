@@ -23,6 +23,7 @@ The primary configuration options are:
 | `OCTARQ_ALLOW_PRIVATE_SMTP` | Allow outbound SMTP mail delivery to private/loopback IPs (e.g. local Postfix or Mailhog). Default `false`. |
 | `OCTARQ_TRUST_PROXY` | Honour `X-Forwarded-For` / `X-Real-IP` / `X-Forwarded-Proto`. Enable only behind a reverse proxy you control. Default `false`. |
 | `OCTARQ_LISTEN` | Address the binary binds (default `:8080`). |
+| `OCTARQ_WEBHOOK_LISTEN` | Dedicated listener address for webhook callbacks (default empty). Startup fails if identical to `OCTARQ_LISTEN`. The primary listener still serves webhooks to support migration. |
 | `OCTARQ_PORT` | **Docker Compose only** — the host port published by `docker-compose.yml` (default `8080`), also the port knob for `make dev`. **Not read by the binary**; to change the binary's own listen port use `OCTARQ_LISTEN`. |
 | `OCTARQ_CORS_ORIGINS` | Comma-separated allowlist of exact origins (e.g. `https://app.example.com`) allowed to query public GET endpoints cross-origin. Empty = CORS disabled. Bootstrap fallback for runtime setting. |
 

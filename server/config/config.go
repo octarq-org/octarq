@@ -5,7 +5,9 @@ import (
 	"bufio"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -28,6 +30,10 @@ var DefaultAppName = "octarq"
 // Config holds all runtime configuration for octarq.
 type Config struct {
 	Listen string // e.g. ":8080"
+
+	// WebhookListen configures an optional separate HTTP address for webhook
+	// callbacks (e.g. ":9001"). Empty string means no separate listener (空表示不单独监听).
+	WebhookListen string
 
 	DBDriver string // "sqlite" | "postgres" | "mysql"
 	DBDSN    string // sqlite: file path; postgres/mysql: connection string
@@ -131,6 +137,31 @@ func (c *Config) BackupS3Configured() bool {
 	return strings.TrimSpace(c.BackupS3Bucket) != "" &&
 		strings.TrimSpace(c.BackupS3AccessKey) != "" &&
 		strings.TrimSpace(c.BackupS3SecretKey) != ""
+}
+
+// ValidateWebhookListen checks that webhookListen is a valid address and does
+// not conflict with the primary listen address.
+func ValidateWebhookListen(listen, webhookListen string) error {
+	webhookListen = strings.TrimSpace(webhookListen)
+	listen = strings.TrimSpace(listen)
+	if webhookListen == "" {
+		return nil
+	}
+	if webhookListen == listen {
+		return fmt.Errorf("webhook listen address %q cannot be identical to main listen address %q", webhookListen, listen)
+	}
+	_, p2, err2 := net.SplitHostPort(webhookListen)
+	if err2 != nil {
+		return fmt.Errorf("invalid webhook listen address %q: %w", webhookListen, err2)
+	}
+	if port, err := strconv.Atoi(p2); err != nil || port < 0 || port > 65535 {
+		return fmt.Errorf("invalid webhook listen port %q: must be between 0 and 65535", p2)
+	}
+	_, p1, err1 := net.SplitHostPort(listen)
+	if err1 == nil && p1 == p2 && p1 != "0" {
+		return fmt.Errorf("webhook listen port %s conflicts with main listen port %s", p2, p1)
+	}
+	return nil
 }
 
 // validLogLevels is the vocabulary OCTARQ_LOG_LEVEL accepts. Keeping the list

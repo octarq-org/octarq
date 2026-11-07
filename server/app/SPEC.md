@@ -72,4 +72,7 @@ var _ plugin.EventSpine = (*hostEventSpine)(nil)
 - **Fail-Closed Gate**: Plugin routes return HTTP 404 immediately when disabled for the target workspace.
 - **Table Collision Fail-Closed**: Any two plugins claiming the same GORM table fail startup immediately.
 - **Route Collision Fail-Closed**: Any overlapping route registrations fail startup immediately.
+- **Webhook Listener Isolation**: When `OCTARQ_WEBHOOK_LISTEN` is set, a dedicated HTTP listener starts. It only accepts `POST /api/connectors/webhook` and `GET /api/health`. All other paths return HTTP 404 Fail-Closed.
+- **Webhook Listener Conflict Guard**: Startup fails immediately if `OCTARQ_WEBHOOK_LISTEN` equals `OCTARQ_LISTEN`, specifies an invalid address, or encounters an occupied port.
+- **Dual-Serving Continuity**: The primary listener continues to serve webhook routes to preserve existing deployments without disruption.
 - **Concurrency Safety**: Verified with `-race` across entire test suite.
