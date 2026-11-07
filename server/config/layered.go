@@ -24,6 +24,7 @@ var layeredKeys = []struct {
 	Path string
 }{
 	{"OCTARQ_LISTEN", "listen"},
+	{"OCTARQ_WEBHOOK_LISTEN", "webhook_listen"},
 	{"OCTARQ_DB_DRIVER", "db.driver"},
 	{"OCTARQ_DB_DSN", "db.dsn"},
 	{"OCTARQ_SECRET_KEY", "secret.key"},
@@ -123,6 +124,7 @@ func buildFromValues(values map[string]string) (*Config, error) {
 	get := func(key, def string) string { return valueOf(values, key, def) }
 	c := &Config{
 		Listen:        get("OCTARQ_LISTEN", ":8080"),
+		WebhookListen: strings.TrimSpace(get("OCTARQ_WEBHOOK_LISTEN", "")),
 		DBDriver:      get("OCTARQ_DB_DRIVER", "sqlite"),
 		DBDSN:         get("OCTARQ_DB_DSN", "octarq.db"),
 		SecretKey:     get("OCTARQ_SECRET_KEY", ""),
@@ -179,6 +181,11 @@ func buildFromValues(values map[string]string) (*Config, error) {
 	}
 	if c.LogLevel != "info" && !validLogLevels[c.LogLevel] {
 		return nil, fmt.Errorf("OCTARQ_LOG_LEVEL must be debug, info, warn or error, got %q", c.LogLevel)
+	}
+	if c.WebhookListen != "" {
+		if err := ValidateWebhookListen(c.Listen, c.WebhookListen); err != nil {
+			return nil, err
+		}
 	}
 	if err := c.ensureAutoSecrets(); err != nil {
 		return nil, err

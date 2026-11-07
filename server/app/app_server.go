@@ -3,15 +3,19 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/cleanup"
 	"github.com/octarq-org/octarq/server/internal/cron"
@@ -72,6 +76,33 @@ func (a *App) serve(ctx context.Context, p serverRunParams) error {
 		return err
 	}
 
+	mainLn, err := net.Listen("tcp", a.cfg.Listen)
+	if err != nil {
+		return fmt.Errorf("main listen: %w", err)
+	}
+
+	var (
+		webhookSrv *http.Server
+		webhookLn  net.Listener
+	)
+	if a.cfg.WebhookListen != "" {
+		if err := validateWebhookListen(a.cfg.Listen, a.cfg.WebhookListen); err != nil {
+			_ = mainLn.Close()
+			return err
+		}
+		var err error
+		webhookLn, err = net.Listen("tcp", a.cfg.WebhookListen)
+		if err != nil {
+			_ = mainLn.Close()
+			return fmt.Errorf("webhook listen: %w", err)
+		}
+		webhookSrv = &http.Server{
+			Addr:              a.cfg.WebhookListen,
+			Handler:           newWebhookDispatcher(srv),
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+	}
+
 	httpSrv := &http.Server{
 		Addr:              a.cfg.Listen,
 		Handler:           srv,
@@ -91,14 +122,25 @@ func (a *App) serve(ctx context.Context, p serverRunParams) error {
 
 	go func() {
 		slog.Info("octarq listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := httpSrv.Serve(mainLn); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("listen failed", "err", err)
 			os.Exit(1)
 		}
 	}()
 
+	if webhookSrv != nil {
+		go func() {
+			slog.Info("webhook listener started", "addr", a.cfg.WebhookListen)
+			if err := webhookSrv.Serve(webhookLn); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("webhook listen failed", "err", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(stop)
 	select {
 	case <-stop:
 	case <-ctx.Done():
@@ -115,5 +157,53 @@ func (a *App) serve(ctx context.Context, p serverRunParams) error {
 			slog.Warn("app: telemetry shutdown failed", "error", err)
 		}
 	}
-	return httpSrv.Shutdown(shutCtx)
+
+	var (
+		shutErr error
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+	)
+	if webhookSrv != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := webhookSrv.Shutdown(shutCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Warn("webhook shutdown failed", "err", err)
+				mu.Lock()
+				shutErr = errors.Join(shutErr, err)
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := httpSrv.Shutdown(shutCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			mu.Lock()
+			shutErr = errors.Join(shutErr, err)
+			mu.Unlock()
+		}
+	}()
+	wg.Wait()
+	return shutErr
+}
+
+// newWebhookDispatcher wraps next and permits only exact paths:
+// POST /api/connectors/webhook and GET /api/health.
+// All other paths return HTTP 404 Fail-Closed.
+func newWebhookDispatcher(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if (r.Method == http.MethodPost && r.URL.Path == "/api/connectors/webhook") ||
+			(r.Method == http.MethodGet && r.URL.Path == "/api/health") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	})
+}
+
+// validateWebhookListen asserts that webhookListen is valid and does not
+// conflict with listen.
+func validateWebhookListen(listen, webhookListen string) error {
+	return config.ValidateWebhookListen(listen, webhookListen)
 }
