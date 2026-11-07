@@ -246,12 +246,6 @@ func (h *Handler) origin(r *http.Request) string {
 	return h.origins.Absolute(0, r, origin.Secure(r, trustProxy.Load()))
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
-}
-
 // writeErr emits the one error envelope from a plain net/http handler — the
 // paths that run outside huma (the CSRF guard, the MCP transports). Callers
 // that have a more specific discriminator than the status pass it as code;
