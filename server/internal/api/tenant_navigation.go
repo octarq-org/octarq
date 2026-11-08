@@ -21,6 +21,8 @@ type MenuItem struct {
 	Order    int    `json:"order,omitempty"`
 	// Mirrors plugin.MenuItem.RequiredRole.
 	RequiredRole string `json:"requiredRole,omitempty"`
+	// Mirrors plugin.MenuItem.External.
+	External bool `json:"external"`
 }
 
 type ListMenusInput struct {
@@ -85,6 +87,7 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 					Area:         m.Area,
 					Order:        m.Order,
 					RequiredRole: m.RequiredRole,
+					External:     m.External,
 				})
 			}
 		}

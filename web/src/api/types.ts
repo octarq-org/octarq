@@ -303,6 +303,9 @@ export interface MenuItem {
   area?: string;
   order?: number;
   requiredRole?: string;
+  // Set by a plugin that mounts its own frontend outside the dashboard SPA
+  // (Context.HandleStatic). The shell renders the entry as a plain link.
+  external?: boolean;
 }
 
 export interface Action {

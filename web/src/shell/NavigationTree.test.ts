@@ -244,6 +244,19 @@ describe("NavigationTree domain model", () => {
       expect(tree.footerItems.some((f) => f.id === "help")).toBe(true);
     });
 
+    it("carries a plugin's external flag into the nav item", () => {
+      const menus: MenuItem[] = [
+        { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
+        { id: "desk", label: "Desk", path: "/desk", icon: "bot", category: "Workspace", external: true },
+      ];
+
+      const tree = NavigationTree.build({ menus, plugins: [], backendLoaded: true });
+      const items = tree.findArea("operations")!.groups.flatMap((g) => g.items);
+
+      expect(items.find((i) => i.id === "desk")?.external).toBe(true);
+      expect(items.find((i) => i.id === "overview")?.external).toBeUndefined();
+    });
+
     it("drops empty areas when no menus are present for them", () => {
       // Only provide an operations menu
       const menus: MenuItem[] = [

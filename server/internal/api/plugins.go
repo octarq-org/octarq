@@ -112,6 +112,7 @@ type pluginMenuOut struct {
 	Category string `json:"category"`
 	Area     string `json:"area,omitempty"`
 	Order    int    `json:"order,omitempty"`
+	External bool   `json:"external"`
 }
 
 // featureOut is one toggleable feature in the plugin manager. Plugins sharing a
@@ -296,6 +297,7 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 					Category: m.Category,
 					Area:     m.Area,
 					Order:    m.Order,
+					External: m.External,
 				})
 			}
 		}
