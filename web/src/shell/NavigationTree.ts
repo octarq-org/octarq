@@ -185,6 +185,7 @@ export class NavigationTree {
         iconStr: KeyIcon ? undefined : m.icon,
         path: m.path,
         order: m.order ?? 0,
+        external: m.external || undefined,
       };
     };
 

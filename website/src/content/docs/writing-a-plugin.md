@@ -128,6 +128,7 @@ Key frontend rules:
 - **`category` equals the sidebar group label it joins.** A `category` with no matching group creates one via `areaForCategory`. A plugin can declare a **new top-level area** (`areas`) and point menu categories at its id or group labels — never at its `title` (display text).
 - **A settings page's `Path` is `/settings/<menu id>`.** The last segment is the menu's **`ID`**, not its `Label`. The Go `Path` and frontend `UIRoute.path` must match exactly — `PluginGate` compares them to tell "operator disabled this" apart from "this build doesn't have it".
 - **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu entries and pre-renders access-denied below `requiredRole` — but the server stays authoritative: enforce with `403`/`402` in your backend.
+- **Set `External` for a page outside the dashboard.** A plugin that mounts its own frontend with `Context.HandleStatic` (for example under `/desk`) sets `External: true` on the menu item. The sidebar then renders a plain link. Without the flag the router treats the path as a dashboard route and shows the "unavailable" page.
 - **i18n namespace = your `name`.** `i18n.en`/`i18n.zh` merge under `"<name>"`, so a `pageTitle` key is read as `t("hello.pageTitle")`.
 
 <Aside type="tip" title="Success check">

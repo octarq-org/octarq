@@ -17,6 +17,13 @@ type MenuItem struct {
 	// Set it whenever every route behind the menu entry is role-gated. Omitting
 	// it there produces a nav item that leads only to a permission error.
 	RequiredRole string `json:"requiredRole,omitempty"`
+	// External marks Path as a page outside the dashboard SPA, such as a
+	// plugin's own frontend mounted with Context.HandleStatic (e.g. "/aiduu").
+	// The shell renders it as a plain link and the browser loads the page, so
+	// the dashboard router never sees the path. Leave it false for a dashboard
+	// route: those are rendered as SPA links and a path outside the router
+	// only shows the "unavailable" page.
+	External bool `json:"external"`
 }
 
 // MenuProvider is an optional interface a Plugin may implement if it registers
