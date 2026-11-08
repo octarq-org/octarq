@@ -1,9 +1,23 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { RouteFallback } from "@octarq/plugin-sdk";
 import { PluginGateContext, type PluginGateContextValue } from "../plugins/PluginGate";
 import { pluginRouteElements, PluginUnavailable } from "../plugins/PluginRoutes";
 import { InstanceExitRedirect } from "../pages/instance/redirect";
+import { resolvePostLoginNavigation } from "./loginRedirect";
+
+function RootRedirect() {
+  const location = useLocation();
+  const next = new URLSearchParams(location.search).get("next");
+  const dest = resolvePostLoginNavigation(next, location.pathname);
+  if (dest.type === "external") {
+    if (typeof window !== "undefined") {
+      window.location.replace(dest.url);
+    }
+    return null;
+  }
+  return <Navigate to={dest.path} replace />;
+}
 
 const OverviewPage = lazy(() => import("../pages/Overview"));
 const WorkforcePage = lazy(() => import("../pages/agent-harness").then((m) => ({ default: m.default })));
@@ -22,7 +36,8 @@ export function AppRoutes({ pluginGateCtxValue }: AppRoutesProps) {
     <Suspense fallback={<RouteFallback />}>
       <PluginGateContext.Provider value={pluginGateCtxValue}>
         <Routes>
-          <Route path="/" element={<Navigate to="/overview" replace />} />
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="/login" element={<RootRedirect />} />
           <Route path="/onboarding" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/workforce/*" element={<WorkforcePage />} />

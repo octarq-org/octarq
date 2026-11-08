@@ -219,4 +219,29 @@ describe("Login form suite", () => {
       expect(onLogin).toHaveBeenCalledWith("admin", 1);
     });
   });
+
+  it("passes next query parameter to onLogin on successful authentication", async () => {
+    window.history.replaceState({}, "", "/admin/?next=%2Fsettings");
+    const onLogin = renderLogin();
+    vi.spyOn(api, "login").mockResolvedValue({ ok: true, email: "user@example.com" });
+    vi.spyOn(api, "me").mockResolvedValue({ email: "user@example.com", orgId: 1 });
+
+    const emailInput = await screen.findByLabelText(/email/i);
+    fireEvent.change(emailInput, { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "secret123" } });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(onLogin).toHaveBeenCalledWith("user@example.com", 1, "/settings");
+    });
+  });
+
+  it("preserves next parameter in URL when cleaning one-time error param", async () => {
+    window.history.replaceState({}, "", "/admin/login?error=invalid_token&next=%2Fadmin%2Fdomains");
+    renderLogin();
+
+    await waitFor(() => {
+      expect(window.location.search).toBe("?next=%2Fadmin%2Fdomains");
+    });
+  });
 });
