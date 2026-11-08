@@ -71,6 +71,24 @@ func (h *Handler) pluginActive(orgID uint, p plugin.Plugin) bool {
 	return h.PluginEnabled(orgID, key)
 }
 
+// activePlugins returns the plugins that are live for the workspace. The MCP
+// transport builds its tool list from this set, so turning a feature off also
+// removes its agent tools: the toggle is the customer's kill switch, and a
+// disabled plugin that keeps answering an MCP call would be a second, invisible
+// switch. orgID 0 yields no plugins, matching PluginEnabled's fail-closed rule.
+func (h *Handler) activePlugins(orgID uint) []plugin.Plugin {
+	if orgID == 0 {
+		return nil
+	}
+	out := make([]plugin.Plugin, 0, len(h.plugins))
+	for _, p := range h.plugins {
+		if h.pluginActive(orgID, p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // dependencyConflictError is the 409 returned when a workspace tries to disable
 // a feature that another enabled feature declares in its Requires set.
 //
