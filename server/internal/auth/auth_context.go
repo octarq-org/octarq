@@ -21,7 +21,6 @@ const (
 	userIDKey    contextKey = "user_id"
 	sessionIDKey contextKey = "session_id"
 	tokenIDKey   contextKey = "token_id"
-	tokenRoleKey contextKey = "token_role"
 )
 
 // WithOrgID returns a new context containing the organization ID.
@@ -59,8 +58,10 @@ func TokenIDFromContext(ctx context.Context) uint {
 
 // WithTokenRole returns a new context carrying the bearer token's role ceiling.
 // An empty role means an unrestricted (pre-scoping) token — see models.Token.Role.
+// The value lives in the plugin package so a plugin can read its own caller's
+// authority; see plugin.RoleFromContext.
 func WithTokenRole(ctx context.Context, role string) context.Context {
-	return context.WithValue(ctx, tokenRoleKey, role)
+	return plugin.WithTokenRole(ctx, role)
 }
 
 // TokenRoleFromContext returns the bearer token's role ceiling, or "" when the
@@ -68,10 +69,7 @@ func WithTokenRole(ctx context.Context, role string) context.Context {
 // therefore check TokenIDFromContext first to tell those two cases apart — "" on
 // its own does not mean "no token".
 func TokenRoleFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(tokenRoleKey).(string); ok {
-		return v
-	}
-	return ""
+	return plugin.RoleFromContext(ctx)
 }
 
 // WithTokenAgent returns a new context containing the token's agent flag and allowed tools.

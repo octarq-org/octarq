@@ -168,6 +168,10 @@ type EncryptedDataReporter interface {
 // dynamic MCP tools. MCP tools MUST use plugin.OrgIDFromContext(ctx) to retrieve
 // the caller's org ID, and MUST NOT read org fields cached on the plugin during Mount
 // (under networked transport that field belongs to another caller).
+//
+// RegisterMCP is called only for a plugin the caller's workspace has enabled,
+// so the feature toggle also removes the tools. A plugin that is core is always
+// called.
 type MCPProvider interface {
 	// MCPTier names the license tier every tool from this plugin requires,
 	// in the same vocabulary an endpoint's Tier uses ("" = free). It is

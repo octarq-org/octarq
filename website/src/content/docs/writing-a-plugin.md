@@ -129,6 +129,7 @@ Key frontend rules:
 - **A settings page's `Path` is `/settings/<menu id>`.** The last segment is the menu's **`ID`**, not its `Label`. The Go `Path` and frontend `UIRoute.path` must match exactly — `PluginGate` compares them to tell "operator disabled this" apart from "this build doesn't have it".
 - **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu entries and pre-renders access-denied below `requiredRole` — but the server stays authoritative: enforce with `403`/`402` in your backend.
 - **Set `External` for a page outside the dashboard.** A plugin that mounts its own frontend with `Context.HandleStatic` (for example under `/desk`) sets `External: true` on the menu item. The sidebar then renders a plain link. Without the flag the router treats the path as a dashboard route and shows the "unavailable" page.
+- **MCP tools follow the feature toggle.** `RegisterMCP` is called only for a plugin the caller's workspace enabled, so turning the feature off also removes its tools from `tools/list`. Read the workspace per call with `plugin.OrgIDFromContext`.
 - **i18n namespace = your `name`.** `i18n.en`/`i18n.zh` merge under `"<name>"`, so a `pageTitle` key is read as `t("hello.pageTitle")`.
 
 <Aside type="tip" title="Success check">

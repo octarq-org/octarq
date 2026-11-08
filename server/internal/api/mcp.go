@@ -51,7 +51,7 @@ func (h *Handler) mcpSSEHandler() http.Handler {
 		orgID := h.orgID(r)
 		// The caller here is one tenant among many, so only the tenant-scoped
 		// tools exist — there is no raw-SQL tool on any transport to withhold.
-		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.plugins, h.LookupService)
+		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.activePlugins(orgID), h.LookupService)
 	}, &mcp.SSEOptions{
 		DisableLocalhostProtection: true,
 	})
@@ -69,7 +69,7 @@ func (h *Handler) mcpStreamHandler() http.Handler {
 		orgID := h.orgID(r)
 		// The caller here is one tenant among many, so only the tenant-scoped
 		// tools exist — there is no raw-SQL tool on any transport to withhold.
-		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.plugins, h.LookupService)
+		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.activePlugins(orgID), h.LookupService)
 	}, &mcp.StreamableHTTPOptions{
 		DisableLocalhostProtection: true,
 	})

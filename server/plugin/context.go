@@ -83,6 +83,7 @@ type agentContextKey string
 const (
 	agentFlagKey  agentContextKey = "token_is_agent"
 	agentToolsKey agentContextKey = "token_allowed_tools"
+	tokenRoleKey  agentContextKey = "token_role"
 )
 
 // WithTokenAgent returns a new context containing the token's agent flag and allowed tools.
@@ -118,6 +119,28 @@ func AllowedToolsFromContext(ctx context.Context) []string {
 		return v
 	}
 	return nil
+}
+
+// WithTokenRole records the role ceiling of the bearer token that made the
+// request. internal/auth stamps it for every token-admitted request.
+func WithTokenRole(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, tokenRoleKey, role)
+}
+
+// RoleFromContext returns the bearer token's role ceiling: "owner", "admin",
+// "member", or "" when the request carried no token (a browser session, or a
+// transport such as stdio). An MCP tool that mirrors an admin-only desk action
+// must refuse anything but owner and admin, and must read "" as the least
+// privileged, the same way internal/api's effectiveRole does. The tool runs with
+// the token's authority, never with the plugin's.
+func RoleFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if v, ok := ctx.Value(tokenRoleKey).(string); ok {
+		return v
+	}
+	return ""
 }
 
 func parseAllowedTools(raw string) []string {

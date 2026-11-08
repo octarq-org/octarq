@@ -22,7 +22,7 @@ func TestAuthContextAndCacheHelpers(t *testing.T) {
 	ctx = plugin.WithOrgID(ctx, 5)
 	ctx = WithUserID(ctx, 10)
 	ctx = context.WithValue(ctx, tokenIDKey, uint(100))
-	ctx = context.WithValue(ctx, tokenRoleKey, "admin")
+	ctx = WithTokenRole(ctx, "admin")
 
 	if plugin.OrgIDFromContext(ctx) != 5 {
 		t.Errorf("OrgIDFromContext expected 5, got %d", plugin.OrgIDFromContext(ctx))
@@ -100,5 +100,22 @@ func TestAuthContextAndCacheHelpers(t *testing.T) {
 	// Revoke sessions
 	if numRevoked := m.RevokeUserOrgSessions(1, 1); numRevoked != 1 {
 		t.Errorf("RevokeUserOrgSessions expected 1, got %d", numRevoked)
+	}
+}
+
+// A plugin reads its caller's authority through plugin.RoleFromContext, so the
+// stamp and the read must share one context key. Two keys would compile, pass
+// every auth test, and silently hand a plugin an empty role — which reads as
+// "member" and hides the caller's admin rights.
+func TestTokenRoleIsReadableByPlugins(t *testing.T) {
+	ctx := WithTokenRole(context.Background(), "admin")
+	if got := plugin.RoleFromContext(ctx); got != "admin" {
+		t.Fatalf("plugin.RoleFromContext = %q, want admin", got)
+	}
+	if got := plugin.RoleFromContext(context.Background()); got != "" {
+		t.Fatalf("role on a bare context = %q, want empty", got)
+	}
+	if got := TokenRoleFromContext(ctx); got != "admin" {
+		t.Fatalf("TokenRoleFromContext = %q, want admin", got)
 	}
 }
