@@ -1,5 +1,5 @@
 import { Alert, ExtensionSlot } from "@octarq/plugin-sdk";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { api, ApiError } from "../api";
 import { useAppName } from "../brand";
@@ -11,7 +11,7 @@ import { LoginVerificationNotice } from "./login/LoginVerificationNotice";
 import { LoginForgotSentNotice } from "./login/LoginForgotSentNotice";
 import { LoginErrorBanner } from "./login/LoginErrorBanner";
 
-export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
+export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: string | null) => void }) {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [workspace, setWorkspace] = useState("");
@@ -34,6 +34,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   const [busy, setBusy] = useState(false);
   const [isVerifiedNotice, setIsVerifiedNotice] = useState(false);
   const [oauthConfig, setOauthConfig] = useState<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean } | null>(null);
+  const nextTargetRef = useRef<string | null>(null);
   const appName = useAppName();
   const { t } = useTranslation();
 
@@ -48,6 +49,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
       .catch(() => setOauthConfig(null));
 
     const params = new URLSearchParams(window.location.search);
+    nextTargetRef.current = params.get("next");
     const verified = isVerifiedFlag(params.get("verified"));
     if (verified) setIsVerifiedNotice(true);
 
@@ -75,7 +77,11 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     }
 
     if (verified || errKey) {
-      window.history.replaceState({}, "", window.location.pathname);
+      const remaining = new URLSearchParams(window.location.search);
+      remaining.delete("verified");
+      remaining.delete("error");
+      const qs = remaining.toString();
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
     // Run once on mount to prevent re-triggering dismissed banners.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,7 +89,11 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
 
   async function finishLogin(email: string) {
     const me = await api.me();
-    onLogin(me.email || email, me.orgId);
+    if (nextTargetRef.current) {
+      onLogin(me.email || email, me.orgId, nextTargetRef.current);
+    } else {
+      onLogin(me.email || email, me.orgId);
+    }
   }
 
   async function doSubmit() {

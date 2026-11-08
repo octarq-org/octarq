@@ -14,6 +14,7 @@ import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
 import { ShellFooter } from "./shell/ShellFooter";
 import { Login } from "./shell/Login";
+import { performPostLoginNavigation } from "./shell/loginRedirect";
 import { uiOnboarding } from "./plugin-sdk";
 import { AppRoutes } from "./shell/AppRoutes";
 import { EmailVerifyBanner } from "./shell/EmailVerifyBanner";
@@ -27,6 +28,8 @@ const StatusPage = lazy(() => import("./pages/Status"));
 const InstanceConsole = lazy(() => import("./pages/instance/console"));
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState("");
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
@@ -108,10 +111,15 @@ export default function App() {
   } else if (!authed) {
     content = (
       <Login
-        onLogin={(u, orgId) => {
+        onLogin={(u, orgId, next) => {
           setUser(u);
           setActiveOrgId(orgId);
           setAuthed(true);
+          const nextTarget =
+            next ??
+            new URLSearchParams(location.search).get("next") ??
+            (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null);
+          performPostLoginNavigation(navigate, nextTarget, location.pathname);
           api.me()
             .then((m) => setRole(m.role))
             .catch((err) => {
