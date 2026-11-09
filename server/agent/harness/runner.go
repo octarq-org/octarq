@@ -53,6 +53,16 @@ type ResultCompleter interface {
 // P3 前 API 易变.
 type Runner interface {
 	Run(ctx context.Context, s *Session, t *Turn) error
+	// Resume runs the tool call an operator approved and continues the turn.
+	//
+	// The approved call is taken from t.PendingCall, so the call that runs is
+	// byte for byte the call the operator saw — not whatever the model writes
+	// when it is asked again. The turn's step budget continues where it
+	// stopped; an approval does not buy extra rounds.
+	//
+	// A turn with no pending call is refused with ErrNoPendingCall rather than
+	// started from the beginning.
+	Resume(ctx context.Context, s *Session, t *Turn) error
 }
 
 // StreamRunner is an optional interface implemented by runners that support
@@ -249,14 +259,27 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 // loop is the agent loop proper. It always leaves t.Status set to the
 // terminal state of the turn.
 func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
-	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
-	t.Status = TurnStatusRunning
+	// A new turn carries no approval from an earlier one and starts its round
+	// count at zero. Resume continues both, which is why this reset lives here
+	// and not in runRounds.
+	t.PendingCall = nil
+	t.rounds = 0
 
 	// Seed history with the user's input.
 	s.History = append(s.History, Message{Role: "user", Content: t.Input})
 
-	started := time.Now()
-	for step := 0; ; step++ {
+	return r.runRounds(ctx, s, t, time.Now())
+}
+
+// runRounds is the round loop. It assumes the history is seeded and runs until
+// the turn ends, so a resumed turn can re-enter it with the history the
+// approved call belongs to.
+func (r *defaultRunner) runRounds(ctx context.Context, s *Session, t *Turn, started time.Time) error {
+	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
+	t.Status = TurnStatusRunning
+
+	for step := t.rounds; ; step++ {
+		t.rounds = step
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
 			return ErrMaxStepsExceeded
@@ -385,7 +408,7 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		}
 
 		// Guard check.
-		if guardErr := r.guard.Allow(ctx, s.OrgID, tc.Name); guardErr != nil {
+		if guardErr := r.guard.Allow(ctx, s.OrgID, tc.Name, string(tc.ArgsJSON)); guardErr != nil {
 			st.Err = guardErr
 			st.OutputFenced = wrapUntrustedFence(guardErr.Error())
 			t.Steps = append(t.Steps, st)
@@ -405,6 +428,10 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 				obs.OnToolEnd(step, tc.Name, "", guardErr)
 			}
 			if errors.Is(guardErr, ErrApprovalRequired) {
+				// Record the exact call the operator is being asked about.
+				// Without it the approval would apply to whatever the model
+				// writes the next time it is asked, which is a different call.
+				t.PendingCall = newPendingCall(tc)
 				return guardErr
 			}
 			// Append the guard rejection into history so the LLM knows.
@@ -416,45 +443,7 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		}
 
 		// Execute tool.
-		if obs != nil {
-			obs.OnToolStart(step, tc.Name, string(tc.ArgsJSON))
-		}
-		start := time.Now()
-		output, execErr := r.executor.Execute(ctx, s.OrgID, tc.Name, string(tc.ArgsJSON))
-		st.DurationMS = time.Since(start).Milliseconds()
-		if obs != nil {
-			obs.OnToolEnd(step, tc.Name, output, execErr)
-		}
-
-		if execErr != nil {
-			// Preserve AgentError.AgentGuidance through the Step.
-			var ae *plugin.AgentError
-			if errors.As(execErr, &ae) {
-				st.Err = ae // keep the full AgentError
-			} else {
-				st.Err = execErr
-			}
-			// Use the error message as fenced output so the LLM sees it.
-			st.OutputFenced = wrapUntrustedFence(execErr.Error())
-		} else {
-			st.OutputFenced = wrapUntrustedFence(output)
-		}
-
-		t.Steps = append(t.Steps, st)
-		r.tracer.Event(ctx, TraceEvent{
-			Kind:       TraceKindStep,
-			Step:       step,
-			Tool:       tc.Name,
-			Status:     traceStatusForError(st.Err),
-			ErrorCode:  traceErrorCode(st.Err),
-			DurationMS: st.DurationMS,
-		})
-
-		// Append the tool output into history so the LLM can reason about results.
-		s.History = append(s.History, Message{
-			Role:    "tool",
-			Content: st.OutputFenced,
-		})
+		r.executeCall(ctx, s, t, step, tc, obs)
 	}
 
 	// Tell the model about the calls that did not run. A rejected call is

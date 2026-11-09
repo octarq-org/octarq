@@ -48,7 +48,7 @@ type denyGuard struct {
 	denied string
 }
 
-func (g *denyGuard) Allow(_ context.Context, _ uint, tool string) error {
+func (g *denyGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	if tool == g.denied {
 		return fmt.Errorf("tool %q is denied by policy", tool)
 	}
@@ -60,7 +60,7 @@ type approvalGuard struct {
 	tool string
 }
 
-func (g *approvalGuard) Allow(_ context.Context, _ uint, tool string) error {
+func (g *approvalGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	if g.tool == "" || tool == g.tool {
 		return fmt.Errorf("%w: %s", ErrApprovalRequired, tool)
 	}

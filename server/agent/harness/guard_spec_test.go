@@ -18,10 +18,10 @@ func TestSpecGuardRefusesAToolOutsideTheAllowlist(t *testing.T) {
 	}
 	guard := harness.NewSpecGuard(spec)
 
-	if err := guard.Allow(context.Background(), 1, "read_things"); err != nil {
+	if err := guard.Allow(context.Background(), 1, "read_things", "{}"); err != nil {
 		t.Fatalf("a tool inside the allowlist was refused: %v", err)
 	}
-	err := guard.Allow(context.Background(), 1, "read_more")
+	err := guard.Allow(context.Background(), 1, "read_more", "{}")
 	if err == nil {
 		t.Fatal("a tool outside the allowlist was permitted")
 	}
@@ -34,7 +34,7 @@ func TestSpecGuardRefusesAToolOutsideTheAllowlist(t *testing.T) {
 // "no restriction". A spec narrows the tool surface; it never widens it.
 func TestSpecGuardWithoutAnAllowlistPermitsEverything(t *testing.T) {
 	guard := harness.NewSpecGuard(harness.DefaultHarnessSpec())
-	if err := guard.Allow(context.Background(), 1, "anything"); err != nil {
+	if err := guard.Allow(context.Background(), 1, "anything", "{}"); err != nil {
 		t.Fatalf("an empty allowlist refused a tool: %v", err)
 	}
 }
@@ -43,7 +43,7 @@ func TestSpecGuardWithoutAnAllowlistPermitsEverything(t *testing.T) {
 type guardFunc func(context.Context, uint, string) error
 
 // Allow implements Guard.
-func (f guardFunc) Allow(ctx context.Context, orgID uint, tool string) error {
+func (f guardFunc) Allow(ctx context.Context, orgID uint, tool, argsJSON string) error {
 	return f(ctx, orgID, tool)
 }
 
@@ -54,18 +54,18 @@ func TestComposeGuardsRequiresEveryGuardToPermit(t *testing.T) {
 	deny := guardFunc(func(context.Context, uint, string) error { return context.Canceled })
 
 	guard := harness.ComposeGuards(allow, deny)
-	if err := guard.Allow(context.Background(), 1, "tool"); err == nil {
+	if err := guard.Allow(context.Background(), 1, "tool", "{}"); err == nil {
 		t.Fatal("the chain permitted a tool one of its guards refused")
 	}
 
 	// A chain of one behaves exactly like that guard, and a chain of none
 	// permits everything.
 	single := harness.ComposeGuards(allow)
-	if err := single.Allow(context.Background(), 1, "tool"); err != nil {
+	if err := single.Allow(context.Background(), 1, "tool", "{}"); err != nil {
 		t.Fatalf("a chain of one refused a tool: %v", err)
 	}
 	empty := harness.ComposeGuards()
-	if err := empty.Allow(context.Background(), 1, "tool"); err != nil {
+	if err := empty.Allow(context.Background(), 1, "tool", "{}"); err != nil {
 		t.Fatalf("an empty chain refused a tool: %v", err)
 	}
 }
