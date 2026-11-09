@@ -50,14 +50,25 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 // streamLoop is the streaming agent loop. It always leaves t.Status set to
 // the terminal state of the turn.
 func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler) error {
-	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
-	t.Status = TurnStatusRunning
+	// A new turn carries no approval from an earlier one and starts its round
+	// count at zero. See the non-streaming loop.
+	t.PendingCall = nil
+	t.rounds = 0
 
 	// Seed history with the user's input.
 	s.History = append(s.History, Message{Role: "user", Content: t.Input})
 
-	started := time.Now()
-	for step := 0; ; step++ {
+	return r.streamRounds(ctx, s, t, sp, h, time.Now())
+}
+
+// streamRounds is the streaming round loop. It assumes the history is seeded,
+// so a resumed turn re-enters it with the history the approved call belongs to.
+func (r *defaultRunner) streamRounds(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler, started time.Time) error {
+	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
+	t.Status = TurnStatusRunning
+
+	for step := t.rounds; ; step++ {
+		t.rounds = step
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
 			return ErrMaxStepsExceeded

@@ -131,7 +131,7 @@ func TestAIChatStream_ReadOnlyGuard_AllowsPostWithReadRisk(t *testing.T) {
 	}
 
 	guard := newReadOnlyGuard(src)
-	if err := guard.Allow(context.Background(), 1, "query_tenant_sql"); err != nil {
+	if err := guard.Allow(context.Background(), 1, "query_tenant_sql", "{}"); err != nil {
 		t.Fatalf("expected POST tool with RiskLevelRead to be allowed, got: %v", err)
 	}
 	if !readOnlyTool(harness.ToolDescriptor{Name: "query_tenant_sql", Method: "POST", Risk: plugin.RiskLevelRead}) {

@@ -78,7 +78,7 @@ func TestHarnessCharacterization_NopTracerAndGuard(t *testing.T) {
 	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindTurnEnd, Status: harness.TurnStatusDone.String()})
 
 	var gd harness.Guard = harness.NopGuard{}
-	if err := gd.Allow(ctx, 1, "any_tool"); err != nil {
+	if err := gd.Allow(ctx, 1, "any_tool", "{}"); err != nil {
 		t.Errorf("NopGuard should always allow, got %v", err)
 	}
 }

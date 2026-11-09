@@ -186,7 +186,7 @@ func TestCoverageLiftWiringEdgeCases(t *testing.T) {
 
 	// 2. RiskGuard with nil source
 	rgNil := NewRiskGuard(nil)
-	err = rgNil.Allow(ctx, 1, "any_tool")
+	err = rgNil.Allow(ctx, 1, "any_tool", "{}")
 	if err == nil || !strings.Contains(err.Error(), "UNKNOWN_TOOL") {
 		t.Fatalf("expected UNKNOWN_TOOL error for nil source, got %v", err)
 	}

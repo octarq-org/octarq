@@ -48,7 +48,7 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
 - **Guard & Tracer**:
   ```go
   type Guard interface {
-      Allow(ctx context.Context, orgID uint, tool string) error
+      Allow(ctx context.Context, orgID uint, tool, argsJSON string) error
   }
 
   // Tracer observes the lifecycle of a turn through structured events.
@@ -56,6 +56,10 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
       Event(ctx context.Context, ev TraceEvent)
   }
   ```
+  `argsJSON` is the canonical JSON object of the call. A guard that only needs
+  the tool name ignores it; a guard that decides on what the call would do
+  cannot, and refusing to pass it pushed those rules into the tool
+  implementation, after the point of no return.
   `TraceEvent` carries the shape of what happened — kind (`turn_start` / `step` /
   `turn_end`), tool name, outcome (`ok` / `error` / `denied` / `blocked`),
   stable business error code, duration and token totals. It deliberately
@@ -277,12 +281,49 @@ stateDiagram-v2
     [*] --> Running: Turn Start
     Running --> Running: Tool Executed (within budget)
     Running --> AwaitingApproval: Guard returns ErrApprovalRequired
+    AwaitingApproval --> Running: Resume (approved call runs)
     Running --> Done: No further tool calls
-    Running --> Failed: ErrMaxStepsExceeded / Context Cancelled / Error
-    AwaitingApproval --> [*]
+    Running --> Failed: ErrMaxStepsExceeded / ErrBudgetExceeded / Context Cancelled / Error
     Done --> [*]
     Failed --> [*]
 ```
+
+**Pending call** (`pending.go`, `types.go`): when the guard refuses a call for
+approval, the loop records it in `Turn.PendingCall` before it returns.
+
+```go
+type PendingCall struct {
+    Tool     string
+    ArgsJSON string // canonical JSON object
+    Hash     string // identifies Tool and ArgsJSON together
+}
+```
+
+- The arguments are canonicalised (`canonicalArgs`: decode, re-encode) before
+  they are stored and hashed, so one call has one hash whatever spacing or key
+  order the model used.
+- The hash is what a caller stores with the approval and passes back with the
+  decision. It binds the decision to that call; a replayed decision cannot
+  authorise a different one.
+- Without the record, an approval applied to whatever the model happened to
+  write when asked again — and the model regenerates its arguments. The
+  operator approved one command and a different one ran.
+
+**Resume** (`Runner.Resume`): runs the stored call and continues the turn.
+
+- The guard is **not** consulted again. The operator's decision is the answer
+  to the question the guard asked; asking again can only produce the same
+  refusal.
+- The executed arguments are the stored `ArgsJSON` bytes, so the call that runs
+  is the call the operator saw.
+- `Turn.rounds` counts the rounds a turn has used, and Resume continues from
+  it. An approval does not buy another round: a one-round turn that resumes
+  ends on `ErrMaxStepsExceeded`.
+- A turn with no pending call is refused with `ErrNoPendingCall`; Resume is not
+  a way to start a turn.
+- `ResumeStream` is the streaming counterpart (`ResumeStreamRunner`). A
+  provider that cannot stream continues through `Resume`, exactly as `Stream`
+  continues through `Run`.
 
 ---
 

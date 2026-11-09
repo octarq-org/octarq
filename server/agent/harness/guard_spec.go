@@ -32,8 +32,9 @@ func NewSpecGuard(spec HarnessSpec) Guard {
 	return &SpecGuard{allowed: m}
 }
 
-// Allow implements Guard.
-func (g *SpecGuard) Allow(_ context.Context, _ uint, tool string) error {
+// Allow implements Guard. The allowlist is a name list, so the arguments are
+// not consulted.
+func (g *SpecGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	if !g.allowed[tool] {
 		return fmt.Errorf("tool %q is not in the published harness allowlist", tool)
 	}
@@ -47,9 +48,9 @@ type chainGuard struct {
 
 // Allow implements Guard. The first refusal wins, so the message names the
 // rule that refused rather than the last one consulted.
-func (c *chainGuard) Allow(ctx context.Context, orgID uint, tool string) error {
+func (c *chainGuard) Allow(ctx context.Context, orgID uint, tool, argsJSON string) error {
 	for _, g := range c.guards {
-		if err := g.Allow(ctx, orgID, tool); err != nil {
+		if err := g.Allow(ctx, orgID, tool, argsJSON); err != nil {
 			return err
 		}
 	}

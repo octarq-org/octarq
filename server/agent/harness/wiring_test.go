@@ -107,7 +107,7 @@ func TestRiskGuard_UnknownTool(t *testing.T) {
 	eng := buildEngine(t)
 	g := harness.NewRiskGuard(eng)
 
-	err := g.Allow(context.Background(), 1, "does_not_exist")
+	err := g.Allow(context.Background(), 1, "does_not_exist", "{}")
 	if err == nil {
 		t.Fatal("expected error for unknown tool")
 		return
@@ -208,7 +208,7 @@ func TestRiskGuard_RequireApproval(t *testing.T) {
 	eng := buildEngine(t)
 	g := harness.NewRiskGuard(eng)
 
-	err := g.Allow(context.Background(), 1, "delete_everything")
+	err := g.Allow(context.Background(), 1, "delete_everything", "{}")
 	if err == nil {
 		t.Fatal("expected error for RequireApproval tool")
 		return
@@ -224,11 +224,11 @@ func TestRiskGuard_AllowsNormalTools(t *testing.T) {
 	g := harness.NewRiskGuard(eng)
 
 	// read tool
-	if err := g.Allow(context.Background(), 1, "echo_tool"); err != nil {
+	if err := g.Allow(context.Background(), 1, "echo_tool", "{}"); err != nil {
 		t.Errorf("expected guard to allow echo_tool, got: %v", err)
 	}
 	// write tool without approval
-	if err := g.Allow(context.Background(), 1, "update_item"); err != nil {
+	if err := g.Allow(context.Background(), 1, "update_item", "{}"); err != nil {
 		t.Errorf("expected guard to allow update_item, got: %v", err)
 	}
 }

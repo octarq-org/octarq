@@ -100,8 +100,9 @@ func NewRiskGuard(src EndpointSource) Guard {
 	return &riskGuard{src: src}
 }
 
-// Allow implements Guard.
-func (g *riskGuard) Allow(_ context.Context, _ uint, tool string) error {
+// Allow implements Guard. Whether a call needs approval is a property of the
+// endpoint, not of the arguments, so the arguments are not consulted.
+func (g *riskGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	if g.src == nil {
 		return plugin.NewAgentError(
 			404,

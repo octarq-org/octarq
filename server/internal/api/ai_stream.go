@@ -39,8 +39,8 @@ func newReadOnlyGuard(src harness.EndpointSource) harness.Guard {
 	}
 }
 
-func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool string) error {
-	if err := g.base.Allow(ctx, orgID, tool); err != nil {
+func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool, argsJSON string) error {
+	if err := g.base.Allow(ctx, orgID, tool, argsJSON); err != nil {
 		return err
 	}
 	if g.src == nil {
