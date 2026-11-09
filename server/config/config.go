@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // MinSecretKeyLen is the minimum acceptable length for OCTARQ_SECRET_KEY. It is
@@ -101,6 +102,22 @@ type Config struct {
 	// silence ops debugging. Empty means "info".
 	LogLevel string
 
+	// LoginMaxFails bounds failed sign-ins per client IP inside LoginWindow.
+	// Set via OCTARQ_LOGIN_MAX_FAILS. Defaults to 5. A development machine
+	// mistypes and retries far more often than a production user, so it raises
+	// the budget; nothing else may.
+	LoginMaxFails int
+
+	// LoginAccountMaxFails bounds failed sign-ins per account inside
+	// LoginWindow. Set via OCTARQ_LOGIN_ACCOUNT_MAX_FAILS. Defaults to 10 —
+	// twice the IP budget, so a shared NAT that spent its own budget is not
+	// also locked out per account.
+	LoginAccountMaxFails int
+
+	// LoginWindow is the period both sign-in budgets count over. Set via
+	// OCTARQ_LOGIN_WINDOW. Defaults to 15 minutes.
+	LoginWindow time.Duration
+
 	// DevWebProxy configures an optional development reverse-proxy target URL
 	// (e.g. "http://localhost:5173"). When configured, non-API frontend and SPA
 	// requests are reverse-proxied to this dev server (with HMR support)
@@ -129,6 +146,31 @@ type Config struct {
 	BackupS3Region      string // OCTARQ_BACKUP_S3_REGION (default: "auto" or "us-east-1")
 	BackupRetentionDays int    // OCTARQ_BACKUP_RETENTION_DAYS (default: 30)
 	BackupCron          string // OCTARQ_BACKUP_CRON (default: "0 3 * * *")
+}
+
+// The sign-in budgets an instance runs with when nothing sets them.
+const (
+	DefaultLoginMaxFails        = 5
+	DefaultLoginAccountMaxFails = 10
+	DefaultLoginWindow          = 15 * time.Minute
+)
+
+// LoginBudgets returns the budgets the API counts against. Load fills them
+// from the environment and refuses a value it cannot read. A Config built by
+// hand carries zero fields, and zero means the documented default — never "no
+// limit", which would turn the sign-in throttle off by accident.
+func (c *Config) LoginBudgets() (maxFails, accountMaxFails int, window time.Duration) {
+	maxFails, accountMaxFails, window = c.LoginMaxFails, c.LoginAccountMaxFails, c.LoginWindow
+	if maxFails <= 0 {
+		maxFails = DefaultLoginMaxFails
+	}
+	if accountMaxFails <= 0 {
+		accountMaxFails = DefaultLoginAccountMaxFails
+	}
+	if window <= 0 {
+		window = DefaultLoginWindow
+	}
+	return maxFails, accountMaxFails, window
 }
 
 // BackupS3Configured reports whether the remote S3/R2 backup target has all

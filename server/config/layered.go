@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
@@ -39,6 +40,9 @@ var layeredKeys = []struct {
 	{"OCTARQ_CORS_ORIGINS", "cors.origins"},
 	{"OCTARQ_DEV_WEB_PROXY", "dev.web_proxy"},
 	{"OCTARQ_LOG_LEVEL", "log.level"},
+	{"OCTARQ_LOGIN_MAX_FAILS", "login.max_fails"},
+	{"OCTARQ_LOGIN_ACCOUNT_MAX_FAILS", "login.account_max_fails"},
+	{"OCTARQ_LOGIN_WINDOW", "login.window"},
 	{"OCTARQ_OTEL_ENABLED", "otel.enabled"},
 	{"OTEL_EXPORTER_OTLP_ENDPOINT", "otel.endpoint"},
 	{"OTEL_SERVICE_NAME", "otel.service_name"},
@@ -120,6 +124,38 @@ func valueOf(values map[string]string, key, def string) string {
 	return def
 }
 
+// parseLoginBudgets reads the sign-in limits. Defaults are the production
+// values. A value that is not a positive number stops startup: a typo that
+// fell back to the default would leave the operator with a lockout nobody can
+// explain.
+func (c *Config) parseLoginBudgets(get func(key, def string) string) error {
+	c.LoginMaxFails = DefaultLoginMaxFails
+	if raw := strings.TrimSpace(get("OCTARQ_LOGIN_MAX_FAILS", "")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			return fmt.Errorf("OCTARQ_LOGIN_MAX_FAILS must be a positive whole number, got %q", raw)
+		}
+		c.LoginMaxFails = n
+	}
+	c.LoginAccountMaxFails = DefaultLoginAccountMaxFails
+	if raw := strings.TrimSpace(get("OCTARQ_LOGIN_ACCOUNT_MAX_FAILS", "")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			return fmt.Errorf("OCTARQ_LOGIN_ACCOUNT_MAX_FAILS must be a positive whole number, got %q", raw)
+		}
+		c.LoginAccountMaxFails = n
+	}
+	c.LoginWindow = DefaultLoginWindow
+	if raw := strings.TrimSpace(get("OCTARQ_LOGIN_WINDOW", "")); raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d <= 0 {
+			return fmt.Errorf("OCTARQ_LOGIN_WINDOW must be a positive duration such as 15m, got %q", raw)
+		}
+		c.LoginWindow = d
+	}
+	return nil
+}
+
 func buildFromValues(values map[string]string) (*Config, error) {
 	get := func(key, def string) string { return valueOf(values, key, def) }
 	c := &Config{
@@ -175,6 +211,9 @@ func buildFromValues(values map[string]string) (*Config, error) {
 		if d, err := strconv.Atoi(strings.TrimSpace(daysStr)); err == nil && d > 0 {
 			c.BackupRetentionDays = d
 		}
+	}
+	if err := c.parseLoginBudgets(get); err != nil {
+		return nil, err
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" && c.DBDriver != "mysql" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite, postgres, or mysql, got %q", c.DBDriver)

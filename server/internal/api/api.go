@@ -178,10 +178,12 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		}
 		return rl
 	}
-	h.loginLimiter = newLimiter("login", 5, 15*time.Minute) // 5 fails / 15 mins
-	// 10 fails per account / 15 mins: twice the IP budget, so a shared NAT
-	// that exhausts its own budget is not also locked out per account.
-	h.loginAccountLimiter = newLimiter("login-acct", 10, 15*time.Minute)
+	// The sign-in budgets default to 5 per IP and 10 per account in 15 minutes.
+	// An operator raises them with OCTARQ_LOGIN_MAX_FAILS,
+	// OCTARQ_LOGIN_ACCOUNT_MAX_FAILS and OCTARQ_LOGIN_WINDOW.
+	loginMax, loginAccountMax, loginWindow := cfg.LoginBudgets()
+	h.loginLimiter = newLimiter("login", loginMax, loginWindow)
+	h.loginAccountLimiter = newLimiter("login-acct", loginAccountMax, loginWindow)
 	h.recoveryLimiter = newLimiter("recovery", 5, 15*time.Minute) // 5 reset/verify requests / 15 mins
 	h.registerLimiter = newLimiter("register", 5, time.Hour)      // 5 sign-ups / hour
 	h.abuseLimiter = newLimiter("abuse", 5, time.Hour)            // 5 reports / 1 hour
