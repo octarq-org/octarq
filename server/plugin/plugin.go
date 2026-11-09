@@ -16,8 +16,8 @@
 // # Optional capabilities and compile-time assertions
 //
 // Beyond the required Plugin interface, a plugin opts into extra capabilities
-// by implementing optional interfaces (Starter, MenuProvider, MCPProvider,
-// OpenAPIContributor, Describer). The app detects them via runtime type
+// by implementing optional interfaces (Starter, Stopper, MenuProvider,
+// MCPProvider, OpenAPIContributor, Describer). The app detects them via runtime type
 // assertion, which means a typo'd method name or a drifted signature does NOT
 // fail the build — the capability is silently never invoked. To catch that at
 // compile time, every plugin MUST pair each optional interface it implements
@@ -55,6 +55,9 @@
 //     app.RunMCP refuse to serve.
 //   - After the mount phase the registry is effectively read-only and safe
 //     for concurrent Lookup from any goroutine.
+//   - Every Start goroutine's context is cancelled when the app shuts down.
+//     Stopper, when implemented, then runs in the reverse of mount order so a
+//     plugin can still reach services provided by plugins mounted before it.
 //
 // See Registry for the backing implementation and LookupAs for the canonical
 // consumer shape.
@@ -145,6 +148,28 @@ type Plugin interface {
 // services from other plugins regardless of registration order.
 type Starter interface {
 	Start(ctx context.Context)
+}
+
+// Stopper is an optional interface a Plugin may implement to finish work it
+// started in Start.
+//
+// The app cancels every Start goroutine's context, then calls Stop on each
+// plugin that implements this interface, in the reverse of the order the
+// plugins were mounted. Reverse order matters: a plugin that drains a queue by
+// writing through a service provided by an earlier plugin must still be able to
+// reach it. Only after every Stop returns (or the deadline fires) does the app
+// exit.
+//
+// Stop is where a plugin makes its work durable: mark in-flight rows back to a
+// queued state, flush a buffer, close a listener, and return. It must honor ctx
+// — shutdown waits at most the process shutdown timeout (10s) for all plugins
+// together — and it must be safe to call when Start never ran.
+//
+// A plugin without Stopper is not an error. Its Start goroutine still gets a
+// cancelled context, so it stops as soon as it next checks; what it cannot do
+// is report whether anything was left half-done.
+type Stopper interface {
+	Stop(ctx context.Context) error
 }
 
 // Validator is an optional interface a Plugin may implement to validate its

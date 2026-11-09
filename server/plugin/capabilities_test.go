@@ -14,10 +14,11 @@ func (barePlugin) Mount(Mux, *Context) {}
 
 type richPlugin struct{ barePlugin }
 
-func (richPlugin) Name() string          { return "rich" }
-func (richPlugin) Start(context.Context) {}
-func (richPlugin) Menus() []MenuItem     { return nil }
-func (richPlugin) Describe() Info        { return Info{} }
+func (richPlugin) Name() string               { return "rich" }
+func (richPlugin) Start(context.Context)      {}
+func (richPlugin) Stop(context.Context) error { return nil }
+func (richPlugin) Menus() []MenuItem          { return nil }
+func (richPlugin) Describe() Info             { return Info{} }
 
 // typoPlugin is the failure this diagnostic exists for: the author meant
 // MenuProvider but wrote Menu() instead of Menus(). Nothing fails to build,
@@ -31,7 +32,7 @@ func TestDetectedCapabilities(t *testing.T) {
 	if got := DetectedCapabilities(barePlugin{}); len(got) != 0 {
 		t.Errorf("bare plugin reported capabilities %v, want none", got)
 	}
-	if got, want := DetectedCapabilities(richPlugin{}), []string{"start", "menu", "describe"}; !reflect.DeepEqual(got, want) {
+	if got, want := DetectedCapabilities(richPlugin{}), []string{"start", "stop", "menu", "describe"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("rich plugin capabilities = %v, want %v", got, want)
 	}
 	if got := DetectedCapabilities(nil); got != nil {
