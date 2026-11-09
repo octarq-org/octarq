@@ -95,6 +95,11 @@ export function HarnessEditorModal({
       extraRules: cleanRules,
       toolAllow: tools,
       maxSteps: Math.max(1, Number(maxSteps) || 1),
+      // This form does not edit the budget ceilings, so it must carry them
+      // through: sending zero would remove a limit the operator set earlier.
+      maxTokens: initialSpec?.maxTokens ?? 0,
+      maxCostUSD: initialSpec?.maxCostUSD ?? 0,
+      maxWallTimeSec: initialSpec?.maxWallTimeSec ?? 0,
     };
 
     setSubmitting(true);

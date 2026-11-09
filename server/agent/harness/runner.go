@@ -174,6 +174,9 @@ type defaultRunner struct {
 	// the profile's ceiling is a safety invariant, a harness spec is not
 	// allowed to raise it.
 	maxSteps int
+	// budget bounds what the turn may spend across rounds. The zero Budget
+	// leaves it unbounded.
+	budget Budget
 }
 
 // RunnerOption configures a defaultRunner.
@@ -252,10 +255,17 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 	// Seed history with the user's input.
 	s.History = append(s.History, Message{Role: "user", Content: t.Input})
 
+	started := time.Now()
 	for step := 0; ; step++ {
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
 			return ErrMaxStepsExceeded
+		}
+
+		// Budget is checked before the round, not during it. See Budget.
+		if err := r.checkBudget(t, started); err != nil {
+			t.Status = TurnStatusFailed
+			return err
 		}
 
 		// Call LLM.

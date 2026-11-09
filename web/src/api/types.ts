@@ -377,6 +377,9 @@ export interface HarnessSpecContent {
   extraRules: string[];
   toolAllow: string[];
   maxSteps: number;
+  maxTokens: number;
+  maxCostUSD: number;
+  maxWallTimeSec: number;
 }
 
 // A spec on the way in. The optional fields may be left out: an omitted
@@ -388,6 +391,9 @@ export interface HarnessSpecInput {
   extraRules?: string[];
   toolAllow?: string[];
   maxSteps?: number;
+  maxTokens?: number;
+  maxCostUSD?: number;
+  maxWallTimeSec?: number;
 }
 
 export interface HarnessActiveVersion {

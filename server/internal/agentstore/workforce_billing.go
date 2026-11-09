@@ -82,6 +82,27 @@ func turnCost(price models.WorkforceModelPrice, in, out int) float64 {
 	return roundSpend(cost)
 }
 
+// TurnCostFunc returns a function that prices the tokens a turn has spent on
+// model, in US dollars. It fails closed: a model the workspace never priced
+// has no cost, so a ceiling over it could never be enforced.
+//
+// The returned function is intended for harness.Budget.Cost, which checks the
+// ceiling before each round of the agent loop.
+func (s *WorkforceStore) TurnCostFunc(ctx context.Context, orgID uint, model string) (func(input, output, reasoning int) float64, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("agentstore: workforce store is not configured")
+	}
+	price, err := s.priceFor(ctx, orgID, model)
+	if err != nil {
+		return nil, err
+	}
+	return func(input, output, _ int) float64 {
+		// Reasoning tokens are already part of the output count on every
+		// supported provider, so turnCost bills input and output only.
+		return turnCost(*price, input, output)
+	}, nil
+}
+
 // ListModelPrices returns every priced model of the workspace.
 func (s *WorkforceStore) ListModelPrices(ctx context.Context, orgID uint) ([]models.WorkforceModelPrice, error) {
 	if s == nil || s.db == nil {

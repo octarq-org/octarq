@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
@@ -55,10 +56,17 @@ func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp 
 	// Seed history with the user's input.
 	s.History = append(s.History, Message{Role: "user", Content: t.Input})
 
+	started := time.Now()
 	for step := 0; ; step++ {
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
 			return ErrMaxStepsExceeded
+		}
+
+		// Budget is checked before the round, not during it. See Budget.
+		if err := r.checkBudget(t, started); err != nil {
+			t.Status = TurnStatusFailed
+			return err
 		}
 
 		msgs := toProviderMessages(s.History)
