@@ -1,4 +1,5 @@
 import type { NavigateFunction } from "react-router-dom";
+import { dashboardOwnsPath } from "./routeOwnership";
 
 /**
  * Validates a redirect target to protect against open-redirect attacks.
@@ -53,8 +54,8 @@ export type PostLoginDestination =
  * - /admin/foo -> SPA route /foo
  * - /admin or /admin/ -> SPA route /overview
  * - /login or /admin/login -> SPA route /overview
- * - /instance or /status -> external route (outside /admin basename)
- * - /foo -> SPA route /foo (relative to /admin dashboard)
+ * - a path the dashboard shell serves -> SPA route relative to the /admin basename
+ * - any other path -> external page load (a plugin's own UI, /status, …)
  *
  * If no `next` parameter is present (or invalid):
  * - If current path is root ("/") or "/login", defaults to "/overview".
@@ -63,6 +64,7 @@ export type PostLoginDestination =
 export function resolvePostLoginNavigation(
   nextCandidate: string | null | undefined,
   currentPath = "/",
+  ownsPath: (path: string) => boolean = dashboardOwnsPath,
 ): PostLoginDestination {
   const safe = safeNextPath(nextCandidate);
   if (safe) {
@@ -76,7 +78,10 @@ export function resolvePostLoginNavigation(
       }
       return { type: "spa", path: sub };
     }
-    if (safe.startsWith("/instance") || safe.startsWith("/status")) {
+    // A path the shell does not serve belongs to another application on the
+    // same origin (a plugin's UI under /aiduu, the status page under /status).
+    // A route inside the shell would not exist, so load the page itself.
+    if (!ownsPath(safe)) {
       return { type: "external", url: safe };
     }
     return { type: "spa", path: safe };
