@@ -63,6 +63,10 @@ type serverRunParams struct {
 	services        *plugin.Registry
 	cronEngine      *cron.Engine
 	healthCollector *monitor.Collector
+	// stopPluginContext cancels the context every plugin Start goroutine was
+	// given. serve calls it before Stopper, so no plugin is still producing
+	// work while others drain.
+	stopPluginContext context.CancelFunc
 }
 
 func (a *App) serve(ctx context.Context, p serverRunParams) error {
@@ -185,6 +189,13 @@ func (a *App) serve(ctx context.Context, p serverRunParams) error {
 		}
 	}()
 	wg.Wait()
+	// HTTP stops accepting (and finishes in-flight) requests before the
+	// plugins that serve them are torn down, so Stop never runs under a live
+	// request handler.
+	if err := stopPlugins(shutCtx, p.stopPluginContext, a.plugins); err != nil {
+		slog.Warn("plugin shutdown reported errors", "err", err)
+		shutErr = errors.Join(shutErr, err)
+	}
 	return shutErr
 }
 

@@ -22,9 +22,9 @@ import (
 // the answer immediately instead of reading the mount path looking for a bug
 // that is in their own method name.
 //
-// The returned names are the stable capability keys ("start", "menu",
-// "instance-menu", "action", "mcp", "help", "openapi", "describe"), suitable for
-// a log line or an API field.
+// The returned names are the stable capability keys ("start", "stop", "menu",
+// "instance-menu", "action", "mcp", "help", "openapi", "describe"), suitable
+// for a log line or an API field.
 func DetectedCapabilities(p Plugin) []string {
 	if p == nil {
 		return nil
@@ -37,6 +37,8 @@ func DetectedCapabilities(p Plugin) []string {
 	}
 	_, starter := p.(Starter)
 	add("start", starter)
+	_, stopper := p.(Stopper)
+	add("stop", stopper)
 	_, menu := p.(MenuProvider)
 	add("menu", menu)
 	_, instanceMenu := p.(InstanceMenuProvider)

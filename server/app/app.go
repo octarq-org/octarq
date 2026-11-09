@@ -376,12 +376,19 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
+	// Plugin goroutines get a context the shutdown path can cancel. The root
+	// ctx is never cancelled on SIGTERM (main passes context.Background), so
+	// reusing it would leave every Start goroutine running while the process
+	// tears down around it.
+	pluginCtx, stopPluginContext := context.WithCancel(ctx)
+	defer stopPluginContext()
+
 	for _, p := range a.plugins {
 		if s, ok := p.(plugin.Starter); ok {
-			go s.Start(ctx)
+			go s.Start(pluginCtx)
 		}
 	}
-	eventbus.StartReactors(ctx, 0)
+	eventbus.StartReactors(pluginCtx, 0)
 	if err := cron.RegisterBackupJob(cronEngine, a.cfg); err != nil {
 		slog.Error("cron backup registration failed", "err", err)
 	}
@@ -418,13 +425,14 @@ func (a *App) Run(ctx context.Context) error {
 		slog.Info("dev web proxy enabled", "target", a.cfg.DevWebProxy)
 	}
 	return a.serve(ctx, serverRunParams{
-		mux:             mux,
-		rootHandler:     rootHandler,
-		webFS:           webFS,
-		staticMounts:    staticMounts,
-		apiHandler:      apiHandler,
-		services:        services,
-		cronEngine:      cronEngine,
-		healthCollector: healthCollector,
+		mux:               mux,
+		rootHandler:       rootHandler,
+		webFS:             webFS,
+		staticMounts:      staticMounts,
+		apiHandler:        apiHandler,
+		services:          services,
+		cronEngine:        cronEngine,
+		healthCollector:   healthCollector,
+		stopPluginContext: stopPluginContext,
 	})
 }
