@@ -186,7 +186,15 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
-	for _, p := range a.plugins {
+	// Validate in dependency order, not registration order: a plugin's
+	// Validate may Lookup a service provided by a plugin it Requires, and only
+	// Requires says which one that is. Registration order made that a coin
+	// flip decided by the composition root.
+	mcpOrder, err := dependencyOrder(a.plugins)
+	if err != nil {
+		return err
+	}
+	for _, p := range mcpOrder {
 		if v, ok := p.(plugin.Validator); ok {
 			if err := v.Validate(ctx, pctx.Host); err != nil {
 				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
@@ -368,7 +376,15 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	for _, p := range a.plugins {
+	// Validate in dependency order, not registration order: a plugin's
+	// Validate may Lookup a service provided by a plugin it Requires, and only
+	// Requires says which one that is. Registration order made that a coin
+	// flip decided by the composition root.
+	validating, err := dependencyOrder(a.plugins)
+	if err != nil {
+		return err
+	}
+	for _, p := range validating {
 		if v, ok := p.(plugin.Validator); ok {
 			if err := v.Validate(ctx, pctx.Host); err != nil {
 				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
