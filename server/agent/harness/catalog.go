@@ -261,6 +261,10 @@ func (c Catalog) SystemPrompt(spec HarnessSpec) string {
 	if spec.MaxSteps > 0 {
 		fmt.Fprintf(&b, "- You have at most %d tool-calling steps for this request.\n", spec.MaxSteps)
 	}
+	if spec.MaxTokens > 0 || spec.MaxCostUSD > 0 || spec.MaxWallTimeSec > 0 {
+		b.WriteString("- This request stops when it reaches its token, cost or time budget.\n")
+		b.WriteString("  Finish the answer before that happens.\n")
+	}
 	b.WriteString("- Never invent data. If the tools cannot answer the question, say so plainly.\n")
 
 	for _, rule := range spec.ExtraRules {

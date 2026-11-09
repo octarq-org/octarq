@@ -421,6 +421,19 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The published ceilings become a live budget. A cost ceiling over a model
+	// the workspace never priced is refused here: it could never be enforced,
+	// and a limit the operator believes is on but is not is worse than none.
+	var cost func(input, output, reasoning int) float64
+	if spec.MaxCostUSD > 0 {
+		cost, err = billingStore.TurnCostFunc(r.Context(), orgID, model)
+		if err != nil {
+			writeBillingRefusal(w, r, err)
+			return
+		}
+	}
+	budget := harness.BudgetFromSpec(spec, cost)
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -489,6 +502,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		harness.WithProfile(harness.ProfileNormal),
 		harness.WithSystem(systemPrompt),
 		harness.WithMaxSteps(maxSteps),
+		harness.WithBudget(budget),
 	)
 	if req.Model != "" {
 		runnerOpts = append(runnerOpts, harness.WithModel(req.Model))

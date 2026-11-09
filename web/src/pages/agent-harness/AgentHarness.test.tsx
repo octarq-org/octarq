@@ -170,6 +170,9 @@ describe("AgentHarnessPage", () => {
       extraRules: ["Rule Draft"],
       toolAllow: ["list_links"],
       maxSteps: 7,
+      maxTokens: 0,
+      maxCostUSD: 0,
+      maxWallTimeSec: 0,
     },
   };
 
@@ -190,6 +193,9 @@ describe("AgentHarnessPage", () => {
       extraRules: ["Always answer in the operator's language."],
       toolAllow: [], // empty = unrestricted
       maxSteps: 6,
+      maxTokens: 0,
+      maxCostUSD: 0,
+      maxWallTimeSec: 0,
     },
   };
 
@@ -210,6 +216,9 @@ describe("AgentHarnessPage", () => {
       extraRules: ["Rule A", "Rule B"],
       toolAllow: ["list_links", "list_domains"],
       maxSteps: 4,
+      maxTokens: 0,
+      maxCostUSD: 0,
+      maxWallTimeSec: 0,
     },
   };
 
@@ -601,6 +610,9 @@ describe("AgentHarnessPage", () => {
         extraRules: ["Rule Staged"],
         toolAllow: [],
         maxSteps: 6,
+        maxTokens: 0,
+        maxCostUSD: 0,
+        maxWallTimeSec: 0,
       },
     };
     vi.mocked(api.createAgentHarnessDraft).mockResolvedValue(stagedDraft);
@@ -653,6 +665,9 @@ describe("AgentHarnessPage", () => {
         extraRules: [],
         toolAllow: [],
         maxSteps: 5,
+        maxTokens: 0,
+        maxCostUSD: 0,
+        maxWallTimeSec: 0,
       },
     };
     vi.mocked(api.importAgentHarnessProposal).mockResolvedValue(importedProposalDraft);

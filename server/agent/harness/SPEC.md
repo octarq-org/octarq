@@ -93,12 +93,15 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
 - **Harness Spec** (`spec.go`):
   ```go
   type HarnessSpec struct {
-      Version    int      `json:"version"`
-      Name       string   `json:"name"`
-      Preamble   string   `json:"preamble,omitempty"`
-      ExtraRules []string `json:"extraRules,omitempty"`
-      ToolAllow  []string `json:"toolAllow,omitempty"`
-      MaxSteps   int      `json:"maxSteps,omitempty"`
+      Version        int      `json:"version"`
+      Name           string   `json:"name"`
+      Preamble       string   `json:"preamble,omitempty"`
+      ExtraRules     []string `json:"extraRules,omitempty"`
+      ToolAllow      []string `json:"toolAllow,omitempty"`
+      MaxSteps       int      `json:"maxSteps,omitempty"`
+      MaxTokens      int      `json:"maxTokens,omitempty"`
+      MaxCostUSD     float64  `json:"maxCostUSD,omitempty"`
+      MaxWallTimeSec int      `json:"maxWallTimeSec,omitempty"`
   }
   ```
   The spec is the versioned, publishable description of an agent's shell. It
@@ -131,6 +134,35 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   | `extraRules` | 20 rules, 500 characters each |
   | `toolAllow` | 200 names, 64 characters each, no duplicates |
   | `maxSteps` | 0 (the profile decides) or 1-8 (`MaxSpecMaxSteps` = the highest profile ceiling) |
+  | `maxTokens` | zero or positive |
+  | `maxCostUSD` | zero or positive, finite (NaN would accept any spend) |
+  | `maxWallTimeSec` | zero or positive |
+
+- **Turn budget** (`budget.go`): `MaxSteps` counts rounds, and a round that
+  never calls a tool is free — a model that only reasons loops until it is
+  stopped by something else. The three budget ceilings are that something.
+
+  - `harness.WithBudget(Budget)` puts the ceilings on a runner;
+    `harness.BudgetFromSpec(spec, cost)` builds them from a published spec.
+  - The ceilings are checked **before each round**, never during one. A round
+    that starts under the ceiling runs to completion, and the check refuses
+    the next round, so a turn can end above its ceiling by at most the cost of
+    the round that was already running. Aborting mid-call would leave the
+    provider billing a request the harness abandoned.
+  - A reached ceiling returns `ErrBudgetExceeded` and sets
+    `TurnStatusFailed`.
+  - A cost ceiling with no price (`Budget.Cost == nil`) fails the turn with
+    `ErrBudgetUnpriceable` on the first check. A ceiling that can never trip
+    is worse than none: the operator reads the spec, believes a limit is in
+    force, and pays for a loop nothing stopped. The API therefore refuses the
+    request when the spec sets `maxCostUSD` and the workspace has no price for
+    the model.
+  - `CanonicalJSON` omits a zero ceiling, so the fingerprint of an existing
+    spec does not change when the field is added; a spec that uses a ceiling
+    fingerprints differently, as it should.
+  - The streaming loop and the non-streaming loop both call `checkBudget`.
+    Two loops that disagree about a safety limit are a defect waiting for the
+    first streaming client.
 
 - **Endpoint contract additions** (`server/plugin/endpoints.go`):
   `plugin.Endpoint` gained `EndpointRisk() string` and

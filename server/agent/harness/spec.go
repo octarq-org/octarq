@@ -67,6 +67,18 @@ type HarnessSpec struct {
 	ToolAllow []string `json:"toolAllow,omitempty"`
 	// MaxSteps is the step budget for a turn. Zero means the profile default.
 	MaxSteps int `json:"maxSteps,omitempty"`
+	// MaxTokens bounds the input and output tokens of one turn. Zero means no
+	// ceiling.
+	MaxTokens int `json:"maxTokens,omitempty"`
+	// MaxCostUSD bounds the cost of one turn in US dollars. Zero means no
+	// ceiling. A turn cannot be priced without a configured model price: a spec
+	// that sets this over an unpriced model fails the turn instead of running
+	// it uncapped.
+	MaxCostUSD float64 `json:"maxCostUSD,omitempty"`
+	// MaxWallTimeSec bounds the wall-clock time of one turn, in seconds. Zero
+	// means no ceiling. It is the only ceiling that also stops a model that
+	// keeps reasoning without calling a tool.
+	MaxWallTimeSec int `json:"maxWallTimeSec,omitempty"`
 }
 
 // DefaultHarnessSpec is the built-in spec: the stock preamble, no extra rules,
@@ -155,6 +167,15 @@ func Validate(spec HarnessSpec) error {
 	if spec.MaxSteps != 0 && (spec.MaxSteps < MinSpecMaxSteps || spec.MaxSteps > MaxSpecMaxSteps) {
 		vs = append(vs, SpecViolation{Field: "maxSteps", Message: fmt.Sprintf("must be 0 or between %d and %d", MinSpecMaxSteps, MaxSpecMaxSteps)})
 	}
+	if !validBudgetNumber(float64(spec.MaxTokens)) {
+		vs = append(vs, SpecViolation{Field: "maxTokens", Message: "must be zero or positive"})
+	}
+	if !validBudgetNumber(spec.MaxCostUSD) {
+		vs = append(vs, SpecViolation{Field: "maxCostUSD", Message: "must be zero or positive"})
+	}
+	if !validBudgetNumber(float64(spec.MaxWallTimeSec)) {
+		vs = append(vs, SpecViolation{Field: "maxWallTimeSec", Message: "must be zero or positive"})
+	}
 
 	if len(vs) > 0 {
 		return &SpecValidationError{Violations: vs}
@@ -210,20 +231,26 @@ func (s HarnessSpec) Fingerprint() string {
 // not depend on map iteration or field order.
 func (s HarnessSpec) CanonicalJSON() string {
 	type canonical struct {
-		Version    int      `json:"version"`
-		Name       string   `json:"name"`
-		Preamble   string   `json:"preamble"`
-		ExtraRules []string `json:"extraRules"`
-		ToolAllow  []string `json:"toolAllow"`
-		MaxSteps   int      `json:"maxSteps"`
+		Version        int      `json:"version"`
+		Name           string   `json:"name"`
+		Preamble       string   `json:"preamble"`
+		ExtraRules     []string `json:"extraRules"`
+		ToolAllow      []string `json:"toolAllow"`
+		MaxSteps       int      `json:"maxSteps"`
+		MaxTokens      int      `json:"maxTokens,omitempty"`
+		MaxCostUSD     float64  `json:"maxCostUSD,omitempty"`
+		MaxWallTimeSec int      `json:"maxWallTimeSec,omitempty"`
 	}
 	c := canonical{
-		Version:    s.Version,
-		Name:       s.Name,
-		Preamble:   s.Preamble,
-		ExtraRules: append([]string{}, s.ExtraRules...),
-		ToolAllow:  append([]string{}, s.ToolAllow...),
-		MaxSteps:   s.MaxSteps,
+		Version:        s.Version,
+		Name:           s.Name,
+		Preamble:       s.Preamble,
+		ExtraRules:     append([]string{}, s.ExtraRules...),
+		ToolAllow:      append([]string{}, s.ToolAllow...),
+		MaxSteps:       s.MaxSteps,
+		MaxTokens:      s.MaxTokens,
+		MaxCostUSD:     s.MaxCostUSD,
+		MaxWallTimeSec: s.MaxWallTimeSec,
 	}
 	if c.ExtraRules == nil {
 		c.ExtraRules = []string{}
