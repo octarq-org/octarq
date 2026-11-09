@@ -50,7 +50,10 @@ describe("safeNextPath", () => {
 describe("resolvePostLoginNavigation", () => {
   it("resolves relative dashboard paths as SPA routes", () => {
     expect(resolvePostLoginNavigation("/settings")).toEqual({ type: "spa", path: "/settings" });
-    expect(resolvePostLoginNavigation("/domains?tab=providers")).toEqual({
+    // /domains belongs to the dns frontend plugin, which this test does not
+    // compose. Only a registered route makes the shell own the path, so the
+    // predicate stands in for that registration.
+    expect(resolvePostLoginNavigation("/domains?tab=providers", "/", (p) => p.startsWith("/domains"))).toEqual({
       type: "spa",
       path: "/domains?tab=providers",
     });
@@ -79,6 +82,33 @@ describe("resolvePostLoginNavigation", () => {
       url: "/instance/settings",
     });
     expect(resolvePostLoginNavigation("/status")).toEqual({ type: "external", url: "/status" });
+  });
+
+  it("loads a page the shell does not serve instead of a missing route", () => {
+    // A plugin's own UI lives at its own prefix. Sending the browser to a
+    // route inside the shell would leave the person on a page that is not
+    // there (a bare /aiduu/ used to land on /admin/aiduu/).
+    expect(resolvePostLoginNavigation("/aiduu/")).toEqual({ type: "external", url: "/aiduu/" });
+    expect(resolvePostLoginNavigation("/aiduu/?room=3")).toEqual({
+      type: "external",
+      url: "/aiduu/?room=3",
+    });
+    expect(resolvePostLoginNavigation("/somewhere-else")).toEqual({
+      type: "external",
+      url: "/somewhere-else",
+    });
+  });
+
+  it("follows the ownership check it is given", () => {
+    const owns = (p: string) => p.startsWith("/custom");
+    expect(resolvePostLoginNavigation("/custom/page", "/", owns)).toEqual({
+      type: "spa",
+      path: "/custom/page",
+    });
+    expect(resolvePostLoginNavigation("/custom/page")).toEqual({
+      type: "external",
+      url: "/custom/page",
+    });
   });
 
   it("falls back to /overview when no next param and current is root or login", () => {
