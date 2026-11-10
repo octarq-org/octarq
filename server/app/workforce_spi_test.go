@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -192,6 +193,97 @@ func TestNoopHostWorkforceRefuses(t *testing.T) {
 	host := &plugin.TestHost{}
 	w := host.Workforce()
 	if err := w.AuthorizeTurn(context.Background(), 1, "a", "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
+		t.Fatalf("AuthorizeTurn = %v, want ErrWorkforceUnavailable", err)
+	}
+}
+
+// TestWorkforceServiceWithoutAStoreRefuses pins the adapter's own nil guards: a
+// receiver or store that was never wired must refuse, not dereference.
+func TestWorkforceServiceWithoutAStoreRefuses(t *testing.T) {
+	ctx := context.Background()
+	var nilService *workforceService
+	for name, w := range map[string]plugin.Workforce{
+		"nil receiver": nilService,
+		"nil store":    newWorkforceService(nil),
+	} {
+		if err := w.AuthorizeTurn(ctx, 1, "a", "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
+			t.Fatalf("%s: AuthorizeTurn = %v", name, err)
+		}
+		if _, err := w.TurnCost(ctx, 1, "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
+			t.Fatalf("%s: TurnCost = %v", name, err)
+		}
+		if _, err := w.RecordSpend(ctx, 1, plugin.TurnSpend{}); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
+			t.Fatalf("%s: RecordSpend = %v", name, err)
+		}
+		if err := w.DecideApproval(ctx, 1, "t", true); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
+			t.Fatalf("%s: DecideApproval = %v", name, err)
+		}
+	}
+}
+
+// TestWorkforceErrorPassesUnknownErrorsThrough pins that the adapter only
+// rewrites the outcomes a plugin branches on. A database error is not a
+// contract; hiding it would leave an operator with "unavailable" and no cause.
+func TestWorkforceErrorPassesUnknownErrorsThrough(t *testing.T) {
+	cause := errors.New("disk I/O error")
+	if got := workforceError(cause); got != cause {
+		t.Fatalf("workforceError = %v, want the original error", got)
+	}
+}
+
+// TestWorkforceErrorMapsEveryLedgerSentinel pins the whole table at once. A
+// plugin branches on these sentinels, so a missing case silently folds two
+// different outcomes into one opaque error.
+func TestWorkforceErrorMapsEveryLedgerSentinel(t *testing.T) {
+	cases := map[string]struct{ in, want error }{
+		"agent not found":      {agentstore.ErrAgentNotFound, plugin.ErrWorkforceAgentNotFound},
+		"agent paused":         {agentstore.ErrAgentPaused, plugin.ErrWorkforceAgentPaused},
+		"budget exhausted":     {agentstore.ErrBudgetExceeded, plugin.ErrWorkforceBudgetExhausted},
+		"model unpriced":       {agentstore.ErrModelPriceMissing, plugin.ErrWorkforceModelUnpriced},
+		"invalid spend":        {agentstore.ErrInvalidSpend, plugin.ErrWorkforceInvalidSpend},
+		"spend replayed":       {agentstore.ErrSpendReplayed, plugin.ErrWorkforceSpendReplayed},
+		"task not found":       {agentstore.ErrTaskNotFound, plugin.ErrWorkforceTaskNotFound},
+		"approval not pending": {agentstore.ErrNotAwaitingApproval, plugin.ErrWorkforceApprovalNotPending},
+	}
+	for name, tc := range cases {
+		if got := workforceError(tc.in); got != tc.want {
+			t.Errorf("%s: workforceError = %v, want %v", name, got, tc.want)
+		}
+		// The store does not promise a bare sentinel, so a wrapped one maps too.
+		if got := workforceError(fmt.Errorf("store: %w", tc.in)); got != tc.want {
+			t.Errorf("%s: workforceError(wrapped) = %v, want %v", name, got, tc.want)
+		}
+	}
+	if err := workforceError(nil); err != nil {
+		t.Errorf("workforceError(nil) = %v, want nil", err)
+	}
+}
+
+// TestWorkforceIsReachableThroughThePluginContext pins the path a plugin takes:
+// it never constructs the adapter itself, it calls ctx.Host.Workforce() on the
+// context the host hands it at Mount.
+func TestWorkforceIsReachableThroughThePluginContext(t *testing.T) {
+	a := bootApp(t)
+	if err := a.gdb.AutoMigrate(
+		&models.WorkforceAgent{}, &models.WorkforceModelPrice{}, &models.WorkspaceSetting{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	id := seedAgent(t, agentstore.NewWorkforceStore(a.gdb), 7, "active")
+
+	ctx := a.buildPluginContext(pluginContextParams{gdb: a.gdb})
+	if err := ctx.Host.Workforce().AuthorizeTurn(context.Background(), 7, id, "test-model"); err != nil {
+		t.Fatalf("AuthorizeTurn through the plugin context = %v, want nil", err)
+	}
+}
+
+// TestHostWithoutADatabaseRefusesThroughThePluginContext pins the other half:
+// a host assembled without a database still answers, and the answer is
+// "unavailable", not a zero-cost pass.
+func TestHostWithoutADatabaseRefusesThroughThePluginContext(t *testing.T) {
+	ctx := (&App{}).buildPluginContext(pluginContextParams{})
+	err := ctx.Host.Workforce().AuthorizeTurn(context.Background(), 7, "a", "m")
+	if !errors.Is(err, plugin.ErrWorkforceUnavailable) {
 		t.Fatalf("AuthorizeTurn = %v, want ErrWorkforceUnavailable", err)
 	}
 }
