@@ -112,6 +112,33 @@ func TestPendingCallHashIgnoresFormatting(t *testing.T) {
 	}
 }
 
+// TestNewPendingCallMatchesTheRecordedOne pins the constructor a host uses to
+// rebuild a stored approval. What it builds must be the record the runner
+// wrote; otherwise the resumed call is not the one the operator saw.
+func TestNewPendingCallMatchesTheRecordedOne(t *testing.T) {
+	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
+	r := NewRunner(comp, &argExecutor{}, WithGuard(&approvalGuard{tool: "delete_link"}))
+	s, turn := newBudgetTurn()
+
+	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
+		t.Fatalf("Run = %v, want ErrApprovalRequired", err)
+	}
+	recorded := turn.PendingCall
+	if recorded == nil {
+		t.Fatal("no pending call recorded")
+	}
+
+	rebuilt := NewPendingCall(recorded.Tool, recorded.ArgsJSON)
+	if *rebuilt != *recorded {
+		t.Fatalf("rebuilt %+v, want the recorded %+v", *rebuilt, *recorded)
+	}
+	// A stored approval is read back as text; the formatting of that text is not
+	// part of the call.
+	if messy := NewPendingCall(recorded.Tool, "{\n  \"id\": \"42\"\n}"); *messy != *recorded {
+		t.Fatalf("re-rendered arguments changed the record: %+v", *messy)
+	}
+}
+
 // TestResumeRunsTheApprovedCallNotTheNextOne is the defect this exists for.
 // The model writes a different call when asked again; the approval belongs to
 // the first one, and that is the one that runs.

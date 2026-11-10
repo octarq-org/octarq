@@ -17,19 +17,30 @@ import (
 // run. Resume is not a way to start a turn; Run is.
 var ErrNoPendingCall = errors.New("harness: the turn has no pending call to resume")
 
-// newPendingCall records a call the guard refused for approval.
+// NewPendingCall builds the record of a tool call an operator is asked to
+// approve.
 //
-// The arguments are canonicalised first. The guard saw the call the model
-// wrote, and the operator is shown these bytes; making them canonical means two
-// renderings of one call produce one hash, so an approval cannot be sidestepped
-// by writing the same object with different spacing or key order.
-func newPendingCall(tc toolCall) *PendingCall {
-	args := canonicalArgs(tc.ArgsJSON)
+// A host that stores an approval must rebuild this value when the decision
+// comes back. The identity of a call is this package's rule, so callers build
+// it here instead of copying the hash formula: a copy drifts the day the
+// formula changes, and the approval then binds to a call nobody decided on.
+//
+// The arguments are canonicalised first: the operator is shown these bytes, and
+// two renderings of one call must produce one hash, so re-spacing an object
+// cannot sidestep an approval. Pass the bytes that were stored: Resume executes
+// them unchanged.
+func NewPendingCall(tool, argsJSON string) *PendingCall {
+	args := canonicalArgs(json.RawMessage(argsJSON))
 	return &PendingCall{
-		Tool:     tc.Name,
+		Tool:     tool,
 		ArgsJSON: args,
-		Hash:     callHash(tc.Name, args),
+		Hash:     callHash(tool, args),
 	}
+}
+
+// newPendingCall records a call the guard refused for approval.
+func newPendingCall(tc toolCall) *PendingCall {
+	return NewPendingCall(tc.Name, string(tc.ArgsJSON))
 }
 
 // canonicalArgs renders argument bytes in one stable form.
