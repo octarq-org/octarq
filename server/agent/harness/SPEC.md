@@ -312,6 +312,10 @@ type PendingCall struct {
   host that stored one and is rebuilding it after the decision. The identity of
   a call is this package's rule; a caller that copies the hash formula binds an
   approval to a call nobody decided on the day the formula changes.
+- The turn stops at the first call that needs approval, so the calls after it
+  never run. `executeSteps` writes them into one `tool` message before it
+  returns: a model that is not told repeats calls whose results are never
+  coming. The blocked call is not in that list — `Resume` runs it.
 
 **Resume** (`Runner.Resume`): runs the stored call and continues the turn.
 
