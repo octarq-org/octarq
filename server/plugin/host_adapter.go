@@ -32,6 +32,29 @@ func (noopHost) LookupCredential(context.Context, uint, CredentialQuery) (*Crede
 	return nil, ErrCredentialResolverUnavailable
 }
 
+// Workforce reports that no ledger is mounted. A host without a workspace has
+// no agents to bill, and refusing is the only honest answer.
+func (noopHost) Workforce() Workforce { return unavailableWorkforce{} }
+
+// unavailableWorkforce is the ledger of a host that has none.
+type unavailableWorkforce struct{}
+
+func (unavailableWorkforce) AuthorizeTurn(context.Context, uint, string, string) error {
+	return ErrWorkforceUnavailable
+}
+
+func (unavailableWorkforce) TurnCost(context.Context, uint, string) (func(input, output, reasoning int) float64, error) {
+	return nil, ErrWorkforceUnavailable
+}
+
+func (unavailableWorkforce) RecordSpend(context.Context, uint, TurnSpend) (*SpendRecord, error) {
+	return nil, ErrWorkforceUnavailable
+}
+
+func (unavailableWorkforce) DecideApproval(context.Context, uint, string, bool) error {
+	return ErrWorkforceUnavailable
+}
+
 type noopSession struct{}
 
 func (noopSession) UserID(*http.Request) uint                      { return 0 }

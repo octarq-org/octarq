@@ -44,7 +44,10 @@ type hostRuntime struct {
 	// what lets a plugin's agent run on the same harness the dashboard
 	// publishes, instead of a second, hand-written prompt.
 	harnessStore *agentstore.HarnessStore
-	services     *plugin.Registry
+	// workforce is the agent ledger a plugin reports to: turn authorisation,
+	// spend, and approval decisions.
+	workforce plugin.Workforce
+	services  *plugin.Registry
 }
 
 func (h *hostRuntime) Session() plugin.HostSession    { return h.session }
@@ -99,6 +102,18 @@ func (h *hostRuntime) LookupCredential(ctx context.Context, orgID uint, query pl
 }
 
 var _ plugin.Host = (*hostRuntime)(nil)
+
+// Workforce returns the agent ledger plugins bill their turns against.
+//
+// A host without a database has no ledger, and the returned service reports
+// ErrWorkforceUnavailable rather than a zero-cost answer: a turn nobody billed
+// is worse than a turn that was refused.
+func (h *hostRuntime) Workforce() plugin.Workforce {
+	if h == nil || h.workforce == nil {
+		return newWorkforceService(nil)
+	}
+	return h.workforce
+}
 
 // pluginContextParams collects dependencies needed to construct a plugin.Context.
 type pluginContextParams struct {
@@ -185,6 +200,7 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	}
 	if db != nil {
 		host.harnessStore = agentstore.NewHarnessStore(db)
+		host.workforce = newWorkforceService(agentstore.NewWorkforceStore(db))
 	}
 	if params.notifRouter != nil {
 		params.notifRouter.SetHost(host)

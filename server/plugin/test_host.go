@@ -17,6 +17,8 @@ type TestHost struct {
 	HarnessSpecFn func(ctx context.Context, orgID uint) (json.RawMessage, error)
 	// LookupCredentialMock is an optional mock for the Host's LookupCredential.
 	LookupCredentialMock func(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
+	// WorkforceMock is an optional mock for the Host's Workforce ledger.
+	WorkforceMock Workforce
 }
 
 func (h *TestHost) Session() HostSession {
@@ -70,6 +72,15 @@ func (h *TestHost) LookupCredential(ctx context.Context, orgID uint, query Crede
 	// No mock means no resolver is mounted, which is "standalone Core", not
 	// "the credential is missing".
 	return nil, ErrCredentialResolverUnavailable
+}
+
+// Workforce returns the mocked ledger. Without a mock the host has none, and
+// every call reports ErrWorkforceUnavailable rather than a zero answer.
+func (h *TestHost) Workforce() Workforce {
+	if h != nil && h.WorkforceMock != nil {
+		return h.WorkforceMock
+	}
+	return unavailableWorkforce{}
 }
 
 var _ Host = (*TestHost)(nil)
