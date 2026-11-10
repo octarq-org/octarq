@@ -64,7 +64,10 @@ func (r *defaultRunner) checkBudget(t *Turn, started time.Time) error {
 		}
 	}
 	if b.MaxWallTime > 0 {
-		if used := time.Since(started); used >= b.MaxWallTime {
+		// Elapsed holds what earlier runs of this turn spent: a turn that came
+		// back through an approval continues its wall clock instead of starting
+		// a new one.
+		if used := t.Elapsed + time.Since(started); used >= b.MaxWallTime {
 			return fmt.Errorf("%w: %s of %s used", ErrBudgetExceeded, used.Round(time.Second), b.MaxWallTime)
 		}
 	}
