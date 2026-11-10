@@ -146,12 +146,16 @@ func (r *defaultRunner) resumeApproved(ctx context.Context, s *Session, t *Turn,
 	// The approved call belongs to the round that produced it. Counting it here
 	// is what stops an approval from buying an extra round: the continuation
 	// starts at the round after this one.
-	step := t.rounds
+	step := t.Rounds
+	start := time.Now()
 	r.executeCall(ctx, s, t, step, toolCall{
 		Name:     call.Tool,
 		ArgsJSON: json.RawMessage(call.ArgsJSON),
 	}, obs)
-	t.rounds = step + 1
+	t.Rounds = step + 1
+	// Running the approved call is execution, so it counts for the wall clock.
+	// Waiting for the decision does not: it happened between Run and Resume.
+	t.Elapsed += time.Since(start)
 	return nil
 }
 

@@ -263,7 +263,8 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 	// count at zero. Resume continues both, which is why this reset lives here
 	// and not in runRounds.
 	t.PendingCall = nil
-	t.rounds = 0
+	t.Rounds = 0
+	t.Elapsed = 0
 
 	// Seed history with the user's input.
 	s.History = append(s.History, Message{Role: "user", Content: t.Input})
@@ -274,12 +275,17 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 // runRounds is the round loop. It assumes the history is seeded and runs until
 // the turn ends, so a resumed turn can re-enter it with the history the
 // approved call belongs to.
-func (r *defaultRunner) runRounds(ctx context.Context, s *Session, t *Turn, started time.Time) error {
+func (r *defaultRunner) runRounds(ctx context.Context, s *Session, t *Turn, started time.Time) (err error) {
 	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
-	for step := t.rounds; ; step++ {
-		t.rounds = step
+	// The wall clock this call spends is the turn's, however the call ends. A
+	// host that stores a turn reads it from Elapsed, so a turn that came back
+	// in another process does not restart its budget.
+	defer func() { t.Elapsed += time.Since(started) }()
+
+	for step := t.Rounds; ; step++ {
+		t.Rounds = step
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
 			return ErrMaxStepsExceeded
@@ -366,7 +372,6 @@ func invalidToolCallNotice(invalid []string) string {
 }
 
 // reportInvalidCalls hands the calls the model could not express back to it.
-//
 // A model that believes it called a tool stops asking for the result. The
 // turn therefore continues with the rejected lines, and the model can correct
 // itself. The same rule holds for the streaming path: a call that did not
@@ -377,6 +382,21 @@ func reportInvalidCalls(s *Session, text string, invalid []string) {
 		Role:    "tool",
 		Content: wrapUntrustedFence(invalidToolCallNotice(invalid)),
 	})
+}
+
+// skippedCallsNotice names the calls of a batch that did not run.
+//
+// The turn stops at the first call that needs operator approval, so every call
+// after it is dropped. A model that is not told repeats those calls: it
+// believes their results are still coming.
+func skippedCallsNotice(skipped []toolCall) string {
+	var b strings.Builder
+	b.WriteString("These tool calls did not run: the turn stopped for operator approval.")
+	for _, tc := range skipped {
+		b.WriteString("\n- ")
+		b.WriteString(tc.Name)
+	}
+	return b.String()
 }
 
 // StepObserver watches the tool calls the loop actually runs.
@@ -401,7 +421,7 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 			Content: remaining,
 		})
 	}
-	for _, tc := range calls {
+	for i, tc := range calls {
 		st := Step{
 			ToolName: tc.Name,
 			ArgsJSON: string(tc.ArgsJSON),
@@ -432,6 +452,15 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 				// Without it the approval would apply to whatever the model
 				// writes the next time it is asked, which is a different call.
 				t.PendingCall = newPendingCall(tc)
+				// The turn stops here, so the calls after this one never run.
+				// A model that does not hear about them believes it made calls
+				// whose results are still coming, and repeats them.
+				if skipped := calls[i+1:]; len(skipped) > 0 {
+					s.History = append(s.History, Message{
+						Role:    "tool",
+						Content: wrapUntrustedFence(skippedCallsNotice(skipped)),
+					})
+				}
 				return guardErr
 			}
 			// Append the guard rejection into history so the LLM knows.

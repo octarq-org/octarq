@@ -6,6 +6,8 @@
 // public surface (invariant #11); implementation details may change.
 package harness
 
+import "time"
+
 // Message is a single conversational turn within a session history.
 // It mirrors the shape of llmprovider.Message but is defined locally
 // to keep this package self-contained.
@@ -92,8 +94,15 @@ type Turn struct {
 	// It is nil while the turn runs, and Resume takes it as the call to run.
 	PendingCall *PendingCall
 
-	// rounds counts the rounds this turn has used, so a resumed turn continues
-	// the same step budget instead of starting a fresh one. An approval must
-	// not buy extra rounds.
-	rounds int
+	// Rounds is the number of rounds this turn has used. A host that stores a
+	// turn and resumes it in another process sets this field before the call,
+	// so a resumed turn continues the same step budget instead of starting a
+	// fresh one: an approval must not buy extra rounds.
+	Rounds int
+
+	// Elapsed is the wall-clock time this turn spent executing, without the
+	// time an operator took to decide an approval. A host that stores a turn
+	// sets it before resuming for the same reason as Rounds: a turn that came
+	// back must not restart its wall-clock budget.
+	Elapsed time.Duration
 }

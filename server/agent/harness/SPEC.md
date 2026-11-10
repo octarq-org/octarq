@@ -167,6 +167,8 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   - The streaming loop and the non-streaming loop both call `checkBudget`.
     Two loops that disagree about a safety limit are a defect waiting for the
     first streaming client.
+  - A turn that was stored and resumed continues its wall clock from
+    `Turn.Elapsed`; the operator's decision time is not charged to it.
 
 - **Endpoint contract additions** (`server/plugin/endpoints.go`):
   `plugin.Endpoint` gained `EndpointRisk() string` and
@@ -312,6 +314,10 @@ type PendingCall struct {
   host that stored one and is rebuilding it after the decision. The identity of
   a call is this package's rule; a caller that copies the hash formula binds an
   approval to a call nobody decided on the day the formula changes.
+- The turn stops at the first call that needs approval, so the calls after it
+  never run. `executeSteps` writes them into one `tool` message before it
+  returns: a model that is not told repeats calls whose results are never
+  coming. The blocked call is not in that list — `Resume` runs it.
 
 **Resume** (`Runner.Resume`): runs the stored call and continues the turn.
 
@@ -320,9 +326,18 @@ type PendingCall struct {
   refusal.
 - The executed arguments are the stored `ArgsJSON` bytes, so the call that runs
   is the call the operator saw.
-- `Turn.rounds` counts the rounds a turn has used, and Resume continues from
-  it. An approval does not buy another round: a one-round turn that resumes
-  ends on `ErrMaxStepsExceeded`.
+- `Turn.Rounds` and `Turn.Elapsed` are the two fields a host fills in before it
+  stores a turn and resumes it in another process. An approval does not buy
+  another round: a one-round turn that resumes ends on `ErrMaxStepsExceeded`.
+  - `Rounds` is the exported round count. A resumed turn starts its next round
+    at this number, so the step ceiling carries over. `Run` resets it to zero;
+    `Resume` continues from it.
+  - `Elapsed` is the wall-clock time the turn spent executing. `checkBudget`
+    measures the wall clock as `Elapsed + time.Since(started)`, so a resumed
+    turn continues its budget instead of starting a new one.
+  - `Elapsed` excludes the operator's decision time: the gap between `Run`
+    returning and `Resume` being called is not charged to the turn. The
+    approved call's own execution is charged.
 - A turn with no pending call is refused with `ErrNoPendingCall`; Resume is not
   a way to start a turn.
 - `ResumeStream` is the streaming counterpart (`ResumeStreamRunner`). A
