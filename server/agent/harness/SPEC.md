@@ -308,6 +308,10 @@ type PendingCall struct {
 - Without the record, an approval applied to whatever the model happened to
   write when asked again — and the model regenerates its arguments. The
   operator approved one command and a different one ran.
+- `harness.NewPendingCall(tool, argsJSON string)` builds the same record for a
+  host that stored one and is rebuilding it after the decision. The identity of
+  a call is this package's rule; a caller that copies the hash formula binds an
+  approval to a call nobody decided on the day the formula changes.
 
 **Resume** (`Runner.Resume`): runs the stored call and continues the turn.
 
