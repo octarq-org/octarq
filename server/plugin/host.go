@@ -65,6 +65,10 @@ type Host interface {
 	// only "unavailable" means "use the local registry"; "not found" means the
 	// credential the caller asked for does not exist.
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
+	// Workforce returns the agent ledger: turn authorisation, spend, and
+	// approval decisions. A plugin that runs agents reports here instead of
+	// keeping a second budget counter and a second approval table.
+	Workforce() Workforce
 }
 
 // Credential represents a decrypted third-party integration credential.

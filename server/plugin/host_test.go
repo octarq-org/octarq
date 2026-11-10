@@ -102,6 +102,7 @@ func (m *mockHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) {
 func (m *mockHost) LookupCredential(context.Context, uint, plugin.CredentialQuery) (*plugin.Credential, error) {
 	return nil, plugin.ErrCredentialNotFound
 }
+func (m *mockHost) Workforce() plugin.Workforce { return (&plugin.TestHost{}).Workforce() }
 
 var _ plugin.Host = (*mockHost)(nil)
 

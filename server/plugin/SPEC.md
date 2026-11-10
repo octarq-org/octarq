@@ -58,6 +58,30 @@ stateDiagram-v2
   - `WithUserID(ctx, uid)` & `UserIDFromContext(ctx)`
 - MCP Tools contributed by plugins must extract `org_id` dynamically from context via `plugin.OrgIDFromContext(ctx)`. Caching `org_id` during `Mount` is strictly forbidden.
 
+### 3.3 Host Agent Ledger (`plugin.Host.Workforce`)
+
+A plugin that runs agents reports to the host's ledger instead of keeping its own
+budget counter and its own approval table. Two ledgers disagree the first time one
+of them misses a turn, and the operator's monthly budget is the number that has to
+be right.
+
+| Method | Contract |
+|---|---|
+| `AuthorizeTurn` | Refuses an unknown agent, a paused agent, an unpriced model, and an exhausted budget. A model without a price is refused because a cost ceiling over it could never trip. |
+| `TurnCost` | Returns the price function a plugin's own ceiling uses. It is the same price `RecordSpend` charges, so a turn that stops at its ceiling stops at the number the ledger would have billed. |
+| `RecordSpend` | Prices the turn, appends the ledger row, and accrues the agent's monthly budget. A runtime turn must carry `TurnID`; a replay is refused with `ErrWorkforceSpendReplayed`. |
+| `DecideApproval` | Compare-and-swap on the task's current status. A replayed or concurrent decision returns `ErrWorkforceApprovalNotPending`. |
+
+- The ledger lives in `internal/agentstore`. A plugin cannot import it and must
+  not read its tables; `app.workforceService` is the only implementation, and
+  `app` mounts it on the host runtime.
+- Every outcome a caller branches on is a `ErrWorkforce*` sentinel, so a plugin
+  never parses a store error message. Errors the adapter does not recognise pass
+  through unchanged.
+- A host with no database has no ledger: every call returns
+  `ErrWorkforceUnavailable`. A turn nobody can bill must not start on a
+  zero-cost answer.
+
 ---
 
 ## 4. Failure Modes & Invariant Rules
