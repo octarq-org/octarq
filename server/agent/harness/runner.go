@@ -366,7 +366,6 @@ func invalidToolCallNotice(invalid []string) string {
 }
 
 // reportInvalidCalls hands the calls the model could not express back to it.
-//
 // A model that believes it called a tool stops asking for the result. The
 // turn therefore continues with the rejected lines, and the model can correct
 // itself. The same rule holds for the streaming path: a call that did not
@@ -377,6 +376,21 @@ func reportInvalidCalls(s *Session, text string, invalid []string) {
 		Role:    "tool",
 		Content: wrapUntrustedFence(invalidToolCallNotice(invalid)),
 	})
+}
+
+// skippedCallsNotice names the calls of a batch that did not run.
+//
+// The turn stops at the first call that needs operator approval, so every call
+// after it is dropped. A model that is not told repeats those calls: it
+// believes their results are still coming.
+func skippedCallsNotice(skipped []toolCall) string {
+	var b strings.Builder
+	b.WriteString("These tool calls did not run: the turn stopped for operator approval.")
+	for _, tc := range skipped {
+		b.WriteString("\n- ")
+		b.WriteString(tc.Name)
+	}
+	return b.String()
 }
 
 // StepObserver watches the tool calls the loop actually runs.
@@ -401,7 +415,7 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 			Content: remaining,
 		})
 	}
-	for _, tc := range calls {
+	for i, tc := range calls {
 		st := Step{
 			ToolName: tc.Name,
 			ArgsJSON: string(tc.ArgsJSON),
@@ -432,6 +446,15 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 				// Without it the approval would apply to whatever the model
 				// writes the next time it is asked, which is a different call.
 				t.PendingCall = newPendingCall(tc)
+				// The turn stops here, so the calls after this one never run.
+				// A model that does not hear about them believes it made calls
+				// whose results are still coming, and repeats them.
+				if skipped := calls[i+1:]; len(skipped) > 0 {
+					s.History = append(s.History, Message{
+						Role:    "tool",
+						Content: wrapUntrustedFence(skippedCallsNotice(skipped)),
+					})
+				}
 				return guardErr
 			}
 			// Append the guard rejection into history so the LLM knows.
