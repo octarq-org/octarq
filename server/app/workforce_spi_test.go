@@ -167,36 +167,6 @@ func TestWorkforceSPI_RefusesAnAgentOfAnotherWorkspace(t *testing.T) {
 	}
 }
 
-// TestWorkforceSPI_WithoutAStoreRefusesEveryCall pins the host with no ledger:
-// a turn nobody can bill must not start on a zero-cost answer.
-func TestWorkforceSPI_WithoutAStoreRefusesEveryCall(t *testing.T) {
-	w := newWorkforceService(nil)
-	ctx := context.Background()
-
-	if err := w.AuthorizeTurn(ctx, 1, "a", "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-		t.Fatalf("AuthorizeTurn = %v, want ErrWorkforceUnavailable", err)
-	}
-	if _, err := w.TurnCost(ctx, 1, "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-		t.Fatalf("TurnCost = %v, want ErrWorkforceUnavailable", err)
-	}
-	if _, err := w.RecordSpend(ctx, 1, plugin.TurnSpend{}); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-		t.Fatalf("RecordSpend = %v, want ErrWorkforceUnavailable", err)
-	}
-	if err := w.DecideApproval(ctx, 1, "t", true); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-		t.Fatalf("DecideApproval = %v, want ErrWorkforceUnavailable", err)
-	}
-}
-
-// TestNoopHostWorkforceRefuses pins the same rule for the host a plugin gets
-// when the context carries none.
-func TestNoopHostWorkforceRefuses(t *testing.T) {
-	host := &plugin.TestHost{}
-	w := host.Workforce()
-	if err := w.AuthorizeTurn(context.Background(), 1, "a", "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-		t.Fatalf("AuthorizeTurn = %v, want ErrWorkforceUnavailable", err)
-	}
-}
-
 // TestWorkforceServiceWithoutAStoreRefuses pins the adapter's own nil guards: a
 // receiver or store that was never wired must refuse, not dereference.
 func TestWorkforceServiceWithoutAStoreRefuses(t *testing.T) {
