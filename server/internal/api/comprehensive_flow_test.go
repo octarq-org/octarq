@@ -24,24 +24,6 @@ func TestComprehensiveAPI(t *testing.T) {
 	// 2. Settings API
 	comprehensiveTestSettings(t, srv, cookies)
 
-	// 3. SMTP Senders CRUD
-	comprehensiveTestSMTPSenders(t, srv, cookies)
-
-	// 4. Provider Accounts CRUD
-	providerAccID := comprehensiveTestProviderAccounts(t, srv, cookies)
-
-	// 5. Notification Channels CRUD
+	// 3. Notification Channels CRUD
 	comprehensiveTestNotificationChannels(t, srv, cookies)
-
-	// 6. Domains & Records CRUD
-	comprehensiveTestDomainsAndRecords(t, srv, cookies, providerAccID)
-
-	// 7. Mailboxes CRUD
-	comprehensiveTestMailboxes(t, srv, cookies)
-
-	// 8. Links CRUD
-	comprehensiveTestLinks(t, srv, cookies)
-
-	// 9. Clean up provider account we left
-	comprehensiveCleanupProviderAccount(t, srv, cookies, providerAccID)
 }

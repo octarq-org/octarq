@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	links "github.com/octarq-org/octarq/server/plugins/links"
-
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -22,7 +20,7 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 	t.Helper()
 	db := newTestDB(t)
 	db.Where("1 = 1").Delete(&models.Token{})
-	db.Where("1 = 1").Delete(&links.Link{})
+	db.Where("1 = 1").Delete(&testLink{})
 
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
@@ -41,8 +39,6 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 	srv := h.Routes()
-	mountCoreDNS(h, db, authMgr, cipher)
-	mountCoreMail(h, db, authMgr, cipher)
 	return h, srv, db
 }
 

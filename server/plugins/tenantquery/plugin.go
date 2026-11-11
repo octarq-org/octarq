@@ -31,6 +31,7 @@ func (p *Plugin) Describe() plugin.Info {
 		Title:            "Tenant Query",
 		Description:      "Read-only tenant SQL views and query engine for AI and analytics.",
 		Category:         plugin.CategoryUtilities,
+		Icon:             "database",
 		Core:             true,
 		EnabledByDefault: true,
 	}

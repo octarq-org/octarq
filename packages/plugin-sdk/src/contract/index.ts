@@ -34,5 +34,8 @@ export {
   PluginGateContext,
   usePluginGateContext,
   type PluginGateContextValue,
+  PluginRouteGateContext,
+  usePluginGate,
+  type PluginRouteGateContextValue,
 } from "./PluginGateContext";
 

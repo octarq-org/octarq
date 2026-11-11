@@ -5,7 +5,7 @@ category: settings
 order: 50
 ---
 
-Octarq 内置标准模型上下文协议 (Model Context Protocol, MCP) 服务端，允许大语言模型 (LLM)、IDE 编程助手及自动化 Agent 安全调用工具，管理工作区内的短链、邮件与 DNS 记录。
+Octarq 内置标准模型上下文协议 (Model Context Protocol, MCP) 服务端。AI 助手可通过已安装的插件读取并查询工作区数据。
 
 ## 选择连接方式
 
@@ -20,24 +20,14 @@ Octarq 提供安全的结构化工具调用，不暴露底层原始 SQL 查询�
 
 ## 可用工具列表
 
-无论通过 stdio 还是 SSE 连接，MCP 服务端均提供以下标准工具：
+无论通过 stdio 还是 SSE 连接，核心服务端均提供以下工具：
 
-- **`create_shortlink`**：创建短链接，支持设置目标落地页、自定义别名、域名、访问密码和过期时间。
-- **`list_links`**：分页查询当前工作区下的短链接列表，支持限制条数与关键词检索。
-- **`list_domains`**：查看已绑定的域名与 DNS 验证状态（SPF、DKIM、DMARC）。
-- **`list_mailboxes`**：查看邮箱列表、地址与未读邮件计数。
-- **`list_emails`**：查看最近收到的事务邮件列表，包含发件人、主题和摘要。
-- **`get_latest_otp`**：从最近 10 分钟内收到的未读邮件中提取验证码 (OTP)。
-- **`get_email_summary`**：获取邮件的脱敏摘要，自动识别类别与验证码。
-- **`get_email_content`**：获取脱敏后的邮件纯文本正文，自动移除敏感链接。
-- **`export_data`**：导出工作区数据（短链、邮件、域名或邮箱）的 JSON 记录。
+- **`octarq_infra__describe_tenant_schema`**：列出租户视图及其列定义。
+- **`octarq_infra__query_db_readonly`**：对租户视图执行只读 SELECT 查询。
+- **`octarq_infra__export_data`**：以 JSON 导出工作区记录。
+- **`octarq_infra__notify`**：向已配置的告警渠道发送消息。
 
-## 读取监控资源
-
-AI 客户端可以读取工作区监控资源：
-
-- **`octarq://metrics/traffic`**：当前工作区的短链跳转与点击量统计。
-- **`octarq://domains/health`**：已绑定域名的 DNS 配置与健康状态。
+已安装的功能插件会添加各自的工具。工具名使用 `octarq_<区域>__<动作>` 形式。
 
 ## 配置 Claude Desktop
 
@@ -80,13 +70,12 @@ AI 客户端可以读取工作区监控资源：
 
 配置完成后，你可以直接在聊天框中使用自然语言向 AI 助手发出指令：
 
-- “在域名 go.example.com 上创建一个指向 https://example.com/docs 的短链，别名设为 docs”
-- “检查当前工作区所有域名的验证状态”
-- “查找客服邮箱最近 5 分钟内收到的验证码”
+- “列出工作区租户视图的所有列”
+- “以 JSON 导出我的工作区记录”
+- “向告警渠道发送一条测试消息”
 
 ## 相关指南
 
 - [API 令牌](/help/api-tokens)
-- [短链](/help/short-links)
-- [邮箱](/help/mailboxes)
-- [DNS 域名解析](/help/dns)
+- [Agent Harness](/help/agent-harness)
+- [AI Workforce](/help/ai-workforce)

@@ -8,8 +8,8 @@ func TestDefault(t *testing.T) {
 	t.Parallel()
 
 	plugins := Default()
-	if len(plugins) != 6 {
-		t.Fatalf("expected 6 plugins in Default(), got %d", len(plugins))
+	if len(plugins) != 3 {
+		t.Fatalf("expected 3 plugins in Default(), got %d", len(plugins))
 	}
 	for i, p := range plugins {
 		if p == nil {

@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/plugin"
-	links "github.com/octarq-org/octarq/server/plugins/links"
 )
 
 // tenantMenuPlugin announces ordinary tenant-scoped sidebar entries, the shape
@@ -88,23 +87,7 @@ func TestTenantMenusNeverExposeInstancePaths(t *testing.T) {
 // member rung is already covered (instance_readiness_test.go:248); the owner
 // rung was not.
 func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
-	h, srv, db := newTestHandlerWithInstance(t)
-	linksPlugin := links.New()
-	h.SetPlugins([]plugin.Plugin{linksPlugin})
-	linksPlugin.Mount(nil, &plugin.Context{
-		DB:   db,
-		Huma: h.Huma(),
-		Host: &plugin.TestHost{
-			SessionMock: &plugin.TestSession{
-				IsInstanceAdminFn: h.IsInstanceAdmin,
-				RequireRoleFn:     h.RequireRole,
-			},
-			SettingsMock: &plugin.TestSettings{
-				GetGlobalSettingFn: h.GetGlobalSetting,
-				SetGlobalSettingFn: h.SetGlobalSetting,
-			},
-		},
-	})
+	_, srv, db := newTestHandlerRaw(t)
 
 	const org = uint(904)
 	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")

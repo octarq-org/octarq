@@ -37,25 +37,24 @@ Get an Octarq instance running with Docker in less than five minutes. Octarq shi
 3. Click **Complete Setup** to open the dashboard as the workspace Owner.
 4. Invite other team members later under **Settings → Workspace → Members**.
 
-## Connect a Custom Domain
+## Add Feature Plugins
 
-1. Add an `A` record or `CNAME` record in your DNS provider pointing your domain to your Octarq server.
-2. Go to **Infrastructure → Network → DNS** in Octarq (see [DNS Management](/help/dns)).
-3. Click **Add Domain Zone** to register your domain, or open **Provider Accounts** to connect Cloudflare or DNSPod and click **Sync Domains**.
+Octarq core ships the platform only. Install plugins to add features.
+
+1. Use an official plugin from the octarq-plugins repository, or use Octarq Pro.
+2. Restart the server after you add a backend plugin to the build.
+3. Enable the feature in **Settings → Workspace → Features**.
+
+Feature plugins add their own help pages to this help center.
 
 ## Turn On Workspace Features
 
 1. Go to **Settings → Workspace → Features** (or press `⌘K` / `Ctrl+K` and search "Features").
-2. Turn on the modules your team needs:
-   - **Links**: Create short links, visitor routing rules, and A/B split testing.
-   - **Mail**: Receive incoming email webhooks and route messages.
-   - **DNS**: Manage DNS records and dynamic DNS tokens.
-3. The left sidebar updates immediately to reflect your enabled features.
+2. Turn on the installed plugins your team needs.
+3. The left sidebar updates immediately.
 
 ## Related Guides
 
 - [Console Overview](/help/getting-started)
-- [Short Links](/help/short-links)
-- [Mailboxes](/help/mailboxes)
 - [API Tokens](/help/api-tokens)
 - [Organizations & Workspace RBAC](/help/multi-org)

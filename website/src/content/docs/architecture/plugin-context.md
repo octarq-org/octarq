@@ -37,7 +37,7 @@ During application startup, a preflight validation checks that every mounted plu
 
 ## 3. Frontend Feature Self-Containment
 
-To make features truly modular, all frontend code for a feature is located inside its plugin directory (e.g., `web/src/plugins/<feature>/`):
+To make features truly modular, all frontend code for a feature is located inside its plugin package (e.g., `octarq-plugins/links/web/`):
 - **`index.ts`** — Contains the `UIPlugin` definition (including routes, widgets, areas, i18n).
 - **`pages/` & `components/`** — All page and component files.
 - **`api.ts`** — The plugin-specific API client methods.
@@ -47,11 +47,11 @@ This allows completely dropping a feature from the UI bundle by removing its ent
 
 ## 4. Custom Edition Build Recipes
 
-Core feature plugins (`dns`, `mail`, `links`) can be selectively excluded from both the backend Go binary and the frontend web UI to produce lightweight, custom-tailored editions of Octarq.
+Core is infrastructure only. Business plugins (`dns`, `mail`, `links`) ship in the `octarq-plugins` repository. You select them per edition. The selection changes both the backend Go binary and the frontend web UI.
 
 ### Backend Composition
 
-Trimmed editions are defined at the compilation root (typically in `main.go`). Instead of auto-mounting all plugins, the composition root explicitly selects the plugins to use:
+Trimmed editions are defined at the compilation root (typically in `main.go`). The composition root mounts the Core plugins, then the business plugins the edition includes:
 
 ```go
 // Example of a links-only composition root
@@ -59,30 +59,34 @@ package main
 
 import (
     "github.com/octarq-org/octarq/server/app"
-    "github.com/octarq-org/octarq/server/plugins/dns"
-    "github.com/octarq-org/octarq/server/plugins/links"
+    "github.com/octarq-org/octarq/server/plugins/builtin"
+    "github.com/octarq-org/octarq-plugins/dns"
+    "github.com/octarq-org/octarq-plugins/links"
 )
 
 func main() {
     a, _ := app.New()
+    for _, p := range builtin.Default() {
+        a.Use(p)
+    }
     a.Use(dns.New())   // Required by links
     a.Use(links.New())
     a.Run()
 }
 ```
 
-Because of Go's dead-code elimination, any unreferenced packages (like `plugins/mail`) are automatically excluded from the final compiled binary by the linker.
+Because of Go's dead-code elimination, any unreferenced plugin package (like `octarq-plugins/mail`) is automatically excluded from the final compiled binary by the linker.
 
 ### Frontend Manifest Composition
 
-Control which UI plugins are bundled by configuring `web/octarq.plugins.json` or setting `OCTARQ_PLUGINS_MANIFEST` environment variables during build:
+Control which UI plugins are bundled by configuring `web/octarq.plugins.json` or setting `OCTARQ_PLUGINS_MANIFEST` during build:
 
 Example (`octarq.nomail.json`):
 ```json
 {
   "plugins": [
-    "./src/plugins/dns",
-    "./src/plugins/links"
+    "@octarq/plugin-dns/ui",
+    "@octarq/plugin-links/ui"
   ]
 }
 ```

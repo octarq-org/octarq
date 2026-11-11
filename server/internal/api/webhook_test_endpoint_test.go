@@ -32,14 +32,6 @@ func TestProviderTestRoutesRegistered(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("unauthenticated webhook test: got %d, want 401", rec.Code)
 	}
-
-	rec = do(srv, "POST", "/api/smtp-senders/1/test", nil, "")
-	if rec.Code == http.StatusNotFound {
-		t.Error("/api/smtp-senders/{id}/test is not registered")
-	}
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("unauthenticated smtp sender test: got %d, want 401", rec.Code)
-	}
 }
 
 func wireEventbusForTest(t *testing.T, decrypt func(string) (string, bool)) {

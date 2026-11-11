@@ -221,7 +221,7 @@ func TestTokenUpdate(t *testing.T) {
 		}
 
 		// Verify target token authenticates fine on ungated route
-		req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/overview", nil)
 		req.Header.Set("Authorization", "Bearer "+rawTarget)
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)

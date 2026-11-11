@@ -5,7 +5,7 @@ category: start
 order: 1
 ---
 
-The Octarq management console provides an integrated interface to manage short links, transactional emails, DNS zones, API tokens, and team collaboration. This guide introduces the core layout, keyboard shortcuts, workspace isolation, and feature controls.
+The Octarq management console provides an integrated interface to manage workspaces, API tokens, alerts, webhooks, and installed feature plugins. This guide introduces the core layout, keyboard shortcuts, workspace isolation, and feature controls.
 
 ## Explore the Console Layout
 
@@ -13,8 +13,7 @@ The dashboard layout is divided into three primary functional areas:
 
 1. **Workspace switcher**: Located at the top of the left sidebar. Displays your active organization. Click to switch between workspaces or create a new one.
 2. **Sidebar navigation**:
-   - **Operations**: Daily links and messaging tools, including [Short Links](/help/short-links) and [Mailboxes](/help/mailboxes).
-   - **Infrastructure**: Network orchestration tools, including [DNS Management](/help/dns) and [Dynamic DNS (DDNS)](/help/ddns).
+   - **Feature areas**: Each installed plugin adds its pages here, such as Operations or Infrastructure.
    - **Settings**: Organization preferences, [API Tokens](/help/api-tokens), [Alerts](/help/notifications), and [Outbound Webhooks](/help/webhooks).
 3. **Main workspace viewport**: Displays data tables, analytics, configuration drawers, and documentation.
 
@@ -30,7 +29,7 @@ Accelerate routine navigation using the keyboard command palette:
 
 Octarq enforces strict organization boundaries:
 
-- Switching the active workspace filters all short links, mailboxes, domain records, and audit events to the selected organization.
+- Switching the active workspace filters all workspace records and audit events to the selected organization.
 - Team members without access to a workspace cannot view its records or enumerate resource IDs.
 - For member invitations and role permissions, see the [Organizations & Workspace RBAC](/help/multi-org) guide.
 
@@ -39,14 +38,13 @@ Octarq enforces strict organization boundaries:
 Customize which features appear in your workspace sidebar:
 
 1. Go to **Settings → Workspace → Features** (or press `⌘K` / `Ctrl+K` and search "Features").
-2. Turn on the capabilities required for your workspace (such as Links, Mail, or DNS).
+2. Turn on the installed plugins that your workspace needs.
 3. Turn off unused features to simplify navigation. Unused items disappear from the sidebar without deleting stored data.
 
 ## Related Guides
 
 - [Quickstart](/help/quickstart)
-- [Short Links](/help/short-links)
-- [Mailboxes](/help/mailboxes)
-- [DNS Management](/help/dns)
 - [API Tokens](/help/api-tokens)
+- [Alerts](/help/notifications)
+- [Outbound Webhooks](/help/webhooks)
 - [Organizations & Workspace RBAC](/help/multi-org)

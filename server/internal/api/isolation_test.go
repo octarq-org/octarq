@@ -14,9 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	dnsmodels "github.com/octarq-org/octarq/server/plugins/dns"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
-
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
@@ -77,12 +74,6 @@ func do(srv http.Handler, method, path string, cookies []*http.Cookie, body stri
 func TestUnauthenticated(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	endpoints := []struct{ method, path string }{
-		{"GET", "/api/links"},
-		{"POST", "/api/links"},
-		{"GET", "/api/mailboxes"},
-		{"POST", "/api/mailboxes"},
-		{"GET", "/api/emails"},
-		{"GET", "/api/domains"},
 		{"GET", "/api/tokens"},
 		{"POST", "/api/tokens"},
 		{"GET", "/api/overview"},
@@ -92,75 +83,6 @@ func TestUnauthenticated(t *testing.T) {
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s %s: got %d, want 401", e.method, e.path, rec.Code)
 		}
-	}
-}
-
-// --- link isolation ---
-
-func TestOrgIsolation_Links(t *testing.T) {
-	srv, _ := newTestHandler(t)
-	org1 := sessionCookies(t, 1, 1)
-	org2 := sessionCookies(t, 2, 2)
-
-	// Org 1 creates a link.
-	rec := do(srv, http.MethodPost, "/api/links", org1,
-		`{"slug":"sec-test","target":"https://example.com"}`)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("create link: got %d — %s", rec.Code, rec.Body)
-	}
-	var link struct {
-		ID uint `json:"id"`
-	}
-	json.Unmarshal(rec.Body.Bytes(), &link)
-	path := fmt.Sprintf("/api/links/%d", link.ID)
-
-	// Org 2 must not read it.
-	if rec := do(srv, http.MethodGet, path, org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org GET link: got %d, want 404", rec.Code)
-	}
-	// Org 2 must not update it.
-	if rec := do(srv, http.MethodPut, path, org2, `{"target":"https://evil.com"}`); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org PUT link: got %d, want 404", rec.Code)
-	}
-	// Org 2 must not delete it.
-	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org DELETE link: got %d, want 404", rec.Code)
-	}
-	// Org 1's list must include the link; org 2's list must not.
-	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); !strings.Contains(rec.Body.String(), "sec-test") {
-		t.Error("org1 list does not include its own link")
-	}
-	if rec := do(srv, http.MethodGet, "/api/links", org2, ""); strings.Contains(rec.Body.String(), "sec-test") {
-		t.Error("org2 list leaked org1's link")
-	}
-}
-
-// --- mailbox isolation ---
-
-func TestOrgIsolation_Mailboxes(t *testing.T) {
-	srv, _ := newTestHandler(t)
-	org1 := sessionCookies(t, 1, 1)
-	org2 := sessionCookies(t, 2, 2)
-
-	rec := do(srv, http.MethodPost, "/api/mailboxes", org1,
-		`{"address":"sec@org1.test"}`)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("create mailbox: got %d — %s", rec.Code, rec.Body)
-	}
-	var mb struct {
-		ID uint `json:"id"`
-	}
-	json.Unmarshal(rec.Body.Bytes(), &mb)
-	path := fmt.Sprintf("/api/mailboxes/%d", mb.ID)
-
-	if rec := do(srv, http.MethodPut, path, org2, `{"note":"hacked"}`); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org PUT mailbox: got %d, want 404", rec.Code)
-	}
-	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org DELETE mailbox: got %d, want 404", rec.Code)
-	}
-	if rec := do(srv, http.MethodGet, "/api/mailboxes", org2, ""); strings.Contains(rec.Body.String(), "sec@org1.test") {
-		t.Error("org2 list leaked org1's mailbox")
 	}
 }
 
@@ -202,12 +124,6 @@ func TestOrgIsolation_Tokens(t *testing.T) {
 
 func TestBearerTokenOrgIsolation(t *testing.T) {
 	srv, db := newTestHandler(t)
-	org1 := sessionCookies(t, 1, 1)
-	org2 := sessionCookies(t, 2, 2)
-
-	// Org 1 and Org 2 create links.
-	do(srv, http.MethodPost, "/api/links", org1, `{"slug":"bearer-org1","target":"https://org1.example"}`)
-	do(srv, http.MethodPost, "/api/links", org2, `{"slug":"bearer-org2","target":"https://org2.example"}`)
 
 	// Token for Org 1
 	rawTok1 := "oct_bearertesttoken1111111111111111111"
@@ -228,108 +144,35 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 	})
 
 	// Test Token 1
-	req1 := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req1 := httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
 	req1.Header.Set("Authorization", "Bearer "+rawTok1)
 	rec1 := httptest.NewRecorder()
 	srv.ServeHTTP(rec1, req1)
 
 	body1 := rec1.Body.String()
-	if !strings.Contains(body1, "bearer-org1") {
-		t.Error("bearer token 1 cannot see its own org's link")
+	if !strings.Contains(body1, "bearer-test-1") {
+		t.Error("bearer token 1 cannot see its own org's token")
 	}
-	if strings.Contains(body1, "bearer-org2") {
-		t.Error("bearer token 1 leaked org2's link")
+	if strings.Contains(body1, "bearer-test-2") {
+		t.Error("bearer token 1 leaked org2's token")
 	}
 
 	// Test Token 2
-	req2 := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req2 := httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
 	req2.Header.Set("Authorization", "Bearer "+rawTok2)
 	rec2 := httptest.NewRecorder()
 	srv.ServeHTTP(rec2, req2)
 
 	body2 := rec2.Body.String()
-	if !strings.Contains(body2, "bearer-org2") {
-		t.Error("bearer token 2 cannot see its own org's link")
+	if !strings.Contains(body2, "bearer-test-2") {
+		t.Error("bearer token 2 cannot see its own org's token")
 	}
-	if strings.Contains(body2, "bearer-org1") {
-		t.Error("bearer token 2 leaked org1's link")
+	if strings.Contains(body2, "bearer-test-1") {
+		t.Error("bearer token 2 leaked org1's token")
 	}
 }
 
 // --- email isolation ---
-//
-// Emails are reachable only through a mailbox the caller's org owns. A tenant
-// must not read, fetch raw, or delete another tenant's email by guessing its ID.
-
-func TestOrgIsolation_Emails(t *testing.T) {
-	srv, db := newTestHandler(t)
-	org1 := sessionCookies(t, 1, 1)
-	org2 := sessionCookies(t, 2, 2)
-
-	// Org 1 owns a mailbox; drop an email straight into it.
-	mb := mailmodels.Mailbox{OrgID: 1, Address: "sec@org1.test", Enabled: true}
-	if err := db.Create(&mb).Error; err != nil {
-		t.Fatalf("create mailbox: %v", err)
-	}
-	em := mailmodels.Email{MailboxID: mb.ID, Subject: "top-secret-subject", Text: "confidential", Raw: []byte("raw-bytes")}
-	if err := db.Create(&em).Error; err != nil {
-		t.Fatalf("create email: %v", err)
-	}
-	base := fmt.Sprintf("/api/emails/%d", em.ID)
-
-	// Org 2 must not read, fetch raw, or delete it.
-	if rec := do(srv, http.MethodGet, base, org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org GET email: got %d, want 404", rec.Code)
-	}
-	if rec := do(srv, http.MethodGet, base+"/raw", org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org GET raw email: got %d, want 404", rec.Code)
-	}
-	if rec := do(srv, http.MethodDelete, base, org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org DELETE email: got %d, want 404", rec.Code)
-	}
-	// Org 2's inbox listing must not leak the subject.
-	if rec := do(srv, http.MethodGet, "/api/emails", org2, ""); strings.Contains(rec.Body.String(), "top-secret-subject") {
-		t.Error("org2 email list leaked org1's email")
-	}
-	// Org 1 can read its own email.
-	if rec := do(srv, http.MethodGet, base, org1, ""); rec.Code != http.StatusOK {
-		t.Errorf("org1 self GET email: got %d, want 200", rec.Code)
-	}
-}
-
-// --- DNS provider-account cross-org probe ---
-//
-// Deleting a provider account first checks whether any domain references it.
-// That usage check must run only AFTER ownership is confirmed — otherwise the
-// 409 ("in use") vs 404 response is an oracle revealing another org's account.
-
-func TestOrgIsolation_ProviderAccountDeleteProbe(t *testing.T) {
-	srv, db := newTestHandler(t)
-	org2 := sessionCookies(t, 2, 2)
-
-	// Org 1 owns a provider account that a domain references (the 409 path).
-	acc := dnsmodels.ProviderAccount{OrgID: 1, Type: "cloudflare", Name: "org1-acct"}
-	if err := db.Create(&acc).Error; err != nil {
-		t.Fatalf("create provider account: %v", err)
-	}
-	dom := dnsmodels.Domain{OrgID: 1, Name: "probe-org1.test", ProviderAccountID: acc.ID}
-	if err := db.Create(&dom).Error; err != nil {
-		t.Fatalf("create domain: %v", err)
-	}
-	path := fmt.Sprintf("/api/provider-accounts/%d", acc.ID)
-
-	// Org 2 must get 404 (not 409 — which would confirm existence + in-use).
-	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("cross-org DELETE provider probe: got %d, want 404", rec.Code)
-	}
-	// Org 1's account must be untouched.
-	var n int64
-	db.Model(&dnsmodels.ProviderAccount{}).Where("id = ?", acc.ID).Count(&n)
-	if n != 1 {
-		t.Errorf("org1 provider account affected by cross-org delete: count=%d", n)
-	}
-}
-
 // --- MCP token org-0 fail-closed ---
 //
 // The networked MCP tools default an unresolved org to tenant 1. A token
@@ -368,7 +211,7 @@ func TestSessionRevocation(t *testing.T) {
 	org2 := sessionCookies(t, 2, 2)
 
 	// The session works before revocation.
-	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusOK {
+	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusOK {
 		t.Fatalf("valid session rejected: %d", rec.Code)
 	}
 
@@ -392,7 +235,7 @@ func TestSessionRevocation(t *testing.T) {
 		t.Errorf("cross-user revoke: got %d, want 404", rec.Code)
 	}
 	// The session must still work after the failed cross-user attempt.
-	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusOK {
+	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusOK {
 		t.Errorf("session wrongly killed by cross-user revoke: %d", rec.Code)
 	}
 
@@ -400,7 +243,7 @@ func TestSessionRevocation(t *testing.T) {
 	if rec := do(srv, http.MethodDelete, path, org1, ""); rec.Code != http.StatusOK {
 		t.Fatalf("self revoke: got %d — %s", rec.Code, rec.Body)
 	}
-	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusUnauthorized {
+	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusUnauthorized {
 		t.Errorf("revoked session still valid: got %d, want 401", rec.Code)
 	}
 }
@@ -412,7 +255,7 @@ func TestTamperedSessionIsRejected(t *testing.T) {
 	org1 := sessionCookies(t, 1, 1)
 
 	// Confirm the unmodified cookie works.
-	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusOK {
+	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusOK {
 		t.Fatalf("valid session rejected: %d", rec.Code)
 	}
 
@@ -426,7 +269,7 @@ func TestTamperedSessionIsRejected(t *testing.T) {
 			tampered[i] = &cp
 		}
 	}
-	if rec := do(srv, http.MethodGet, "/api/links", tampered, ""); rec.Code != http.StatusUnauthorized {
+	if rec := do(srv, http.MethodGet, "/api/overview", tampered, ""); rec.Code != http.StatusUnauthorized {
 		t.Errorf("tampered session cookie: got %d, want 401", rec.Code)
 	}
 }

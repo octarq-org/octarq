@@ -13,7 +13,6 @@ import (
 
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 // captureSMTP speaks just enough ESMTP to complete a send and returns the DATA
@@ -120,9 +119,9 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encrypt sender pass: %v", err)
 	}
-	sender := mailmodels.SMTPSender{
+	sender := testSMTPSender{
 		OrgID: 1, Name: "relay", Host: host, Port: port,
-		User: "u", Pass: enc, FromEmail: "noreply@example.com",
+		User: "u", Pass: string(enc), FromEmail: "noreply@example.com",
 	}
 	if err := db.Create(&sender).Error; err != nil {
 		t.Fatalf("seed sender: %v", err)

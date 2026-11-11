@@ -92,7 +92,7 @@ func TestMemberTokenDeniedAdminRoute(t *testing.T) {
 	// Positive half: the token is still a valid credential for ungated routes.
 	// Without this a token that had simply stopped authenticating would pass the
 	// assertion above for entirely the wrong reason.
-	if rec := bearer(srv, http.MethodGet, "/api/links", raw); rec.Code != http.StatusOK {
+	if rec := bearer(srv, http.MethodGet, "/api/overview", raw); rec.Code != http.StatusOK {
 		t.Errorf("member-capped token on ungated route: got %d, want 200 (body=%s)", rec.Code, rec.Body.String())
 	}
 }

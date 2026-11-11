@@ -225,8 +225,8 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
 	// DNS providers, provider-accounts, domains, and DNS records are served by the
-	// built-in dns Core plugin (plugins/dns), mounted by the app. See
-	// website/src/content/docs/architecture/overview.md.
+	// dns plugin, which ships in octarq-plugins and mounts here when installed.
+	// See website/src/content/docs/architecture/overview.md.
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/ai/assist/status", Summary: "Get AI Assist Status", Tags: []string{"AI"}}, h.aiStatus)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)

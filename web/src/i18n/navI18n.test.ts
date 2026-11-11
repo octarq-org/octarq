@@ -12,9 +12,6 @@ import { es } from "./es";
 import { pt } from "./pt";
 import { ja } from "./ja";
 import { STATIC_AREAS, SETTINGS_AREA } from "../shell/areas";
-import mailPlugin from "../plugins/mail";
-import linksPlugin from "../plugins/links";
-import dnsPlugin from "../plugins/dns";
 import auditPlugin from "../plugins/core/audit";
 import abusePlugin from "../plugins/core/abuse";
 import helpPlugin from "../plugins/core/help";
@@ -66,8 +63,10 @@ function goMenus(): { id: string; category: string }[] {
   }
   // An empty parse would make every assertion below vacuously pass, which is
   // worse than a failure: the guard would go quiet exactly when the Go menu
-  // shape changed out from under it.
-  if (out.length < 4) {
+  // shape changed out from under it. Core declares one menu in Go (help); the
+  // business plugins that used to add more live in octarq-plugins and guard
+  // their own nav keys.
+  if (out.length < 1) {
     throw new Error(`goMenus() parsed ${out.length} entries — the Go MenuItem literal shape probably changed`);
   }
   return out;
@@ -77,9 +76,6 @@ describe("Navigation & Category Group i18n Guard Test", () => {
   beforeEach(() => {
     resetRegistry();
     // Register all core / default frontend plugins so full seam is reachable
-    registerUIPlugin(mailPlugin);
-    registerUIPlugin(linksPlugin);
-    registerUIPlugin(dnsPlugin);
     registerUIPlugin(auditPlugin);
     registerUIPlugin(abusePlugin);
     registerUIPlugin(helpPlugin);

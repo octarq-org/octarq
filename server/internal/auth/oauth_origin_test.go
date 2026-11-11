@@ -12,8 +12,15 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/origin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 )
+
+type testDomain struct {
+	ID    uint   `gorm:"primarykey"`
+	OrgID uint   `gorm:"index"`
+	Name  string `gorm:"uniqueIndex"`
+}
+
+func (testDomain) TableName() string { return "domains" }
 
 // TestOAuthCallbackURLComesFromTheRequest covers the behaviour change operators
 // have to know about: redirect_uri is no longer one configured value, it is
@@ -43,8 +50,9 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
 	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: enc})
 
-	db.Where("1 = 1").Delete(&dns.Domain{})
-	if err := db.Create(&dns.Domain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
+	db.AutoMigrate(&testDomain{})
+	db.Where("1 = 1").Delete(&testDomain{})
+	if err := db.Create(&testDomain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
 		t.Fatalf("seed domain: %v", err)
 	}
 	// Seeding the row directly bypasses the register path, which is what

@@ -15,3 +15,14 @@ export const PluginGateContext = createContext<PluginGateContextValue>({
 export function usePluginGateContext(): PluginGateContextValue {
   return useContext(PluginGateContext);
 }
+
+export interface PluginRouteGateContextValue {
+  degrade: (status: number) => void;
+  requiredTier?: string;
+}
+
+export const PluginRouteGateContext = createContext<PluginRouteGateContextValue | null>(null);
+
+export function usePluginGate(): PluginRouteGateContextValue {
+  return useContext(PluginRouteGateContext) ?? { degrade: () => {} };
+}

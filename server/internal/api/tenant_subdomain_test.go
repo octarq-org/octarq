@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	dnsmodels "github.com/octarq-org/octarq/server/plugins/dns"
-
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenancy"
 	"github.com/octarq-org/octarq/server/origin"
@@ -37,7 +35,7 @@ func TestCreateOrgWithNoBaseProvisionsNothing(t *testing.T) {
 		t.Fatalf("decode org: %v", err)
 	}
 	var n int64
-	db.Model(&dnsmodels.Domain{}).Where("owner_id = ?", org.ID).Count(&n)
+	db.Model(&testDomain{}).Where("owner_id = ?", org.ID).Count(&n)
 	if n != 0 {
 		t.Fatalf("creating an org with no base domain wrote %d domains row(s)", n)
 	}
@@ -113,7 +111,7 @@ func TestCreateOrgProvisionsTenantSubdomain(t *testing.T) {
 	}
 
 	want := org.Slug + ".app.octarq.org"
-	var dom dnsmodels.Domain
+	var dom testDomain
 	if err := db.Where("name = ?", want).First(&dom).Error; err != nil {
 		t.Fatalf("no domain row %q after org creation: %v", want, err)
 	}
@@ -143,12 +141,12 @@ func TestRegisterProvisionsTenantSubdomain(t *testing.T) {
 		t.Fatalf("registered org not found: %v", err)
 	}
 	want := org.Slug + ".app.octarq.org"
-	var dom dnsmodels.Domain
-	if err := db.Where("name = ?", want).First(&dom).Error; err != nil {
+	var dom2 testDomain
+	if err := db.Where("name = ?", want).First(&dom2).Error; err != nil {
 		t.Fatalf("no domain row %q after register: %v", want, err)
 	}
-	if dom.OrgID != org.ID {
-		t.Errorf("domain row owner = %d, want %d", dom.OrgID, org.ID)
+	if dom2.OrgID != org.ID {
+		t.Errorf("domain row owner = %d, want %d", dom2.OrgID, org.ID)
 	}
 }
 
@@ -168,7 +166,7 @@ func TestRenameMovesTenantSubdomain(t *testing.T) {
 	}
 
 	var n int64
-	db.Model(&dnsmodels.Domain{}).Where("name = ?", "owner-example-com.app.example.com").Count(&n)
+	db.Model(&testDomain{}).Where("name = ?", "owner-example-com.app.example.com").Count(&n)
 	if n != 0 {
 		t.Errorf("the old subdomain row survived the rename")
 	}
@@ -191,7 +189,7 @@ func TestRenameCollisionOnSubdomainRollsBack(t *testing.T) {
 	}
 	// A stale row already claims the target address — e.g. a registration that
 	// predates the base domain and nobody cleaned up. The slug itself is free.
-	if err := db.Create(&dnsmodels.Domain{OrgID: 2, Name: "ghost.app.example.com"}).Error; err != nil {
+	if err := db.Create(&testDomain{OrgID: 2, Name: "ghost.app.example.com"}).Error; err != nil {
 		t.Fatalf("seed stale subdomain: %v", err)
 	}
 

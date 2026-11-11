@@ -105,8 +105,8 @@ func TestAbuseStatusUpdateIsOrgScoped(t *testing.T) {
 	org1 := sessionCookies(t, 1, 1)
 	org2 := sessionCookies(t, 2, 2)
 
-	if rec := do(srv, http.MethodPost, "/api/links", org1, `{"slug":"sec-scope","target":"https://example.com"}`); rec.Code != http.StatusCreated {
-		t.Fatalf("create link: got %d — %s", rec.Code, rec.Body)
+	if err := db.Create(&testLink{OrgID: 1, Slug: "sec-scope", Target: "https://example.com"}).Error; err != nil {
+		t.Fatalf("create link: %v", err)
 	}
 	rec := do(srv, http.MethodPost, "/abuse", nil, `{"slug":"sec-scope","reason":"phishing","description":"scope test"}`)
 	if rec.Code != http.StatusCreated {

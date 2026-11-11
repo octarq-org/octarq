@@ -89,7 +89,7 @@ const Ctx = createContext<I18nCtx | null>(null);
 // I18nProvider is mounted by the host app with its own resource dictionaries.
 // The SDK merges composed-plugin namespaces over them at render time (so it is
 // independent of plugin-module eval order).
-export function I18nProvider({ resources, children }: { resources: Resources; children: ReactNode }) {
+export function I18nProvider({ resources = {}, children }: { resources?: Resources; children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(detectLang);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export function I18nProvider({ resources, children }: { resources: Resources; ch
 
     const buildLangDict = (l: Lang): Record<string, unknown> => {
       const s = shared[l] || {};
-      const r = resources[l] || {};
+      const r = (resources && resources[l]) || {};
       const p = pluginNs[l] || {};
       return overlay(s, { ...r, ...p });
     };

@@ -21,7 +21,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -42,12 +41,8 @@ func TestRemovedMemberLosesAccessImmediately(t *testing.T) {
 	ownerSession := sessionCookies(t, ownerUID, org)
 	memberSession := sessionCookies(t, memberUID, org)
 
-	if err := db.Create(&links.Link{OrgID: org, Slug: "revoke-probe", Target: "https://example.com"}).Error; err != nil {
-		t.Fatalf("seed link: %v", err)
-	}
-
-	// Baseline: the member can read the workspace's links.
-	if rec := do(srv, "GET", "/api/links", memberSession, ""); rec.Code != http.StatusOK {
+	// Baseline: the member can read the workspace members.
+	if rec := do(srv, "GET", "/api/org/members", memberSession, ""); rec.Code != http.StatusOK {
 		t.Fatalf("member baseline read: got %d, want 200", rec.Code)
 	}
 
@@ -71,7 +66,7 @@ func TestRemovedMemberLosesAccessImmediately(t *testing.T) {
 		t.Errorf("removed member kept %d live session(s)", sessions)
 	}
 
-	if rec := do(srv, "GET", "/api/links", memberSession, ""); rec.Code != http.StatusUnauthorized {
+	if rec := do(srv, "GET", "/api/org/members", memberSession, ""); rec.Code != http.StatusUnauthorized {
 		t.Errorf("removed member read after removal: got %d, want 401", rec.Code)
 	}
 

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/models"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 	"gorm.io/gorm"
 )
 
@@ -89,7 +88,7 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 		enableMail(t, db)
 
 		// Seed an SMTP sender
-		if err := db.Create(&mailmodels.SMTPSender{
+		if err := db.Create(&testSMTPSender{
 			OrgID: 1, Name: "relay", Host: "127.0.0.1", Port: 25,
 			User: "u", Pass: "enc", FromEmail: "noreply@example.com",
 		}).Error; err != nil {

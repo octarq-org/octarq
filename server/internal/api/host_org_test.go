@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 )
 
 func TestNormalizeHost(t *testing.T) {
@@ -53,10 +52,10 @@ func TestOrgIDForHostPrefersMostSpecificDomain(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 	const apexOrg, subOrg = uint(5101), uint(5102)
 
-	if err := db.Create(&dns.Domain{OrgID: apexOrg, Name: "acme.com"}).Error; err != nil {
+	if err := db.Create(&domainRow{OrgID: apexOrg, Name: "acme.com"}).Error; err != nil {
 		t.Fatalf("seed apex: %v", err)
 	}
-	if err := db.Create(&dns.Domain{OrgID: subOrg, Name: "app.acme.com"}).Error; err != nil {
+	if err := db.Create(&domainRow{OrgID: subOrg, Name: "app.acme.com"}).Error; err != nil {
 		t.Fatalf("seed sub: %v", err)
 	}
 
@@ -124,7 +123,7 @@ func TestAuthConfigBrandsByHost(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const org = uint(5301)
 
-	if err := db.Create(&dns.Domain{OrgID: org, Name: "acme.com"}).Error; err != nil {
+	if err := db.Create(&domainRow{OrgID: org, Name: "acme.com"}).Error; err != nil {
 		t.Fatalf("seed domain: %v", err)
 	}
 	if err := db.Save(&models.Setting{Key: keyAppName, Value: "Octarq Cloud"}).Error; err != nil {

@@ -6,18 +6,12 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 	"github.com/octarq-org/octarq/server/plugins/help"
-	"github.com/octarq-org/octarq/server/plugins/links"
-	"github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 func coreDocsProviders() map[string]plugin.HelpDocsFS {
 	return map[string]plugin.HelpDocsFS{
-		"help":  help.New(),
-		"links": links.New(),
-		"mail":  mail.New(),
-		"dns":   dns.New(),
+		"help": help.New(),
 	}
 }
 

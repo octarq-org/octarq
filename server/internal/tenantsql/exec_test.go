@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/links"
-	"github.com/octarq-org/octarq/server/plugins/mail"
 	"gorm.io/gorm"
 )
 
@@ -31,10 +29,10 @@ func setupTestDB(t *testing.T) (*gorm.DB, *tenantsql.Registry) {
 
 	// Auto-migrate tables
 	if err := db.AutoMigrate(
-		&links.Link{},
-		&links.LinkEvent{},
-		&mail.Mailbox{},
-		&mail.Email{},
+		&sqlTestLink{},
+		&sqlTestLinkEvent{},
+		&sqlTestMailbox{},
+		&sqlTestEmail{},
 		&models.AuditLog{},
 	); err != nil {
 		t.Fatalf("auto-migrate failed: %v", err)
@@ -49,8 +47,7 @@ func setupTestDB(t *testing.T) (*gorm.DB, *tenantsql.Registry) {
 		},
 	}
 
-	links.RegisterViews(pctx)
-	mail.RegisterViews(pctx)
+	registerTestViews(pctx)
 
 	return db, reg
 }
@@ -59,7 +56,7 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 	db, reg := setupTestDB(t)
 
 	// Seed data for Org 1
-	link1 := links.Link{
+	link1 := sqlTestLink{
 		OrgID:    1,
 		Slug:     "slug-org-1",
 		Target:   "https://org1.example.com",
@@ -71,7 +68,7 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 	}
 
 	// Seed data for Org 2
-	link2 := links.Link{
+	link2 := sqlTestLink{
 		OrgID:    2,
 		Slug:     "slug-org-2",
 		Target:   "https://org2.example.com",
@@ -133,22 +130,22 @@ func TestExecute_JoinViewsIsolation(t *testing.T) {
 	db, reg := setupTestDB(t)
 
 	// Create Link and LinkEvents for Org 1 and Org 2
-	l1 := links.Link{OrgID: 1, Slug: "l1", Target: "https://l1.com"}
+	l1 := sqlTestLink{OrgID: 1, Slug: "l1", Target: "https://l1.com"}
 	db.Create(&l1)
-	db.Create(&links.LinkEvent{LinkID: l1.ID, IP: "1.1.1.1", Fingerprint: "fp1", CreatedAt: time.Now()})
+	db.Create(&sqlTestLinkEvent{LinkID: l1.ID, IP: "1.1.1.1", Fingerprint: "fp1", CreatedAt: time.Now()})
 
-	l2 := links.Link{OrgID: 2, Slug: "l2", Target: "https://l2.com"}
+	l2 := sqlTestLink{OrgID: 2, Slug: "l2", Target: "https://l2.com"}
 	db.Create(&l2)
-	db.Create(&links.LinkEvent{LinkID: l2.ID, IP: "2.2.2.2", Fingerprint: "fp2", CreatedAt: time.Now()})
+	db.Create(&sqlTestLinkEvent{LinkID: l2.ID, IP: "2.2.2.2", Fingerprint: "fp2", CreatedAt: time.Now()})
 
 	// Create Mailbox and Email for Org 1 and Org 2
-	mb1 := mail.Mailbox{OrgID: 1, Address: "box1@org1.com"}
+	mb1 := sqlTestMailbox{OrgID: 1, Address: "box1@org1.com"}
 	db.Create(&mb1)
-	db.Create(&mail.Email{MailboxID: mb1.ID, MessageID: "msg-1", Subject: "Secret 1", Text: "Body 1"})
+	db.Create(&sqlTestEmail{MailboxID: mb1.ID, MessageID: "msg-1", Subject: "Secret 1", Text: "Body 1"})
 
-	mb2 := mail.Mailbox{OrgID: 2, Address: "box2@org2.com"}
+	mb2 := sqlTestMailbox{OrgID: 2, Address: "box2@org2.com"}
 	db.Create(&mb2)
-	db.Create(&mail.Email{MailboxID: mb2.ID, MessageID: "msg-2", Subject: "Secret 2", Text: "Body 2"})
+	db.Create(&sqlTestEmail{MailboxID: mb2.ID, MessageID: "msg-2", Subject: "Secret 2", Text: "Body 2"})
 
 	// Query tenant_link_events as Org 1
 	ctx1 := plugin.WithOrgID(context.Background(), 1)
@@ -235,7 +232,7 @@ func TestExecute_RowAndByteLimits(t *testing.T) {
 
 	// Seed 5 links for Org 1
 	for i := 0; i < 5; i++ {
-		db.Create(&links.Link{
+		db.Create(&sqlTestLink{
 			OrgID:  1,
 			Slug:   fmt.Sprintf("slug-%d", i),
 			Target: "https://example.com",
@@ -327,7 +324,7 @@ func TestExecute_MaterializationFailure(t *testing.T) {
 func TestExecute_ContextCancellation(t *testing.T) {
 	db, reg := setupTestDB(t)
 
-	db.Create(&links.Link{OrgID: 1, Slug: "cancel-test", Target: "https://example.com"})
+	db.Create(&sqlTestLink{OrgID: 1, Slug: "cancel-test", Target: "https://example.com"})
 
 	ctx, cancel := context.WithCancel(plugin.WithOrgID(context.Background(), 1))
 	cancel() // cancel immediately
@@ -342,7 +339,7 @@ func TestExecute_AliasDoesNotBypassRedaction(t *testing.T) {
 	db, reg := setupTestDB(t)
 
 	rawPassword := "supersecretpassword123"
-	link := links.Link{
+	link := sqlTestLink{
 		OrgID:    1,
 		Slug:     "alias-test-slug",
 		Target:   "https://example.com",
@@ -377,9 +374,9 @@ func TestExecute_AliasDoesNotBypassRedaction(t *testing.T) {
 	}
 
 	// Also verify emails sensitive columns alias redaction (subject, text, html, storage_key)
-	mb := mail.Mailbox{OrgID: 1, Address: "test@example.com"}
+	mb := sqlTestMailbox{OrgID: 1, Address: "test@example.com"}
 	db.Create(&mb)
-	db.Create(&mail.Email{
+	db.Create(&sqlTestEmail{
 		MailboxID:  mb.ID,
 		MessageID:  "msg-alias-1",
 		Subject:    "Confidential Subject",

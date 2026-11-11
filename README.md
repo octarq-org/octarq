@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>One Go binary. Short links, email and DNS included. Extend it with plugins — and drive all of it from your AI agent over MCP.</b>
+  <b>One Go binary. Infrastructure, not vertical features. Add links, email and DNS as plugins — and drive them from your AI agent over MCP.</b>
 </p>
 
 <p align="center">
@@ -31,9 +31,9 @@
 
 ## What is Octarq?
 
-Octarq is the **self-hosted operations backend for indie hackers, one-person companies, and small AI-native teams** — the back office you'd otherwise assemble from three SaaS subscriptions.
+Octarq is **self-hosted infrastructure for indie hackers, one-person companies, and small AI-native teams**: one Go binary that gives you the back office — auth, orgs, audit log, notifications, job queue, webhooks, and MCP.
 
-Own a domain? Octarq already gives you **short links with analytics, inbound/outbound email, and DNS automation** — each shipped as a first-class plugin, not a locked-in feature. Then you extend it the same way its own core is built: **a small Go interface + a React page = a new tool in your back office.** And because Octarq speaks **MCP**, every plugin you add is instantly drivable by your AI agent (Claude Code, Cursor, Claude Desktop).
+Core holds no business feature. Links, mail, and DNS ship as plugins in [octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add the ones you need at build time. Extend the rest the same way: **a small Go interface + a React page = a new tool in your back office.** And because Octarq speaks **MCP**, every plugin you add is instantly drivable by your AI agent (Claude Code, Cursor, Claude Desktop).
 
 > One binary. No CGO. SQLite by default. `go:embed`'d dashboard. Extend without forking.
 
@@ -55,9 +55,9 @@ docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=change-this-admin-password -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
-On first boot without environment variables, Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs (or use `admin` if specified above), and log in. Mail, DNS and GeoIP are all opt-in — configure them later from **Settings**, nothing is required to start.
+On first boot without environment variables, Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs (or use `admin` if specified above), and log in. The default build contains infrastructure only. Add the business plugins you want from [octarq-plugins](https://github.com/octarq-org/octarq-plugins).
 
-That's the full stack — dashboard, API, redirector, MCP — in one container.
+That's the full stack — dashboard, API and MCP — in one container.
 
 <details>
 <summary>Prefer to build from source?</summary>
@@ -76,16 +76,16 @@ Set `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD` explicitly (see `.env.example`
 ## Why Octarq
 
 - **One binary, one afternoon.** Download it, run it, extend it. No runtime to install, no services to wire together, no CGO.
-- **Real infrastructure, not a toy.** Short links with geo/device routing and bot-filtered analytics, custom-domain email you can actually read and reply to, DNS automation against Cloudflare and DNSPod.
-- **A framework, not a bundle.** Links, mail and DNS are plugins written against the same public interface you get. Nothing about them is privileged.
+- **Core is infrastructure.** Auth, orgs, audit log, notifications, webhooks, job queue, MCP — the parts every back office needs, and nothing you would replace.
+- **Business features are plugins.** Links, mail and DNS ship in [octarq-plugins](https://github.com/octarq-org/octarq-plugins) and mount at build time. They use the same public interface you get.
 - **Agent-native by construction.** Every plugin's capabilities reach your AI agent over MCP without extra plumbing.
 - **Yours.** Your server, your database, your domain, MIT-licensed.
 
 ---
 
-## Batteries included (the reference plugins)
+## Business plugins
 
-These ship in the default build so Octarq is useful on minute one:
+Install these from [octarq-plugins](https://github.com/octarq-org/octarq-plugins):
 
 | Plugin      | What you get                                                                                                                                                                                                                   |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -103,13 +103,13 @@ These ship in the default build so Octarq is useful on minute one:
 </p>
 </details>
 
-Everything else — auth, orgs, audit log, notifications, job queue, webhooks, backups — is core, and available to every plugin you write.
+Auth, orgs, audit log, notifications, job queue, webhooks and backups are core, and available to every plugin you write.
 
 ---
 
 ## Agent-native: your plugin is an MCP tool
 
-Octarq ships a built-in **MCP server** (`octarq mcp` over stdio; SSE and Streamable HTTP on the server at `/api/mcp/sse` and `/api/mcp/stream`) so assistants like Claude Code can read and query your instance — namespaced tools such as `octarq_network__list_links`, `octarq_identity__get_latest_otp`, `octarq_infra__query_db_readonly` and `octarq_infra__export_data`. Every tool is scoped to the caller's own workspace with `org_id` isolation; SQL access is SELECT-only with sensitive columns redacted, and duplicate tool registrations fail closed instead of silently overwriting.
+Octarq ships a built-in **MCP server** (`octarq mcp` over stdio; SSE and Streamable HTTP on the server at `/api/mcp/sse` and `/api/mcp/stream`) so assistants like Claude Code can read and query your instance. Core exposes `octarq_infra__describe_tenant_schema`, `octarq_infra__query_db_readonly`, `octarq_infra__export_data` and `octarq_infra__notify`. Installed plugins add their own namespaced tools, such as `octarq_network__list_links`. Every tool is scoped to the caller's own workspace with `org_id` isolation; SQL access is SELECT-only with sensitive columns redacted, and duplicate tool registrations fail closed instead of silently overwriting.
 
 The point isn't "we added AI." The point is the **framework** wiring: a plugin that implements the optional `MCPProvider` interface exposes its own tools to every connected agent — no extra plumbing. Write a plugin, and your AI agent can drive it.
 
@@ -168,7 +168,7 @@ export const helloPlugin: UIPlugin = {
 
 **Scaffold one in seconds** — `octarq plugin new <name>` writes a buildable Go + web skeleton to start from.
 
-**Official plugins & starter template** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins) (Telegram, Webhook, the agent-native Mail Links demo, and a `_template` to copy) · **Guide** → [Writing a plugin](https://docs.octarq.org/writing-a-plugin/)
+**Official plugins & starter template** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins) (links, mail, DNS, 2FA vault, the agent-native Mail Links demo, and a `_template` to copy) · **Guide** → [Writing a plugin](https://docs.octarq.org/writing-a-plugin/)
 
 *Octarq's own Pro edition is just another set of plugins built against this same public interface — nothing the community can't do.*
 
@@ -176,8 +176,8 @@ export const helloPlugin: UIPlugin = {
 
 ## Setup guides
 
-- **Email via Cloudflare Worker** — deploy [`deploy/cloudflare-email-worker.js`](deploy/cloudflare-email-worker.js), set a catch-all route, enable *Accept email*.
-- **GeoIP analytics** — set `OCTARQ_MAXMIND_LICENSE_KEY` (free) and Octarq auto-downloads + hot-loads GeoLite2. See [`deploy/GEOIP.md`](deploy/GEOIP.md).
+- **Email via Cloudflare Worker** — install the mail plugin, deploy [`deploy/cloudflare-email-worker.js`](deploy/cloudflare-email-worker.js), set a catch-all route, enable *Accept email*.
+- **GeoIP analytics** — install the links plugin, set `OCTARQ_MAXMIND_LICENSE_KEY` (free) and Octarq auto-downloads + hot-loads GeoLite2. See [`deploy/GEOIP.md`](deploy/GEOIP.md).
 - **MCP in Claude Desktop** — point `claude_desktop_config.json` at `octarq mcp` (config above).
 - **Backup & restore** — `octarq backup` / `octarq restore` back up the database. Back up the whole `/data` directory (database **plus** the generated `octarq.secret` / `octarq-admin-password.txt` key files), and note Postgres backup needs host-side `pg_dump`. See [Backup & restore](https://docs.octarq.org/backup-restore/).
 

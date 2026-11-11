@@ -207,5 +207,6 @@ func (h *Handler) Audit(r *http.Request, action, targetType string, targetID uin
 	h.audit(r, action, targetType, targetID, meta)
 }
 
-// Domain/DNS provider helpers (encryptConfig, providerFor) moved to the dns
-// Core plugin (plugins/dns). See website/src/content/docs/architecture/overview.md.
+// Domain/DNS provider helpers (encryptConfig, providerFor) moved out of core
+// with the dns plugin (octarq-plugins/dns).
+// See website/src/content/docs/architecture/overview.md.

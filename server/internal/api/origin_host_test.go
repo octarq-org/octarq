@@ -9,7 +9,6 @@ import (
 
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +18,7 @@ import (
 //
 // Nothing here re-implements host validation: the test only forges a Host
 // header and reads what came out the other end of the production handler.
-func originTestServer(t *testing.T, domains ...dns.Domain) (http.Handler, *gorm.DB, *[]string) {
+func originTestServer(t *testing.T, domains ...testDomain) (http.Handler, *gorm.DB, *[]string) {
 	t.Helper()
 	h, srv, db := newTestHandlerRaw(t)
 
@@ -81,11 +80,11 @@ func forgot(t *testing.T, srv http.Handler, sent *[]string, host string) string 
 // the attacker's server. One click by the victim is a full account takeover, on
 // an account the attacker only had to know the email address of.
 func TestForgotPasswordRejectsForgedHost(t *testing.T) {
-	acme := dns.Domain{
+	acme := testDomain{
 		OrgID:     1,
 		Name:      "acme.example",
 		ForLink:   true,
-		LinkHosts: models.HostList{{Host: "go.acme.example", Enabled: true}},
+		LinkHosts: `[{"host":"go.acme.example","enabled":true}]`,
 	}
 
 	t.Run("forged host is never used", func(t *testing.T) {

@@ -12,7 +12,6 @@ import (
 	"github.com/markbates/goth/gothic"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 	"github.com/pquerna/otp/totp"
 	"gorm.io/gorm"
 )
@@ -40,7 +39,7 @@ func oauthTestEnv(t *testing.T, h *Handler, db *gorm.DB, email string) []*http.C
 	}
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
 	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: string(enc)})
-	if err := db.Create(&dns.Domain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
+	if err := db.Create(&testDomain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
 		t.Fatalf("seed domain: %v", err)
 	}
 

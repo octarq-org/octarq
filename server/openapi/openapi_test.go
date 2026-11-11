@@ -48,9 +48,9 @@ func TestGenerateValidSpec(t *testing.T) {
 		method string
 	}{
 		{"/api/auth/login", "post"},
-		{"/api/links", "get"},
-		{"/api/mailboxes", "get"},
-		{"/api/domains", "get"},
+		{"/api/tenant/schema", "get"},
+		{"/api/tenant/query", "post"},
+		{"/api/notify", "post"},
 		{"/auth/begin/{provider}", "get"},
 		{"/api/mcp/sse", "get"},
 		{"/abuse", "post"},
@@ -102,7 +102,7 @@ func (p contributorPlugin) OpenAPIPaths() map[string]any {
 				"summary": "Contributed Endpoint",
 			},
 		},
-		"/api/links": map[string]any{
+		"/api/tenant/schema": map[string]any{
 			"get": map[string]any{
 				"summary": "Should Not Override Generated",
 			},
@@ -149,16 +149,16 @@ func TestMarshal_WithOpenAPIContributor(t *testing.T) {
 	}
 
 	// Generated endpoint should NOT be overridden by contributor
-	linksPath, ok := paths["/api/links"].(map[string]any)
+	schemaPath, ok := paths["/api/tenant/schema"].(map[string]any)
 	if !ok {
-		t.Fatal("missing /api/links")
+		t.Fatal("missing /api/tenant/schema")
 	}
-	linksGet, ok := linksPath["get"].(map[string]any)
+	schemaGet, ok := schemaPath["get"].(map[string]any)
 	if !ok {
-		t.Fatal("missing GET /api/links")
+		t.Fatal("missing GET /api/tenant/schema")
 	}
-	if summary, _ := linksGet["summary"].(string); summary == "Should Not Override Generated" {
-		t.Error("contributor overrode generated /api/links summary")
+	if summary, _ := schemaGet["summary"].(string); summary == "Should Not Override Generated" {
+		t.Error("contributor overrode generated /api/tenant/schema summary")
 	}
 
 	// Contributed schema should be present

@@ -254,7 +254,7 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 //
 // The inbound-mail webhook carries the org's secret as the LAST path segment —
 // POST /api/webhook/{orgSlug}/email/inbound/{token} and its siblings. Putting
-// the secret in the URL is deliberate and argued at plugins/mail/webhook.go:
+// the secret in the URL is deliberate and argued at octarq-plugins/mail/webhook.go:
 // SendGrid Inbound Parse and Mailgun routes let you configure a URL and nothing
 // else, so a custom auth header is not on the table, and the token rotates from
 // Mail settings. Logging it verbatim was not deliberate: it left every tenant's

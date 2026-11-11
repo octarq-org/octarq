@@ -7,9 +7,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 	"github.com/octarq-org/octarq/server/plugins/help"
-	"github.com/octarq-org/octarq/server/plugins/links"
 )
 
 type echoIn struct {
@@ -145,8 +143,6 @@ func (p servicePlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 // Huma is wired.
 func appBootComposition(t *testing.T, cap *wiringCapture, httpMode bool) []plugin.Plugin {
 	plugins := []plugin.Plugin{
-		dns.New(),
-		links.New(),
 		servicePlugin{name: "usage-meter", svc: plugin.ServiceCloudUsage, val: plugin.UsageMeter(func(_ uint, metric string, n int64) { cap.addUsage(metric, n) })},
 		servicePlugin{name: "mail-send", svc: plugin.ServiceMailSend, val: plugin.MailSender(func(_ uint, to, _, _, _ string) error { cap.addMail(to); return nil })},
 		ctxAssertPlugin{t: t, name: "probe-a", cap: cap, httpMode: httpMode},

@@ -3,8 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/smtp"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,55 +24,10 @@ import (
 	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
-	"github.com/octarq-org/octarq/server/plugins/links"
-	"github.com/octarq-org/octarq/server/plugins/mail"
+	"github.com/octarq-org/octarq/server/plugins/builtin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
-
-// mountCoreDNS mounts the built-in dns Core plugin onto the handler's API so the
-// domain / provider-account / DNS-record routes (extracted out of the Handler,
-// see website/src/content/docs/architecture/overview.md) are present in the
-// test server exactly as the app mounts them in production. Uses default (net)
-// that stub resolution live in plugins/dns.
-func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
-	reg := plugin.NewRegistry()
-	dns.New().Mount(nil, &plugin.Context{
-		Huma:    h.Huma(),
-		DB:      db,
-		Audit:   h.Audit,
-		Provide: reg.Provide,
-		Lookup:  reg.Lookup,
-		Host: &plugin.TestHost{
-			SessionMock: &plugin.TestSession{
-				OrgIDFn: authMgr.OrgID,
-			},
-			CryptoMock: cipher,
-		},
-	})
-}
-
-func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
-	reg := plugin.NewRegistry()
-	mail.New().Mount(nil, &plugin.Context{
-		Huma:    h.Huma(),
-		DB:      db,
-		Audit:   h.Audit,
-		Provide: reg.Provide,
-		Lookup:  reg.Lookup,
-		Host: &plugin.TestHost{
-			SessionMock: &plugin.TestSession{
-				OrgIDFn: authMgr.OrgID,
-			},
-			CryptoMock: cipher,
-			SettingsMock: &plugin.TestSettings{
-				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
-				GetGlobalSettingFn:    h.GetGlobalSetting,
-			},
-		},
-	})
-}
 
 func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	t.Helper()
@@ -96,7 +55,7 @@ func disableEmailVerification(t *testing.T, db *gorm.DB) {
 // promising a message that never arrives.
 func enableMail(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	sender := mail.SMTPSender{
+	sender := testSMTPSender{
 		OrgID: 1, Name: "test", Host: "smtp.example.com", Port: 587,
 		User: "u", Pass: "enc", FromEmail: "noreply@example.com",
 	}
@@ -125,9 +84,9 @@ func initTestDBTemplates() {
 			panic("initTestDBTemplates fullDB: " + err.Error())
 		}
 		fullModels := append(models.AllModels(),
-			&links.Link{}, &links.LinkEvent{},
-			&dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{},
-			&mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{},
+			&testLink{},
+			&testDomain{}, &testProviderAccount{},
+			&testMailbox{}, &testEmail{}, &testSMTPSender{},
 		)
 		if err := fullDB.AutoMigrate(fullModels...); err != nil {
 			panic("initTestDBTemplates migrate fullDB: " + err.Error())
@@ -149,8 +108,8 @@ func initTestDBTemplates() {
 			panic("initTestDBTemplates noMailDB: " + err.Error())
 		}
 		noMailModels := append(models.AllModels(),
-			&links.Link{}, &links.LinkEvent{},
-			&dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{},
+			&testLink{},
+			&testDomain{}, &testProviderAccount{},
 		)
 		if err := noMailDB.AutoMigrate(noMailModels...); err != nil {
 			panic("initTestDBTemplates migrate noMailDB: " + err.Error())
@@ -198,7 +157,7 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	db := newTestDB(t)
 	// Isolate from other tests sharing the cache.
 	db.Where("1 = 1").Delete(&models.Token{})
-	db.Where("1 = 1").Delete(&links.Link{})
+	db.Where("1 = 1").Delete(&testLink{})
 
 	cipher := crypto.New(cfg.SecretKey)
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
@@ -223,13 +182,53 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 		return harness.DefaultHarnessSpec(), nil
 	})
 
-	dnsP := dns.New()
-	mailP := mail.New()
-	linksP := links.New()
-	h.SetPlugins([]plugin.Plugin{dnsP, mailP, linksP})
+	plugins := builtin.Default()
+	h.SetPlugins(plugins)
 
 	reg := plugin.NewRegistry()
 	h.SetServiceLookup(reg.Lookup)
+
+	reg.Provide(plugin.ServiceMailReady, plugin.MailReady(func() bool {
+		var setting models.Setting
+		if err := db.First(&setting, "key = ?", "mail_system_sender_id").Error; err != nil || setting.Value == "" {
+			return false
+		}
+		var sender testSMTPSender
+		return db.First(&sender, "id = ?", setting.Value).Error == nil
+	}))
+	reg.Provide(plugin.ServiceMailSendSystem, plugin.SystemMailSender(func(to, subject, html, text string) error {
+		var setting models.Setting
+		if err := db.First(&setting, "key = ?", "mail_system_sender_id").Error; err != nil || setting.Value == "" {
+			return errors.New("no system sender configured")
+		}
+		var sender testSMTPSender
+		if err := db.First(&sender, "id = ?", setting.Value).Error; err != nil {
+			return errors.New("configured system sender not found")
+		}
+		pass, err := cipher.Decrypt(sender.Pass)
+		if err != nil {
+			return err
+		}
+		var msg strings.Builder
+		fmt.Fprintf(&msg, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
+			sender.FromEmail, to, subject, text)
+		addr := net.JoinHostPort(sender.Host, strconv.Itoa(sender.Port))
+		return smtp.SendMail(addr, smtp.PlainAuth("", sender.User, string(pass), sender.Host), sender.FromEmail, []string{to}, []byte(msg.String()))
+	}))
+	reg.Provide(plugin.ServiceLinkResolve, plugin.LinkResolver(func(host, slug string) (string, uint, bool) {
+		var l testLink
+		if err := db.Where("slug = ?", slug).First(&l).Error; err == nil {
+			return l.Target, l.OrgID, true
+		}
+		return "", 0, false
+	}))
+	reg.Provide(plugin.ServiceMailEmailGet, plugin.EmailGetter(func(orgID uint, id uint) (string, string, string, bool) {
+		var em testEmail
+		if err := db.Where("id = ?", id).First(&em).Error; err != nil {
+			return "", "", "", false
+		}
+		return em.FromAddr, em.Subject, em.Text, true
+	}))
 
 	srv := h.Routes()
 
@@ -255,82 +254,17 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 			},
 		},
 	}
-	dnsP.Mount(nil, pctx)
-	mailP.Mount(nil, pctx)
-	linksP.Mount(nil, pctx)
+	for _, p := range plugins {
+		p.Mount(nil, pctx)
+	}
 
 	return h, srv, db
 }
 
-// newTestHandlerWithoutMail builds a test handler with only dns and links mounted
-// (no mail plugin), mirroring the edition-nomail composition.
+// newTestHandlerWithoutMail builds a test handler without mail plugin.
 func newTestHandlerWithoutMail(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
-	initTestDBTemplates()
-	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "_nomail?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.Exec(testDBNoMailDDL).Error; err != nil {
-		t.Fatalf("apply nomail template: %v", err)
-	}
-	db.Where("1 = 1").Delete(&models.Token{})
-	db.Where("1 = 1").Delete(&links.Link{})
-
-	cipher := crypto.New(cfg.SecretKey)
-	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
-		t.Fatalf("EnableEnvelope: %v", err)
-	}
-	notify.SetConfigDecryptor(func(stored string) (string, bool) {
-		b, err := cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(b), true
-	})
-	authMgr := auth.New(cfg, cipher).WithDB(db)
-	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
-
-	dnsP := dns.New()
-	linksP := links.New()
-	h.SetPlugins([]plugin.Plugin{dnsP, linksP})
-
-	reg := plugin.NewRegistry()
-	h.SetServiceLookup(reg.Lookup)
-
-	srv := h.Routes()
-
-	pctx := &plugin.Context{
-		Huma:        h.Huma(),
-		DB:          db,
-		Guard:       authMgr.Require,
-		Audit:       h.Audit,
-		Enqueue:     h.queue.Enqueue,
-		DeleteCache: authMgr.Cache().Delete,
-		Provide:     reg.Provide,
-		Lookup:      reg.Lookup,
-		Host: &plugin.TestHost{
-			SessionMock: &plugin.TestSession{
-				UserIDFn:      authMgr.UserID,
-				OrgIDFn:       authMgr.OrgID,
-				RequirePermFn: h.RequirePerm,
-			},
-			CryptoMock: cipher,
-			SettingsMock: &plugin.TestSettings{
-				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
-				GetGlobalSettingFn:    h.GetGlobalSetting,
-			},
-		},
-	}
-	dnsP.Mount(nil, pctx)
-	linksP.Mount(nil, pctx)
-
-	return h, srv, db
+	return newTestHandlerRawCfg(t, &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"})
 }
 
 // apiEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
@@ -403,16 +337,16 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 	}
 
 	// Use the bearer token against a protected data endpoint.
-	req = httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/overview", nil)
 	req.Header.Set("Authorization", "Bearer "+created.Token)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("bearer-authed /api/links: got %d want 200", rec.Code)
+		t.Fatalf("bearer-authed /api/overview: got %d want 200", rec.Code)
 	}
 
 	// A bad bearer token is rejected.
-	req = httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/overview", nil)
 	req.Header.Set("Authorization", "Bearer oct_totallybogus0000000000000000000000")
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
