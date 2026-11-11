@@ -39,12 +39,12 @@ export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
     if (errorStatus(error) === 402) {
       return (
         <div ref={ref} className={cn("p-6", className)}>
-          <LockedFeature status={402} feature={t("proTable.lockedFeature")} />
+          <LockedFeature status={402} feature={t("proTable.lockedFeature", "Locked feature")} />
         </div>
       );
     }
 
-    const title = t("proTable.errorTitle");
+    const title = t("proTable.errorTitle", "Failed to load data");
     const errorMessage =
       errorText ??
       (error instanceof Error ? error.message : typeof error === "string" ? error : undefined);
@@ -61,7 +61,7 @@ export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
             onRetry && (
               <Button size="sm" variant="outline" onClick={onRetry} className="gap-1.5">
                 <RotateGlyph className="h-3.5 w-3.5" />
-                <span>{t("proTable.retry")}</span>
+                <span>{t("proTable.retry", "Retry")}</span>
               </Button>
             )
           }

@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/octarq-org/octarq/server/pkg/hostlist"
 )
 
 // SingleUserID is a legacy placeholder org ID from before multi-tenancy,
@@ -174,75 +176,11 @@ func (s *StringList) Scan(v any) error {
 	return json.Unmarshal(b, (*[]string)(s))
 }
 
-// Host is a single hostname with an enable flag, so a host can be temporarily
-// disabled without losing its configuration.
-type Host struct {
-	Host    string `json:"host"`
-	Enabled bool   `json:"enabled"`
-}
+// Host is re-exported from pkg/hostlist for backward compatibility.
+type Host = hostlist.Host
 
-// HostList is a []Host persisted as a JSON text column.
-type HostList []Host
-
-func (l HostList) Value() (driver.Value, error) {
-	if len(l) == 0 {
-		return "[]", nil
-	}
-	b, err := json.Marshal([]Host(l))
-	return string(b), err
-}
-
-func (l *HostList) Scan(v any) error {
-	if v == nil {
-		*l = nil
-		return nil
-	}
-	var b []byte
-	switch t := v.(type) {
-	case []byte:
-		b = t
-	case string:
-		b = []byte(t)
-	default:
-		return fmt.Errorf("HostList: unsupported scan type %T", v)
-	}
-	if len(b) == 0 {
-		*l = nil
-		return nil
-	}
-	var hosts []Host
-	if err := json.Unmarshal(b, &hosts); err != nil {
-		return err
-	}
-	*l = hosts
-	return nil
-}
-
-// Enabled returns only the hostnames that are currently enabled.
-func (l HostList) Enabled() []string {
-	out := make([]string, 0, len(l))
-	for _, h := range l {
-		if h.Enabled {
-			out = append(out, h.Host)
-		}
-	}
-	return out
-}
-
-// Blocks reports whether host is listed but every listing is disabled — i.e.
-// traffic to it should be dropped. An unlisted host is not blocked.
-func (l HostList) Blocks(host string) bool {
-	listed := false
-	for _, h := range l {
-		if h.Host == host {
-			listed = true
-			if h.Enabled {
-				return false
-			}
-		}
-	}
-	return listed
-}
+// HostList is re-exported from pkg/hostlist for backward compatibility.
+type HostList = hostlist.HostList
 
 // Token is an API token for the open API. Only the SHA-256 hash of the raw
 // token is stored; the raw token is shown once at creation time. Prefix keeps

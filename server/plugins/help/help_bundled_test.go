@@ -9,9 +9,6 @@ import (
 	"testing/fstest"
 
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
-	"github.com/octarq-org/octarq/server/plugins/links"
-	"github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 // bundledDocsProviders is every plugin in this build that ships documentation
@@ -21,10 +18,7 @@ import (
 // just is not held to the checks below.
 func bundledDocsProviders() map[string]plugin.HelpDocsFS {
 	return map[string]plugin.HelpDocsFS{
-		"help":  New(),
-		"links": links.New(),
-		"mail":  mail.New(),
-		"dns":   dns.New(),
+		"help": New(),
 	}
 }
 
@@ -135,8 +129,9 @@ func TestEveryCategoryHasAtLeastOneDoc(t *testing.T) {
 	}
 
 	for _, c := range categories {
-		// commerce and licensing are contributed by Pro plugins in a composed build.
-		if c.Key == "commerce" || c.Key == "licensing" {
+		// commerce, licensing, and infrastructure are contributed by plugins
+		// outside core (Pro modules and the octarq-plugins dns plugin).
+		if c.Key == "commerce" || c.Key == "licensing" || c.Key == "infrastructure" {
 			continue
 		}
 		if categoryCounts[c.Key] == 0 {

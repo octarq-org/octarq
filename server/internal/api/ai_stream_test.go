@@ -17,9 +17,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
-	dns "github.com/octarq-org/octarq/server/plugins/dns"
-	links "github.com/octarq-org/octarq/server/plugins/links"
-	mail "github.com/octarq-org/octarq/server/plugins/mail"
 	"gorm.io/gorm"
 )
 
@@ -98,11 +95,6 @@ func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harnes
 	if src != nil {
 		h.SetEndpointSource(src)
 	}
-
-	dnsP := dns.New()
-	mailP := mail.New()
-	linksP := links.New()
-	h.SetPlugins([]plugin.Plugin{dnsP, mailP, linksP})
 
 	reg := plugin.NewRegistry()
 	h.SetServiceLookup(reg.Lookup)

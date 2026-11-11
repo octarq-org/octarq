@@ -42,23 +42,6 @@ var registeredPublicEndpoints = map[string]string{
 	// gives POST /abuse the auth-tier budget (internal/server/middleware.go).
 	"POST /abuse": "public by design; rate-limited as its own tier",
 
-	// DDNS. A router calls this on a schedule with no cookie; the caller is
-	// identified by a hashed per-record token (plugins/dns/ddns.go), which is
-	// the whole authentication for the route.
-	"GET /api/dns/ddns/update":  "hashed per-record DDNS token",
-	"POST /api/dns/ddns/update": "hashed per-record DDNS token",
-
-	// Inbound mail and bounce notifications. These arrive from Cloudflare Email
-	// Routing, SendGrid/Mailgun and SES/SNS with no session, and often from a
-	// provider whose only configurable field is a URL. Each carries the org's
-	// inbound token as a path segment, constant-time compared; it rotates from
-	// Mail settings. The SNS path additionally validates the SubscribeURL host
-	// so a confirmation cannot point the server at an internal address
-	// (isAWSSNSURL in plugins/mail/mail.go).
-	"POST /api/webhook/{orgSlug}/email/inbound/{token}":     "org inbound token in path, constant-time compared",
-	"POST /api/webhook/{orgSlug}/email/inbound/raw/{token}": "org inbound token in path, constant-time compared",
-	"POST /api/webhook/{orgSlug}/email/bounce/{token}":      "org inbound token in path; SNS SubscribeURL host validated",
-
 	// File download with optional temporary signed token
 	"GET /api/files/{id}/download": "session or HMAC-SHA256 signed temporary download token",
 

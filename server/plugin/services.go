@@ -187,6 +187,14 @@ type EmailDispatcher func(handler func(EmailEvent))
 // contract: the provider and every consumer must change together.
 type UsageMeter func(orgID uint, metric string, n int64)
 
+// Standard usage metric names passed to UsageMeter.
+const (
+	MetricClicks   = "clicks"
+	MetricMailIn   = "mailIn"
+	MetricMailOut  = "mailOut"
+	MetricRawBytes = "mail.raw_bytes"
+)
+
 // TierResolver is the cross-plugin contract for resolving an org's
 // subscription tier ("", "solo", "team", …; "" means Free — an org with no
 // subscription row is a Free org, not an error). The provider lives in a

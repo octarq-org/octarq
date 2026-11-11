@@ -11,9 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/idempotency"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/plugins/dns"
-	"github.com/octarq-org/octarq/server/plugins/links"
-	"github.com/octarq-org/octarq/server/plugins/mail"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -25,15 +22,11 @@ func allAppTestModels() []any {
 	all = append(all, models.AllModels()...)
 	all = append(all, eventbus.Models()...)
 	all = append(all, idempotency.Models()...)
-	all = append(all, dns.New().Models()...)
-	all = append(all, links.New().Models()...)
-	all = append(all, mail.New().Models()...)
 	return all
 }
 
 // TestMigrateAllAppModelsInSQLite verifies that every registered model in core,
-// eventbus, idempotency, and all built-in plugins migrates cleanly and supports
-// binary byte slice roundtrips.
+// eventbus, and idempotency migrates cleanly and supports binary byte slice roundtrips.
 func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 	t.Parallel()
 
@@ -43,9 +36,6 @@ func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 	}
 
 	extraModels := append(eventbus.Models(), idempotency.Models()...)
-	extraModels = append(extraModels, dns.New().Models()...)
-	extraModels = append(extraModels, links.New().Models()...)
-	extraModels = append(extraModels, mail.New().Models()...)
 
 	if err := Migrate(gdb, extraModels...); err != nil {
 		t.Fatalf("Migrate failed with all app models: %v", err)
@@ -54,8 +44,7 @@ func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 	// Verify crucial tables exist
 	for _, tbl := range []string{
 		"orgs", "users", "settings", "idempotency_records",
-		"webhook_deliveries", "mailboxes", "emails", "mail_raw_blobs",
-		"domains", "links", "link_events",
+		"webhook_deliveries",
 	} {
 		if !gdb.Migrator().HasTable(tbl) {
 			t.Errorf("expected table %q to exist after full migration", tbl)
@@ -84,24 +73,6 @@ func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 	}
 	if !bytes.Equal(loadedRec.ResponseBody, binaryResp) {
 		t.Errorf("ResponseBody binary mismatch: got %q, want %q", loadedRec.ResponseBody, binaryResp)
-	}
-
-	// Verify mail.MailRawBlob with Data []byte roundtrips binary data
-	rawEML := []byte("From: alice@example.com\r\nTo: bob@example.com\r\n\r\nHello binary mail")
-	blob := &mail.MailRawBlob{
-		Key:       "mail/1/test.eml",
-		Data:      rawEML,
-		UpdatedAt: time.Now(),
-	}
-	if err := gdb.Create(blob).Error; err != nil {
-		t.Fatalf("failed to insert MailRawBlob with []byte: %v", err)
-	}
-	var loadedBlob mail.MailRawBlob
-	if err := gdb.First(&loadedBlob, "key = ?", "mail/1/test.eml").Error; err != nil {
-		t.Fatalf("failed to query MailRawBlob: %v", err)
-	}
-	if !bytes.Equal(loadedBlob.Data, rawEML) {
-		t.Errorf("MailRawBlob data binary mismatch: got %q, want %q", loadedBlob.Data, rawEML)
 	}
 }
 

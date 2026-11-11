@@ -36,3 +36,14 @@ export { RouteFallback } from "./route-fallback";
 export { Code } from "./code";
 export { Guide } from "./guide";
 export { timeAgo } from "./time";
+
+export { AreaChart, BarList, type AreaChartProps, type BarListProps } from "./charts";
+export {
+  SetupStep,
+  SetupChecklistProvider,
+  useSetupChecklist,
+  type SetupStepProps,
+  type SetupChecklistProviderProps,
+  type SetupChecklistStateContextType,
+} from "./setup-step";
+export { ListSkeleton, type ListSkeletonProps } from "./list-skeleton";

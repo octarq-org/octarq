@@ -6,8 +6,20 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/plugins/links"
+	"github.com/octarq-org/octarq/server/plugin"
 )
+
+type stubPurgePlugin struct {
+	name string
+	fn   plugin.PurgeFunc
+}
+
+func (p stubPurgePlugin) Name() string          { return p.name }
+func (p stubPurgePlugin) Describe() plugin.Info { return plugin.Info{Title: p.name} }
+func (p stubPurgePlugin) Models() []any         { return nil }
+func (p stubPurgePlugin) Mount(m plugin.Mux, ctx *plugin.Context) {
+	ctx.Provide(plugin.PurgeServiceName(p.name), p.fn)
+}
 
 // TestPurgeAccount_InvokesPluginPurgeServices guards the plugin.PurgeFunc
 // contract: the purge must reach every mounted plugin's purge service through
@@ -22,9 +34,22 @@ func TestPurgeAccount_InvokesPluginPurgeServices(t *testing.T) {
 	const userA uint = 5001
 
 	seedOrgFullData(t, h, orgA, userA, "SECRET-ORG-A")
-	if err := db.Create(&links.Link{OrgID: orgA, Slug: "guard-purge", Target: "https://example.com/guard"}).Error; err != nil {
+	if err := db.Create(&testLink{OrgID: orgA, Slug: "guard-purge", Target: "https://example.com/guard"}).Error; err != nil {
 		t.Fatalf("seed link: %v", err)
 	}
+
+	p := stubPurgePlugin{
+		name: "links",
+		fn: func(orgID uint) error {
+			return db.Where("owner_id = ?", orgID).Delete(&testLink{}).Error
+		},
+	}
+	h.SetPlugins([]plugin.Plugin{p})
+	reg := plugin.NewRegistry()
+	h.SetServiceLookup(reg.Lookup)
+	pctx := &plugin.Context{Provide: reg.Provide}
+	p.Mount(nil, pctx)
+
 	cookies := sessionCookies(t, userA, orgA)
 
 	rec := do(srv, http.MethodDelete, "/api/account/data", cookies, `{"confirm":"DELETE MY DATA"}`)
@@ -33,7 +58,7 @@ func TestPurgeAccount_InvokesPluginPurgeServices(t *testing.T) {
 	}
 
 	var linkCount int64
-	db.Model(&links.Link{}).Where("owner_id = ?", orgA).Count(&linkCount)
+	db.Model(&testLink{}).Where("owner_id = ?", orgA).Count(&linkCount)
 	if linkCount != 0 {
 		t.Errorf("links rows for Org A = %d, want 0 — the links purge service never ran (plugin.PurgeFunc guard broken?)", linkCount)
 	}

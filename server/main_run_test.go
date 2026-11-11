@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 	"gorm.io/gorm"
 )
 
@@ -143,10 +142,15 @@ func TestRunDefaultFailureAfterOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed open: %v", err)
 	}
-	if err := seed.AutoMigrate(&dns.Domain{}); err != nil {
+	type seedDomain struct {
+		ID      uint `gorm:"primaryKey"`
+		Name    string
+		ForLink bool
+	}
+	if err := seed.Table("domains").AutoMigrate(&seedDomain{}); err != nil {
 		t.Fatalf("seed migrate: %v", err)
 	}
-	seed.Create(&dns.Domain{Name: "example.com", ForLink: true})
+	seed.Table("domains").Create(&seedDomain{Name: "example.com", ForLink: true})
 	seedSQL, _ := seed.DB()
 	seedSQL.Close()
 

@@ -5,7 +5,7 @@ category: settings
 order: 50
 ---
 
-Octarq includes a built-in Model Context Protocol (MCP) server that lets Large Language Models (LLMs), IDE assistants, and autonomous agents interact with your workspace data, short links, mailboxes, and DNS records.
+Octarq includes a built-in Model Context Protocol (MCP) server. It lets AI assistants read and query your workspace through the installed plugins.
 
 ## Choose a Connection Mode
 
@@ -20,24 +20,14 @@ Octarq exposes structured tools rather than raw SQL access. This keeps actions s
 
 ## Available Tools
 
-The MCP server provides the following tools across both stdio and SSE connections:
+The core server provides these tools across both stdio and SSE connections:
 
-- **`create_shortlink`**: Create a short link with target URL, optional slug, domain host, passcode, and expiration.
-- **`list_links`**: Search and list short links in the active workspace with limits and search filters.
-- **`list_domains`**: View managed domain zones and DNS verification status (SPF, DKIM, DMARC).
-- **`list_mailboxes`**: View mailboxes, email addresses, and unread counts.
-- **`list_emails`**: List recent incoming transactional emails with subject, sender, and snippet.
-- **`get_latest_otp`**: Extract one-time verification codes (OTP) from recent unread emails received in the last 10 minutes.
-- **`get_email_summary`**: Get a structured, sanitized summary of an email with category and detected codes.
-- **`get_email_content`**: Get sanitized plain text email body content with sensitive links redacted.
-- **`export_data`**: Export workspace records (links, emails, domains, or mailboxes) as JSON.
+- **`octarq_infra__describe_tenant_schema`**: List the tenant views and their columns.
+- **`octarq_infra__query_db_readonly`**: Run a read-only SELECT query against the tenant views.
+- **`octarq_infra__export_data`**: Export workspace records as JSON.
+- **`octarq_infra__notify`**: Send a message to a configured alert channel.
 
-## Read Operational Resources
-
-AI clients can read live workspace resources:
-
-- **`octarq://metrics/traffic`**: Real-time link redirect and click statistics for the current workspace.
-- **`octarq://domains/health`**: DNS status and verification health for all managed domains.
+Installed feature plugins add their own tools. Tool names use the `octarq_<area>__<action>` form.
 
 ## Connect Claude Desktop
 
@@ -80,13 +70,12 @@ AI clients can read live workspace resources:
 
 Once connected, your AI assistant can execute operations using conversational prompts:
 
-- "Create a short link pointing to https://example.com/docs with slug docs on go.example.com"
-- "Check the verification status of all domains in my workspace"
-- "Find the verification code received in my support mailbox within the last 5 minutes"
+- "List the columns of the tenant views in my workspace"
+- "Export my workspace records as JSON"
+- "Send a test message to the alerts channel"
 
 ## Related Guides
 
 - [API Tokens](/help/api-tokens)
-- [Short Links](/help/short-links)
-- [Mailboxes](/help/mailboxes)
-- [DNS Management](/help/dns)
+- [Agent Harness](/help/agent-harness)
+- [AI Workforce](/help/ai-workforce)

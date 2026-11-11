@@ -356,8 +356,8 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		if !ctx.PluginActive(1, p) {
 			t.Error("an EnabledByDefault plugin reported inactive")
 		}
-		if !ctx.FeatureActive(1, "dns") {
-			t.Error("core dns feature reported inactive")
+		if !ctx.FeatureActive(1, "help") {
+			t.Error("core help feature reported inactive")
 		}
 		if ctx.FeatureActive(0, "no-such-feature") {
 			t.Error("an unknown feature defaulted enabled")

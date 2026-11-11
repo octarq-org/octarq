@@ -90,7 +90,7 @@ func ResetPermRegistry() {
 // It fails closed. The inverted form — `if c.RequirePerm != nil && !c.RequirePerm(...)`
 // — reads as defensive and is the opposite: an unwired host leaves the field
 // nil, the check is skipped entirely, and the endpoint opens to everyone. That
-// exact bug shipped once in the links plugin; see plugins/links/role_gate_test.go.
+// exact bug shipped once in the links plugin; see octarq-plugins/links/role_gate_test.go.
 func (c *Context) HasPerm(r *http.Request, permKey, minRole string) bool {
 	if c == nil || c.Host == nil || c.Host.Session() == nil {
 		return false

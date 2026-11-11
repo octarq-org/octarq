@@ -10,10 +10,6 @@ import (
 	"testing"
 	"time"
 
-	dns "github.com/octarq-org/octarq/server/plugins/dns"
-	links "github.com/octarq-org/octarq/server/plugins/links"
-	mail "github.com/octarq-org/octarq/server/plugins/mail"
-
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -51,41 +47,21 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 		h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) { return fakeLLM{reply: reply}, nil })
 	}
 
-	dnsP := dns.New()
-	mailP := mail.New()
-	linksP := links.New()
-	h.SetPlugins([]plugin.Plugin{dnsP, mailP, linksP})
-
 	reg := plugin.NewRegistry()
+	reg.Provide(plugin.ServiceMailEmailGet, plugin.EmailGetter(func(orgID, id uint) (string, string, string, bool) {
+		var em testEmail
+		if err := db.Where("id = ?", id).First(&em).Error; err != nil {
+			return "", "", "", false
+		}
+		var mb testMailbox
+		if err := db.Where("id = ?", em.MailboxID).First(&mb).Error; err != nil || mb.OrgID != orgID {
+			return "", "", "", false
+		}
+		return em.FromAddr, em.Subject, em.Text, true
+	}))
 	h.SetServiceLookup(reg.Lookup)
 
 	srv := h.Routes()
-
-	pctx := &plugin.Context{
-		Huma:        h.Huma(),
-		DB:          db,
-		Guard:       authMgr.Require,
-		Audit:       h.Audit,
-		Enqueue:     h.queue.Enqueue,
-		DeleteCache: authMgr.Cache().Delete,
-		Provide:     reg.Provide,
-		Lookup:      reg.Lookup,
-		Host: &plugin.TestHost{
-			SessionMock: &plugin.TestSession{
-				UserIDFn: authMgr.UserID,
-				OrgIDFn:  authMgr.OrgID,
-			},
-			CryptoMock: cipher,
-			SettingsMock: &plugin.TestSettings{
-				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
-				GetGlobalSettingFn:    h.GetGlobalSetting,
-			},
-		},
-	}
-	dnsP.Mount(nil, pctx)
-	mailP.Mount(nil, pctx)
-	linksP.Mount(nil, pctx)
-
 	return srv, db
 }
 
@@ -129,14 +105,14 @@ func TestAIStatusUnconfigured(t *testing.T) {
 func TestAISummarizeEmailOrgIsolation(t *testing.T) {
 	srv, db := newAITestHandler(t, "A billing notice; pay by Friday.")
 
-	db.Create(&mail.Mailbox{Address: "a@one.test", OrgID: 1})
-	db.Create(&mail.Mailbox{Address: "b@two.test", OrgID: 2})
-	var mb1, mb2 mail.Mailbox
+	db.Create(&testMailbox{Address: "a@one.test", OrgID: 1})
+	db.Create(&testMailbox{Address: "b@two.test", OrgID: 2})
+	var mb1, mb2 testMailbox
 	db.First(&mb1, "address = ?", "a@one.test")
 	db.First(&mb2, "address = ?", "b@two.test")
-	db.Create(&mail.Email{MailboxID: mb1.ID, Subject: "Invoice", Text: "Pay us", ReceivedAt: time.Now()})
-	db.Create(&mail.Email{MailboxID: mb2.ID, Subject: "Other org", Text: "Secret", ReceivedAt: time.Now()})
-	var e1, e2 mail.Email
+	db.Create(&testEmail{MailboxID: mb1.ID, Subject: "Invoice", Text: "Pay us", ReceivedAt: time.Now()})
+	db.Create(&testEmail{MailboxID: mb2.ID, Subject: "Other org", Text: "Secret", ReceivedAt: time.Now()})
+	var e1, e2 testEmail
 	db.First(&e1, "subject = ?", "Invoice")
 	db.First(&e2, "subject = ?", "Other org")
 

@@ -12,40 +12,92 @@ import (
 	mcp_internal "github.com/octarq-org/octarq/server/internal/mcp"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/links"
 	"gorm.io/gorm"
 )
 
-func setupAgentScopeTest(t *testing.T) (*gorm.DB, *links.Plugin, *links.Link) {
+type scopeLink struct {
+	ID     uint   `gorm:"primarykey" json:"id"`
+	OrgID  uint   `gorm:"index" json:"org_id"`
+	Host   string `json:"host"`
+	Slug   string `json:"slug"`
+	Target string `json:"target"`
+	Title  string `json:"title"`
+}
+
+type testScopedPlugin struct {
+	db *gorm.DB
+}
+
+func (p *testScopedPlugin) Name() string                              { return "testlinks" }
+func (p *testScopedPlugin) Models() []any                             { return []any{&scopeLink{}} }
+func (p *testScopedPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) { p.db = ctx.DB }
+func (p *testScopedPlugin) MCPTier() string                           { return "" }
+
+type listScopeLinksOutput struct {
+	Slugs []string `json:"slugs"`
+}
+
+type deleteScopeLinkInput struct {
+	ID uint `json:"id"`
+}
+
+func (p *testScopedPlugin) RegisterMCP(srv *mcpsdk.Server) {
+	plugin.AddMCPTool(srv, "agent-scope-test", &mcpsdk.Tool{
+		Name:        "octarq_network__list_links",
+		Description: "List links",
+	}, func(ctx context.Context, req *mcpsdk.CallToolRequest, _ struct{}) (*mcpsdk.CallToolResult, listScopeLinksOutput, error) {
+		var links []scopeLink
+		_ = p.db.Find(&links).Error
+		var slugs []string
+		for _, l := range links {
+			slugs = append(slugs, l.Slug)
+		}
+		return &mcpsdk.CallToolResult{
+			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: strings.Join(slugs, " ")}},
+		}, listScopeLinksOutput{Slugs: slugs}, nil
+	})
+
+	plugin.AddMCPTool(srv, "agent-scope-test", &mcpsdk.Tool{
+		Name:        "octarq_network__delete_link",
+		Description: "Delete link",
+	}, func(ctx context.Context, req *mcpsdk.CallToolRequest, in deleteScopeLinkInput) (*mcpsdk.CallToolResult, struct{}, error) {
+		p.db.Where("id = ?", in.ID).Delete(&scopeLink{})
+		return &mcpsdk.CallToolResult{
+			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: "deleted"}},
+		}, struct{}{}, nil
+	})
+}
+
+func setupAgentScopeTest(t *testing.T) (*gorm.DB, *testScopedPlugin, *scopeLink) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "agent_scope.db")
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open test sqlite db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.Token{}, &links.Link{}, &links.LinkEvent{}); err != nil {
+	if err := db.AutoMigrate(&models.Token{}, &scopeLink{}); err != nil {
 		t.Fatalf("auto-migrate failed: %v", err)
 	}
 
-	lp := links.New()
+	lp := &testScopedPlugin{db: db}
 	pctx := &plugin.Context{
 		DB: db,
 	}
 	pctx.Host = plugin.EnsureHost(pctx)
 	lp.Mount(nil, pctx)
 
-	testLink := &links.Link{
+	testLinkObj := &scopeLink{
 		OrgID:  1,
 		Host:   "go.example.com",
 		Slug:   "test-agent-link",
 		Target: "https://example.com/target",
 		Title:  "Test Agent Link",
 	}
-	if err := db.Create(testLink).Error; err != nil {
+	if err := db.Create(testLinkObj).Error; err != nil {
 		t.Fatalf("failed to create test link: %v", err)
 	}
 
-	return db, lp, testLink
+	return db, lp, testLinkObj
 }
 
 func runToolCall(ctx context.Context, srv *mcpsdk.Server, toolName string, args map[string]any) (*mcpsdk.CallToolResult, error) {
@@ -143,7 +195,7 @@ func TestAgentScope_TestCase2_DisallowedToolFailClosed(t *testing.T) {
 	}
 
 	// Assert DB record unchanged: testLink MUST still exist in database
-	var remainingLink links.Link
+	var remainingLink scopeLink
 	if err := db.First(&remainingLink, testLink.ID).Error; err != nil {
 		t.Fatalf("expected link %d to remain in database, but query returned: %v", testLink.ID, err)
 	}
@@ -186,7 +238,7 @@ func TestAgentScope_TestCase3_HumanTokenBackwardCompatible(t *testing.T) {
 	}
 
 	// Assert DB record was actually deleted by human token
-	var deletedLink links.Link
+	var deletedLink scopeLink
 	if err := db.First(&deletedLink, testLink.ID).Error; err == nil {
 		t.Errorf("expected link %d to be deleted from database by human token, but it still exists", testLink.ID)
 	}

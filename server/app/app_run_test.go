@@ -11,7 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/dns"
 	"gorm.io/gorm"
 )
 
@@ -325,10 +324,15 @@ func TestRunSecretKeyFloor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed open: %v", err)
 	}
-	if err := seed.AutoMigrate(&dns.Domain{}); err != nil {
+	type testDomainRow struct {
+		ID      uint `gorm:"primaryKey"`
+		Name    string
+		ForLink bool
+	}
+	if err := seed.Table("domains").AutoMigrate(&testDomainRow{}); err != nil {
 		t.Fatalf("seed migrate: %v", err)
 	}
-	seed.Create(&dns.Domain{Name: "example.com", ForLink: true})
+	seed.Table("domains").Create(&testDomainRow{Name: "example.com", ForLink: true})
 	sqlDB, _ := seed.DB()
 	sqlDB.Close()
 
@@ -336,7 +340,6 @@ func TestRunSecretKeyFloor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	a.Use(dns.New())
 	if err := a.Run(context.Background()); err == nil {
 		t.Fatal("Run succeeded, want secret-key floor refusal")
 		return

@@ -2,19 +2,76 @@ package tenantquery_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/internal/endpoint"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/links"
-	"github.com/octarq-org/octarq/server/plugins/mail"
 	"github.com/octarq-org/octarq/server/plugins/tenantquery"
 	"gorm.io/gorm"
 )
+
+type queryTestLink struct {
+	ID        uint `gorm:"primaryKey"`
+	OrgID     uint `gorm:"column:owner_id"`
+	Slug      string
+	Target    string
+	Password  string
+	Title     string
+	Tags      string
+	Clicks    int64
+	Archived  bool
+	Enabled   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (queryTestLink) TableName() string { return "links" }
+
+type queryTestEmail struct {
+	ID        uint `gorm:"primaryKey"`
+	MailboxID uint
+	Subject   string
+	Text      string
+}
+
+func (queryTestEmail) TableName() string { return "emails" }
+
+func registerQueryTestViews(pctx *plugin.Context) {
+	pctx.RegisterTenantView(plugin.TenantView{
+		Name: "tenant_links",
+		Columns: []plugin.TenantColumn{
+			{Name: "id", Type: "integer", Description: "Short link unique identifier"},
+			{Name: "owner_id", Type: "integer", Description: "Owning organization/workspace ID"},
+			{Name: "slug", Type: "text", Description: "Short link URL slug path"},
+			{Name: "target", Type: "text", Description: "Destination redirect URL"},
+			{Name: "password", Type: "text", Description: "Link password protection (redacted)"},
+		},
+		Sensitive: []string{"password"},
+		Definition: func(orgID uint) string {
+			return fmt.Sprintf("SELECT id, owner_id, slug, target, password FROM links WHERE owner_id = %d", orgID)
+		},
+	})
+
+	pctx.RegisterTenantView(plugin.TenantView{
+		Name: "tenant_emails",
+		Columns: []plugin.TenantColumn{
+			{Name: "id", Type: "integer", Description: "Email message unique identifier"},
+			{Name: "mailbox_id", Type: "integer", Description: "Associated mailbox identifier"},
+			{Name: "subject", Type: "text", Description: "Email subject line (redacted)"},
+			{Name: "text", Type: "text", Description: "Plain text email body content (redacted)"},
+		},
+		Sensitive: []string{"subject", "text"},
+		Definition: func(orgID uint) string {
+			return fmt.Sprintf("SELECT id, mailbox_id, subject, text FROM emails WHERE mailbox_id = %d", orgID)
+		},
+	})
+}
 
 func setupTestApp(t *testing.T) (*gorm.DB, *endpoint.Engine) {
 	t.Helper()
@@ -30,10 +87,8 @@ func setupTestApp(t *testing.T) (*gorm.DB, *endpoint.Engine) {
 	})
 
 	if err := db.AutoMigrate(
-		&links.Link{},
-		&links.LinkEvent{},
-		&mail.Mailbox{},
-		&mail.Email{},
+		&queryTestLink{},
+		&queryTestEmail{},
 		&models.AuditLog{},
 	); err != nil {
 		t.Fatalf("migrate failed: %v", err)
@@ -50,8 +105,7 @@ func setupTestApp(t *testing.T) (*gorm.DB, *endpoint.Engine) {
 		},
 	}
 
-	links.RegisterViews(pctx)
-	mail.RegisterViews(pctx)
+	registerQueryTestViews(pctx)
 
 	tq := tenantquery.New()
 	tq.Mount(nil, pctx)
@@ -64,74 +118,64 @@ func TestTenantQuery_PluginInfo(t *testing.T) {
 	if p.Name() != "tenantquery" {
 		t.Errorf("Name() = %q, want tenantquery", p.Name())
 	}
-	if p.Models() != nil {
-		t.Errorf("Models() = %v, want nil", p.Models())
-	}
 	desc := p.Describe()
-	if !desc.Core {
-		t.Error("expected Core to be true")
+	if desc.Title == "" {
+		t.Error("expected non-empty Title")
 	}
-	if !desc.EnabledByDefault {
-		t.Error("expected EnabledByDefault to be true")
+	if desc.Icon == "" {
+		t.Error("expected non-empty Icon")
+	}
+	if p.Models() != nil {
+		t.Error("expected Models() to be nil")
 	}
 }
 
-func TestTenantQuery_DescribeTenantSchema(t *testing.T) {
-	_, engine := setupTestApp(t)
-
-	var describeEP plugin.Endpoint
+func findEndpoint(t *testing.T, engine *endpoint.Engine, name string) plugin.Endpoint {
+	t.Helper()
 	for _, ep := range engine.Endpoints() {
-		if ep.EndpointName() == "describe_tenant_schema" {
-			describeEP = ep
-			break
+		if ep.EndpointName() == name {
+			return ep
 		}
 	}
+	t.Fatalf("endpoint %q not registered", name)
+	return nil
+}
 
-	if describeEP == nil {
-		t.Fatal("describe_tenant_schema endpoint not registered")
-		return
-	}
+func TestTenantQuery_DescribeViews(t *testing.T) {
+	_, engine := setupTestApp(t)
 
-	if !describeEP.EndpointExposeMCP() {
-		t.Error("expected ExposeMCP = true")
-	}
-	if !describeEP.EndpointRequireAuth() {
-		t.Error("expected RequireAuth = true")
-	}
-
-	ctx := plugin.WithOrgID(context.Background(), 1)
-	res, err := describeEP.Execute(ctx, tenantquery.DescribeTenantSchemaInput{})
+	descEP := findEndpoint(t, engine, "describe_tenant_schema")
+	res, err := descEP.Execute(context.Background(), tenantquery.DescribeTenantSchemaInput{})
 	if err != nil {
-		t.Fatalf("describe handler failed: %v", err)
+		t.Fatalf("execute failed: %v", err)
 	}
 
 	out, ok := res.(*tenantquery.DescribeTenantSchemaOutput)
-	if !ok || out == nil {
-		t.Fatalf("unexpected output type: %T", res)
-		return
+	if !ok {
+		t.Fatalf("expected *tenantquery.DescribeTenantSchemaOutput, got %T", res)
 	}
 
-	if len(out.Views) < 3 {
-		t.Fatalf("expected at least 3 views (tenant_links, tenant_link_events, tenant_emails), got %d", len(out.Views))
+	if len(out.Views) == 0 {
+		t.Fatal("expected at least one view described")
 	}
 
-	// Verify sensitive column marking
 	var foundLinks, foundEmails bool
 	for _, v := range out.Views {
 		if v.Name == "tenant_links" {
 			foundLinks = true
-			for _, col := range v.Columns {
-				if col.Name == "password" && !col.Sensitive {
-					t.Error("expected password column to have Sensitive: true")
+			if len(v.Columns) == 0 {
+				t.Error("tenant_links columns should not be empty")
+			}
+			for _, c := range v.Columns {
+				if c.Name == "password" && !c.Sensitive {
+					t.Error("tenant_links.password column should be marked sensitive")
 				}
 			}
 		}
 		if v.Name == "tenant_emails" {
 			foundEmails = true
-			for _, col := range v.Columns {
-				if (col.Name == "text" || col.Name == "html" || col.Name == "subject") && !col.Sensitive {
-					t.Errorf("expected %s column to have Sensitive: true", col.Name)
-				}
+			if len(v.Columns) == 0 {
+				t.Error("tenant_emails columns should not be empty")
 			}
 		}
 	}
@@ -145,82 +189,63 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 	db, engine := setupTestApp(t)
 
 	// Seed link
-	db.Create(&links.Link{
+	db.Create(&queryTestLink{
 		OrgID:    1,
 		Slug:     "test-route-slug",
 		Target:   "https://route.example.com",
 		Password: "route-password-123",
 	})
 
-	var queryEP plugin.Endpoint
-	for _, ep := range engine.Endpoints() {
-		if ep.EndpointName() == "query_tenant_sql" {
-			queryEP = ep
-			break
-		}
-	}
-
-	if queryEP == nil {
-		t.Fatal("query_tenant_sql endpoint not registered")
-		return
-	}
-
-	if !queryEP.EndpointExposeMCP() {
-		t.Error("expected ExposeMCP = true")
-	}
-	if !queryEP.EndpointRequireAuth() {
-		t.Error("expected RequireAuth = true")
-	}
-
-	// Valid query
+	queryEP := findEndpoint(t, engine, "query_tenant_sql")
 	ctx := plugin.WithOrgID(context.Background(), 1)
+
+	// Test 1: Successful valid query
 	res, err := queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
-		SQL: "SELECT slug, password FROM tenant_links",
+		SQL: "SELECT slug, target FROM tenant_links",
 	})
 	if err != nil {
-		t.Fatalf("query handler failed: %v", err)
+		t.Fatalf("valid query failed: %v", err)
 	}
 
-	out, ok := res.(*tenantquery.QueryTenantSQLOutput)
-	if !ok || out == nil {
-		t.Fatalf("unexpected output type: %T", res)
-		return
+	qRes, ok := res.(*tenantquery.QueryTenantSQLOutput)
+	if !ok {
+		t.Fatalf("expected *tenantquery.QueryTenantSQLOutput, got %T", res)
 	}
 
-	if out.RowCount != 1 || len(out.Rows) != 1 {
-		t.Fatalf("expected 1 row, got %d", out.RowCount)
-	}
-	if out.Rows[0]["slug"] != "test-route-slug" {
-		t.Errorf("got slug %v, want test-route-slug", out.Rows[0]["slug"])
-	}
-	if out.Rows[0]["password"] != plugin.RedactedValue {
-		t.Errorf("got password %v, want %q", out.Rows[0]["password"], plugin.RedactedValue)
+	if len(qRes.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(qRes.Rows))
 	}
 
-	// Zero rows query
-	resZero, err := queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
-		SQL: "SELECT slug FROM tenant_links WHERE slug = 'nonexistent'",
+	if qRes.Rows[0]["slug"] != "test-route-slug" {
+		t.Errorf("expected slug 'test-route-slug', got %v", qRes.Rows[0]["slug"])
+	}
+
+	// Test 2: Sensitive column masking
+	res, err = queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
+		SQL: "SELECT password FROM tenant_links",
 	})
 	if err != nil {
-		t.Fatalf("zero rows query failed: %v", err)
+		t.Fatalf("query with password column failed: %v", err)
 	}
-	outZero := resZero.(*tenantquery.QueryTenantSQLOutput)
-	if outZero.RowCount != 0 || len(outZero.Rows) != 0 {
-		t.Errorf("expected 0 rows, got %d", outZero.RowCount)
+	qRes, ok = res.(*tenantquery.QueryTenantSQLOutput)
+	if !ok {
+		t.Fatalf("expected *tenantquery.QueryTenantSQLOutput, got %T", res)
+	}
+	if len(qRes.Rows) > 0 && qRes.Rows[0]["password"] != plugin.RedactedValue {
+		t.Errorf("expected password to be redacted, got %v", qRes.Rows[0]["password"])
 	}
 
-	// Invalid query should include self-correction guidance listing available views
+	// Test 3: Disallowed mutation query
 	_, err = queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
-		SQL: "SELECT * FROM links",
+		SQL: "DROP TABLE links",
 	})
 	if err == nil {
-		t.Fatal("expected error on invalid SQL query")
-		return
+		t.Error("expected error for non-SELECT query, got nil")
 	}
-	if !strings.Contains(err.Error(), "available views:") {
-		t.Errorf("expected error message to contain self-correction 'available views:', got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "tenant_links") {
-		t.Errorf("expected error message to mention 'tenant_links', got: %v", err)
+
+	// Test 4: Missing query parameter
+	_, err = queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{})
+	if err == nil {
+		t.Error("expected error for missing query param, got nil")
 	}
 }

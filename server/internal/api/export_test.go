@@ -14,9 +14,6 @@ import (
 
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
-	dnsmodels "github.com/octarq-org/octarq/server/plugins/dns"
-	linksmodels "github.com/octarq-org/octarq/server/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 func unzipTestArchive(t *testing.T, zipBytes []byte) map[string][]byte {
@@ -73,36 +70,36 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	userMember := seedOrgMember(t, db, orgA, "member@tenant-a.com", "member")
 
 	// Seed Tenant A resources
-	linkA1 := &linksmodels.Link{OrgID: orgA, Slug: "alpha-docs", Target: "https://docs.alpha.com", Title: "Alpha Docs", Clicks: 42, Tags: "docs,alpha"}
-	linkA2 := &linksmodels.Link{OrgID: orgA, Slug: "alpha-app", Target: "https://app.alpha.com", Title: "Alpha App", Clicks: 108, Tags: "app"}
-	linkA3 := &linksmodels.Link{OrgID: orgA, Slug: "alpha-blog", Target: "https://blog.alpha.com", Title: "Alpha Blog", Clicks: 5, Tags: "blog"}
+	linkA1 := &testLink{OrgID: orgA, Slug: "alpha-docs", Target: "https://docs.alpha.com", Title: "Alpha Docs", Clicks: 42, Tags: "docs,alpha"}
+	linkA2 := &testLink{OrgID: orgA, Slug: "alpha-app", Target: "https://app.alpha.com", Title: "Alpha App", Clicks: 108, Tags: "app"}
+	linkA3 := &testLink{OrgID: orgA, Slug: "alpha-blog", Target: "https://blog.alpha.com", Title: "Alpha Blog", Clicks: 5, Tags: "blog"}
 	db.Create(linkA1)
 	db.Create(linkA2)
 	db.Create(linkA3)
 
-	domA := &dnsmodels.Domain{OrgID: orgA, Name: "alpha.com", ZoneID: "zone-alpha-123"}
+	domA := &testDomain{OrgID: orgA, Name: "alpha.com", ZoneID: "zone-alpha-123"}
 	db.Create(domA)
 
-	mbA1 := &mailmodels.Mailbox{OrgID: orgA, Address: "hello@alpha.com", Note: "General inquiries"}
-	mbA2 := &mailmodels.Mailbox{OrgID: orgA, Address: "billing@alpha.com", Note: "Billing invoices"}
+	mbA1 := &testMailbox{OrgID: orgA, Address: "hello@alpha.com", Note: "General inquiries"}
+	mbA2 := &testMailbox{OrgID: orgA, Address: "billing@alpha.com", Note: "Billing invoices"}
 	db.Create(mbA1)
 	db.Create(mbA2)
-	db.Create(&mailmodels.Email{MailboxID: mbA1.ID, FromAddr: "sender@example.com", Subject: "Hi Alpha", Read: true})
-	db.Create(&mailmodels.Email{MailboxID: mbA1.ID, FromAddr: "sender2@example.com", Subject: "Unread Msg", Read: false})
+	db.Create(&testEmail{MailboxID: mbA1.ID, FromAddr: "sender@example.com", Subject: "Hi Alpha", Read: true})
+	db.Create(&testEmail{MailboxID: mbA1.ID, FromAddr: "sender2@example.com", Subject: "Unread Msg", Read: false})
 
 	auditA := &models.AuditLog{OrgID: orgA, ActorID: userA, Action: "domain.create", TargetType: "domain", TargetID: domA.ID, CreatedAt: time.Now().UTC().Add(-2 * time.Hour)}
 	db.Create(auditA)
 
 	// Seed Tenant B resources (to verify cross-tenant isolation)
-	linkB1 := &linksmodels.Link{OrgID: orgB, Slug: "beta-secret", Target: "https://secret.beta.com", Title: "Beta Secret", Clicks: 999, Tags: "beta"}
-	linkB2 := &linksmodels.Link{OrgID: orgB, Slug: "beta-dashboard", Target: "https://dash.beta.com", Title: "Beta Dash", Clicks: 12}
+	linkB1 := &testLink{OrgID: orgB, Slug: "beta-secret", Target: "https://secret.beta.com", Title: "Beta Secret", Clicks: 999, Tags: "beta"}
+	linkB2 := &testLink{OrgID: orgB, Slug: "beta-dashboard", Target: "https://dash.beta.com", Title: "Beta Dash", Clicks: 12}
 	db.Create(linkB1)
 	db.Create(linkB2)
 
-	domB := &dnsmodels.Domain{OrgID: orgB, Name: "beta-private.com", ZoneID: "zone-beta-999"}
+	domB := &testDomain{OrgID: orgB, Name: "beta-private.com", ZoneID: "zone-beta-999"}
 	db.Create(domB)
 
-	mbB := &mailmodels.Mailbox{OrgID: orgB, Address: "stealth@beta-private.com", Note: "Confidential"}
+	mbB := &testMailbox{OrgID: orgB, Address: "stealth@beta-private.com", Note: "Confidential"}
 	db.Create(mbB)
 
 	auditB := &models.AuditLog{OrgID: orgB, ActorID: userB, Action: "org.secret", TargetType: "secret", TargetID: 999, CreatedAt: time.Now().UTC().Add(-1 * time.Hour)}

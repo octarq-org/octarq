@@ -18,6 +18,8 @@ If no reachable code in your entry point (`main.go`) imports a plugin package, t
 
 ### Default OSS Composition
 
+Core is infrastructure only. It ships three plugins: help, tenantquery, and notify. It ships no business feature.
+
 In the default open-source entry point (`main.go`), plugins are explicitly imported and mounted:
 
 ```go
@@ -30,35 +32,35 @@ import (
 
 func main() {
     a, _ := app.New()
-    
-    // Mount the default Core plugins (dns, links, mail)
+
+    // Mount the Core infrastructure plugins
     for _, p := range builtin.Default() {
         a.Use(p)
     }
-    
+
     a.Run()
 }
 ```
 
-The `builtin.Default()` helper returns the standard set of core plugins in their correct dependency order:
+The `builtin.Default()` helper returns the Core infrastructure plugins in dependency order:
 ```go
 package builtin
 
 import (
     "github.com/octarq-org/octarq/server/plugin"
-    "github.com/octarq-org/octarq/server/plugins/dns"
-    "github.com/octarq-org/octarq/server/plugins/links"
-    "github.com/octarq-org/octarq/server/plugins/mail"
+    "github.com/octarq-org/octarq/server/plugins/help"
+    "github.com/octarq-org/octarq/server/plugins/notify"
+    "github.com/octarq-org/octarq/server/plugins/tenantquery"
 )
 
 func Default() []plugin.Plugin {
-    return []plugin.Plugin{dns.New(), links.New(), mail.New()}
+    return []plugin.Plugin{help.New(), tenantquery.New(), notify.New()}
 }
 ```
 
-### Custom Plugin Composition
+### Business Plugin Composition
 
-Custom out-of-tree plugins utilize the exact same mechanism. You mount the core plugins, followed by your custom plugins:
+Business plugins live in the `octarq-plugins` repository. Mount the Core plugins first. Then mount the business plugins:
 
 ```go
 package main
@@ -66,40 +68,44 @@ package main
 import (
     "github.com/octarq-org/octarq/server/app"
     "github.com/octarq-org/octarq/server/plugins/builtin"
-    "github.com/your-org/octarq-plugin-analytics"
+    "github.com/octarq-org/octarq-plugins/dns"
+    "github.com/octarq-org/octarq-plugins/links"
+    "github.com/octarq-org/octarq-plugins/mail"
 )
 
 func main() {
     a, _ := app.New()
 
-    // 1. Mount default Core plugins
+    // 1. Mount the Core infrastructure plugins
     for _, p := range builtin.Default() {
         a.Use(p)
     }
 
-    // 2. Mount custom plugins
-    a.Use(analytics.New())
+    // 2. Mount the business plugins you want
+    a.Use(dns.New())
+    a.Use(links.New())
+    a.Use(mail.New())
 
     a.Run()
 }
 ```
 
+Custom out-of-tree plugins use the same mechanism. Add your own `a.Use(yourplugin.New())` call.
+
 ## 2. Frontend Composition
 
-The frontend matches this opt-in design using a plugin manifest (`web/octarq.plugins.json`). 
+The frontend matches this opt-in design using a plugin manifest (`web/octarq.plugins.json`).
 
 A Vite plugin (`web/plugins-manifest.ts`) reads the manifest at build time and generates a virtual module `#octarq-plugins` that registers all active UI plugins:
 
 ```ts
 // Virtual module generated at build time
 import { registerUIPlugin } from "@octarq/plugin-sdk";
-import dns from "./src/plugins/dns";
-import links from "./src/plugins/links";
-import mail from "./src/plugins/mail";
+import dns from "@octarq/plugin-dns/ui";
+import links from "@octarq/plugin-links/ui";
 
 registerUIPlugin(dns);
 registerUIPlugin(links);
-registerUIPlugin(mail);
 ```
 
 By changing the manifest file, you control exactly which plugin packages are included in the bundle. Unused files are eliminated during Vite's bundling process.

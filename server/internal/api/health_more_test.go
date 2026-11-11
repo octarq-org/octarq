@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 func TestHealthAndSubsystems(t *testing.T) {
@@ -20,7 +18,7 @@ func TestHealthAndSubsystems(t *testing.T) {
 	}
 
 	// 2. Subsystem status with mail smtp_senders in DB
-	db.Create(&mail.SMTPSender{Host: "smtp.example.com", Port: 587, OrgID: 1})
+	db.Create(&testSMTPSender{Host: "smtp.example.com", Port: 587, OrgID: 1})
 	rec = do(srv, "GET", "/api/status", nil, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /api/status with smtp: got %d", rec.Code)

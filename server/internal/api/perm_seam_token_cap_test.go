@@ -98,7 +98,7 @@ func TestRemovingMemberRevokesTheirTokens(t *testing.T) {
 	}
 
 	// Precondition: the token is a live credential while its holder is a member.
-	if rec := bearer(srv, http.MethodGet, "/api/links", raw); rec.Code != http.StatusOK {
+	if rec := bearer(srv, http.MethodGet, "/api/overview", raw); rec.Code != http.StatusOK {
 		t.Fatalf("precondition: member token should work, got %d (body=%s)", rec.Code, rec.Body.String())
 	}
 
@@ -113,7 +113,7 @@ func TestRemovingMemberRevokesTheirTokens(t *testing.T) {
 		t.Errorf("removed member kept %d live token(s) in the org", count)
 	}
 
-	if rec := bearer(srv, http.MethodGet, "/api/links", raw); rec.Code != http.StatusUnauthorized {
+	if rec := bearer(srv, http.MethodGet, "/api/overview", raw); rec.Code != http.StatusUnauthorized {
 		t.Errorf("removed member's token still authenticates: got %d, want 401 (body=%s)", rec.Code, rec.Body.String())
 	}
 }

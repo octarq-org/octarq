@@ -5,8 +5,20 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/octarq-org/octarq/server/plugins/links"
+	"github.com/octarq-org/octarq/server/plugin"
 )
+
+type stubExportPlugin struct {
+	name string
+	fn   plugin.ExportFunc
+}
+
+func (p stubExportPlugin) Name() string          { return p.name }
+func (p stubExportPlugin) Describe() plugin.Info { return plugin.Info{Title: p.name} }
+func (p stubExportPlugin) Models() []any         { return nil }
+func (p stubExportPlugin) Mount(m plugin.Mux, ctx *plugin.Context) {
+	ctx.Provide(plugin.ExportServiceName(p.name), p.fn)
+}
 
 func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
@@ -70,11 +82,20 @@ func TestExportAccount_IncludesPluginData(t *testing.T) {
 	const userA uint = 4001
 
 	seedOrgFullData(t, h, orgA, userA, "SECRET-ORG-A")
-	// A link row only the links plugin's export service can contribute — the
-	// core export has no idea plugin tables exist.
-	if err := db.Create(&links.Link{OrgID: orgA, Slug: "guard-export", Target: "https://example.com/guard"}).Error; err != nil {
+	if err := db.Create(&testLink{OrgID: orgA, Slug: "guard-export", Target: "https://example.com/guard"}).Error; err != nil {
 		t.Fatalf("seed link: %v", err)
 	}
+	reg := plugin.NewRegistry()
+	h.SetServiceLookup(reg.Lookup)
+	p := stubExportPlugin{
+		name: "links",
+		fn: func(orgID uint) map[string]any {
+			return map[string]any{"links": []any{"guard-export"}}
+		},
+	}
+	h.SetPlugins([]plugin.Plugin{p})
+	pctx := &plugin.Context{Provide: reg.Provide}
+	p.Mount(nil, pctx)
 	cookies := sessionCookies(t, userA, orgA)
 
 	rec := do(srv, http.MethodGet, "/api/account/export", cookies, "")
