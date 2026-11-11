@@ -41,6 +41,16 @@ func (m *mockCryptoVault) Encrypt(plaintext []byte) (string, error) {
 func (m *mockCryptoVault) Decrypt(encoded string) ([]byte, error) {
 	return []byte(encoded[4:]), nil
 }
+func (m *mockCryptoVault) EncryptWithAAD(plaintext, aad []byte) (string, error) {
+	return m.Encrypt(plaintext)
+}
+func (m *mockCryptoVault) DecryptWithAAD(encoded string, aad []byte) ([]byte, error) {
+	return m.Decrypt(encoded)
+}
+func (m *mockCryptoVault) SubjectVault(uint, string) (plugin.CryptoVault, error) {
+	return m, nil
+}
+func (m *mockCryptoVault) ShredSubjectKey(uint, string) error { return nil }
 
 var _ plugin.CryptoVault = (*mockCryptoVault)(nil)
 

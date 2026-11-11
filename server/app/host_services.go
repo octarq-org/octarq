@@ -75,21 +75,90 @@ type hostCryptoVault struct {
 	cipher *crypto.Cipher
 }
 
+var errCipherNotConfigured = errors.New("cipher not configured")
+
 func (c *hostCryptoVault) Encrypt(plaintext []byte) (string, error) {
 	if c.cipher != nil {
 		return c.cipher.Encrypt(plaintext)
 	}
-	return "", errors.New("cipher not configured")
+	return "", errCipherNotConfigured
 }
 
 func (c *hostCryptoVault) Decrypt(encoded string) ([]byte, error) {
 	if c.cipher != nil {
 		return c.cipher.Decrypt(encoded)
 	}
-	return nil, errors.New("cipher not configured")
+	return nil, errCipherNotConfigured
+}
+
+func (c *hostCryptoVault) EncryptWithAAD(plaintext, aad []byte) (string, error) {
+	if c.cipher != nil {
+		return c.cipher.EncryptWithAAD(plaintext, aad)
+	}
+	return "", errCipherNotConfigured
+}
+
+func (c *hostCryptoVault) DecryptWithAAD(encoded string, aad []byte) ([]byte, error) {
+	if c.cipher != nil {
+		return c.cipher.DecryptWithAAD(encoded, aad)
+	}
+	return nil, errCipherNotConfigured
+}
+
+func (c *hostCryptoVault) SubjectVault(ownerID uint, subject string) (plugin.CryptoVault, error) {
+	if c.cipher == nil {
+		return nil, errCipherNotConfigured
+	}
+	v, err := c.cipher.SubjectVault(ownerID, subject)
+	if err != nil {
+		return nil, err
+	}
+	return &hostSubjectVault{vault: v}, nil
+}
+
+func (c *hostCryptoVault) ShredSubjectKey(ownerID uint, subject string) error {
+	if c.cipher == nil {
+		return errCipherNotConfigured
+	}
+	return c.cipher.ShredSubjectKey(ownerID, subject)
 }
 
 var _ plugin.CryptoVault = (*hostCryptoVault)(nil)
+
+// hostSubjectVault adapts a per-subject crypto vault to plugin.CryptoVault.
+type hostSubjectVault struct {
+	vault *crypto.SubjectVault
+}
+
+func (v *hostSubjectVault) Encrypt(plaintext []byte) (string, error) {
+	return v.vault.Encrypt(plaintext)
+}
+
+func (v *hostSubjectVault) Decrypt(encoded string) ([]byte, error) {
+	return v.vault.Decrypt(encoded)
+}
+
+func (v *hostSubjectVault) EncryptWithAAD(plaintext, aad []byte) (string, error) {
+	return v.vault.EncryptWithAAD(plaintext, aad)
+}
+
+func (v *hostSubjectVault) DecryptWithAAD(encoded string, aad []byte) ([]byte, error) {
+	return v.vault.DecryptWithAAD(encoded, aad)
+}
+
+func (v *hostSubjectVault) SubjectVault(ownerID uint, subject string) (plugin.CryptoVault, error) {
+	sub, err := v.vault.SubjectVault(ownerID, subject)
+	if err != nil {
+		return nil, err
+	}
+	return &hostSubjectVault{vault: sub}, nil
+}
+
+func (v *hostSubjectVault) ShredSubjectKey(ownerID uint, subject string) error {
+	return v.vault.ShredSubjectKey(ownerID, subject)
+}
+
+var _ plugin.CryptoVault = (*hostSubjectVault)(nil)
 
 // hostSettingsStore implements plugin.SettingsStore.
 type hostSettingsStore struct {

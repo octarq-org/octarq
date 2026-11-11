@@ -20,6 +20,11 @@ func (m *memStore) Set(key, val string) error {
 	return nil
 }
 
+func (m *memStore) Delete(key string) error {
+	delete(m.data, key)
+	return nil
+}
+
 func (m *memStore) HasEncryptedValues() (bool, error) { return false, nil }
 
 func TestCryptoCharacterizationUninitialized(t *testing.T) {

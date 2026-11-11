@@ -30,6 +30,13 @@ func (s *memStore) Set(k, v string) error {
 	return nil
 }
 
+func (s *memStore) Delete(k string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.m, k)
+	return nil
+}
+
 func (s *memStore) HasEncryptedValues() (bool, error) { return s.encrypted, nil }
 
 func TestEnvelopePersistsDEK(t *testing.T) {

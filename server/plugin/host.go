@@ -22,6 +22,17 @@ type HostSession interface {
 type CryptoVault interface {
 	Encrypt(plaintext []byte) (string, error)
 	Decrypt(encoded string) ([]byte, error)
+	// EncryptWithAAD seals plaintext and binds aad to the ciphertext.
+	// A ciphertext sealed with one aad does not open with another.
+	EncryptWithAAD(plaintext, aad []byte) (string, error)
+	// DecryptWithAAD reverses EncryptWithAAD.
+	DecryptWithAAD(encoded string, aad []byte) ([]byte, error)
+	// SubjectVault returns a vault whose DEK belongs to (ownerID, subject).
+	// The vault never falls back to the instance DEK.
+	SubjectVault(ownerID uint, subject string) (CryptoVault, error)
+	// ShredSubjectKey destroys the subject's DEK. Data under it becomes
+	// permanently unreadable. Other subjects keep working.
+	ShredSubjectKey(ownerID uint, subject string) error
 }
 
 // SettingsStore 封装工作区及全局持久化配置读写
