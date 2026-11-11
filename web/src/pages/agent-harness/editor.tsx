@@ -94,6 +94,10 @@ export function HarnessEditorModal({
       preamble: cleanPreamble,
       extraRules: cleanRules,
       toolAllow: tools,
+      // This form does not edit the profile, so it must carry it through:
+      // sending the zero value would move a worker spec back to the normal
+      // ceiling on the next save.
+      profile: initialSpec?.profile ?? 0,
       maxSteps: Math.max(1, Number(maxSteps) || 1),
       // This form does not edit the budget ceilings, so it must carry them
       // through: sending zero would remove a limit the operator set earlier.
