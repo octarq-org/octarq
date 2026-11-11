@@ -26,6 +26,11 @@ func TestLLMProviderForOrgFailsClosedWithoutConfiguration(t *testing.T) {
 	cases := map[string]*Handler{
 		"nil resolver":         {},
 		"default env resolver": {llmResolver: envLLMResolver()},
+		// An injected resolver can break its contract and answer (nil, nil).
+		// The getter promises an error whenever no backend is usable.
+		"resolver returns no provider": {
+			llmResolver: func(uint) (llmprovider.Provider, error) { return nil, nil },
+		},
 	}
 	for name, h := range cases {
 		t.Run(name, func(t *testing.T) {
