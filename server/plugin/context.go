@@ -288,6 +288,12 @@ type Context struct {
 	// therefore be cheap — cache internally and return an error describing how to
 	// configure when no backend is usable.
 	SetLLMResolverForOrg func(resolver func(orgID uint) (llmprovider.Provider, error))
+	// LLMProviderForOrg returns the LLM backend currently configured for the org.
+	// It reads the same resolver the core AI assists use, so a downstream plugin
+	// sees the dashboard-backed provider they configured. It returns an error when
+	// no backend is usable for that org. Hosts always set this; a nil value means
+	// the host predates it and the caller must fail closed.
+	LLMProviderForOrg func(orgID uint) (llmprovider.Provider, error)
 	// Provide registers a service for other plugins to Lookup, under a stable
 	// name following the "<pluginName>.<service>" convention. Call it only
 	// during Mount. Providing a name twice is a startup error (the app refuses

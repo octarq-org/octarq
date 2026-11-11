@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -11,9 +12,21 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/help"
 )
+
+// covLLM is a sentinel provider: LLMProviderForOrg must return the exact value
+// the injected resolver chose for the requested org.
+type covLLM struct{ name string }
+
+func (l covLLM) Name() string         { return l.name }
+func (l covLLM) DefaultModel() string { return "cov-model" }
+func (l covLLM) CheapModel() string   { return "cov-model" }
+func (l covLLM) Complete(context.Context, llmprovider.Request) (llmprovider.Response, error) {
+	return llmprovider.Response{}, nil
+}
 
 // ctxAssertPlugin mounts during Run's and RunMCP's plugin loops and asserts the
 // plugin Context wiring with real observable round-trips: settings written via
@@ -72,6 +85,8 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("RegisterNotifier", ctx.RegisterNotifier != nil)
 	p.present("SendMail", ctx.SendMail != nil)
 	p.present("RecordUsage", ctx.RecordUsage != nil)
+	p.present("SetLLMResolverForOrg", ctx.SetLLMResolverForOrg != nil)
+	p.present("LLMProviderForOrg", ctx.LLMProviderForOrg != nil)
 	p.present("CacheGet", ctx.CacheGet != nil)
 	p.present("CacheSet", ctx.CacheSet != nil)
 	p.present("DeleteCache", ctx.DeleteCache != nil)
@@ -92,6 +107,30 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("Host.Crypto", ctx.Host != nil && ctx.Host.Crypto() != nil)
 	p.present("Host.Settings", ctx.Host != nil && ctx.Host.Settings() != nil)
 	p.present("Host.Events", ctx.Host != nil && ctx.Host.Events() != nil)
+
+	// LLMProviderForOrg must read the resolver the core assists use: inject one
+	// and assert each org gets exactly the provider chosen for it.
+	wantA := covLLM{name: "cov-a"}
+	wantB := covLLM{name: "cov-b"}
+	ctx.SetLLMResolverForOrg(func(orgID uint) (llmprovider.Provider, error) {
+		switch orgID {
+		case 11:
+			return wantA, nil
+		case 22:
+			return wantB, nil
+		default:
+			return nil, errors.New("no provider for this org")
+		}
+	})
+	if got, err := ctx.LLMProviderForOrg(11); err != nil || got != wantA {
+		t.Errorf("LLMProviderForOrg(11) = (%v, %v), want cov-a", got, err)
+	}
+	if got, err := ctx.LLMProviderForOrg(22); err != nil || got != wantB {
+		t.Errorf("LLMProviderForOrg(22) = (%v, %v), want cov-b", got, err)
+	}
+	if got, err := ctx.LLMProviderForOrg(33); err == nil || got != nil {
+		t.Errorf("LLMProviderForOrg(33) = (%v, %v), want (nil, error)", got, err)
+	}
 
 	if p.httpMode {
 		p.present("PluginActive", ctx.PluginActive != nil)

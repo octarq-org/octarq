@@ -88,7 +88,7 @@ Key backend rules:
 
 - **Every route is auto-gated.** The host wraps your mux so a feature disabled for the caller's workspace answers `404` before your handler runs.
 - **Feature-gate tiered routes with `402`.** Return `402 Payment Required` when an organization lacks the required tier or entitlement; the frontend `PluginGate` turns it into an upgrade or feature prompt.
-- **Never import `internal/*`.** Everything a plugin needs is on `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM), `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `UserID`/`OrgID`, `GetWorkspaceSetting`/`SetWorkspaceSetting`. See [Developer Conventions — Package Boundaries](/developers/conventions/#2-package--architecture-boundaries).
+- **Never import `internal/*`.** Everything a plugin needs is on `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM), `Audit`, `Notify`, `SendMail`, `LLMProviderForOrg`, `OnEmail`, `DNS`, `UserID`/`OrgID`, `GetWorkspaceSetting`/`SetWorkspaceSetting`. See [Developer Conventions — Package Boundaries](/developers/conventions/#2-package--architecture-boundaries).
 - **Pair every optional interface with a compile-time assertion** (`var _ plugin.MenuProvider = Plugin{}`). Optional capabilities are detected by runtime type assertion, so a typo'd method silently never runs without these.
 - **Own your tables.** Every model (core + plugins) is AutoMigrated once at startup; a preflight fails if two plugin model types claim the same table. Mirror an existing core table with a local struct (`TableName()` override) to read core data without importing `internal/models`.
 
