@@ -69,6 +69,17 @@ func (g *approvalGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 
 // --- helpers ---
 
+// newTestRunner constructs a runner with options a test has already fixed. A
+// construction error there is a bug in the test, so it fails at once.
+func newTestRunner(t *testing.T, c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
+	t.Helper()
+	r, err := NewRunner(c, exec, opts...)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	return r
+}
+
 // toolCallBlock builds a ```tool_call block for the fake completer.
 func toolCallBlock(name, args string) string {
 	return fmt.Sprintf("```tool_call\n{\"name\":%q,\"args\":%q}\n```", name, args)
@@ -93,7 +104,7 @@ func TestRunner_MaxStepsExceeded(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 
@@ -124,7 +135,7 @@ func TestRunner_UntrustedFence(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sess := &Session{ID: "s2", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "search"}
 
@@ -171,7 +182,7 @@ func TestRunner_AgentErrorGuidancePreserved(t *testing.T) {
 		errs:    map[string]error{"create_link": agentErr},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sess := &Session{ID: "s3", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "create link"}
 
@@ -207,7 +218,7 @@ func TestRunner_GuardDeniesExecution(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec,
+	runner := newTestRunner(t, comp, exec,
 		WithGuard(&denyGuard{denied: "dangerous_delete"}),
 	)
 	sess := &Session{ID: "s4", OrgID: 1, Channel: "test"}
@@ -252,7 +263,7 @@ func TestRunner_ReactorProfile(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec, WithProfile(ProfileReactor))
+	runner := newTestRunner(t, comp, exec, WithProfile(ProfileReactor))
 	sess := &Session{ID: "s5", OrgID: 1, Channel: "reactor"}
 	turn := &Turn{Input: "react"}
 
@@ -280,7 +291,7 @@ func TestRunner_StopsOnApprovalRequired(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec,
+	runner := newTestRunner(t, comp, exec,
 		WithGuard(&approvalGuard{tool: "dangerous_tool"}),
 	)
 	sess := &Session{ID: "s-hitl", OrgID: 1, Channel: "test"}
@@ -312,7 +323,7 @@ func TestRunner_StopsOnApprovalRequired(t *testing.T) {
 func TestRunner_CompleterError(t *testing.T) {
 	t.Parallel()
 	errComp := &errorCompleter{err: errors.New("provider timeout")}
-	runner := NewRunner(errComp, &fakeExecutor{})
+	runner := newTestRunner(t, errComp, &fakeExecutor{})
 	sess := &Session{ID: "sess-err", OrgID: 1}
 	turn := &Turn{Input: "hello"}
 
@@ -346,7 +357,7 @@ func TestRunner_GenericToolError(t *testing.T) {
 		errs:    map[string]error{"fail_tool": errors.New("network disconnect")},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sess := &Session{ID: "sess-gen-err", OrgID: 1}
 	turn := &Turn{Input: "run failing tool"}
 
@@ -396,7 +407,7 @@ func TestRunner_InvalidCallIsReportedAlongsideTheValidOne(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sess := &Session{ID: "sess-mixed", OrgID: 1}
 	turn := &Turn{Input: "look up user 123"}
 
@@ -415,9 +426,9 @@ func TestRunner_InvalidCallIsReportedAlongsideTheValidOne(t *testing.T) {
 	}
 }
 
-// A harness spec may tighten the step ceiling, never raise it: the profile's
-// ceiling is a safety invariant.
-func TestRunner_WithMaxStepsOnlyTightens(t *testing.T) {
+// A harness spec may tighten the step ceiling within its profile. A budget
+// above the profile's ceiling is refused at construction, never clamped.
+func TestRunner_WithMaxStepsTightensOrIsRefused(t *testing.T) {
 	t.Parallel()
 
 	responses := make([]string, MaxStepsNormal+5)
@@ -428,7 +439,7 @@ func TestRunner_WithMaxStepsOnlyTightens(t *testing.T) {
 	// Tightened: the turn stops at the override.
 	comp := &fakeCompleter{responses: responses}
 	exec := &fakeExecutor{outputs: map[string]string{"noop": "ok"}}
-	runner := NewRunner(comp, exec, WithMaxSteps(2))
+	runner := newTestRunner(t, comp, exec, WithMaxSteps(2))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 	if err := runner.Run(context.Background(), sess, turn); !errors.Is(err, ErrMaxStepsExceeded) {
@@ -438,17 +449,10 @@ func TestRunner_WithMaxStepsOnlyTightens(t *testing.T) {
 		t.Fatalf("expected 2 steps, got %d", len(turn.Steps))
 	}
 
-	// Loosened: the profile's ceiling still applies.
-	comp2 := &fakeCompleter{responses: responses}
-	exec2 := &fakeExecutor{outputs: map[string]string{"noop": "ok"}}
-	runner2 := NewRunner(comp2, exec2, WithMaxSteps(MaxStepsNormal+10))
-	sess2 := &Session{ID: "s2", OrgID: 1, Channel: "test"}
-	turn2 := &Turn{Input: "go"}
-	if err := runner2.Run(context.Background(), sess2, turn2); !errors.Is(err, ErrMaxStepsExceeded) {
-		t.Fatalf("expected ErrMaxStepsExceeded, got %v", err)
-	}
-	if len(turn2.Steps) != MaxStepsNormal {
-		t.Fatalf("a spec must not raise the ceiling: %d steps", len(turn2.Steps))
+	// Loosened: the request is refused, not lowered to the ceiling.
+	_, err := NewRunner(&fakeCompleter{responses: responses}, &fakeExecutor{}, WithMaxSteps(MaxStepsNormal+10))
+	if !errors.Is(err, ErrMaxStepsExceedsProfile) {
+		t.Fatalf("expected ErrMaxStepsExceedsProfile, got %v", err)
 	}
 }
 
@@ -489,7 +493,7 @@ func TestCompleterAdapter_PropagatesTokensIntoTurn(t *testing.T) {
 	}
 	adapter := &CompleterAdapter{Provider: prov}
 	exec := &fakeExecutor{outputs: map[string]string{"list_domains": `["a.com","b.com"]`}}
-	runner := NewRunner(adapter, exec)
+	runner := newTestRunner(t, adapter, exec)
 	sess := &Session{ID: "s-tokens", OrgID: 1, Channel: "telegram"}
 	turn := &Turn{Input: "list my domains"}
 	if err := runner.Run(context.Background(), sess, turn); err != nil {

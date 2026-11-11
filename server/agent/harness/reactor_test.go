@@ -63,16 +63,39 @@ func (e *noopExec) Execute(_ context.Context, _ uint, _, _ string) (string, erro
 func TestNewReactorRunnerEnforcesThreeStepCeiling(t *testing.T) {
 	comp := &loopingCompleter{}
 	exec := &noopExec{}
-	// Even if a caller attempts to pass ProfileNormal or MaxSteps=8, NewReactorRunner locks to ProfileReactor (3 steps).
-	runner := NewReactorRunner(comp, exec, WithProfile(ProfileNormal), WithMaxSteps(MaxStepsNormal))
+	runner, err := NewReactorRunner(comp, exec)
+	if err != nil {
+		t.Fatalf("NewReactorRunner: %v", err)
+	}
+	if got := runner.MaxStepsFor(false); got != MaxStepsReactor {
+		t.Fatalf("MaxStepsFor(false) = %d, want MaxStepsReactor (%d)", got, MaxStepsReactor)
+	}
+	if got := runner.MaxStepsFor(true); got != MaxStepsReactor {
+		t.Fatalf("MaxStepsFor(true) = %d, want MaxStepsReactor (%d)", got, MaxStepsReactor)
+	}
 	session := &Session{ID: "react-1", OrgID: 1, Channel: "reactor"}
 	turn := &Turn{Input: "event arrived"}
 
-	err := runner.Run(context.Background(), session, turn)
+	err = runner.Run(context.Background(), session, turn)
 	if !errors.Is(err, ErrMaxStepsExceeded) {
 		t.Fatalf("expected ErrMaxStepsExceeded, got %v", err)
 	}
 	if exec.calls != MaxStepsReactor {
 		t.Fatalf("executed %d steps, want MaxStepsReactor (%d)", exec.calls, MaxStepsReactor)
+	}
+}
+
+// TestNewReactorRunnerRefusesABudgetAboveTheReactorCeiling pins the fail-closed
+// rule: ProfileReactor is applied after caller options, and a budget above its
+// ceiling is refused instead of being silently locked to 3.
+func TestNewReactorRunnerRefusesABudgetAboveTheReactorCeiling(t *testing.T) {
+	comp := &loopingCompleter{}
+	exec := &noopExec{}
+	_, err := NewReactorRunner(comp, exec, WithProfile(ProfileNormal), WithMaxSteps(MaxStepsNormal))
+	if !errors.Is(err, ErrMaxStepsExceedsProfile) {
+		t.Fatalf("expected ErrMaxStepsExceedsProfile, got %v", err)
+	}
+	if exec.calls != 0 {
+		t.Fatalf("a refused runner must not run: %d calls", exec.calls)
 	}
 }

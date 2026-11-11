@@ -16,6 +16,10 @@ import (
 // ErrMaxStepsExceeded is returned when the agent loop reaches the step ceiling.
 var ErrMaxStepsExceeded = errors.New("harness: max steps exceeded")
 
+// ErrMaxStepsExceedsProfile is returned when a caller asks for more steps than
+// the selected profile allows. The request is refused, not lowered.
+var ErrMaxStepsExceedsProfile = errors.New("harness: max steps exceeds profile ceiling")
+
 // ToolExecutor abstracts tool dispatch, decoupled from the registry so wiring
 // can happen later.
 //
@@ -63,6 +67,9 @@ type Runner interface {
 	// A turn with no pending call is refused with ErrNoPendingCall rather than
 	// started from the beginning.
 	Resume(ctx context.Context, s *Session, t *Turn) error
+	// MaxStepsFor returns the step ceiling the loop enforces for a turn. It is
+	// the same value the loop compares against.
+	MaxStepsFor(hasDestructive bool) int
 }
 
 // StreamRunner is an optional interface implemented by runners that support
@@ -180,9 +187,9 @@ type defaultRunner struct {
 	profile   Profile
 	model     string
 	system    string
-	// maxSteps tightens the profile's step ceiling. It can only lower it:
-	// the profile's ceiling is a safety invariant, a harness spec is not
-	// allowed to raise it.
+	// maxSteps is an explicit step budget. Zero means the profile decides. The
+	// constructor refuses a negative value and a value above the profile's
+	// maximum ceiling, so the loop never lowers a caller's request.
 	maxSteps int
 	// budget bounds what the turn may spend across rounds. The zero Budget
 	// leaves it unbounded.
@@ -218,15 +225,44 @@ func WithSystem(s string) RunnerOption {
 	return func(r *defaultRunner) { r.system = s }
 }
 
-// WithMaxSteps tightens the step ceiling below the profile's. A value of
-// zero or more than the profile's ceiling is ignored — the ceiling is a
-// safety invariant that a harness spec cannot raise.
+// WithMaxSteps sets the step budget for a turn. Zero means the profile
+// decides. A negative value, or a value above the profile's maximum ceiling,
+// makes NewRunner return ErrMaxStepsExceedsProfile: the budget is refused, not
+// silently lowered.
 func WithMaxSteps(n int) RunnerOption {
 	return func(r *defaultRunner) { r.maxSteps = n }
 }
 
+// StepBudget resolves the step ceiling for a profile.
+//
+// Zero means the profile decides, so the profile's ceiling is returned. A
+// positive value is returned unchanged or refused with
+// ErrMaxStepsExceedsProfile when it exceeds the ceiling. The helper never
+// lowers a request silently: a caller either gets the number it asked for or
+// an error.
+func StepBudget(p Profile, maxSteps int, hasDestructive bool) (int, error) {
+	if !p.valid() {
+		return 0, fmt.Errorf("harness: invalid profile %d", int(p))
+	}
+	if maxSteps < 0 {
+		return 0, fmt.Errorf("harness: maxSteps must not be negative, got %d", maxSteps)
+	}
+	ceiling := p.MaxSteps(hasDestructive)
+	if maxSteps == 0 {
+		return ceiling, nil
+	}
+	if maxSteps > ceiling {
+		return 0, fmt.Errorf("%w: profile %s allows at most %d steps, got %d", ErrMaxStepsExceedsProfile, p, ceiling, maxSteps)
+	}
+	return maxSteps, nil
+}
+
 // NewRunner constructs a Runner with the given dependencies and options.
-func NewRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
+//
+// It validates the step budget after every option is applied. A negative
+// budget, or one above the selected profile's maximum ceiling, is refused with
+// an error.
+func NewRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) (Runner, error) {
 	r := &defaultRunner{
 		completer: c,
 		executor:  exec,
@@ -237,7 +273,10 @@ func NewRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
 	for _, o := range opts {
 		o(r)
 	}
-	return r
+	if _, err := StepBudget(r.profile, r.maxSteps, false); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // Run executes the agent loop: call LLM → parse tool calls → guard check →
@@ -276,7 +315,7 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 // the turn ends, so a resumed turn can re-enter it with the history the
 // approved call belongs to.
 func (r *defaultRunner) runRounds(ctx context.Context, s *Session, t *Turn, started time.Time) (err error) {
-	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
+	maxSteps := r.MaxStepsFor(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
 	// The wall clock this call spends is the turn's, however the call ends. A
@@ -346,14 +385,19 @@ func (r *defaultRunner) runRounds(ctx context.Context, s *Session, t *Turn, star
 	}
 }
 
-// effectiveMaxSteps returns the step ceiling for a turn: the profile's,
-// lowered by an explicit override when the override is stricter.
-func (r *defaultRunner) effectiveMaxSteps(hasDestructive bool) int {
-	maxSteps := r.profile.MaxSteps(hasDestructive)
-	if r.maxSteps > 0 && r.maxSteps < maxSteps {
+// MaxStepsFor returns the step ceiling the loop enforces for a turn.
+//
+// An explicit budget below the profile's ceiling wins. Otherwise the profile's
+// ceiling applies. The constructor already refused an explicit budget above
+// the profile's maximum ceiling; the only remaining reduction is the
+// ProfileReactorReadOnly destructive lock, which is a profile-owned safety
+// invariant and cannot be raised.
+func (r *defaultRunner) MaxStepsFor(hasDestructive bool) int {
+	ceiling := r.profile.MaxSteps(hasDestructive)
+	if r.maxSteps > 0 && r.maxSteps < ceiling {
 		return r.maxSteps
 	}
-	return maxSteps
+	return ceiling
 }
 
 // invalidToolCallNotice explains to the model why its call did not run.

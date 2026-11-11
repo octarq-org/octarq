@@ -58,7 +58,7 @@ func TestRunner_WithTracerAndOptions(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec,
+	runner := newTestRunner(t, comp, exec,
 		WithTracer(tr),
 		WithModel("test-model-4"),
 		WithSystem("You are a helpful assistant"),

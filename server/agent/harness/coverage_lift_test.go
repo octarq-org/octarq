@@ -63,7 +63,7 @@ func (m *mockNonStreamProvider) Complete(ctx context.Context, req llmprovider.Re
 func TestCoverageLiftStreamMaxSteps(t *testing.T) {
 	// A streamer that keeps outputting tool calls until maxSteps is exceeded
 	streamer := &mockStreamProvider{}
-	runner := NewRunner(&CompleterAdapter{Provider: streamer}, &fakeExecutor{}, WithProfile(ProfileReactor)).(*defaultRunner)
+	runner := newTestRunner(t, &CompleterAdapter{Provider: streamer}, &fakeExecutor{}, WithProfile(ProfileReactor)).(*defaultRunner)
 
 	s := &Session{ID: "s1", OrgID: 1}
 	turn := &Turn{Input: "loop"}
@@ -105,7 +105,7 @@ func TestCoverageLiftStreamRunnerBranches(t *testing.T) {
 
 	// 1. StreamComplete returning error
 	failingStreamer := &mockStreamProvider{streamErr: errors.New("stream exploded")}
-	r1 := NewRunner(&CompleterAdapter{Provider: failingStreamer}, &fakeExecutor{}).(*defaultRunner)
+	r1 := newTestRunner(t, &CompleterAdapter{Provider: failingStreamer}, &fakeExecutor{}).(*defaultRunner)
 	s1 := &Session{ID: "s1", OrgID: 1}
 	t1 := &Turn{Input: "hi"}
 	err := r1.Stream(ctx, s1, t1, nil)
@@ -117,7 +117,7 @@ func TestCoverageLiftStreamRunnerBranches(t *testing.T) {
 	}
 
 	// 2. Stream execution order violation
-	r2 := NewRunner(&CompleterAdapter{Provider: &mockStreamOrderErrorProvider{}}, &fakeExecutor{}).(*defaultRunner)
+	r2 := newTestRunner(t, &CompleterAdapter{Provider: &mockStreamOrderErrorProvider{}}, &fakeExecutor{}).(*defaultRunner)
 	s2 := &Session{ID: "s2", OrgID: 1}
 	t2 := &Turn{Input: "invoke"}
 	err = r2.Stream(ctx, s2, t2, nil)

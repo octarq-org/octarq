@@ -32,9 +32,9 @@ type ProposalEvidence struct {
 }
 
 // BuildProposal constructs an importable draft Proposal from an evaluation report.
-// It enforces that the recommended candidate's spec adheres strictly to the
-// effective profile step limits (ProfileNormal), passes harness.Validate, and
-// captures empirical evidence comparing it to the baseline.
+// It enforces that the recommended candidate's spec adheres strictly to its
+// declared profile's step limits, passes harness.Validate, and captures
+// empirical evidence comparing it to the baseline.
 func BuildProposal(report *LabReport) (*Proposal, error) {
 	if report == nil {
 		return nil, errors.New("cannot build proposal: report is nil")
@@ -80,10 +80,13 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 		return nil, fmt.Errorf("candidate spec name exceeds %d characters", harness.MaxSpecNameLen)
 	}
 
-	// EffectiveMaxSteps: profile ceiling is a safety invariant that spec can only tighten.
-	// Proposal writes the effective budget, never an unconstrained raw value.
-	normalCeiling := harness.ProfileNormal.MaxSteps(false)
-	effectiveSteps := recCand.Spec.EffectiveMaxSteps(normalCeiling)
+	// The proposal carries the candidate's profile and the exact budget the
+	// runner enforces. A budget above the profile ceiling is refused, never
+	// rewritten to a smaller number.
+	effectiveSteps, err := recCand.Spec.EffectiveMaxSteps(false)
+	if err != nil {
+		return nil, fmt.Errorf("candidate %q: %w", recCand.Name, err)
+	}
 	specToPropose := recCand.Spec.WithMaxSteps(effectiveSteps)
 
 	// Validate proposed spec fails closed

@@ -12,7 +12,7 @@ import (
 // a turn that comes back must not start its step budget over.
 func TestResumeContinuesTheStepBudget(t *testing.T) {
 	comp := &fakeCompleter{responses: []string{"nothing left to do"}}
-	r := NewRunner(comp, &fakeExecutor{}, WithMaxSteps(2))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithMaxSteps(2))
 	s, turn := newBudgetTurn()
 	turn.Rounds = 2 // the turn used two rounds before it was stored
 	turn.PendingCall = NewPendingCall("delete_link", `{"id":"42"}`)
@@ -27,7 +27,7 @@ func TestResumeContinuesTheStepBudget(t *testing.T) {
 // already spent, so a resume cannot restart the wall-clock budget either.
 func TestResumeSpendsTheStoredWallClock(t *testing.T) {
 	comp := &fakeCompleter{responses: []string{"nothing left to do"}}
-	r := NewRunner(comp, &fakeExecutor{}, WithBudget(Budget{MaxWallTime: time.Minute}))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{MaxWallTime: time.Minute}))
 	s, turn := newBudgetTurn()
 	turn.Rounds = 1
 	turn.Elapsed = time.Hour // the turn was stored after a long run
@@ -45,7 +45,7 @@ func TestResumeSpendsTheStoredWallClock(t *testing.T) {
 // comes back.
 func TestResumeDoesNotCountTheOperatorsWait(t *testing.T) {
 	comp := &fakeCompleter{responses: []string{"nothing left to do"}}
-	r := NewRunner(comp, &fakeExecutor{}, WithBudget(Budget{MaxWallTime: 100 * time.Millisecond}))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{MaxWallTime: 100 * time.Millisecond}))
 	s, turn := newBudgetTurn()
 	turn.Rounds = 1
 	turn.Elapsed = 10 * time.Millisecond // the turn ran briefly before it stopped

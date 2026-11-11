@@ -53,7 +53,7 @@ func TestRunner_EmitsTurnAndStepEvents(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{"read_links": "ok"}}
 	tr := NewRecordingTracer()
 
-	runner := NewRunner(comp, exec, WithTracer(tr))
+	runner := newTestRunner(t, comp, exec, WithTracer(tr))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 
@@ -110,7 +110,7 @@ func TestRunner_StepEventCarriesTheErrorCode(t *testing.T) {
 	}
 	tr := NewRecordingTracer()
 
-	runner := NewRunner(comp, exec, WithTracer(tr))
+	runner := newTestRunner(t, comp, exec, WithTracer(tr))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 
@@ -143,7 +143,7 @@ func TestRunner_GuardRejectionIsTracedAsDenied(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}}
 	tr := NewRecordingTracer()
 
-	runner := NewRunner(comp, exec, WithTracer(tr), WithGuard(&denyGuard{denied: "write_thing"}))
+	runner := newTestRunner(t, comp, exec, WithTracer(tr), WithGuard(&denyGuard{denied: "write_thing"}))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 
@@ -167,7 +167,7 @@ func TestRunner_TurnEndEventCarriesTokenTotals(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}}
 	tr := NewRecordingTracer()
 
-	runner := NewRunner(comp, exec, WithTracer(tr))
+	runner := newTestRunner(t, comp, exec, WithTracer(tr))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 	turn.InputTokens = 11
@@ -193,7 +193,7 @@ func TestRunner_ApprovalRequiredIsTraced(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}}
 	tr := NewRecordingTracer()
 
-	runner := NewRunner(comp, exec, WithTracer(tr), WithGuard(&approvalGuard{tool: "write_thing"}))
+	runner := newTestRunner(t, comp, exec, WithTracer(tr), WithGuard(&approvalGuard{tool: "write_thing"}))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 
@@ -222,7 +222,7 @@ func TestRunner_StepEventCarriesDuration(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{"read_links": "ok"}}
 	tr := NewRecordingTracer()
 
-	runner := NewRunner(comp, exec, WithTracer(tr))
+	runner := newTestRunner(t, comp, exec, WithTracer(tr))
 	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
 	turn := &Turn{Input: "go"}
 

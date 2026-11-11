@@ -112,7 +112,7 @@ func TestRunner_Stream_ThinkingThenText(t *testing.T) {
 	}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr, ok := runner.(StreamRunner)
 	if !ok {
 		t.Fatalf("expected runner to implement StreamRunner")
@@ -185,7 +185,7 @@ func TestRunner_Stream_ToolCalls(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr := runner.(StreamRunner)
 	h := &captureHandler{}
 	sess := &Session{ID: "s-stream-2", OrgID: 1, Channel: "web"}
@@ -228,7 +228,7 @@ func TestRunner_Stream_OrderViolation(t *testing.T) {
 	}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr := runner.(StreamRunner)
 	sess := &Session{ID: "s-stream-3", OrgID: 1, Channel: "web"}
 	turn := &Turn{Input: "trigger violation"}
@@ -257,7 +257,7 @@ func TestRunner_Stream_FallbackNonStreaming(t *testing.T) {
 	}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr, ok := runner.(StreamRunner)
 	if !ok {
 		t.Fatal("runner should implement StreamRunner")
@@ -293,7 +293,7 @@ func TestCompleterAdapter_Streaming(t *testing.T) {
 			},
 		}
 		adapter := &CompleterAdapter{Provider: &fakeProviderAdapter{fakeP}}
-		runner := NewRunner(adapter, &fakeExecutor{})
+		runner := newTestRunner(t, adapter, &fakeExecutor{})
 		sr := runner.(StreamRunner)
 
 		sess := &Session{ID: "s-stream-5", OrgID: 1, Channel: "test"}
@@ -314,7 +314,7 @@ func TestCompleterAdapter_Streaming(t *testing.T) {
 	t.Run("FallsBackWhenProviderDoesNotSupportStreaming", func(t *testing.T) {
 		nonStreamP := &fakeNonStreamProvider{text: "fallback answer"}
 		adapter := &CompleterAdapter{Provider: nonStreamP}
-		runner := NewRunner(adapter, &fakeExecutor{})
+		runner := newTestRunner(t, adapter, &fakeExecutor{})
 		sr := runner.(StreamRunner)
 
 		sess := &Session{ID: "s-stream-6", OrgID: 1, Channel: "test"}
@@ -358,7 +358,7 @@ func TestRunner_Stream_StopsOnApprovalRequired(t *testing.T) {
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec,
+	runner := newTestRunner(t, comp, exec,
 		WithGuard(&approvalGuard{tool: "dangerous_tool"}),
 	)
 	sr, ok := runner.(StreamRunner)

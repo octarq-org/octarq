@@ -42,7 +42,7 @@ func TestGuardReceivesTheCallArguments(t *testing.T) {
 		toolCallBlock("read_file", `{"path":"/etc/passwd"}`),
 		"nothing left to do",
 	}}
-	r := NewRunner(comp, &argExecutor{}, WithGuard(g))
+	r := newTestRunner(t, comp, &argExecutor{}, WithGuard(g))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); err != nil {
@@ -63,7 +63,7 @@ func TestGuardReceivesTheCallArguments(t *testing.T) {
 func TestPendingCallRecordsTheExactCall(t *testing.T) {
 	exec := &argExecutor{}
 	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
 
 	err := r.Run(context.Background(), s, turn)
@@ -117,7 +117,7 @@ func TestPendingCallHashIgnoresFormatting(t *testing.T) {
 // wrote; otherwise the resumed call is not the one the operator saw.
 func TestNewPendingCallMatchesTheRecordedOne(t *testing.T) {
 	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
-	r := NewRunner(comp, &argExecutor{}, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, &argExecutor{}, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
@@ -148,7 +148,7 @@ func TestResumeRunsTheApprovedCallNotTheNextOne(t *testing.T) {
 		toolCallBlock("delete_link", `{"id":"42"}`),
 		toolCallBlock("delete_link", `{"id":"99"}`), // what the model would say next
 	}}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
@@ -179,7 +179,7 @@ func TestResumeDoesNotAskTheGuardAgain(t *testing.T) {
 		toolCallBlock("delete_link", `{"id":"42"}`),
 		"nothing left to do",
 	}}
-	r := NewRunner(comp, exec, WithGuard(g))
+	r := newTestRunner(t, comp, exec, WithGuard(g))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
@@ -223,7 +223,7 @@ func (g *countingApprovalGuard) Allow(_ context.Context, _ uint, tool, _ string)
 func TestResumeDoesNotBuyAnotherRound(t *testing.T) {
 	exec := &argExecutor{}
 	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}), WithMaxSteps(1))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}), WithMaxSteps(1))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
@@ -244,7 +244,7 @@ func TestResumeDoesNotBuyAnotherRound(t *testing.T) {
 
 func TestResumeWithoutAPendingCallIsRefused(t *testing.T) {
 	exec := &argExecutor{}
-	r := NewRunner(&fakeCompleter{}, exec)
+	r := newTestRunner(t, &fakeCompleter{}, exec)
 	s, turn := newBudgetTurn()
 
 	err := r.Resume(context.Background(), s, turn)
@@ -271,7 +271,7 @@ func TestResumeStreamRunsTheApprovedCall(t *testing.T) {
 			{events: []streamEvent{textEv("done")}, resp: llmprovider.Response{Text: "done"}},
 		},
 	}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	sr, ok := r.(ResumeStreamRunner)
 	if !ok {
 		t.Fatal("runner does not implement ResumeStreamRunner")

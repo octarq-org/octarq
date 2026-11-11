@@ -24,6 +24,9 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   ```go
   type Runner interface {
       Run(ctx context.Context, s *Session, t *Turn) error
+      Resume(ctx context.Context, s *Session, t *Turn) error
+      // MaxStepsFor returns the step ceiling the loop enforces.
+      MaxStepsFor(hasDestructive bool) int
   }
   ```
 - **StreamRunner**:
@@ -102,6 +105,7 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
       Preamble       string   `json:"preamble,omitempty"`
       ExtraRules     []string `json:"extraRules,omitempty"`
       ToolAllow      []string `json:"toolAllow,omitempty"`
+      Profile        Profile  `json:"profile,omitempty"`
       MaxSteps       int      `json:"maxSteps,omitempty"`
       MaxTokens      int      `json:"maxTokens,omitempty"`
       MaxCostUSD     float64  `json:"maxCostUSD,omitempty"`
@@ -113,8 +117,11 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   exist cannot be set to a value that is silently ignored — `DecodeSpec`
   rejects unknown fields and `Validate` refuses the spec as a whole.
 
-  - The spec may only **tighten** the step ceiling, never raise it: the
-    profile's ceiling is a safety invariant (`EffectiveMaxSteps`).
+  - The spec names its own execution `Profile`. The profile owns the step
+    ceiling (`MaxStepsFor`), and the prompt states the enforced budget. A
+    `MaxSteps` above that profile's ceiling is **refused at runner assembly**
+    (`ErrMaxStepsExceedsProfile`), never lowered. `StepBudget(profile,
+    maxSteps, hasDestructive)` is the single shared resolver.
   - `ToolAllow` narrows the tool surface, and the narrowing is **enforced at
     execution time**, not only advertised: `harness.NewSpecGuard(spec)` is
     composed into the channel's guard chain, so a tool outside the allowlist
@@ -137,7 +144,8 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   | `preamble` | 2000 characters |
   | `extraRules` | 20 rules, 500 characters each |
   | `toolAllow` | 200 names, 64 characters each, no duplicates |
-  | `maxSteps` | 0 (the profile decides) or 1-8 (`MaxSpecMaxSteps` = the highest profile ceiling) |
+  | `profile` | `ProfileNormal`..`ProfileWorker`; the zero value is `ProfileNormal` |
+  | `maxSteps` | 0 (the profile decides) or 1-64 (`MaxSpecMaxSteps`); above the selected profile's ceiling is refused at runner assembly |
   | `maxTokens` | zero or positive |
   | `maxCostUSD` | zero or positive, finite (NaN would accept any spend) |
   | `maxWallTimeSec` | zero or positive |
@@ -188,8 +196,11 @@ Quantitative execution ceilings are hard-coded to avoid unbounded LLM recursion:
 | `ProfileNormal` | 8 steps (`MaxStepsNormal`) | 8 steps | Interactive multi-turn chat sessions |
 | `ProfileReactor` | 3 steps (`MaxStepsReactor`) | 3 steps | Event-driven unattended automation cap |
 | `ProfileReactorReadOnly` | 5 steps (`MaxStepsReadOnly`) | 3 steps | Read-only reactor; drops to 3 on destructive hint |
+| `ProfileWorker` | 64 steps (`MaxStepsWorker`) | 64 steps | Autonomous long-horizon task session |
 
-- `NewReactorRunner(c, exec, opts...)` constructs a `Runner` locked to `ProfileReactor` (`MaxStepsReactor = 3`), ensuring caller options cannot raise the unattended step ceiling.
+- `NewRunner(c, exec, opts...) (Runner, error)` applies every option, then validates the budget. A negative budget, or one above the selected profile's ceiling, returns `ErrMaxStepsExceedsProfile`.
+- `NewReactorRunner(c, exec, opts...) (Runner, error)` constructs a `Runner` locked to `ProfileReactor` (`MaxStepsReactor = 3`). Caller options cannot raise the unattended step ceiling: an over-ceiling budget is refused.
+- `StepBudget(profile, maxSteps, hasDestructive)` is the only resolver. Zero means the profile decides; a positive value is returned unchanged or refused. It never lowers a request silently.
 - `FenceUntrustedEvent(source, content)` wraps external event payloads and run transcripts inside `<untrusted source="..." safe_mode="true">...</untrusted>` fences while escaping any forged `</untrusted>` closing tags.
 
 ---
@@ -549,5 +560,5 @@ The offline lab provides an offline, deterministic evaluation testbed for candid
 - **Probe**: Fixed task sets replay scripted model responses and mock tool outputs against each candidate specification, harvesting trace events.
 - **Compose**: A strictly deterministic scorer ranks candidate performance (success rate, tool error count, step budget efficiency, and estimated token footprint) without dependency on clocks, random numbers, or external networks. The report artifact carries no wall-clock reading either: a mock tool call measures the machine, not the candidate, so two runs of the same candidate produce the same bytes.
 - **Explicit Invariant & Human Adoption**: The lab operates strictly offline and produces artifact reports (`report.json` and `report.md`). It never modifies production databases or live prompts, and never executes in the live request path. All spec adoptions are executed manually by human operators.
-- **Importable Proposal Export**: When invoked with `-propose <path>`, the lab exports an importable draft proposal JSON (`proposal.json`). A proposal consists of two top-level fields: `spec` and `evidence`. The spec's own `name` is the single authoritative name. The proposal contains no top-level `name`. The exported `spec` enforces the effective profile step budget ceiling (`EffectiveMaxSteps`) and must pass `harness.Validate`. The `candidateFingerprint` in `evidence` equals the fingerprint of the proposed spec (`specToPropose.Fingerprint()`). Human operators can import the proposal as an inactive draft and review diffs before activation.
+- **Importable Proposal Export**: When invoked with `-propose <path>`, the lab exports an importable draft proposal JSON (`proposal.json`). A proposal consists of two top-level fields: `spec` and `evidence`. The spec's own `name` is the single authoritative name. The proposal contains no top-level `name`. The exported `spec` carries the candidate's profile and the exact budget the runner enforces (`EffectiveMaxSteps`, which fails closed above the profile ceiling) and must pass `harness.Validate`. The `candidateFingerprint` in `evidence` equals the fingerprint of the proposed spec (`specToPropose.Fingerprint()`). Human operators can import the proposal as an inactive draft and review diffs before activation.
 

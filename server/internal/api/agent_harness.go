@@ -53,15 +53,16 @@ type AgentHarnessVersion struct {
 // The request body is the other way round: a producer may leave the optional
 // fields out, so the request keeps the spec's own lenient shape.
 type AgentHarnessSpecContent struct {
-	Version        int      `json:"version"`
-	Name           string   `json:"name"`
-	Preamble       string   `json:"preamble"`
-	ExtraRules     []string `json:"extraRules"`
-	ToolAllow      []string `json:"toolAllow"`
-	MaxSteps       int      `json:"maxSteps"`
-	MaxTokens      int      `json:"maxTokens"`
-	MaxCostUSD     float64  `json:"maxCostUSD"`
-	MaxWallTimeSec int      `json:"maxWallTimeSec"`
+	Version        int             `json:"version"`
+	Name           string          `json:"name"`
+	Preamble       string          `json:"preamble"`
+	ExtraRules     []string        `json:"extraRules"`
+	ToolAllow      []string        `json:"toolAllow"`
+	Profile        harness.Profile `json:"profile"`
+	MaxSteps       int             `json:"maxSteps"`
+	MaxTokens      int             `json:"maxTokens"`
+	MaxCostUSD     float64         `json:"maxCostUSD"`
+	MaxWallTimeSec int             `json:"maxWallTimeSec"`
 }
 
 // harnessSpecContent renders a spec in the shape the API returns.
@@ -70,6 +71,7 @@ func harnessSpecContent(spec harness.HarnessSpec) AgentHarnessSpecContent {
 		Version:        spec.Version,
 		Name:           spec.Name,
 		Preamble:       spec.Preamble,
+		Profile:        spec.Profile,
 		MaxSteps:       spec.MaxSteps,
 		MaxTokens:      spec.MaxTokens,
 		MaxCostUSD:     spec.MaxCostUSD,
