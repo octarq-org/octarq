@@ -20,7 +20,7 @@ Here is the architectural story of why and how we built it.
 When developers self-host software today, they shouldn't need a Kubernetes cluster just to run a backoffice. 
 
 By building on **Go** and pure-Go **SQLite** (with Postgres driver support), Octarq compiles into a single static binary. 
-- **Zero-config startup**: Running `docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest` auto-generates secret keys and admin credentials on first boot.
+- **Zero-config startup**: A first boot without environment variables generates the secret key and the admin password, into the data directory.
 - **Data Sovereignty**: All SQLite/Postgres data remains under the operator's physical control.
 
 ---

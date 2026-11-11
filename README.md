@@ -45,31 +45,38 @@ Core holds no business feature. Links, mail, and DNS ship as plugins in [octarq-
 
 ## Quick start
 
-Zero config — one command, no `.env`:
-
-```bash
-# Production zero-config (auto-generates secret key & admin password):
-docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
-
-# Or instant local eval (log in immediately with admin / admin):
-docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=change-this-admin-password -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
-```
-
-On first boot without environment variables, Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs (or use `admin` if specified above), and log in. The default build contains infrastructure only. Add the business plugins you want from [octarq-plugins](https://github.com/octarq-org/octarq-plugins).
-
-That's the full stack — dashboard, API and MCP — in one container.
-
-<details>
-<summary>Prefer to build from source?</summary>
+Octarq publishes no container image: a useful build carries the plugins you
+pick, so you build one. Docker Compose builds the binary and the dashboard from
+this tree:
 
 ```bash
 git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
+```
+
+Or build the binary without Docker:
+
+```bash
 make release                                                # builds ./octarq with the dashboard embedded
 OCTARQ_SECRET_KEY=… OCTARQ_ADMIN_PASSWORD=… ./octarq        # serves on :8080
 ```
 
-Set `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD` explicitly (see `.env.example` + `docker compose`) whenever you want to manage them yourself. A minimal image lives in [`deploy/Dockerfile.binary`](deploy/Dockerfile.binary).
-</details>
+Without environment variables, Octarq generates a secret key and an initial
+`admin` password on first boot. Both live in the `/data` volume. Read the
+password out of the container:
+
+```bash
+docker compose cp octarq:/data/octarq-admin-password.txt .
+cat octarq-admin-password.txt
+```
+
+Open `http://localhost:8080` and sign in.
+
+The default build contains infrastructure only. Add the business plugins you
+want from [octarq-plugins](https://github.com/octarq-org/octarq-plugins), then
+rebuild — see [Extend it](#extend-it-write-a-plugin). A minimal image that
+copies a finished binary lives in
+[`deploy/Dockerfile.binary`](deploy/Dockerfile.binary).
 
 ---
 
