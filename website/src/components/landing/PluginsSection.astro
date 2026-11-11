@@ -1,7 +1,7 @@
 ---
 import SectionMotion from "./SectionMotion.astro";
 
-const bundled = [
+const items = [
   {
     n: "01",
     name: "Links",
@@ -35,17 +35,19 @@ const bundled = [
 <section class="oct-sec oct-sec--rule" id="plugins">
   <SectionMotion variant="particles" count={7} intensity={0.55} />
   <div class="oct-shell oct-layer">
-    <p class="oct-kicker"><span aria-hidden="true"></span>Bundled plugins</p>
-    <h2 class="oct-h2">Useful on minute one</h2>
+    <p class="oct-kicker"><span aria-hidden="true"></span>Plugins and platform</p>
+    <h2 class="oct-h2">Pick what your back office needs</h2>
     <p class="oct-body oct-body--wide">
-      Each one is a <code>plugin.Plugin</code> + <code>UIPlugin</code> — the
-      exact seam your own plugins use, so the bundled features double as
-      reference implementations.
+      Core gives you workspaces, roles and tokens. Links, mail and DNS live in
+      <a href="https://github.com/octarq-org/octarq-plugins">octarq-plugins</a>
+      and mount at build time. Each one is a <code>plugin.Plugin</code> +
+      <code>UIPlugin</code> — the exact seam your own plugins use, so they also
+      serve as reference implementations.
     </p>
 
     <ul class="oct-rows">
       {
-        bundled.map((p, i) => (
+        items.map((p, i) => (
           <li class="oct-row">
             {i > 0 && (
               <span class="oct-row__rule" aria-hidden="true">
