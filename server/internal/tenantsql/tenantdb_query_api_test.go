@@ -186,6 +186,10 @@ func TestTenantDB_ResolveColumnBranches(t *testing.T) {
 	}
 }
 
+// withContextValueKey is this test's own key type; a bare struct{} key would
+// collide with any other package value stored the same way.
+type withContextValueKey struct{}
+
 func TestTenantDB_WithColumnAndWithContext(t *testing.T) {
 	db := setupTestDB(t)
 	tdb := tenantDBFor(t, db, 3)
@@ -200,7 +204,7 @@ func TestTenantDB_WithColumnAndWithContext(t *testing.T) {
 		t.Fatalf("WithColumn mutated the receiver: %q", got)
 	}
 
-	ctx := context.WithValue(context.Background(), struct{}{}, "value")
+	ctx := context.WithValue(context.Background(), withContextValueKey{}, "value")
 	bound := tdb.WithContext(ctx)
 	if bound.OrgID() != tdb.OrgID() {
 		t.Fatalf("WithContext changed the org: %d", bound.OrgID())
