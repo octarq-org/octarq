@@ -119,8 +119,9 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
 
   - The spec names its own execution `Profile`. The profile owns the step
     ceiling (`MaxStepsFor`), and the prompt states the enforced budget. A
-    `MaxSteps` above that profile's ceiling is **refused at runner assembly**
-    (`ErrMaxStepsExceedsProfile`), never lowered. `StepBudget(profile,
+    `MaxSteps` above that profile's ceiling is refused twice: `Validate`
+    rejects the spec, and runner assembly rejects it with
+    `ErrMaxStepsExceedsProfile`. It is never lowered. `StepBudget(profile,
     maxSteps, hasDestructive)` is the single shared resolver.
   - `ToolAllow` narrows the tool surface, and the narrowing is **enforced at
     execution time**, not only advertised: `harness.NewSpecGuard(spec)` is
@@ -145,7 +146,7 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   | `extraRules` | 20 rules, 500 characters each |
   | `toolAllow` | 200 names, 64 characters each, no duplicates |
   | `profile` | `ProfileNormal`..`ProfileWorker`; the zero value is `ProfileNormal` |
-  | `maxSteps` | 0 (the profile decides) or 1-64 (`MaxSpecMaxSteps`); above the selected profile's ceiling is refused at runner assembly |
+  | `maxSteps` | 0 (the profile decides) or 1-64 (`MaxSpecMaxSteps`); above the selected profile's ceiling is refused by `Validate` |
   | `maxTokens` | zero or positive |
   | `maxCostUSD` | zero or positive, finite (NaN would accept any spend) |
   | `maxWallTimeSec` | zero or positive |

@@ -293,3 +293,20 @@ func TestValidateRefusesAStepBudgetTheRunnerWouldIgnore(t *testing.T) {
 		t.Fatalf("the spec accepts %d steps but the profile allows %d", harness.MaxSpecMaxSteps, harness.MaxStepsWorker)
 	}
 }
+
+// TestValidateRefusesABudgetAboveTheSpecProfilesCeiling pins the earlier of the
+// two gates. Runner assembly also refuses it, but a spec that can never run
+// must not be storable: the operator would save it and watch every request fail.
+func TestValidateRefusesABudgetAboveTheSpecProfilesCeiling(t *testing.T) {
+	spec := harness.DefaultHarnessSpec()
+	spec.MaxSteps = harness.MaxStepsNormal + 1
+
+	if err := harness.Validate(spec); err == nil {
+		t.Fatal("a normal-profile spec above the normal ceiling must be refused")
+	}
+
+	spec.Profile = harness.ProfileWorker
+	if err := harness.Validate(spec); err != nil {
+		t.Fatalf("the same budget under the worker profile must be accepted: %v", err)
+	}
+}

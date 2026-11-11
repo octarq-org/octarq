@@ -168,6 +168,10 @@ func Validate(spec HarnessSpec) error {
 	}
 	if spec.Profile < ProfileNormal || spec.Profile > ProfileWorker {
 		vs = append(vs, SpecViolation{Field: "profile", Message: fmt.Sprintf("must be between %d and %d", int(ProfileNormal), int(ProfileWorker))})
+	} else if spec.MaxSteps > spec.Profile.MaxSteps(false) {
+		// Refuse at the spec boundary: a stored budget above the profile's
+		// ceiling would fail every request that assembles a runner from it.
+		vs = append(vs, SpecViolation{Field: "maxSteps", Message: fmt.Sprintf("must not exceed %d for profile %s", spec.Profile.MaxSteps(false), spec.Profile)})
 	}
 	if spec.MaxSteps != 0 && (spec.MaxSteps < MinSpecMaxSteps || spec.MaxSteps > MaxSpecMaxSteps) {
 		vs = append(vs, SpecViolation{Field: "maxSteps", Message: fmt.Sprintf("must be 0 or between %d and %d", MinSpecMaxSteps, MaxSpecMaxSteps)})

@@ -157,7 +157,7 @@ export function HarnessEditorModal({
             <Input
               type="number"
               min={1}
-              max={8}
+              max={64}
               value={maxSteps}
               onChange={(e) => setMaxSteps(Number(e.target.value))}
               disabled={submitting}
