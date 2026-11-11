@@ -5,30 +5,35 @@ category: start
 order: 20
 ---
 
-只需不到五分钟，即可通过 Docker 快速启动一套生产就绪的 Octarq 实例。Octarq 采用一体化容器打包，内置嵌入式数据库、Web 控制台资源与后台异步任务调度器。
+只需不到五分钟，即可启动一套 Octarq 实例。Octarq 以单个容器运行，内置数据库、Web 控制台与后台异步任务调度器。
 
-## 启动 Docker 容器
+## 构建并启动 Octarq
 
-1. 在服务器或本地终端执行容器启动命令：
+Octarq 不发布容器镜像。有用的构建要带上你选的插件，所以镜像由你自己从源码树构建。
+
+1. 克隆源码并构建镜像：
    ```bash
-   docker run -d \
-     --name octarq \
-     -p 8080:8080 \
-     -v octarq_data:/app/data \
-     -e OCTARQ_APP_NAME="生产环境控制台" \
-     --restart unless-stopped \
-     ghcr.io/octarq-org/octarq:latest
+   git clone https://github.com/octarq-org/octarq && cd octarq
+   docker compose up -d --build
    ```
-2. 按需配置环境变量：
+2. 想自己管理时，在 `.env` 中设置这些变量：
 
    | 环境变量 | 默认值 | 作用描述 |
    |---|---|---|
-   | `OCTARQ_PORT` | `8080` | 容器内部服务监听的 HTTP 端口 |
-   | `OCTARQ_DATA_DIR` | `/app/data` | 持久化数据挂载卷路径，存放数据库及上传文件 |
-   | `OCTARQ_APP_NAME` | `Octarq` | 登录页面与顶部导航展示的品牌名称 |
-   | `OCTARQ_BASE_DOMAIN` | *(可选)* | 平台共享基础域名，用于生成自动化租户多级子域名 |
+   | `OCTARQ_LISTEN` | `:8080` | HTTP 监听地址 |
+   | `OCTARQ_DB_DRIVER` | `sqlite` | 数据库驱动：`sqlite`、`postgres` 或 `mysql` |
+   | `OCTARQ_DB_DSN` | `octarq.db` | 数据库连接串 |
+   | `OCTARQ_STORAGE_DIR` | `./data/storage` | 上传文件存放目录 |
+   | `OCTARQ_SECRET_KEY` | *(自动生成)* | 留空则首次启动时生成密钥 |
+   | `OCTARQ_ADMIN_USER` | `admin` | 管理员用户名 |
+   | `OCTARQ_ADMIN_PASSWORD` | *(自动生成)* | 留空则首次启动时生成密码 |
 
-3. 在浏览器中打开 `http://localhost:8080`（或 `http://服务器IP:8080`）开始初始化向导。
+3. 取出自动生成的管理员密码：
+   ```bash
+   docker compose cp octarq:/data/octarq-admin-password.txt .
+   cat octarq-admin-password.txt
+   ```
+4. 在浏览器中打开 `http://localhost:8080` 开始初始化。
 
 ## 创建管理员账号与首个工作区
 

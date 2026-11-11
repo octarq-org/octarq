@@ -6,17 +6,13 @@ on:
 
 permissions:
   contents: write   # create GitHub release + upload assets + commit CHANGELOG.md
-  packages: write   # push to GHCR
-
-env:
-  IMAGE: ghcr.io/octarq-org/octarq
 
 jobs:
-  # ── goreleaser: binaries + GitHub release + GHCR images ──────────────────
-  # One run cross-compiles linux/{amd64,arm64} natively, attaches binaries +
-  # checksums to the GitHub release, and pushes multi-arch images assembled
-  # from those SAME binaries via Dockerfile.release — Go compiles once per
-  # arch instead of again inside every per-arch Docker build.
+  # ── goreleaser: binaries + GitHub release ────────────────────────────────
+  # One run cross-compiles linux/{amd64,arm64} natively and attaches the
+  # binaries + checksums to the GitHub release. No container image: a useful
+  # build carries the plugins the operator chose, so operators build their own
+  # from source.
   #
   # Release notes stay git-cliff-generated with the exact flags the old
   # softprops flow used (--latest --strip header). The notes file lives in
@@ -32,20 +28,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: server/go.mod
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # dockers_v2 emits one multi-platform `docker buildx build` command,
-      # which needs a containerd-backed builder (the default docker driver
-      # rejects multi-platform). Creates and selects one; the selection
-      # persists for the goreleaser step below.
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Generate release notes (git-cliff)
         uses: orhun/git-cliff-action@v4

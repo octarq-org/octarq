@@ -45,31 +45,30 @@ Octarq 是**面向独立开发者、一人公司与 AI-native 小团队的自托
 
 ## 快速开始
 
-零配置 —— 一条命令，无需 `.env`：
-
-```bash
-# 生产推荐零配置（自动生成高强度密钥与 admin 密码）：
-docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
-
-# 或极速本地体验（使用 admin / admin 快速登录）：
-docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=change-this-admin-password -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
-```
-
-未设置环境变量时，首次启动 Octarq 会自动生成密钥与初始 `admin` 密码（两者都持久化在 `/data`，并在日志里打印一次），默认用 SQLite 起来。打开 `http://localhost:8080`，从容器日志里拿到密码（或使用上述预设的 `admin`）即可登录。默认构建只含基础设施。需要的业务插件从 [octarq-plugins](https://github.com/octarq-org/octarq-plugins) 加入。
-
-这就是完整栈 —— 管理后台、API 与 MCP —— 统一运行在单个容器中。
-
-<details>
-<summary>想从源码构建？</summary>
+Octarq 不发布容器镜像：有用的构建要带上你选的插件，所以由你自己构建。Docker Compose 会用这棵树构建二进制与管理后台：
 
 ```bash
 git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
+```
+
+不用 Docker 时直接构建二进制：
+
+```bash
 make release                                                # 构建 ./octarq，管理后台已嵌入
 OCTARQ_SECRET_KEY=… OCTARQ_ADMIN_PASSWORD=… ./octarq        # 监听 :8080
 ```
 
-想自己管理密钥/密码时，显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`（见 `.env.example` 与 `docker compose`）。最小体积镜像见 [`deploy/Dockerfile.binary`](deploy/Dockerfile.binary)。
-</details>
+未设置环境变量时，首次启动 Octarq 会生成密钥与初始 `admin` 密码，两者都保存在 `/data` 卷里。取出密码：
+
+```bash
+docker compose cp octarq:/data/octarq-admin-password.txt .
+cat octarq-admin-password.txt
+```
+
+打开 `http://localhost:8080` 登录。
+
+默认构建只含基础设施。需要的业务插件从 [octarq-plugins](https://github.com/octarq-org/octarq-plugins) 加入后重新构建，见[插件扩展开发](#插件扩展开发编写一个插件)。只想打包现成二进制的最小镜像见 [`deploy/Dockerfile.binary`](deploy/Dockerfile.binary)。
 
 ---
 

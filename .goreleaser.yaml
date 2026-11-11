@@ -1,18 +1,14 @@
-# GoReleaser — binaries + GitHub release + GHCR images in one run.
+# GoReleaser — binaries + GitHub release.
 #
 # Design notes:
-# - linux/{amd64,arm64} only, matching the Docker platforms we publish. The
-#   cross-compile is native-speed (no QEMU): each `dockers` entry reuses the
-#   matching goreleaser-built binary via its build context, so Go compiles
-#   exactly once per architecture — the old flow compiled again inside every
-#   Docker build.
+# - linux/{amd64,arm64} only. The cross-compile is native-speed (no QEMU).
 # - Release notes are NOT generated here: CI pre-renders them with git-cliff
 #   (same cliff.toml, same `--latest --strip header` flags as before) and
 #   passes the file via `goreleaser release --release-notes=...`, keeping the
 #   published format byte-identical to the previous softprops-based flow.
-# - The multi-stage ./Dockerfile remains the source-build path (it builds the
-#   dashboard from web/); Dockerfile.release is the runtime-only image that
-#   COPYs the binary goreleaser injects.
+# - No container image. A useful Octarq build carries the plugins the operator
+#   chose, so a shared image cannot be the one they run. `docker compose up
+#   -d --build` builds from the operator's own tree instead.
 version: 2
 
 project_name: octarq
@@ -47,32 +43,6 @@ checksum:
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
-
-# One entry, both platforms: buildx produces a single multi-arch image index
-# (manifest list) carrying every tag below — no separate docker_manifests.
-# The binary for each platform is injected at <goos>/<goarch>/octarq inside
-# the build context; Dockerfile.release copies it via $TARGETPLATFORM.
-dockers_v2:
-  - images:
-      - ghcr.io/octarq-org/octarq
-    dockerfile: Dockerfile.release
-    platforms:
-      - linux/amd64
-      - linux/arm64
-    tags:
-      - "{{ .Version }}"
-      # Moving pointers stay put on prereleases (v0.4.7-rc.1 must not steal
-      # the 0.4 or latest slots): .Prerelease is the semver suffix (rc.1),
-      # empty on stable tags, and dockers_v2 ignores empty rendered tags.
-      - "{{ if not .Prerelease }}{{ .Major }}.{{ .Minor }}{{ end }}"
-      - "{{ .ShortCommit }}"
-      - "{{ if not .Prerelease }}latest{{ end }}"
-    # Parity with the old docker/metadata-action surface; no SBOM today.
-    sbom: false
-    labels:
-      org.opencontainers.image.title: "{{ .ProjectName }}"
-      org.opencontainers.image.version: "{{ .Version }}"
-      org.opencontainers.image.source: https://github.com/octarq-org/octarq
 
 release:
   prerelease: auto

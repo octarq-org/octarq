@@ -5,30 +5,35 @@ category: start
 order: 20
 ---
 
-Get an Octarq instance running with Docker in less than five minutes. Octarq ships as a unified container bundling an embedded database, front-end assets, and background workers.
+Get an Octarq instance running in less than five minutes. Octarq runs as one container that bundles an embedded database, the dashboard and the background workers.
 
-## Launch the Docker Container
+## Build and Start Octarq
 
-1. Run the container command on your server or local machine:
+Octarq publishes no container image. A useful build carries the plugins you pick, so you build the image from your own source tree.
+
+1. Clone the source and build the image:
    ```bash
-   docker run -d \
-     --name octarq \
-     -p 8080:8080 \
-     -v octarq_data:/app/data \
-     -e OCTARQ_APP_NAME="Production Studio" \
-     --restart unless-stopped \
-     ghcr.io/octarq-org/octarq:latest
+   git clone https://github.com/octarq-org/octarq && cd octarq
+   docker compose up -d --build
    ```
-2. Configure environment variables as needed:
+2. Set these variables in `.env` when you manage them yourself:
 
    | Variable | Default | Description |
    |---|---|---|
-   | `OCTARQ_PORT` | `8080` | HTTP port inside the container |
-   | `OCTARQ_DATA_DIR` | `/app/data` | Storage path for database and uploads |
-   | `OCTARQ_APP_NAME` | `Octarq` | Brand name shown on login and navigation |
-   | `OCTARQ_BASE_DOMAIN` | *(optional)* | Base domain for automatic subdomains |
+   | `OCTARQ_LISTEN` | `:8080` | HTTP listen address |
+   | `OCTARQ_DB_DRIVER` | `sqlite` | Database driver: `sqlite`, `postgres` or `mysql` |
+   | `OCTARQ_DB_DSN` | `octarq.db` | Database connection string |
+   | `OCTARQ_STORAGE_DIR` | `./data/storage` | Directory for uploaded files |
+   | `OCTARQ_SECRET_KEY` | *(generated)* | Leave empty to generate a key on first boot |
+   | `OCTARQ_ADMIN_USER` | `admin` | Administrator user name |
+   | `OCTARQ_ADMIN_PASSWORD` | *(generated)* | Leave empty to generate a password on first boot |
 
-3. Open `http://localhost:8080` (or `http://your-server-ip:8080`) in your browser to begin setup.
+3. Read the generated administrator password:
+   ```bash
+   docker compose cp octarq:/data/octarq-admin-password.txt .
+   cat octarq-admin-password.txt
+   ```
+4. Open `http://localhost:8080` in your browser to begin setup.
 
 ## Set Up Admin Account and Workspace
 
