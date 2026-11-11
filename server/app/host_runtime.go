@@ -305,6 +305,12 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				params.apiHandler.SetLLMResolverForOrg(resolver)
 			}
 		},
+		LLMProviderForOrg: func(orgID uint) (llmprovider.Provider, error) {
+			if params.apiHandler == nil {
+				return nil, errors.New("llm provider unavailable: api handler not configured")
+			}
+			return params.apiHandler.LLMProviderForOrg(orgID)
+		},
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may
 			// mount after the plugin that meters, so a Mount-time Lookup would

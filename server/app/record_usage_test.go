@@ -163,6 +163,15 @@ func TestBothPctxConstructorsSetLLMResolverForOrg(t *testing.T) {
 	}
 }
 
+func TestBothPctxConstructorsSetLLMProviderForOrg(t *testing.T) {
+	verifyAppGoUsesUnifiedConstructor(t)
+
+	fields := getHostRuntimePctxFields(t)
+	if !fields["LLMProviderForOrg"] {
+		t.Fatal("expected unified plugin.Context constructor in host_runtime.go to set LLMProviderForOrg")
+	}
+}
+
 func TestBothPctxConstructorsSetRegisterNotificationChannel(t *testing.T) {
 	verifyAppGoUsesUnifiedConstructor(t)
 
@@ -228,6 +237,13 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	}
 	if httpCtx.SetLLMResolverForOrg == nil {
 		t.Fatal("expected httpCtx.SetLLMResolverForOrg to be non-nil")
+	}
+	if httpCtx.LLMProviderForOrg == nil {
+		t.Fatal("expected httpCtx.LLMProviderForOrg to be non-nil")
+	}
+	// With no api handler the getter must fail closed, never (nil, nil).
+	if p, err := httpCtx.LLMProviderForOrg(1); err == nil || p != nil {
+		t.Fatalf("httpCtx.LLMProviderForOrg(1) = (%v, %v), want (nil, error)", p, err)
 	}
 	if httpCtx.RegisterNotificationChannel == nil {
 		t.Fatal("expected httpCtx.RegisterNotificationChannel to be non-nil")
@@ -349,6 +365,12 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	}
 	if mcpCtx.SetLLMResolverForOrg == nil {
 		t.Fatal("expected mcpCtx.SetLLMResolverForOrg to be non-nil")
+	}
+	if mcpCtx.LLMProviderForOrg == nil {
+		t.Fatal("expected mcpCtx.LLMProviderForOrg to be non-nil")
+	}
+	if p, err := mcpCtx.LLMProviderForOrg(1); err == nil || p != nil {
+		t.Fatalf("mcpCtx.LLMProviderForOrg(1) = (%v, %v), want (nil, error)", p, err)
 	}
 	if mcpCtx.RegisterNotificationChannel == nil {
 		t.Fatal("expected mcpCtx.RegisterNotificationChannel to be non-nil")

@@ -63,6 +63,16 @@ func (h *Handler) SetLLMResolverForOrg(f func(orgID uint) (llmprovider.Provider,
 	h.llmMu.Unlock()
 }
 
+// LLMProviderForOrg returns the provider the AI assists resolve for orgID.
+// It is the read side of SetLLMResolverForOrg and backs
+// plugin.Context.LLMProviderForOrg, so a plugin reads the same backend the
+// assists use instead of the OCTARQ_LLM_* environment. It returns
+// errLLMNotConfigured when no resolver is installed or the resolver returns no
+// usable provider.
+func (h *Handler) LLMProviderForOrg(orgID uint) (llmprovider.Provider, error) {
+	return h.llmFor(orgID)
+}
+
 func (h *Handler) llmFor(orgID uint) (llmprovider.Provider, error) {
 	h.llmMu.RLock()
 	f := h.llmResolver
