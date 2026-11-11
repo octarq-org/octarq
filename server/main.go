@@ -34,6 +34,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/monitor"
 	"github.com/octarq-org/octarq/server/openapi"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
@@ -119,24 +120,32 @@ func splitListen(listen string) (host, port string) {
 	return listen, ""
 }
 
-// runMCPServer composes the Core plugins so their MCP tools (list_links,
-// list_domains, list_mailboxes/emails, export_data) are registered on the
-// stdio server.
+// composePluginsForCLI is the plugin set the non-serving commands describe:
+// the Core builtins plus any plugins wired in at build time. It keeps `openapi`
+// and `mcp` reporting the binary the operator actually built.
+func composePluginsForCLI() []plugin.Plugin {
+	plugins := builtin.Default()
+	return append(plugins, customPlugins()...)
+}
+
+// runMCPServer composes the mounted plugins so their MCP tools (export_data,
+// notify, and whatever the composed plugins register) are exposed on the stdio
+// server.
 func runMCPServer(ctx context.Context) int {
-	if err := mcp.RunWithPlugins(ctx, builtin.Default(), nil); err != nil {
+	if err := mcp.RunWithPlugins(ctx, composePluginsForCLI(), nil); err != nil {
 		slog.Error("mcp failed", "err", err)
 		return 1
 	}
 	return 0
 }
 
-// runOpenAPI prints the published specification. It boots the same
-// composition the server does — Core plugins included — so the document is
-// read off the live handler registrations rather than described alongside
-// them. Passing nil here would emit a spec missing every links, mail, DNS
-// and help route.
+// runOpenAPI prints the published specification. It describes the same
+// composition the server boots — Core plugins and the build-time composed ones —
+// so the document is read off the live handler registrations rather than
+// described alongside them. Passing the builtins alone would emit a spec
+// missing every composed plugin's routes.
 func runOpenAPI(stdout io.Writer) int {
-	if err := openapi.Generate(stdout, builtin.Default()); err != nil {
+	if err := openapi.Generate(stdout, composePluginsForCLI()); err != nil {
 		slog.Error("openapi generation failed", "err", err)
 		return 1
 	}

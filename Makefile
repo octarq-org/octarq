@@ -1,4 +1,4 @@
-.PHONY: all web build run dev docker clean tidy plugin-build test lint vulncheck openapi release
+.PHONY: all web build run dev docker clean tidy plugin-build plugin-build-reset test lint vulncheck openapi release
 
 BINARY := octarq
 AIR    := $(shell go env GOPATH)/bin/air
@@ -63,13 +63,25 @@ docker:
 #   OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-foo","gomod":"github.com/you/octarq-plugin-foo@v1.0.0","npm":"@you/octarq-plugin-foo"}]' make plugin-build
 # cmd/octarq-build regenerates custom_plugins.go (backend) + .octarq-frontend-plugins.json (frontend);
 # the frontend build then composes the UI halves via its own OCTARQ_PLUGINS manifest.
-# Reset afterwards: git checkout server/custom_plugins.go server/go.mod server/go.sum && rm -f server/.octarq-frontend-plugins.json .octarq-frontend-plugins.json
+# The frontend list (bare npm names) is what the web build consumes. Export it
+# for BOTH install and build: an inline assignment before one command does not
+# reach the next, and the raw OCTARQ_PLUGINS entries ({go, gomod, npm}) are not
+# a manifest the frontend can read.
 plugin-build:
 	@test -n "$(OCTARQ_PLUGINS)" || { echo "set OCTARQ_PLUGINS to a JSON array of plugin entries"; exit 1; }
 	cd server && go run ./cmd/octarq-build
-	cd web && OCTARQ_PLUGINS="$$(cat ../server/.octarq-frontend-plugins.json 2>/dev/null || cat ../.octarq-frontend-plugins.json)" pnpm install && pnpm build
+	cd web && front="$$(cat ../server/.octarq-frontend-plugins.json 2>/dev/null || cat ../.octarq-frontend-plugins.json)" && OCTARQ_PLUGINS="$$front" pnpm install && OCTARQ_PLUGINS="$$front" pnpm build
 	$(MAKE) build
-	@echo "Built ./$(BINARY) with custom plugins. Reset: git checkout server/custom_plugins.go server/go.mod server/go.sum && rm -f server/.octarq-frontend-plugins.json .octarq-frontend-plugins.json"
+	@echo "Built ./$(BINARY) with custom plugins. Reset: make plugin-build-reset"
+
+# Undo what plugin-build wrote into tracked files: the generated backend wiring,
+# the go.mod/go.sum rows it added, and the composed dashboard in webembed/dist
+# (checked in, and refreshed only by CI on main). The binary keeps the composed
+# build; only the source tree goes back to the plain checkout.
+plugin-build-reset:
+	git checkout -- server/custom_plugins.go server/go.mod server/go.sum server/webembed/dist
+	git clean -fdq server/webembed/dist
+	rm -f server/.octarq-frontend-plugins.json .octarq-frontend-plugins.json
 
 test:
 	cd server && go test ./... -race
