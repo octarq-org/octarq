@@ -29,6 +29,10 @@ func (s testEnvStore) Set(key, val string) error {
 	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
 }
 
+func (s testEnvStore) Delete(key string) error {
+	return s.db.Delete(&models.Setting{Key: key}).Error
+}
+
 func (s testEnvStore) HasEncryptedValues() (bool, error) {
 	return models.HasEncryptedValues(s.db)
 }

@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -151,6 +152,13 @@ var _ HostSession = (*TestSession)(nil)
 type TestCrypto struct {
 	EncryptFn func([]byte) (string, error)
 	DecryptFn func(string) ([]byte, error)
+	// The AAD mocks default to EncryptFn and DecryptFn.
+	EncryptWithAADFn func(plaintext, aad []byte) (string, error)
+	DecryptWithAADFn func(encoded string, aad []byte) ([]byte, error)
+	// Subject mocks default to an unavailable error. A test that needs
+	// subject namespaces sets them.
+	SubjectVaultFn    func(ownerID uint, subject string) (CryptoVault, error)
+	ShredSubjectKeyFn func(ownerID uint, subject string) error
 }
 
 func (c *TestCrypto) Encrypt(plaintext []byte) (string, error) {
@@ -165,6 +173,34 @@ func (c *TestCrypto) Decrypt(encoded string) ([]byte, error) {
 		return c.DecryptFn(encoded)
 	}
 	return []byte(encoded), nil
+}
+
+func (c *TestCrypto) EncryptWithAAD(plaintext, aad []byte) (string, error) {
+	if c != nil && c.EncryptWithAADFn != nil {
+		return c.EncryptWithAADFn(plaintext, aad)
+	}
+	return c.Encrypt(plaintext)
+}
+
+func (c *TestCrypto) DecryptWithAAD(encoded string, aad []byte) ([]byte, error) {
+	if c != nil && c.DecryptWithAADFn != nil {
+		return c.DecryptWithAADFn(encoded, aad)
+	}
+	return c.Decrypt(encoded)
+}
+
+func (c *TestCrypto) SubjectVault(ownerID uint, subject string) (CryptoVault, error) {
+	if c != nil && c.SubjectVaultFn != nil {
+		return c.SubjectVaultFn(ownerID, subject)
+	}
+	return nil, errors.New("test crypto: subject vaults are not configured")
+}
+
+func (c *TestCrypto) ShredSubjectKey(ownerID uint, subject string) error {
+	if c != nil && c.ShredSubjectKeyFn != nil {
+		return c.ShredSubjectKeyFn(ownerID, subject)
+	}
+	return errors.New("test crypto: subject vaults are not configured")
 }
 
 var _ CryptoVault = (*TestCrypto)(nil)

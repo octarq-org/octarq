@@ -21,13 +21,13 @@ func TestOpenWithErrors(t *testing.T) {
 	copy(key[:], []byte("01234567890123456789012345678901"))
 
 	// 1. Invalid base64
-	if _, err := openWith(key, "not-valid-base64!!!"); err == nil {
+	if _, err := openWith(key, "not-valid-base64!!!", nil); err == nil {
 		t.Error("expected error for invalid base64")
 	}
 
 	// 2. Ciphertext too short (< nonce size 12 bytes)
 	shortB64 := base64.StdEncoding.EncodeToString([]byte("short"))
-	if _, err := openWith(key, shortB64); err == nil {
+	if _, err := openWith(key, shortB64, nil); err == nil {
 		t.Error("expected error for short ciphertext")
 	}
 }
@@ -36,12 +36,12 @@ func TestUnwrapDEK_WrongLength(t *testing.T) {
 	c := New("master-key")
 	// Seal 16 bytes instead of 32 bytes
 	shortPayload := []byte("0123456789012345")
-	wrapped, err := sealWith(c.kek, shortPayload)
+	wrapped, err := sealWith(c.kek, shortPayload, nil)
 	if err != nil {
 		t.Fatalf("sealWith: %v", err)
 	}
 
-	_, err = c.unwrapDEK(wrapped)
+	_, err = c.unwrapKey(wrapped)
 	if err == nil || !strings.Contains(err.Error(), "wrong length") {
 		t.Fatalf("expected wrong length error, got %v", err)
 	}
@@ -51,6 +51,7 @@ type errStore struct{}
 
 func (errStore) Get(string) (string, bool)         { return "", false }
 func (errStore) Set(string, string) error          { return errors.New("db disk full") }
+func (errStore) Delete(string) error               { return errors.New("db disk full") }
 func (errStore) HasEncryptedValues() (bool, error) { return false, nil }
 
 func TestEnableEnvelope_StoreSetError(t *testing.T) {
@@ -81,7 +82,7 @@ func TestRandReaderFailures(t *testing.T) {
 
 	// 2. sealWith rand failure
 	var key [32]byte
-	_, err = sealWith(key, []byte("payload"))
+	_, err = sealWith(key, []byte("payload"), nil)
 	if err == nil {
 		t.Error("expected error from rand.Reader failure in sealWith, got nil")
 	}
@@ -108,13 +109,13 @@ func TestEnvelopeKeyRotation(t *testing.T) {
 		t.Fatal("dek not found in store")
 	}
 	// 2. Unwrap DEK using old master
-	dek, err := cOld.unwrapDEK(wrappedOld)
+	dek, err := cOld.unwrapKey(wrappedOld)
 	if err != nil {
-		t.Fatalf("unwrapDEK with old master: %v", err)
+		t.Fatalf("unwrapKey with old master: %v", err)
 	}
 	// 3. Re-wrap DEK under new master
 	cNew := New("new-master-secret")
-	wrappedNew, err := sealWith(cNew.kek, dek[:])
+	wrappedNew, err := sealWith(cNew.kek, dek[:], nil)
 	if err != nil {
 		t.Fatalf("sealWith new master: %v", err)
 	}

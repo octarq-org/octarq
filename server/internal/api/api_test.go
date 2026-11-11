@@ -247,7 +247,12 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 				OrgIDFn:       authMgr.OrgID,
 				RequirePermFn: h.RequirePerm,
 			},
-			CryptoMock: cipher,
+			CryptoMock: &plugin.TestCrypto{
+				EncryptFn:        cipher.Encrypt,
+				DecryptFn:        cipher.Decrypt,
+				EncryptWithAADFn: cipher.EncryptWithAAD,
+				DecryptWithAADFn: cipher.DecryptWithAAD,
+			},
 			SettingsMock: &plugin.TestSettings{
 				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
 				GetGlobalSettingFn:    h.GetGlobalSetting,
@@ -280,6 +285,10 @@ func (s apiEnvStore) Get(key string) (string, bool) {
 
 func (s apiEnvStore) Set(key, val string) error {
 	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
+}
+
+func (s apiEnvStore) Delete(key string) error {
+	return s.db.Delete(&models.Setting{Key: key}).Error
 }
 
 func (s apiEnvStore) HasEncryptedValues() (bool, error) {

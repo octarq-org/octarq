@@ -23,6 +23,7 @@ It defines and provisions the Host SPI (`plugin.Host`) that enables external ext
 var _ plugin.Host = (*hostRuntime)(nil)
 var _ plugin.HostSession = (*hostSession)(nil)
 var _ plugin.CryptoVault = (*hostCryptoVault)(nil)
+var _ plugin.CryptoVault = (*hostSubjectVault)(nil)
 var _ plugin.SettingsStore = (*hostSettingsStore)(nil)
 var _ plugin.EventSpine = (*hostEventSpine)(nil)
 ```

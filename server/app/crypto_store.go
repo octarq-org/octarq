@@ -25,6 +25,12 @@ func (s settingsStore) Set(key, val string) error {
 	}).Create(&models.Setting{Key: key, Value: val}).Error
 }
 
+// Delete removes key. Deleting an absent key returns nil: callers use it to
+// reach a goal state.
+func (s settingsStore) Delete(key string) error {
+	return s.db.Delete(&models.Setting{Key: key}).Error
+}
+
 // HasEncryptedValues reports whether the database holds a value that only the
 // envelope DEK can read. The envelope bootstrap refuses to create a DEK while
 // this is true, because a fresh key would make every such value unreadable.

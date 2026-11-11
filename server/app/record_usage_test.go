@@ -197,6 +197,11 @@ func (s *mockSecretStore) Set(key, val string) error {
 	return nil
 }
 
+func (s *mockSecretStore) Delete(key string) error {
+	delete(s.m, key)
+	return nil
+}
+
 func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	var a app.App
 	c := crypto.New("12345678901234567890123456789012")

@@ -39,6 +39,18 @@ func TestTestHostAndMocks(t *testing.T) {
 	if dec, err := nilCrypto.Decrypt("plain"); err != nil || string(dec) != "plain" {
 		t.Fatalf("unexpected nilCrypto.Decrypt: %s, %v", string(dec), err)
 	}
+	if enc, err := nilCrypto.EncryptWithAAD([]byte("plain"), []byte("aad")); err != nil || enc != "plain" {
+		t.Fatalf("unexpected nilCrypto.EncryptWithAAD: %s, %v", enc, err)
+	}
+	if dec, err := nilCrypto.DecryptWithAAD("plain", []byte("aad")); err != nil || string(dec) != "plain" {
+		t.Fatalf("unexpected nilCrypto.DecryptWithAAD: %s, %v", string(dec), err)
+	}
+	if _, err := nilCrypto.SubjectVault(1, "s"); err == nil {
+		t.Fatal("expected nil TestCrypto to refuse subject vaults")
+	}
+	if err := nilCrypto.ShredSubjectKey(1, "s"); err == nil {
+		t.Fatal("expected nil TestCrypto to refuse shredding")
+	}
 
 	var nilSettings *plugin.TestSettings
 	if nilSettings.GetWorkspaceSetting(1, "k") != "" || nilSettings.GetGlobalSetting("k") != "" {
@@ -83,6 +95,18 @@ func TestTestHostAndMocks(t *testing.T) {
 	if dec, err := emptyCrypto.Decrypt("test"); err != nil || string(dec) != "test" {
 		t.Fatalf("unexpected emptyCrypto.Decrypt: %s, %v", string(dec), err)
 	}
+	if enc, err := emptyCrypto.EncryptWithAAD([]byte("test"), []byte("aad")); err != nil || enc != "test" {
+		t.Fatalf("unexpected emptyCrypto.EncryptWithAAD: %s, %v", enc, err)
+	}
+	if dec, err := emptyCrypto.DecryptWithAAD("test", []byte("aad")); err != nil || string(dec) != "test" {
+		t.Fatalf("unexpected emptyCrypto.DecryptWithAAD: %s, %v", string(dec), err)
+	}
+	if _, err := emptyCrypto.SubjectVault(1, "s"); err == nil {
+		t.Fatal("expected empty TestCrypto to refuse subject vaults")
+	}
+	if err := emptyCrypto.ShredSubjectKey(1, "s"); err == nil {
+		t.Fatal("expected empty TestCrypto to refuse shredding")
+	}
 
 	emptySettings := &plugin.TestSettings{}
 	if emptySettings.GetWorkspaceSetting(1, "k") != "" || emptySettings.GetGlobalSetting("k") != "" {
@@ -100,7 +124,29 @@ func TestTestHostAndMocks(t *testing.T) {
 	emptyEvents.RegisterWebhookEvent(plugin.WebhookEventDef{})
 	emptyEvents.OnEmail(nil)
 
-	// 3. Configured mock callbacks
+	// 3. Configured CryptoVault callbacks
+	configuredCrypto := &plugin.TestCrypto{
+		EncryptWithAADFn: func(p, a []byte) (string, error) { return "aad:" + string(p) + "/" + string(a), nil },
+		DecryptWithAADFn: func(s string, a []byte) ([]byte, error) { return []byte(s + "/" + string(a)), nil },
+		SubjectVaultFn: func(uint, string) (plugin.CryptoVault, error) {
+			return nil, errors.New("no vault")
+		},
+		ShredSubjectKeyFn: func(uint, string) error { return errors.New("no shred") },
+	}
+	if got, err := configuredCrypto.EncryptWithAAD([]byte("p"), []byte("a")); err != nil || got != "aad:p/a" {
+		t.Fatalf("configured EncryptWithAAD = %q, %v", got, err)
+	}
+	if got, err := configuredCrypto.DecryptWithAAD("c", []byte("a")); err != nil || string(got) != "c/a" {
+		t.Fatalf("configured DecryptWithAAD = %q, %v", got, err)
+	}
+	if _, err := configuredCrypto.SubjectVault(1, "s"); err == nil || err.Error() != "no vault" {
+		t.Fatalf("configured SubjectVault error = %v, want the mock error", err)
+	}
+	if err := configuredCrypto.ShredSubjectKey(1, "s"); err == nil || err.Error() != "no shred" {
+		t.Fatalf("configured ShredSubjectKey error = %v, want the mock error", err)
+	}
+
+	// 4. Configured mock callbacks
 	calledEvent := false
 	calledEmail := false
 	calledWebhook := false
