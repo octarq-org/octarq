@@ -42,7 +42,7 @@ func TestRunner_Stream_MalformedToolCallIsReportedNotDropped(t *testing.T) {
 	}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr := runner.(StreamRunner)
 	sess := &Session{ID: "s-stream-invalid", OrgID: 1, Channel: "web"}
 	turn := &Turn{Input: "look up user 123"}
@@ -85,7 +85,7 @@ func TestRunner_Stream_NativeCallWithBadArgumentsIsReported(t *testing.T) {
 	}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr := runner.(StreamRunner)
 	sess := &Session{ID: "s-stream-badargs", OrgID: 1, Channel: "web"}
 	turn := &Turn{Input: "look up user 123"}
@@ -126,7 +126,7 @@ func TestRunner_Stream_MixedNativeCallsRunTheValidOneAndReportTheOther(t *testin
 		errs:    map[string]error{},
 	}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr := runner.(StreamRunner)
 	sess := &Session{ID: "s-stream-mixed", OrgID: 1, Channel: "web"}
 	turn := &Turn{Input: "look up user 123"}
@@ -166,7 +166,7 @@ func TestRunner_Stream_NativeCallWithoutANameIsReported(t *testing.T) {
 	}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 
-	runner := NewRunner(comp, exec)
+	runner := newTestRunner(t, comp, exec)
 	sr := runner.(StreamRunner)
 	sess := &Session{ID: "s-stream-noname", OrgID: 1, Channel: "web"}
 	turn := &Turn{Input: "look up user 123"}

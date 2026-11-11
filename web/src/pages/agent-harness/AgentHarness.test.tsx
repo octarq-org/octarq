@@ -165,6 +165,7 @@ describe("AgentHarnessPage", () => {
     evidence: { taskSet: "ops-tasks", candidate: "candidate-optimized" },
     spec: {
       version: 1,
+      profile: 0,
       name: "default",
       preamble: "You are the Octarq workspace assistant v4 (staged draft).",
       extraRules: ["Rule Draft"],
@@ -188,6 +189,7 @@ describe("AgentHarnessPage", () => {
     evidence: null,
     spec: {
       version: 1,
+      profile: 0,
       name: "default",
       preamble: "You are the Octarq workspace assistant v3.",
       extraRules: ["Always answer in the operator's language."],
@@ -211,6 +213,7 @@ describe("AgentHarnessPage", () => {
     evidence: null,
     spec: {
       version: 1,
+      profile: 0,
       name: "default",
       preamble: "You are the Octarq workspace assistant v2.",
       extraRules: ["Rule A", "Rule B"],
@@ -605,6 +608,7 @@ describe("AgentHarnessPage", () => {
       evidence: null,
       spec: {
         version: 1,
+        profile: 0,
         name: "default",
         preamble: "Staged new draft preamble",
         extraRules: ["Rule Staged"],
@@ -660,6 +664,7 @@ describe("AgentHarnessPage", () => {
       evidence: { taskSet: "ops-tasks", baseline: "baseline", candidate: "candidate-optimized" },
       spec: {
         version: 1,
+        profile: 0,
         name: "default",
         preamble: "Proposal imported preamble",
         extraRules: [],
@@ -686,6 +691,7 @@ describe("AgentHarnessPage", () => {
       name: "default",
       spec: {
         version: 1,
+        profile: 0,
         name: "default",
         preamble: "Proposal imported preamble",
         extraRules: [],

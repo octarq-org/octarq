@@ -434,6 +434,64 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	}
 	budget := harness.BudgetFromSpec(spec, cost)
 
+	// The spec's profile and step budget settle before the response starts. A
+	// budget above the profile's ceiling is a misconfigured spec: it fails the
+	// request instead of running with less than the prompt promises.
+	maxSteps, err := spec.EffectiveMaxSteps(false)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
+		return
+	}
+	spec = spec.WithMaxSteps(maxSteps)
+
+	var executor harness.ToolExecutor
+	var guard harness.Guard
+	if h.endpointSource != nil {
+		executor = harness.NewRegistryExecutor(h.endpointSource)
+		guard = newReadOnlyGuard(h.endpointSource)
+	} else {
+		executor = harness.NewRegistryExecutor(nil)
+		guard = newReadOnlyGuard(nil)
+	}
+	// The published spec narrows the tool surface, and the guard enforces it.
+	// The prompt tells the model which tools exist; the guard is what makes
+	// the promise true when the model decides otherwise.
+	guard = harness.ComposeGuards(guard, harness.NewSpecGuard(spec))
+
+	// Compile the tool catalog and the system prompt from the endpoint
+	// registry. The web assistant is read-only, so only the read tools are
+	// advertised: a prompt that offers a tool the guard refuses teaches the
+	// model to call something it can never use.
+	//
+	// The spec is the published harness description. Until a workspace
+	// publishes one, the built-in default applies; a spec that fails
+	// validation never reaches this point.
+	catalog := harness.BuildCatalog(h.endpointSource, composeToolFilter(readOnlyTool, spec))
+	// The prompt states the budget the runner enforces. EffectiveMaxSteps
+	// resolved it above, and the runner is assembled from the same value.
+	systemPrompt := catalog.SystemPrompt(spec)
+
+	tracer := harness.NewRecordingTracer()
+	adapter := &harness.CompleterAdapter{Provider: p}
+	var runnerOpts []harness.RunnerOption
+	runnerOpts = append(runnerOpts,
+		harness.WithGuard(guard),
+		harness.WithTracer(tracer),
+		harness.WithProfile(spec.Profile),
+		harness.WithSystem(systemPrompt),
+		harness.WithMaxSteps(maxSteps),
+		harness.WithBudget(budget),
+	)
+	if req.Model != "" {
+		runnerOpts = append(runnerOpts, harness.WithModel(req.Model))
+	}
+
+	runner, err := harness.NewRunner(adapter, executor, runnerOpts...)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -463,52 +521,6 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		Input:    input,
 		Thinking: thinking,
 	}
-
-	var executor harness.ToolExecutor
-	var guard harness.Guard
-	if h.endpointSource != nil {
-		executor = harness.NewRegistryExecutor(h.endpointSource)
-		guard = newReadOnlyGuard(h.endpointSource)
-	} else {
-		executor = harness.NewRegistryExecutor(nil)
-		guard = newReadOnlyGuard(nil)
-	}
-	// The published spec narrows the tool surface, and the guard enforces it.
-	// The prompt tells the model which tools exist; the guard is what makes
-	// the promise true when the model decides otherwise.
-	guard = harness.ComposeGuards(guard, harness.NewSpecGuard(spec))
-
-	// Compile the tool catalog and the system prompt from the endpoint
-	// registry. The web assistant is read-only, so only the read tools are
-	// advertised: a prompt that offers a tool the guard refuses teaches the
-	// model to call something it can never use.
-	//
-	// The spec is the published harness description. Until a workspace
-	// publishes one, the built-in default applies; a spec that fails
-	// validation never reaches this point.
-	catalog := harness.BuildCatalog(h.endpointSource, composeToolFilter(readOnlyTool, spec))
-	// The spec may only tighten the profile's step ceiling, and the prompt
-	// must state the budget the runner will actually enforce.
-	maxSteps := spec.EffectiveMaxSteps(harness.ProfileNormal.MaxSteps(false))
-	spec = spec.WithMaxSteps(maxSteps)
-	systemPrompt := catalog.SystemPrompt(spec)
-
-	tracer := harness.NewRecordingTracer()
-	adapter := &harness.CompleterAdapter{Provider: p}
-	var runnerOpts []harness.RunnerOption
-	runnerOpts = append(runnerOpts,
-		harness.WithGuard(guard),
-		harness.WithTracer(tracer),
-		harness.WithProfile(harness.ProfileNormal),
-		harness.WithSystem(systemPrompt),
-		harness.WithMaxSteps(maxSteps),
-		harness.WithBudget(budget),
-	)
-	if req.Model != "" {
-		runnerOpts = append(runnerOpts, harness.WithModel(req.Model))
-	}
-
-	runner := harness.NewRunner(adapter, executor, runnerOpts...)
 
 	var runErr error
 	if sr, ok := runner.(harness.StreamRunner); ok {

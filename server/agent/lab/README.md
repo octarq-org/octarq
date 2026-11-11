@@ -144,7 +144,7 @@
 ```
 
 #### 提案字段说明
-- `spec`：经过 `EffectiveMaxSteps` 预算归一化并由 `harness.Validate` 校验通过的完整规范文档。
+- `spec`：候选声明的 profile 与经 `EffectiveMaxSteps` 解析出的实际步数预算，并通过 `harness.Validate` 校验。`maxSteps` 超过该 profile 上限时候选被拒绝，不会静默改写。
 - `evidence`：支持采纳该提案的确定性评测证据（任务集、基线名称、候选名称、双方指纹及各项评分指标）。
 
 ---

@@ -199,9 +199,16 @@ func ResolveBaseCatalog(ts *TaskSet) []harness.ToolDescriptor {
 }
 
 // RunTask executes a single task under a candidate's harness spec.
+//
+// The candidate's spec names the execution profile, and the task runs under
+// exactly that profile. A step budget above the profile's ceiling is refused,
+// so a lab result never reports a budget the production runner would refuse.
 func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harness.ToolDescriptor) (TaskResult, error) {
 	catalog := BuildLabCatalog(baseCatalog, cand.Spec.ToolFilter())
-	maxSteps := cand.Spec.EffectiveMaxSteps(harness.ProfileNormal.MaxSteps(false))
+	maxSteps, err := cand.Spec.EffectiveMaxSteps(false)
+	if err != nil {
+		return TaskResult{}, fmt.Errorf("candidate %q: %w", cand.Name, err)
+	}
 	effectiveSpec := cand.Spec.WithMaxSteps(maxSteps)
 	systemPrompt := catalog.SystemPrompt(effectiveSpec)
 
@@ -210,15 +217,18 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 	tracer := harness.NewRecordingTracer()
 	guard := harness.NewSpecGuard(cand.Spec)
 
-	runner := harness.NewRunner(
+	runner, err := harness.NewRunner(
 		completer,
 		executor,
 		harness.WithGuard(guard),
 		harness.WithTracer(tracer),
-		harness.WithProfile(harness.ProfileNormal),
+		harness.WithProfile(cand.Spec.Profile),
 		harness.WithSystem(systemPrompt),
 		harness.WithMaxSteps(maxSteps),
 	)
+	if err != nil {
+		return TaskResult{}, fmt.Errorf("candidate %q: %w", cand.Name, err)
+	}
 
 	session := &harness.Session{
 		ID:    fmt.Sprintf("lab-%s-%s", cand.Name, task.ID),
@@ -283,7 +293,10 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 func RunCandidate(ctx context.Context, cand Candidate, ts *TaskSet) (CandidateResult, error) {
 	baseCatalog := ResolveBaseCatalog(ts)
 	catalog := BuildLabCatalog(baseCatalog, cand.Spec.ToolFilter())
-	maxSteps := cand.Spec.EffectiveMaxSteps(harness.ProfileNormal.MaxSteps(false))
+	maxSteps, err := cand.Spec.EffectiveMaxSteps(false)
+	if err != nil {
+		return CandidateResult{}, fmt.Errorf("candidate %q: %w", cand.Name, err)
+	}
 	effectiveSpec := cand.Spec.WithMaxSteps(maxSteps)
 	systemPrompt := catalog.SystemPrompt(effectiveSpec)
 

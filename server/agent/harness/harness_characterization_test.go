@@ -84,13 +84,16 @@ func TestHarnessCharacterization_NopTracerAndGuard(t *testing.T) {
 }
 
 func TestHarnessCharacterization_NewRunnerInstantiation(t *testing.T) {
-	r := harness.NewRunner(nil, nil,
+	r, err := harness.NewRunner(nil, nil,
 		harness.WithGuard(harness.NopGuard{}),
 		harness.WithTracer(&harness.NopTracer{}),
 		harness.WithProfile(harness.ProfileNormal),
 		harness.WithModel("gemini-2.5-pro"),
 		harness.WithSystem("You are an assistant"),
 	)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
 	if r == nil {
 		t.Fatal("NewRunner returned nil")
 	}

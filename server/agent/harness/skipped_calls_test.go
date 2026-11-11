@@ -37,7 +37,7 @@ func skippedNote(s *Session) string {
 func TestApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 	comp := &fakeCompleter{responses: []string{callBatch("list_links", "delete_link", "create_link")}}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
@@ -71,7 +71,7 @@ func TestApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 func TestApprovalOnTheLastCallRecordsNoGap(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 	comp := &fakeCompleter{responses: []string{callBatch("list_links", "delete_link")}}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {
@@ -95,7 +95,7 @@ func TestStreamApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 		resp: llmprovider.Response{StopReason: "tool_use"},
 	}}}
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
-	runner := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	runner := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	sr, ok := runner.(StreamRunner)
 	if !ok {
 		t.Fatal("runner does not implement StreamRunner")
@@ -124,7 +124,7 @@ func TestResumeKeepsTheGapAndTheApprovedResult(t *testing.T) {
 		callBatch("delete_link", "create_link"),
 		"nothing left to do",
 	}}
-	r := NewRunner(comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
+	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
 
 	if err := r.Run(context.Background(), s, turn); !errors.Is(err, ErrApprovalRequired) {

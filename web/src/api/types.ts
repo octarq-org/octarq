@@ -376,6 +376,7 @@ export interface HarnessSpecContent {
   preamble: string;
   extraRules: string[];
   toolAllow: string[];
+  profile: number;
   maxSteps: number;
   maxTokens: number;
   maxCostUSD: number;
@@ -390,6 +391,7 @@ export interface HarnessSpecInput {
   preamble?: string;
   extraRules?: string[];
   toolAllow?: string[];
+  profile?: number;
   maxSteps?: number;
   maxTokens?: number;
   maxCostUSD?: number;

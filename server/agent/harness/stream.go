@@ -65,7 +65,7 @@ func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp 
 // streamRounds is the streaming round loop. It assumes the history is seeded,
 // so a resumed turn re-enters it with the history the approved call belongs to.
 func (r *defaultRunner) streamRounds(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler, started time.Time) (err error) {
-	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
+	maxSteps := r.MaxStepsFor(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
 	// See runRounds: the time this call spends counts for the turn.

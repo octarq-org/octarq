@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/octarq-org/octarq/server/agent/harness"
@@ -85,10 +86,19 @@ func diffSlice(base, cand []string) SliceFieldDiff {
 }
 
 // DiffSpecs computes the field-by-field delta between two HarnessSpec instances.
-func DiffSpecs(baseline, cand harness.HarnessSpec) SpecDiff {
-	normalDefault := harness.ProfileNormal.MaxSteps(false)
-	effBase := baseline.EffectiveMaxSteps(normalDefault)
-	effCand := cand.EffectiveMaxSteps(normalDefault)
+//
+// Each spec's effective budget is resolved against its own declared profile.
+// A spec whose budget exceeds its profile ceiling is refused, so the report
+// never shows a budget the runner would refuse.
+func DiffSpecs(baseline, cand harness.HarnessSpec) (SpecDiff, error) {
+	effBase, err := baseline.EffectiveMaxSteps(false)
+	if err != nil {
+		return SpecDiff{}, fmt.Errorf("baseline spec %q: %w", baseline.Name, err)
+	}
+	effCand, err := cand.EffectiveMaxSteps(false)
+	if err != nil {
+		return SpecDiff{}, fmt.Errorf("candidate spec %q: %w", cand.Name, err)
+	}
 
 	preambleDiff := StringFieldDiff{
 		Baseline:  baseline.Preamble,
@@ -121,5 +131,5 @@ func DiffSpecs(baseline, cand harness.HarnessSpec) SpecDiff {
 		ToolAllow:     toolAllowDiff,
 		MaxSteps:      maxStepsDiff,
 		AnyChanged:    anyChanged,
-	}
+	}, nil
 }

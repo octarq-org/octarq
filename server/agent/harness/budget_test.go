@@ -41,7 +41,7 @@ func newBudgetTurn() (*Session, *Turn) {
 // make: a round that returns a lot of tokens is stopped before the next one.
 func TestBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 	comp := &tokenCompleter{input: 40, output: 20}
-	r := NewRunner(comp, &fakeExecutor{},
+	r := newTestRunner(t, comp, &fakeExecutor{},
 		WithBudget(Budget{MaxTokens: 100}),
 	)
 	s, turn := newBudgetTurn()
@@ -63,7 +63,7 @@ func TestBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 func TestBudgetStopsTheLoopAtTheCostCeiling(t *testing.T) {
 	comp := &tokenCompleter{input: 1000, output: 0}
 	cost := func(in, _, _ int) float64 { return float64(in) / 10000 } // 0.10 per round
-	r := NewRunner(comp, &fakeExecutor{},
+	r := newTestRunner(t, comp, &fakeExecutor{},
 		WithBudget(Budget{MaxCostUSD: 0.15, Cost: cost}),
 	)
 	s, turn := newBudgetTurn()
@@ -82,7 +82,7 @@ func TestBudgetStopsTheLoopAtTheCostCeiling(t *testing.T) {
 // a limit was in force. The turn is refused before the first model call.
 func TestBudgetRefusesACostCeilingItCannotPrice(t *testing.T) {
 	comp := &tokenCompleter{input: 1, output: 1}
-	r := NewRunner(comp, &fakeExecutor{}, WithBudget(Budget{MaxCostUSD: 1}))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{MaxCostUSD: 1}))
 	s, turn := newBudgetTurn()
 
 	err := r.Run(context.Background(), s, turn)
@@ -99,7 +99,7 @@ func TestBudgetRefusesACostCeilingItCannotPrice(t *testing.T) {
 
 func TestBudgetStopsTheLoopAtTheWallClockCeiling(t *testing.T) {
 	comp := &tokenCompleter{input: 1, output: 1}
-	r := NewRunner(comp, &fakeExecutor{}, WithBudget(Budget{MaxWallTime: time.Nanosecond}))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{MaxWallTime: time.Nanosecond}))
 	s, turn := newBudgetTurn()
 
 	err := r.Run(context.Background(), s, turn)
@@ -115,7 +115,7 @@ func TestBudgetStopsTheLoopAtTheWallClockCeiling(t *testing.T) {
 // a workspace that published no ceilings asked for.
 func TestZeroBudgetLeavesTheTurnUnbounded(t *testing.T) {
 	comp := &tokenCompleter{input: 1_000_000, output: 1_000_000}
-	r := NewRunner(comp, &fakeExecutor{}, WithBudget(Budget{}))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{}))
 	s, turn := newBudgetTurn()
 
 	// The fake never stops asking for a tool, so the loop ends on MaxSteps —
@@ -141,7 +141,7 @@ func TestStreamBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 			{events: []streamEvent{toolEv(chunk)}, resp: llmprovider.Response{InputTokens: 40, OutputTokens: 20}},
 		},
 	}
-	r := NewRunner(comp, &fakeExecutor{}, WithBudget(Budget{MaxTokens: 100}))
+	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{MaxTokens: 100}))
 	sr, ok := r.(StreamRunner)
 	if !ok {
 		t.Fatal("runner does not implement StreamRunner")

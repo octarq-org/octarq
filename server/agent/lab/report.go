@@ -65,7 +65,10 @@ func BuildReport(ts *TaskSet, results []CandidateResult, preferredBaseline strin
 		}
 	}
 
-	diff := DiffSpecs(baselineResult.Candidate.Spec, bestResult.Candidate.Spec)
+	diff, err := DiffSpecs(baselineResult.Candidate.Spec, bestResult.Candidate.Spec)
+	if err != nil {
+		return nil, err
+	}
 
 	var recReason string
 	isBase := bestScore.CandidateName == baselineName

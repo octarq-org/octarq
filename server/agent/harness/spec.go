@@ -41,12 +41,9 @@ const (
 	MinSpecMaxSteps = 1
 	// MaxSpecMaxSteps is the highest step budget a spec may ask for: the
 	// ceiling of the most generous profile (MaxStepsWorker). A value above it
-	// would be clamped at run time, so accepting it would store a number the
-	// agent never honours — the operator would read the spec, believe the
-	// budget was 64, and watch the agent stop at 8.
+	// is refused by Validate. A value within this bound but above the spec's
+	// own profile ceiling is refused when a runner is assembled.
 	MaxSpecMaxSteps = MaxStepsWorker
-	// DefaultMaxStepsFor is the budget a spec gets when it asks for none.
-	DefaultMaxStepsFor = MaxStepsNormal
 )
 
 // HarnessSpec is the published description of an agent's shell.
@@ -65,7 +62,12 @@ type HarnessSpec struct {
 	// ToolAllow is the allowlist of tool names advertised to the model. Empty
 	// means every tool the session may call.
 	ToolAllow []string `json:"toolAllow,omitempty"`
+	// Profile selects the execution profile and the step ceiling the spec is
+	// written for. The zero value is ProfileNormal.
+	Profile Profile `json:"profile,omitempty"`
 	// MaxSteps is the step budget for a turn. Zero means the profile default.
+	// A value above the selected profile's ceiling is refused when a runner is
+	// assembled, never lowered.
 	MaxSteps int `json:"maxSteps,omitempty"`
 	// MaxTokens bounds the input and output tokens of one turn. Zero means no
 	// ceiling.
@@ -164,6 +166,13 @@ func Validate(spec HarnessSpec) error {
 		}
 		seen[trimmed] = true
 	}
+	if spec.Profile < ProfileNormal || spec.Profile > ProfileWorker {
+		vs = append(vs, SpecViolation{Field: "profile", Message: fmt.Sprintf("must be between %d and %d", int(ProfileNormal), int(ProfileWorker))})
+	} else if spec.MaxSteps > spec.Profile.MaxSteps(false) {
+		// Refuse at the spec boundary: a stored budget above the profile's
+		// ceiling would fail every request that assembles a runner from it.
+		vs = append(vs, SpecViolation{Field: "maxSteps", Message: fmt.Sprintf("must not exceed %d for profile %s", spec.Profile.MaxSteps(false), spec.Profile)})
+	}
 	if spec.MaxSteps != 0 && (spec.MaxSteps < MinSpecMaxSteps || spec.MaxSteps > MaxSpecMaxSteps) {
 		vs = append(vs, SpecViolation{Field: "maxSteps", Message: fmt.Sprintf("must be 0 or between %d and %d", MinSpecMaxSteps, MaxSpecMaxSteps)})
 	}
@@ -201,14 +210,11 @@ func (s HarnessSpec) ToolFilter() ToolFilter {
 	}
 }
 
-// EffectiveMaxSteps returns the step budget for a turn. The spec may only
-// tighten the profile's ceiling: raising it is a safety invariant the
-// profile owns, not something a published spec may do.
-func (s HarnessSpec) EffectiveMaxSteps(profileDefault int) int {
-	if s.MaxSteps > 0 && s.MaxSteps < profileDefault {
-		return s.MaxSteps
-	}
-	return profileDefault
+// EffectiveMaxSteps resolves the step budget a runner assembles from this
+// spec will enforce. It fails closed when MaxSteps exceeds the ceiling of the
+// spec's profile, so a spec can never carry a budget the agent does not get.
+func (s HarnessSpec) EffectiveMaxSteps(hasDestructive bool) (int, error) {
+	return StepBudget(s.Profile, s.MaxSteps, hasDestructive)
 }
 
 // WithMaxSteps returns a copy of the spec with the step budget set. It is
@@ -236,6 +242,7 @@ func (s HarnessSpec) CanonicalJSON() string {
 		Preamble       string   `json:"preamble"`
 		ExtraRules     []string `json:"extraRules"`
 		ToolAllow      []string `json:"toolAllow"`
+		Profile        Profile  `json:"profile,omitempty"`
 		MaxSteps       int      `json:"maxSteps"`
 		MaxTokens      int      `json:"maxTokens,omitempty"`
 		MaxCostUSD     float64  `json:"maxCostUSD,omitempty"`
@@ -247,6 +254,7 @@ func (s HarnessSpec) CanonicalJSON() string {
 		Preamble:       s.Preamble,
 		ExtraRules:     append([]string{}, s.ExtraRules...),
 		ToolAllow:      append([]string{}, s.ToolAllow...),
+		Profile:        s.Profile,
 		MaxSteps:       s.MaxSteps,
 		MaxTokens:      s.MaxTokens,
 		MaxCostUSD:     s.MaxCostUSD,

@@ -236,7 +236,8 @@ func TestDiff_FieldByField(t *testing.T) {
 		MaxSteps:   4,
 	}
 
-	diff := lab.DiffSpecs(base, cand)
+	diff, err := lab.DiffSpecs(base, cand)
+	require.NoError(t, err)
 
 	assert.True(t, diff.AnyChanged)
 	assert.True(t, diff.Preamble.Changed)

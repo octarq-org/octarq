@@ -42,6 +42,11 @@ func (p Profile) IsReactor() bool {
 	return p == ProfileReactor || p == ProfileReactorReadOnly
 }
 
+// valid reports whether p is a defined profile.
+func (p Profile) valid() bool {
+	return p >= ProfileNormal && p <= ProfileWorker
+}
+
 // MaxSteps returns the step ceiling for this profile. When hasDestructive is
 // true the reactor profile is locked to MaxStepsReactor regardless of the
 // read-only hint.
@@ -84,7 +89,10 @@ func FenceUntrustedEvent(source, content string) string {
 // NewReactorRunner constructs a Runner locked to ProfileReactor (MaxStepsReactor = 3).
 // ProfileReactor is applied after caller options so the 3-step unattended ceiling
 // cannot be raised by an option override.
-func NewReactorRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
+//
+// A caller that asks for more than MaxStepsReactor steps receives
+// ErrMaxStepsExceedsProfile. The request is refused, never lowered.
+func NewReactorRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) (Runner, error) {
 	combined := make([]RunnerOption, 0, len(opts)+1)
 	combined = append(combined, opts...)
 	combined = append(combined, WithProfile(ProfileReactor))

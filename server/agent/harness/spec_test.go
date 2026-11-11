@@ -2,6 +2,7 @@ package harness_test
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -101,21 +102,41 @@ func TestToolFilter_KeepsOnlyTheListedTools(t *testing.T) {
 	}
 }
 
-func TestEffectiveMaxSteps_TheSpecCanOnlyTighten(t *testing.T) {
-	spec := validSpec()
+func TestEffectiveMaxSteps_ResolvesOrRefuses(t *testing.T) {
+	spec := validSpec() // Profile is zero, so ProfileNormal applies.
 	spec.MaxSteps = 3
-	if got := spec.EffectiveMaxSteps(8); got != 3 {
-		t.Errorf("a tighter spec budget must win, got %d", got)
-	}
-
-	spec.MaxSteps = 32
-	if got := spec.EffectiveMaxSteps(8); got != 8 {
-		t.Errorf("a spec must not raise the profile ceiling, got %d", got)
+	got, err := spec.EffectiveMaxSteps(false)
+	if err != nil || got != 3 {
+		t.Errorf("a budget within the profile must be returned unchanged, got %d, %v", got, err)
 	}
 
 	spec.MaxSteps = 0
-	if got := spec.EffectiveMaxSteps(8); got != 8 {
-		t.Errorf("a spec without a budget must use the profile ceiling, got %d", got)
+	got, err = spec.EffectiveMaxSteps(false)
+	if err != nil || got != harness.MaxStepsNormal {
+		t.Errorf("a spec without a budget must use the profile ceiling, got %d, %v", got, err)
+	}
+
+	// 32 is above ProfileNormal's ceiling. The value is refused, never
+	// rewritten to 8.
+	spec.MaxSteps = 32
+	if got, err = spec.EffectiveMaxSteps(false); !errors.Is(err, harness.ErrMaxStepsExceedsProfile) {
+		t.Errorf("an over-ceiling budget must be refused, got %d, %v", got, err)
+	}
+
+	// The same budget is valid under the profile that allows it.
+	spec.Profile = harness.ProfileWorker
+	if got, err = spec.EffectiveMaxSteps(false); err != nil || got != 32 {
+		t.Errorf("ProfileWorker must accept 32 steps, got %d, %v", got, err)
+	}
+}
+
+func TestValidate_RejectsAnUnknownProfile(t *testing.T) {
+	for _, p := range []harness.Profile{-1, harness.ProfileWorker + 1} {
+		spec := validSpec()
+		spec.Profile = p
+		if err := harness.Validate(spec); err == nil {
+			t.Fatalf("profile %d must be refused", int(p))
+		}
 	}
 }
 
@@ -270,5 +291,22 @@ func TestValidateRefusesAStepBudgetTheRunnerWouldIgnore(t *testing.T) {
 	// and the runner's range cannot drift apart.
 	if harness.MaxSpecMaxSteps != harness.MaxStepsWorker {
 		t.Fatalf("the spec accepts %d steps but the profile allows %d", harness.MaxSpecMaxSteps, harness.MaxStepsWorker)
+	}
+}
+
+// TestValidateRefusesABudgetAboveTheSpecProfilesCeiling pins the earlier of the
+// two gates. Runner assembly also refuses it, but a spec that can never run
+// must not be storable: the operator would save it and watch every request fail.
+func TestValidateRefusesABudgetAboveTheSpecProfilesCeiling(t *testing.T) {
+	spec := harness.DefaultHarnessSpec()
+	spec.MaxSteps = harness.MaxStepsNormal + 1
+
+	if err := harness.Validate(spec); err == nil {
+		t.Fatal("a normal-profile spec above the normal ceiling must be refused")
+	}
+
+	spec.Profile = harness.ProfileWorker
+	if err := harness.Validate(spec); err != nil {
+		t.Fatalf("the same budget under the worker profile must be accepted: %v", err)
 	}
 }

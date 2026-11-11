@@ -76,33 +76,44 @@ func TestProposal_BuildAndDecodeContract(t *testing.T) {
 	assert.Equal(t, report.Scores[0].EstimatedTokens, proposal.Evidence.EstimatedTokens)
 }
 
-func TestProposal_EffectiveMaxStepsTightening(t *testing.T) {
+func TestProposal_ResolvesTheEffectiveMaxSteps(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name          string
+		profile       harness.Profile
 		inputMaxSteps int
 		wantMaxSteps  int
 	}{
 		{
-			name:          "exceeds normal profile ceiling 8 tightened to 8",
-			inputMaxSteps: 32,
-			wantMaxSteps:  8,
-		},
-		{
-			name:          "zero steps resolved to normal profile ceiling 8",
+			name:          "zero steps resolved to the normal profile ceiling 8",
+			profile:       harness.ProfileNormal,
 			inputMaxSteps: 0,
 			wantMaxSteps:  8,
 		},
 		{
 			name:          "stricter ceiling 4 preserved",
+			profile:       harness.ProfileNormal,
 			inputMaxSteps: 4,
 			wantMaxSteps:  4,
 		},
 		{
 			name:          "stricter ceiling 6 preserved",
+			profile:       harness.ProfileNormal,
 			inputMaxSteps: 6,
 			wantMaxSteps:  6,
+		},
+		{
+			name:          "worker budget 20 preserved",
+			profile:       harness.ProfileWorker,
+			inputMaxSteps: 20,
+			wantMaxSteps:  20,
+		},
+		{
+			name:          "zero steps resolved to the worker profile ceiling",
+			profile:       harness.ProfileWorker,
+			inputMaxSteps: 0,
+			wantMaxSteps:  harness.MaxStepsWorker,
 		},
 	}
 
@@ -113,6 +124,7 @@ func TestProposal_EffectiveMaxStepsTightening(t *testing.T) {
 
 			spec := harness.DefaultHarnessSpec()
 			spec.Name = "cand-test"
+			spec.Profile = tc.profile
 			spec.MaxSteps = tc.inputMaxSteps
 
 			cand := lab.Candidate{Name: spec.Name, Spec: spec}
@@ -139,6 +151,32 @@ func TestProposal_EffectiveMaxStepsTightening(t *testing.T) {
 			assert.Equal(t, tc.wantMaxSteps, prop.Spec.MaxSteps)
 		})
 	}
+}
+
+func TestProposal_RefusesABudgetAboveTheProfileCeiling(t *testing.T) {
+	t.Parallel()
+
+	spec := harness.DefaultHarnessSpec()
+	spec.Name = "greedy"
+	spec.MaxSteps = harness.MaxStepsNormal + 24
+	cand := lab.Candidate{Name: spec.Name, Spec: spec}
+
+	report := &lab.LabReport{
+		TaskSetName:          "test-ts",
+		BaselineName:         spec.Name,
+		RecommendedCandidate: spec.Name,
+		Scores: []lab.CandidateScore{{
+			CandidateName:   spec.Name,
+			SpecFingerprint: spec.Fingerprint(),
+			TotalTasks:      1,
+			SuccessTasks:    1,
+			SuccessRate:     1.0,
+		}},
+		CandidateResults: []lab.CandidateResult{{Candidate: cand}},
+	}
+
+	_, err := lab.BuildProposal(report)
+	require.ErrorIs(t, err, harness.ErrMaxStepsExceedsProfile)
 }
 
 func TestProposal_ValidationFailClosed(t *testing.T) {
