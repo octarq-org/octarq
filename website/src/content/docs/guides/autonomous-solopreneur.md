@@ -74,7 +74,8 @@ The agent checks MX routing, SPF records (`v=spf1 ...`), DKIM, and DMARC policie
 Run Octarq locally or in the cloud via Docker:
 
 ```bash
-docker run -d --name octarq -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
 ```
 
 ### 2. Connect Your Agent
