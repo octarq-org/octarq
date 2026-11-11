@@ -11,6 +11,14 @@ Octarq is a single Go binary with an embedded frontend dashboard and support for
 
 ## 1. Docker Compose Deployments
 
+Octarq publishes no container image. Clone the repository and let Compose build
+the image from your tree — that is also where you add plugins later:
+
+```bash
+git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
+```
+
 ### Option A: Standard Deployment (SQLite)
 
 The fastest way to deploy Octarq for single-node setups:
@@ -20,7 +28,7 @@ version: '3.8'
 
 services:
   octarq:
-    image: ghcr.io/octarq-org/octarq:latest
+    build: .
     container_name: octarq
     restart: unless-stopped
     ports:
@@ -43,7 +51,7 @@ version: '3.8'
 
 services:
   octarq:
-    image: ghcr.io/octarq-org/octarq:latest
+    build: .
     container_name: octarq
     restart: unless-stopped
     depends_on:

@@ -93,7 +93,8 @@ blueprints/autonomous-solopreneur/
 Ensure your Octarq instance is running (via Docker or native binary):
 
 ```bash
-docker run -d --name octarq -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
 ```
 
 Log in at `http://localhost:8080` and grab an **API Token** from **Settings → API Tokens** (or use local stdio if running on the same host).

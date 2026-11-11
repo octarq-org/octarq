@@ -93,7 +93,8 @@ blueprints/autonomous-solopreneur/
 确保本地或云端 Octarq 实例已正常运行（Docker 或单二进制）：
 
 ```bash
-docker run -d --name octarq -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
 ```
 
 登录 Web 控制台（`http://localhost:8080`），在 **设置 → API 令牌** 中生成一个专用的 API Token。

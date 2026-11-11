@@ -36,7 +36,6 @@ jobs:
               - '!server/**/*.mdx'
               - 'Makefile'
               - 'Dockerfile'
-              - 'Dockerfile.release'
               - 'docker-compose.yml'
               - '.github/workflows/ci.yml'
             web:

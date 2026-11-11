@@ -14,7 +14,7 @@ Use this script to record a crisp product demo video for X (Twitter), YouTube, o
   > "Running a one-person business means you're constantly context-switching between SaaS dashboards: making short links, waiting for OTP verification emails, and debugging DNS records. What if your AI assistant could run all of this directly from your terminal or IDE?"
 
 ### [Scene 2: One-Command Octarq Setup — 0:25 - 0:45]
-- **Visual**: Split screen. Left side: Terminal runs `docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq`. Right side: Octarq dashboard boots instantly.
+- **Visual**: Split screen. Left side: Terminal runs `git clone https://github.com/octarq-org/octarq && cd octarq && docker compose up -d --build`. Right side: Octarq dashboard boots instantly.
 - **Voiceover**: 
   > "Meet Octarq: a self-hosted single Go binary providing short links, custom-domain email, and DNS automation. And with native Model Context Protocol (MCP) support, every capability is instantly drivable by AI agents."
 
@@ -44,15 +44,14 @@ Follow these 4 simple steps to run the blueprint locally:
 ### Step 1: Launch Octarq
 
 ```bash
-docker run -d --name octarq \
-  -p 8080:8080 \
-  -v octarq-data:/data \
-  ghcr.io/octarq-org/octarq:latest
+git clone https://github.com/octarq-org/octarq && cd octarq
+docker compose up -d --build
 ```
 
-Open `http://localhost:8080` in your browser. Grab your initial password from the Docker logs:
+Open `http://localhost:8080` in your browser. Read the generated admin password:
 ```bash
-docker logs octarq | grep "Initial password"
+docker compose cp octarq:/data/octarq-admin-password.txt .
+cat octarq-admin-password.txt
 ```
 
 ### Step 2: Configure MCP in Claude Code or Cursor
