@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
 // DEKSettingKey is where the wrapped DEK lives in the settings table.
@@ -243,6 +244,10 @@ func (c *Cipher) SubjectVault(ownerID uint, subject string) (*SubjectVault, erro
 // ShredSubjectKey destroys the subject's DEK. Data sealed under it becomes
 // unreadable permanently. Other subjects and the instance DEK keep working.
 //
+// A vault handle resolved before the call stops working too: the shred marks
+// the cached handle dead, so a caller that kept a reference cannot decrypt the
+// old data after the operator asked for erasure.
+//
 // Shredding a subject that has no key returns nil: the goal state is reached.
 func (c *Cipher) ShredSubjectKey(ownerID uint, subject string) error {
 	if !c.ready {
@@ -258,6 +263,9 @@ func (c *Cipher) ShredSubjectKey(ownerID uint, subject string) error {
 	if err := c.store.Delete(key); err != nil {
 		return fmt.Errorf("crypto: delete subject DEK: %w", err)
 	}
+	if v := c.subjects[key]; v != nil {
+		v.dead.Store(true)
+	}
 	delete(c.subjects, key)
 	return nil
 }
@@ -267,7 +275,11 @@ func (c *Cipher) ShredSubjectKey(ownerID uint, subject string) error {
 type SubjectVault struct {
 	dek    [32]byte
 	parent *Cipher // resolves further subject namespaces and shred requests
+	dead   atomic.Bool
 }
+
+// errSubjectShredded reports use of a handle whose key was destroyed.
+var errSubjectShredded = errors.New("crypto: the subject key was shredded")
 
 // Encrypt seals plaintext under the subject DEK.
 func (v *SubjectVault) Encrypt(plaintext []byte) (string, error) {
@@ -281,11 +293,17 @@ func (v *SubjectVault) Decrypt(encoded string) ([]byte, error) {
 
 // EncryptWithAAD seals plaintext under the subject DEK and binds aad.
 func (v *SubjectVault) EncryptWithAAD(plaintext, aad []byte) (string, error) {
+	if v.dead.Load() {
+		return "", errSubjectShredded
+	}
 	return sealWith(v.dek, plaintext, aad)
 }
 
 // DecryptWithAAD reverses EncryptWithAAD.
 func (v *SubjectVault) DecryptWithAAD(encoded string, aad []byte) ([]byte, error) {
+	if v.dead.Load() {
+		return nil, errSubjectShredded
+	}
 	return openWith(v.dek, encoded, aad)
 }
 

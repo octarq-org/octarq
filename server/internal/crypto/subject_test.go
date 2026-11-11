@@ -211,6 +211,14 @@ func TestShredSubjectKey(t *testing.T) {
 	if _, err := revived.Decrypt(shreddedCT); err == nil {
 		t.Fatal("a shredded subject decrypted data sealed before the shred")
 	}
+	// A handle the caller kept across the shred must stop working too, not only
+	// a handle resolved afterwards.
+	if _, err := shredded.Decrypt(shreddedCT); err == nil {
+		t.Fatal("a vault handle kept across the shred decrypted data sealed before it")
+	}
+	if _, err := shredded.Encrypt([]byte("new")); err == nil {
+		t.Fatal("a vault handle kept across the shred sealed new data")
+	}
 	if got, err := other.Decrypt(otherCT); err != nil || string(got) != "kept" {
 		t.Fatalf("other subject = %q, %v; want %q", got, err, "kept")
 	}
