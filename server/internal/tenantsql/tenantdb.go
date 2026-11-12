@@ -23,6 +23,12 @@ var (
 
 	// ErrTenantMismatch is returned when an entity's tenant ID contradicts the bound TenantDB scope.
 	ErrTenantMismatch = errors.New("tenantsql: entity tenant ID does not match bound tenant scope")
+
+	// ErrInvalidTable is returned when TableScoped receives a table name that is not a bare identifier.
+	ErrInvalidTable = errors.New("tenantsql: invalid table name")
+
+	// ErrInvalidTenantColumn is returned when TableScoped receives an empty or malformed tenant column.
+	ErrInvalidTenantColumn = errors.New("tenantsql: invalid tenant column")
 )
 
 // DefaultTenantColumn is the standard column used for tenant isolation in Octarq (legacy owner_id).
@@ -237,6 +243,31 @@ func (t *TenantDB) Model(value any) *gorm.DB {
 func (t *TenantDB) Table(name string, args ...any) *gorm.DB {
 	tx := t.db.Table(name, args...)
 	return tx.Where(fmt.Sprintf("%s = ?", t.defaultColumn), t.orgID)
+}
+
+// TableScoped returns a tenant-scoped query handle for a table this handle has
+// no Go model for. Every other method infers the tenant column by reflecting on
+// a model; a table created at runtime has no struct to reflect over, so the
+// caller must name the column. Both identifiers are validated here, and the
+// predicate is built as a column clause rather than a format string, so neither
+// name can carry SQL.
+func (t *TenantDB) TableScoped(table, tenantColumn string) (*gorm.DB, error) {
+	if t == nil || t.db == nil {
+		return nil, ErrNilDB
+	}
+	table = strings.TrimSpace(table)
+	tenantColumn = strings.TrimSpace(tenantColumn)
+	if !validIdentPattern.MatchString(table) {
+		return nil, fmt.Errorf("%w: %q", ErrInvalidTable, table)
+	}
+	if tenantColumn == "" || !validIdentPattern.MatchString(tenantColumn) {
+		return nil, fmt.Errorf("%w: %q", ErrInvalidTenantColumn, tenantColumn)
+	}
+
+	return t.db.Table(table).Where(clause.Eq{
+		Column: clause.Column{Name: tenantColumn},
+		Value:  t.orgID,
+	}), nil
 }
 
 // Where appends a query condition to the tenant-scoped query.
