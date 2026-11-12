@@ -372,6 +372,9 @@ func (s EndpointSpec[In, Out]) RegisterMCP(srv *mcp.Server) error {
 				)
 			}
 		}
+		if err := requireMCPRole(ctx, s.RequireRole); err != nil {
+			return nil, nil, err
+		}
 		out, err := s.Handler(ctx, in)
 		if err != nil {
 			return nil, nil, err
@@ -385,6 +388,32 @@ func (s EndpointSpec[In, Out]) RegisterMCP(srv *mcp.Server) error {
 		}, out, nil
 	})
 	return nil
+}
+
+// requireMCPRole enforces an endpoint's RequireRole list on the MCP surface.
+//
+// The HTTP twin gets the caller's workspace role through HTTPOptions.RequireRole,
+// which resolves a session against the workspace. The MCP surface has no such
+// hook, so it reads the role ceiling that internal/auth stamps when it admits a
+// bearer token. An empty role — a browser session, or the stdio transport — is
+// the least privileged and never satisfies a declared role.
+func requireMCPRole(ctx context.Context, roles []string) error {
+	if len(roles) == 0 {
+		return nil
+	}
+	role := RoleFromContext(ctx)
+	for _, want := range roles {
+		if role != "" && role == want {
+			return nil
+		}
+	}
+	return NewAgentError(
+		403,
+		"FORBIDDEN",
+		"insufficient role for this tool",
+		fmt.Sprintf("This tool requires one of these roles: %s. Use a token that carries a sufficient role.", strings.Join(roles, ", ")),
+		false,
+	)
 }
 
 // RegisterEndpoint is a type-safe generic helper to register an EndpointSpec onto a Context.
