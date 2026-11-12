@@ -31,9 +31,24 @@
 
 ## Octarq 是什么？
 
-Octarq 是**面向独立开发者、一人公司与 AI-native 小团队的自托管基础设施**：一个 Go 二进制，提供后台所需的一切基础设施 —— 鉴权、工作区、审计日志、通知、任务队列、Webhooks 与 MCP。
+Octarq 是**一个由你自行组装的自托管后台**，面向独立开发者、一人公司与 AI-native 小团队。一个 Go 二进制提供后台所需的全部基础层，业务功能按需挂载在上面。
 
-核心不含业务功能。短链、邮件与 DNS 以插件形式放在 [octarq-plugins](https://github.com/octarq-org/octarq-plugins)。按需在构建时加入。其余部分同样扩展：**一个轻量的 Go 接口 + 一个 React 页面 = 一个全新的后台工具**。并且由于 Octarq 原生支持 **MCP**，你编写的每一个插件都能被 AI Agent（如 Claude Code、Cursor、Claude Desktop）直接驱动。
+**核心层提供什么**（其中没有任何业务功能）：
+
+| 层 | 你会拿到 |
+| --- | --- |
+| 身份 | 登录、API Token、工作区、角色，以及按租户隔离的数据库层 |
+| 运维 | 审计日志、通知、后台任务队列、Webhooks、备份 |
+| Agent | MCP 服务器、按工具的风险等级、租户视图上的只读 SQL、分级门禁 |
+| 平台 | Go 与 React 的插件 SDK、嵌入式后台、OpenAPI 导出、租户 SQL 视图 |
+
+业务功能在 [octarq-plugins](https://github.com/octarq-org/octarq-plugins)：短链、邮件、DNS 与 2FA 保险库。按需在构建时加入。其余部分同样扩展：**一个轻量的 Go 接口 + 一个 React 页面 = 一个全新的后台工具**。由于 Octarq 原生支持 **MCP**，你编写的每一个插件都能被 AI Agent（如 Claude Code、Cursor、Claude Desktop）直接驱动。
+
+三种用法：
+
+1. **直接运行** —— `docker compose up -d --build`，然后登录。
+2. **组装构建** —— `OCTARQ_PLUGINS='[...]' make plugin-build`，不改代码就能挑选插件。
+3. **编写插件** —— 三个 Go 方法加一个 React 页面，数据库、鉴权、审计、MCP 与后台外壳全都现成。
 
 > 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 管理后台 (`go:embed`)。无需 Fork 自由扩展。
 
@@ -76,7 +91,7 @@ cat octarq-admin-password.txt
 
 - **一个二进制，一个下午。** 下载、运行、扩展。无需安装运行时，无需拼接服务，无 CGO。
 - **核心是基础设施。** 鉴权、工作区、审计日志、通知、Webhooks、任务队列、MCP —— 每个后台都要用的部分，没有多余功能。
-- **业务功能是插件。** 短链、邮件与 DNS 放在 [octarq-plugins](https://github.com/octarq-org/octarq-plugins)，构建时挂载。它们用的是和你一样的公开接口。
+- **业务功能是插件。** 短链、邮件、DNS 与 2FA 放在 [octarq-plugins](https://github.com/octarq-org/octarq-plugins)，构建时挂载。它们用的是和你一样的公开接口。
 - **原生面向 Agent。** 每个插件的能力无需额外胶水即可通过 MCP 交给你的 AI Agent 驱动。
 - **完全属于你。** 你的服务器、你的数据库、你的域名，MIT 协议。
 
@@ -91,6 +106,8 @@ cat octarq-admin-password.txt
 | **🔗 短链接 Links** | 自定义/随机 slug，地理/设备/OS/语言动态分流路由，过期机制与点击上限，过期 URL 兜底，带机器人过滤的时序数据分析，UTM 构造器，二维码，标签管理（支持可选 MaxMind GeoIP）。 |
 | **✉️ 邮箱路由 Mail** | 基于 Cloudflare Email Routing 的 Serverless 邮件接收（无需开启 25 端口，无垃圾邮件守护进程），Catch-all 自动建箱，完整邮件客户端（读件/回复/通过自定义 SMTP relays 发信，下载原始 `.eml`），按需 AI 邮件摘要（BYO key）。 |
 | **🌐 DNS 管理** | Cloudflare 与 DNSPod CRUD 操作，短链接与邮件认证 presets（MX/SPF/DKIM），原生备注/注释映射。 |
+| **🔐 2FA 保险库** | 共享基础设施账号（云厂商、域名注册商、GitHub）的 TOTP 验证码，AES-256-GCM 静态加密，带审计轨迹与 MCP 工具。 |
+| **🧩 Mail Links** | 「看看插件能做什么」的演示：邮件到达后 Octarq 自动缩短其中第一个链接，AI Agent 经 MCP 取用。 |
 
 <details>
 <summary>看看短链与邮件插件的实际界面</summary>
@@ -139,7 +156,7 @@ Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在
 
 ## 插件扩展开发（编写一个插件）
 
-一个插件是一个包含前后端两个半边的仓库，在**编译期组合**（类似 `xcaddy` 模型 —— 选择插件，编译为一个二进制）：
+一个插件是一个包含前后端两个半边的仓库，在**编译期组合**（类似 `xcaddy` 模型 —— 选择插件，编译为一个二进制）。公开的 `plugin` 包就是全部契约，核心的其它部分都不打算被导入。
 
 ```go
 // backend: 实现包含 3 个方法的接口，免费获得 DB/鉴权/审计/DNS/发信/缓存等能力

@@ -25,7 +25,7 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - `go build ./...`
 - `go test ./... -race`
 - `gofmt -w` (keep gofmt-clean; match surrounding style)
-- in `web/`: `npx tsc --noEmit`
+- in `web/`: `pnpm typecheck`
 - if you touched `packages/plugin-sdk/`: `pnpm --filter @octarq/plugin-sdk test`
 
 CI runs the same, plus builds the dashboard. Prefer pushing and relying on CI

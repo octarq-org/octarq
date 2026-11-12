@@ -41,6 +41,12 @@ const nimbusConfig = defineNimbusConfig({
         autogenerate: { directory: "core" },
       },
       {
+        // Business features, all in octarq-plugins. Separate from core so the
+        // sidebar says what core actually ships.
+        label: "Plugins",
+        autogenerate: { directory: "plugins" },
+      },
+      {
         label: "Build a Plugin",
         items: [
           "writing-a-plugin",
