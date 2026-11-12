@@ -4,9 +4,14 @@ description: One-click zone sync and full record CRUD behind a provider abstract
 sidebar:
   order: 3
   group:
-    label: "Core Features"
+    label: "Plugins"
 ---
 
+:::note
+DNS ships as the `dns` plugin in
+[octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add it at build
+time.
+:::
 
 Octarq manages DNS behind a **provider abstraction** — Cloudflare and DNSPod today,
 with Aliyun and Route53 slotting into the same interface.

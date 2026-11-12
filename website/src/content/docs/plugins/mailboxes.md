@@ -4,9 +4,14 @@ description: Receive mail on your own domains via Cloudflare Email Routing — n
 sidebar:
   order: 2
   group:
-    label: "Core Features"
+    label: "Plugins"
 ---
 
+:::note
+Mailboxes ship as the `mail` plugin in
+[octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add it at build
+time.
+:::
 
 Mailboxes give you addresses on your own domains without running an SMTP server.
 Octarq receives mail through **Cloudflare Email Routing**, so there's no port 25, MX,

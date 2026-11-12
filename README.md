@@ -31,9 +31,24 @@
 
 ## What is Octarq?
 
-Octarq is **self-hosted infrastructure for indie hackers, one-person companies, and small AI-native teams**: one Go binary that gives you the back office — auth, orgs, audit log, notifications, job queue, webhooks, and MCP.
+Octarq is **a self-hosted back office you compose**, for indie hackers, one-person companies, and small AI-native teams. One Go binary supplies the layers every back office needs, and you mount the business features you want on top.
 
-Core holds no business feature. Links, mail, and DNS ship as plugins in [octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add the ones you need at build time. Extend the rest the same way: **a small Go interface + a React page = a new tool in your back office.** And because Octarq speaks **MCP**, every plugin you add is instantly drivable by your AI agent (Claude Code, Cursor, Claude Desktop).
+**What core provides** — no business feature among them:
+
+| Layer | What you get |
+| --- | --- |
+| Identity | Sign-in, API tokens, workspaces, roles, and a tenant-scoped database layer |
+| Operations | Audit log, notifications, background job queue, webhooks, backups |
+| Agent | MCP server, per-tool risk levels, read-only SQL over tenant views, tier gating |
+| Platform | Plugin SDK for Go and React, embedded dashboard, OpenAPI export, tenant SQL views |
+
+Business features live in [octarq-plugins](https://github.com/octarq-org/octarq-plugins): links, mail, DNS, and a 2FA vault. Add the ones you need at build time. Extend the rest the same way: **a small Go interface + a React page = a new tool in your back office.** Because Octarq speaks **MCP**, every plugin you add is instantly drivable by your AI agent (Claude Code, Cursor, Claude Desktop).
+
+Three ways to use it:
+
+1. **Run it** — `docker compose up -d --build`, then sign in.
+2. **Compose a build** — `OCTARQ_PLUGINS='[...]' make plugin-build` picks plugins without editing code.
+3. **Write a plugin** — three Go methods and a React page, and you get DB, auth, audit, MCP and the dashboard shell for free.
 
 > One binary. No CGO. SQLite by default. `go:embed`'d dashboard. Extend without forking.
 
@@ -83,8 +98,8 @@ copies a finished binary lives in
 ## Why Octarq
 
 - **One binary, one afternoon.** Download it, run it, extend it. No runtime to install, no services to wire together, no CGO.
-- **Core is infrastructure.** Auth, orgs, audit log, notifications, webhooks, job queue, MCP — the parts every back office needs, and nothing you would replace.
-- **Business features are plugins.** Links, mail and DNS ship in [octarq-plugins](https://github.com/octarq-org/octarq-plugins) and mount at build time. They use the same public interface you get.
+- **Core is infrastructure.** Auth, workspaces, audit log, notifications, webhooks, job queue, MCP — the parts every back office needs, and nothing you would replace.
+- **Business features are plugins.** Links, mail, DNS and 2FA ship in [octarq-plugins](https://github.com/octarq-org/octarq-plugins) and mount at build time. They use the same public interface you get.
 - **Agent-native by construction.** Every plugin's capabilities reach your AI agent over MCP without extra plumbing.
 - **Yours.** Your server, your database, your domain, MIT-licensed.
 
@@ -99,6 +114,8 @@ Install these from [octarq-plugins](https://github.com/octarq-org/octarq-plugins
 | **🔗 Links** | Custom/random slugs, geo/device/OS/language routing, expiration & click limits, expired-URL fallbacks, time-series analytics with bot detection, UTM builder, QR codes, tags (optional MaxMind GeoIP).                         |
 | **✉️ Mail**  | Serverless inbound mail via Cloudflare Email Routing (no port 25, no spam daemons), catch-all auto-provisioning, a full client (read/reply/send over your SMTP relays, download raw `.eml`), on-demand AI summaries (BYO key). |
 | **🌐 DNS**   | Cloudflare & DNSPod CRUD, subdomain presets for short-link + email auth (MX/SPF/DKIM), native comment/notes mapping.                                                                                                           |
+| **🔐 2FA vault** | TOTP codes for shared infrastructure accounts (cloud, registrars, GitHub), encrypted at rest with AES-256-GCM, with an audit trail and MCP tools.                                                                           |
+| **🧩 Mail Links** | The "look what a plugin can do" demo: an email arrives, Octarq shortens the first link in it, your agent picks the link up over MCP.                                                                                     |
 
 <details>
 <summary>See the links and mail plugins in action</summary>
@@ -147,7 +164,7 @@ The point isn't "we added AI." The point is the **framework** wiring: a plugin t
 
 ## Extend it (write a plugin)
 
-A plugin is one repo with two mirror halves, composed **at build time** (like `xcaddy` — pick your plugins, build a binary):
+A plugin is one repo with two mirror halves, composed **at build time** (like `xcaddy` — pick your plugins, build a binary). The public `plugin` package is the whole contract: nothing else in core is meant to be imported.
 
 ```go
 // backend: implement a 3-method interface, get DB/auth/audit/DNS/mail/cache for free
