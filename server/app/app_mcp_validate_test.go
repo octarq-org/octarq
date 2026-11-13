@@ -16,12 +16,21 @@ import (
 // no-op host whose Crypto() is nil, so a validator run there would refuse a
 // plugin the server itself runs happily.
 type cryptoMCPPlugin struct {
+	name       string
 	refuse     error
 	validated  bool
 	registered bool
+	hostGot    *plugin.Host
 }
 
-func (p *cryptoMCPPlugin) Name() string                      { return "crypto-mcp" }
+func (p *cryptoMCPPlugin) pluginName() string {
+	if p.name == "" {
+		return "crypto-mcp"
+	}
+	return p.name
+}
+
+func (p *cryptoMCPPlugin) Name() string                      { return p.pluginName() }
 func (p *cryptoMCPPlugin) Models() []any                     { return nil }
 func (p *cryptoMCPPlugin) Mount(plugin.Mux, *plugin.Context) {}
 func (p *cryptoMCPPlugin) MCPTier() string                   { return "" }
@@ -29,6 +38,7 @@ func (p *cryptoMCPPlugin) RegisterMCP(*mcp.Server)           { p.registered = tr
 
 func (p *cryptoMCPPlugin) Validate(_ context.Context, host plugin.Host) error {
 	p.validated = true
+	p.hostGot = &host
 	if p.refuse != nil {
 		return p.refuse
 	}
@@ -40,21 +50,26 @@ func (p *cryptoMCPPlugin) Validate(_ context.Context, host plugin.Host) error {
 
 // TestRunMCPValidatesAgainstItsOwnHost pins both halves: RunMCP validates, and
 // it validates against the host the plugins read from rather than the no-op
-// host the stdio re-mount builds.
+// host the stdio re-mount builds. The crypto plugin refuses a host with no
+// vault, so the boot reaching the second plugin's refusal proves the first one
+// saw the real host. Neither run opens the stdio transport, so the test does
+// not take process stdin away from the rest of the package.
 func TestRunMCPValidatesAgainstItsOwnHost(t *testing.T) {
 	a := bootApp(t)
-	p := &cryptoMCPPlugin{}
-	a.Use(p)
+	cryptoPlugin := &cryptoMCPPlugin{name: "needs-crypto"}
+	stopper := errors.New("stop after the host check")
+	a.Use(cryptoPlugin)
+	a.Use(&cryptoMCPPlugin{name: "stopper", refuse: stopper})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_ = a.RunMCP(ctx)
-
-	if !p.validated {
+	err := a.RunMCP(context.Background())
+	if !errors.Is(err, stopper) {
+		t.Fatalf("RunMCP = %v, want the second plugin's refusal", err)
+	}
+	if !cryptoPlugin.validated {
 		t.Fatal("RunMCP did not validate the plugin")
 	}
-	if !p.registered {
-		t.Fatal("plugin was refused: RunMCP validated against a host with no crypto vault")
+	if cryptoPlugin.hostGot == nil || *cryptoPlugin.hostGot == nil || (*cryptoPlugin.hostGot).Crypto() == nil {
+		t.Fatalf("validator saw %#v, want the host the plugins run against", cryptoPlugin.hostGot)
 	}
 }
 
