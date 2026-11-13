@@ -89,7 +89,12 @@ func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
 //
 // style-src KEEPS 'unsafe-inline': Tailwind injects its styles at runtime and
 // removing it would blank the whole dashboard.
-const contentSecurityPolicy = "default-src 'self'; script-src 'self' 'sha256-XOdMZOShyEmv5lOxX1JVnl4Ve1llBlA5kNEaund+AXQ=' 'sha256-0la+svl4yiuBleyZsFu+6aWjFtuvmwtPoqXKtkLO42Q='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'"
+//
+// script-src carries: a plugin may ship a WebAssembly app
+// (the octarch Mission Control web target is one), and browsers refuse to
+// compile a module without it. The keyword permits compiling wasm bytes only;
+// it does not permit eval of JavaScript strings, which 'unsafe-eval' would.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-XOdMZOShyEmv5lOxX1JVnl4Ve1llBlA5kNEaund+AXQ=' 'sha256-0la+svl4yiuBleyZsFu+6aWjFtuvmwtPoqXKtkLO42Q='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'"
 
 // setSecurityHeaders applies baseline hardening headers to every response.
 func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
