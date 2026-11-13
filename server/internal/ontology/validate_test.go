@@ -93,6 +93,10 @@ func TestValidateRejectsBadFields(t *testing.T) {
 	}{
 		{"bad slug", base(func(s *ontology.Spec) { s.Slug = "Widget!" }), ontology.CodeSlugInvalid},
 		{"reserved slug", base(func(s *ontology.Spec) { s.Slug = "settings" }), ontology.CodeSlugReserved},
+		// applied_specs maps to ont_applied_specs, the bookkeeping table itself.
+		// Declaring it would have the reconciler compare a table against a
+		// declaration it wrote about other tables.
+		{"bookkeeping slug", base(func(s *ontology.Spec) { s.Slug = "applied_specs" }), ontology.CodeSlugReserved},
 		{"empty label", base(func(s *ontology.Spec) { s.Label = "  " }), ontology.CodeLabelRequired},
 		{"no fields", base(func(s *ontology.Spec) { s.Fields = nil }), ontology.CodeFieldsEmpty},
 		{"reserved column", base(func(s *ontology.Spec) {

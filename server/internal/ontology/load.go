@@ -17,9 +17,9 @@ import (
 // same convention OCTARQ_DB_DSN's default ("octarq.db") uses.
 const DefaultEntitiesFile = "octarq.entities.json"
 
-// ErrEntitiesFileMissing is returned by ReadFile when an explicitly named file
-// does not exist. The default path is different: its absence means "this
-// installation declares no entities", which is not an error.
+// ErrEntitiesFileMissing is returned by Load when an explicitly named file does
+// not exist. The default path is different: its absence means "this installation
+// declares no entities", which is not an error.
 var ErrEntitiesFileMissing = errors.New("ontology: entity file not found")
 
 // Load resolves the declaration set the way the frontend manifest does:
@@ -119,6 +119,11 @@ func ValidateAll(specs []Spec) error {
 					iss.Path = fmt.Sprintf("entities[%d].%s", i, iss.Path)
 					errs = append(errs, iss)
 				}
+			} else {
+				// Validate reports Issues today. An error it cannot express as one
+				// is still a refusal, and dropping it would let a broken entity
+				// through on the strength of the others being fine.
+				return fmt.Errorf("ontology: validate entities[%d]: %w", i, vErr)
 			}
 		}
 		if prev, dup := seen[s.Slug]; dup {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -52,6 +53,13 @@ func decode(spec Spec, raw []byte, create bool) (map[string]any, error) {
 	var in map[string]any
 	if err := dec.Decode(&in); err != nil {
 		return nil, Errors{issue(CodeValueType, "body", "body is not a JSON object: %v", err)}
+	}
+	// A second JSON value after the object is refused, not ignored: the operator
+	// sending it believes it was applied, and this package refuses the same shape
+	// in a declaration file.
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, Errors{issue(CodeValueType, "body", "body must contain exactly one JSON object")}
 	}
 	if in == nil {
 		return nil, Errors{issue(CodeValueType, "body", "body is not a JSON object")}
@@ -119,10 +127,15 @@ func coerceValue(f Field, v any) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("%q must be a UUID string", f.Name)
 		}
-		if _, err := uuid.Parse(s); err != nil {
+		parsed, err := uuid.Parse(s)
+		if err != nil {
 			return nil, fmt.Errorf("%q is not a valid UUID", f.Name)
 		}
-		return s, nil
+		// Store the canonical form. uuid.Parse accepts a 32-character hex string,
+		// braces and upper case; storing the input verbatim would make two
+		// spellings of one id two different keys, so a unique index would not see
+		// the duplicate and the same record would differ across dialects.
+		return parsed.String(), nil
 	case TypeInteger:
 		return toInt64(f, v)
 	case TypeNumber:

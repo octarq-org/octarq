@@ -160,17 +160,12 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 		return Step{}, err
 	}
 
-	known := make(map[string]bool, len(old.Fields))
-	for _, f := range old.Fields {
-		known[f.Name] = true
-	}
+	// Every declared field must exist physically, whether it was just declared or
+	// has been declared all along. A column dropped by hand leaves the
+	// declaration describing a table that cannot answer its own queries, and the
+	// next boot is the only place that can notice: re-adding it is the repair,
+	// and a failure here is loud rather than a runtime error on the first read.
 	for _, f := range spec.Fields {
-		if known[f.Name] {
-			continue
-		}
-		// The bookkeeping and the physical table can disagree after a manual
-		// intervention. Treat a column that already exists as present rather
-		// than emitting an ALTER the database will reject.
 		if cols[f.Name] {
 			continue
 		}
@@ -225,6 +220,13 @@ func countRows(ctx context.Context, db *gorm.DB, table string) (int64, error) {
 }
 
 // Apply plans and then executes. A plan error writes nothing.
+//
+// Each entity's bookkeeping row is written as soon as that entity's statements
+// succeed, not once at the end. A failure part-way through would otherwise leave
+// the tables already created with no row describing them, and the next boot
+// refuses those tables as unmanaged — an instance that cannot start and cannot
+// be repaired without dropping data. MySQL commits DDL immediately anyway, so
+// per-step recording is also the only portable ordering.
 func Apply(ctx context.Context, db *gorm.DB, driver string, specs []Spec) error {
 	if len(specs) == 0 {
 		return nil
@@ -234,33 +236,50 @@ func Apply(ctx context.Context, db *gorm.DB, driver string, specs []Spec) error 
 		return err
 	}
 	for _, step := range steps {
-		if len(step.Statements) == 0 {
-			continue
-		}
-		for _, stmt := range step.Statements {
-			if err := db.WithContext(ctx).Exec(stmt).Error; err != nil {
-				return fmt.Errorf("ontology: apply %s: %w (statement: %s)", step.Slug, err, stmt)
-			}
+		if err := applyStep(ctx, db, step); err != nil {
+			return err
 		}
 	}
-	return record(ctx, db, steps)
+	return nil
 }
 
-func record(ctx context.Context, db *gorm.DB, steps []Step) error {
-	for _, step := range steps {
-		if step.existed && !step.Dirty {
-			continue
+// applyStep runs one entity's statements and then records its declaration.
+//
+// A table this step created is claimed before the rest of its DDL is trusted: if
+// a later statement fails, the table is already the platform's, and the next
+// boot re-plans whatever is missing instead of refusing a table that no
+// declaration accounts for. The recorded declaration describes what the table
+// was meant to be, and the index check in Plan is what notices the difference.
+func applyStep(ctx context.Context, db *gorm.DB, step Step) error {
+	for _, stmt := range step.Statements {
+		if err := db.WithContext(ctx).Exec(stmt).Error; err != nil {
+			if !step.existed && db.WithContext(ctx).Migrator().HasTable(step.Table) {
+				if recErr := record(ctx, db, step); recErr != nil {
+					return fmt.Errorf("ontology: apply %s: %w (statement: %s); record: %w",
+						step.Slug, err, stmt, recErr)
+				}
+			}
+			return fmt.Errorf("ontology: apply %s: %w (statement: %s)", step.Slug, err, stmt)
 		}
-		row := step.row
-		if err := db.WithContext(ctx).
-			Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "slug"}},
-				UpdateAll: true,
-			}).
-			Create(&row).Error; err != nil {
-			return fmt.Errorf("ontology: record applied spec for %s: %w", step.Slug, err)
-		}
-		slog.Debug("ontology: entity applied", "slug", step.Slug, "statements", len(step.Statements))
 	}
+	if step.existed && !step.Dirty {
+		// Nothing about the declaration changed — an index or a column was
+		// repaired, and the stored row already says this.
+		return nil
+	}
+	return record(ctx, db, step)
+}
+
+func record(ctx context.Context, db *gorm.DB, step Step) error {
+	row := step.row
+	if err := db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "slug"}},
+			UpdateAll: true,
+		}).
+		Create(&row).Error; err != nil {
+		return fmt.Errorf("ontology: record applied spec for %s: %w", step.Slug, err)
+	}
+	slog.Debug("ontology: entity applied", "slug", step.Slug, "statements", len(step.Statements))
 	return nil
 }

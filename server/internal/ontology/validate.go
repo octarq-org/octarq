@@ -30,10 +30,22 @@ const (
 	CodeDefaultInvalid        = "DEFAULT_INVALID"
 	CodeSlugDuplicate         = "SLUG_DUPLICATE"
 	CodeApprovalUnsupported   = "APPROVAL_UNSUPPORTED"
-	CodeRequiredTightened     = "REQUIRED_TIGHTENED"
 	CodeIndexRemoved          = "INDEX_REMOVED"
 	CodeColumnDropUnsupported = "COLUMN_DROP_UNSUPPORTED"
+
+	CodeRequiredChangeUnsupported = "REQUIRED_CHANGE_UNSUPPORTED"
+	CodeDefaultChangeUnsupported  = "DEFAULT_CHANGE_UNSUPPORTED"
 )
+
+// sameDefault compares two literal defaults. nil and a pointer to an equal
+// string are different declarations to DDL (the second renders DEFAULT), so both
+// the presence and the value matter.
+func sameDefault(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
 
 // validDefault reports whether a literal default parses as its declared type.
 // Numeric and boolean defaults render unquoted in DDL, so a value that does not
@@ -255,11 +267,19 @@ func ValidateTransition(old, next Spec, rows int64) error {
 			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".indexed",
 				"cannot drop the index on %q", n.Name))
 		}
-		// Tightening an existing optional column to required fails on every row
-		// that already holds NULL. The new-field check below does not cover this.
-		if !f.Required && n.Required && rows > 0 {
-			errs = append(errs, issue(CodeRequiredTightened, "fields."+n.Name+".required",
-				"cannot require %q while the table holds %d rows", n.Name, rows))
+		// A column's NOT NULL and DEFAULT are part of the table, not of the
+		// bookkeeping row. The only ALTER this layer can emit is ADD COLUMN, so a
+		// change to either one would be recorded as applied while the database
+		// kept the old rule: a relaxed `required` would still reject the write, a
+		// tightened one would silently accept NULLs, and a new default would
+		// never reach a row. Refuse until a column can be altered.
+		if f.Required != n.Required {
+			errs = append(errs, issue(CodeRequiredChangeUnsupported, "fields."+n.Name+".required",
+				"cannot change required on %q; add a field instead", n.Name))
+		}
+		if !sameDefault(f.Default, n.Default) {
+			errs = append(errs, issue(CodeDefaultChangeUnsupported, "fields."+n.Name+".default",
+				"cannot change the default of %q; add a field instead", n.Name))
 		}
 	}
 

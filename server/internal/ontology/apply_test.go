@@ -120,21 +120,67 @@ func TestApplyRefusesTypeChange(t *testing.T) {
 	assertIssues(t, err, ontology.CodeTypeChangeUnsupported)
 }
 
-func TestApplyRefusesRequiredTighteningOnRows(t *testing.T) {
+func TestApplyRefusesRequiredChange(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(baseFields()...)}); err != nil {
 		t.Fatalf("Apply v1: %v", err)
 	}
-	if err := db.Exec(`INSERT INTO ont_tickets (id, org_id, created_at, updated_at, title) VALUES (?,?,?,?,?)`,
-		"t1", 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", "first").Error; err != nil {
-		t.Fatalf("insert: %v", err)
-	}
 
 	fields := baseFields()
 	fields[1].Required = true
 	err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(fields...)})
-	assertIssues(t, err, ontology.CodeRequiredTightened)
+	assertIssues(t, err, ontology.CodeRequiredChangeUnsupported)
+}
+
+// TestApplyRefusesRelaxingRequired is the other direction of the same rule: the
+// column keeps NOT NULL, so a write the new declaration permits would still be
+// rejected by the database while the bookkeeping said it was allowed.
+func TestApplyRefusesRelaxingRequired(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(baseFields()...)}); err != nil {
+		t.Fatalf("Apply v1: %v", err)
+	}
+
+	fields := baseFields()
+	fields[0].Required = false
+	err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(fields...)})
+	assertIssues(t, err, ontology.CodeRequiredChangeUnsupported)
+}
+
+// TestApplyRefusesDefaultChange pins that a changed default is refused rather
+// than recorded. The column keeps its old DEFAULT, so a row inserted without the
+// field would get the old value while the declaration promised the new one.
+func TestApplyRefusesDefaultChange(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	v1 := ticketSpec(append(baseFields(), ontology.Field{
+		Name: "priority", Type: ontology.TypeString, Default: ptr("normal"),
+	})...)
+	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{v1}); err != nil {
+		t.Fatalf("Apply v1: %v", err)
+	}
+
+	v2 := ticketSpec(append(baseFields(), ontology.Field{
+		Name: "priority", Type: ontology.TypeString, Default: ptr("high"),
+	})...)
+	assertIssues(t, ontology.Apply(ctx, db, "sqlite", []ontology.Spec{v2}),
+		ontology.CodeDefaultChangeUnsupported)
+}
+
+func TestApplyRefusesDroppingIndex(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	fields := baseFields()
+	fields[1].Indexed = true
+	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(fields...)}); err != nil {
+		t.Fatalf("Apply v1: %v", err)
+	}
+
+	relaxed := baseFields()
+	err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(relaxed...)})
+	assertIssues(t, err, ontology.CodeIndexRemoved)
 }
 
 func TestApplyRefusesDroppingUniqueIndex(t *testing.T) {
@@ -248,6 +294,38 @@ func TestApplyIndexesAddedField(t *testing.T) {
 	}
 	if want := ontology.FieldIndexName("ont_tickets", v2.Fields[2]); !idx[want] {
 		t.Fatalf("index %q missing after adding a unique field: %v", want, idx)
+	}
+}
+
+// TestApplyRepairsColumnDroppedByHand pins the drift repair. The declaration is
+// the truth, so a column someone dropped manually is re-added on the next boot:
+// otherwise every query against the entity fails at runtime, on a table the
+// platform reports as applied.
+func TestApplyRepairsColumnDroppedByHand(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	spec := ticketSpec(baseFields()...)
+	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{spec}); err != nil {
+		t.Fatalf("Apply v1: %v", err)
+	}
+	if err := db.Exec(`ALTER TABLE ont_tickets DROP COLUMN status`).Error; err != nil {
+		t.Fatalf("drop column by hand: %v", err)
+	}
+
+	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{spec}); err != nil {
+		t.Fatalf("re-Apply: %v", err)
+	}
+
+	insp, err := ontology.InspectorFor("sqlite", db)
+	if err != nil {
+		t.Fatalf("InspectorFor: %v", err)
+	}
+	cols, err := insp.Columns(ctx, "ont_tickets")
+	if err != nil {
+		t.Fatalf("columns: %v", err)
+	}
+	if !cols["status"] {
+		t.Fatalf("status was not re-added: %v", cols)
 	}
 }
 

@@ -131,13 +131,11 @@ func indexName(prefix, table, column string) string {
 	return name[:keep] + "_" + suffix
 }
 
-// IndexName derives the name of an index. Creation and reconciliation must use
-// this same function: a name longer than maxIdentLen gains a hash suffix, so a
-// reconciler that guesses "idx_<table>_<column>" would miss the index actually
-// created and re-create it on every boot.
-func IndexName(prefix, table, column string) string { return indexName(prefix, table, column) }
-
 // TenantIndexName is the name of the (org_id) index every entity table carries.
+// Creation and reconciliation call this same function on purpose: a name longer
+// than maxIdentLen gains a hash suffix, so a reconciler that spelled
+// "idx_<table>_<column>" by hand would miss the index actually created and
+// re-create it on every boot.
 func TenantIndexName(table string) string { return indexName("idx", table, ColumnOrgID) }
 
 // FieldIndexName is the name of the index for one declared field. The index is
@@ -258,21 +256,6 @@ func AddColumnSQL(d Dialect, spec Spec, f Field) (string, error) {
 	}
 	return "ALTER TABLE " + d.Quote(TableName(spec.Slug)) +
 		" ADD COLUMN " + d.Quote(f.Name) + " " + def, nil
-}
-
-// DropColumnSQL returns the statement that drops one field.
-func DropColumnSQL(d Dialect, spec Spec, column string) (string, error) {
-	if d == nil {
-		return "", errors.New("ontology: nil dialect")
-	}
-	if !ValidSlug(spec.Slug) {
-		return "", fmt.Errorf("ontology: refusing to build DDL for slug %q", spec.Slug)
-	}
-	if ReservedColumnNames[column] {
-		return "", fmt.Errorf("ontology: refusing to drop platform column %q", column)
-	}
-	return "ALTER TABLE " + d.Quote(TableName(spec.Slug)) +
-		" DROP COLUMN " + d.Quote(column), nil
 }
 
 // CreateIndexSQL returns a CREATE INDEX statement. Pass columns in query order:
