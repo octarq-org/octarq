@@ -117,7 +117,8 @@ const TablePrefix = "ont_"
 // reservedSlugs are refused even though they match SlugPattern: each one is
 // either a core table name or a path segment the platform already owns.
 var reservedSlugs = map[string]bool{
-	"auth": true, "data": true, "help": true, "instance": true,
+	"applied_specs": true,
+	"auth":          true, "data": true, "help": true, "instance": true,
 	"mcp": true, "menus": true, "ontology": true, "plugins": true,
 	"portal": true, "settings": true, "schema": true, "tokens": true,
 	"users": true, "webhooks": true,

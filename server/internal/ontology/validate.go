@@ -23,12 +23,16 @@ const (
 	CodeWidgetUnknown         = "WIDGET_UNKNOWN"
 	CodeRequiredFieldNonEmpty = "REQUIRED_FIELD_NONEMPTY"
 	CodeTypeChangeUnsupported = "TYPE_CHANGE_UNSUPPORTED"
-	CodeColumnDropNonEmpty    = "COLUMN_DROP_NONEMPTY"
 	CodeACLEmpty              = "ACL_EMPTY"
 	CodeRoleUnknown           = "ROLE_UNKNOWN"
 	CodeIndexUnsupported      = "INDEX_UNSUPPORTED"
 	CodeDefaultUnsupported    = "DEFAULT_UNSUPPORTED"
 	CodeDefaultInvalid        = "DEFAULT_INVALID"
+	CodeSlugDuplicate         = "SLUG_DUPLICATE"
+	CodeApprovalUnsupported   = "APPROVAL_UNSUPPORTED"
+	CodeRequiredTightened     = "REQUIRED_TIGHTENED"
+	CodeIndexRemoved          = "INDEX_REMOVED"
+	CodeColumnDropUnsupported = "COLUMN_DROP_UNSUPPORTED"
 )
 
 // validDefault reports whether a literal default parses as its declared type.
@@ -180,6 +184,14 @@ func Validate(spec Spec) error {
 				errs = append(errs, issue(CodeRoleUnknown, path+".roles", "%q is not a known role", r))
 			}
 		}
+		// Approval is enforced by the agent harness only, and the MCP surface
+		// merely appends "[approval required]" to the tool description. A
+		// declaration that promises a gate which does not exist is worse than a
+		// refusal, so the promise is rejected until the gate is real.
+		if acl.RequireApproval {
+			errs = append(errs, issue(CodeApprovalUnsupported, path+".requireApproval",
+				"operator approval is not enforced on generated endpoints yet"))
+		}
 	}
 	for op := range spec.Operations {
 		known := false
@@ -220,15 +232,34 @@ func ValidateTransition(old, next Spec, rows int64) error {
 	for _, f := range old.Fields {
 		n, kept := nextFields[f.Name]
 		if !kept {
-			if rows > 0 {
-				errs = append(errs, issue(CodeColumnDropNonEmpty, "fields."+f.Name,
-					"cannot drop %q while the table holds %d rows", f.Name, rows))
-			}
+			// Not even an empty table allows it. DROP COLUMN leaves the index the
+			// column carried behind, and the bookkeeping row could no longer
+			// describe the table it is supposed to match. Add a field instead.
+			errs = append(errs, issue(CodeColumnDropUnsupported, "fields."+f.Name,
+				"cannot remove %q; the generated table keeps its columns", f.Name))
 			continue
 		}
 		if n.Type != f.Type {
 			errs = append(errs, issue(CodeTypeChangeUnsupported, "fields."+n.Name+".type",
 				"cannot change %q from %s to %s", n.Name, f.Type, n.Type))
+		}
+		// Dropping an index the physical table still carries would leave the
+		// database enforcing a rule the declaration no longer states: a unique
+		// index the operator removed keeps rejecting duplicates at runtime.
+		// Refusing is honest until DROP INDEX is implemented.
+		if f.Unique && !n.Unique {
+			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".unique",
+				"cannot drop the unique constraint on %q", n.Name))
+		}
+		if f.Indexed && !n.Indexed {
+			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".indexed",
+				"cannot drop the index on %q", n.Name))
+		}
+		// Tightening an existing optional column to required fails on every row
+		// that already holds NULL. The new-field check below does not cover this.
+		if !f.Required && n.Required && rows > 0 {
+			errs = append(errs, issue(CodeRequiredTightened, "fields."+n.Name+".required",
+				"cannot require %q while the table holds %d rows", n.Name, rows))
 		}
 	}
 

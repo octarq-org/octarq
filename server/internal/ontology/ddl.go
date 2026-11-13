@@ -131,6 +131,25 @@ func indexName(prefix, table, column string) string {
 	return name[:keep] + "_" + suffix
 }
 
+// IndexName derives the name of an index. Creation and reconciliation must use
+// this same function: a name longer than maxIdentLen gains a hash suffix, so a
+// reconciler that guesses "idx_<table>_<column>" would miss the index actually
+// created and re-create it on every boot.
+func IndexName(prefix, table, column string) string { return indexName(prefix, table, column) }
+
+// TenantIndexName is the name of the (org_id) index every entity table carries.
+func TenantIndexName(table string) string { return indexName("idx", table, ColumnOrgID) }
+
+// FieldIndexName is the name of the index for one declared field. The index is
+// always (org_id, field), so a tenant's rows never collide across tenants.
+func FieldIndexName(table string, f Field) string {
+	prefix := "idx"
+	if f.Unique {
+		prefix = "uq"
+	}
+	return indexName(prefix, table, ColumnOrgID+"_"+f.Name)
+}
+
 // CreateTableSQL returns the statements that create an entity's table: the table
 // itself, the tenant index, and one index per declared index or unique field.
 // The caller runs them in order.

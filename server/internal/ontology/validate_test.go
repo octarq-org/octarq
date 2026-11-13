@@ -194,19 +194,19 @@ func TestValidateTransition(t *testing.T) {
 		}
 	})
 
-	t.Run("drop empty column is allowed", func(t *testing.T) {
+	t.Run("drop column fails even when empty", func(t *testing.T) {
 		next := validSpec()
 		next.Fields = next.Fields[:1]
-		if err := ontology.ValidateTransition(old, next, 0); err != nil {
-			t.Fatalf("err = %v, want nil", err)
+		if err := ontology.ValidateTransition(old, next, 0); !hasCode(err, ontology.CodeColumnDropUnsupported) {
+			t.Fatalf("err = %v, want COLUMN_DROP_UNSUPPORTED", err)
 		}
 	})
 
 	t.Run("drop column with rows fails", func(t *testing.T) {
 		next := validSpec()
 		next.Fields = next.Fields[:1]
-		if err := ontology.ValidateTransition(old, next, 3); !hasCode(err, ontology.CodeColumnDropNonEmpty) {
-			t.Fatalf("err = %v, want COLUMN_DROP_NONEMPTY", err)
+		if err := ontology.ValidateTransition(old, next, 3); !hasCode(err, ontology.CodeColumnDropUnsupported) {
+			t.Fatalf("err = %v, want COLUMN_DROP_UNSUPPORTED", err)
 		}
 	})
 
