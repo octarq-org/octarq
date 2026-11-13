@@ -132,7 +132,20 @@ func composePluginsForCLI() []plugin.Plugin {
 // notify, and whatever the composed plugins register) are exposed on the stdio
 // server.
 func runMCPServer(ctx context.Context) int {
-	plugins := composePluginsForCLI()
+	return runMCPServerWith(ctx, composePluginsForCLI())
+}
+
+// runMCPServerWith is runMCPServer over a given plugin set, so the boot order
+// is testable without a build-time manifest.
+func runMCPServerWith(ctx context.Context, plugins []plugin.Plugin) int {
+	// config.Load applies .env to the process environment, and the stdio mount
+	// loads it again a moment later. A validator reads the environment for the
+	// credentials its plugin will use, so it has to see the same values the mount
+	// will; validating first would refuse a plugin the mount can serve.
+	if _, err := config.Load(); err != nil {
+		slog.Error("mcp failed", "err", err)
+		return 1
+	}
 	// Validate before the stdio mount registers any tool. The mount serves no
 	// HTTP and has no host behind it, so validators see the same no-op host
 	// their tools will: a plugin that needs a runtime service refuses the boot

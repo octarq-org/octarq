@@ -186,11 +186,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
-	// Validate against the host this mount built: that is the host the plugin
-	// tools read from. RunWithPlugins re-mounts for the stdio transport with a
-	// no-op host, so validating there would judge the plugins against a runtime
-	// the server itself never gives them.
-	if err := plugin.ValidateAll(ctx, a.plugins, pctx.Host); err != nil {
+	// Validate against the host the plugins will run against on this path, which
+	// is not the one this mount built. RunWithPlugins re-mounts every plugin
+	// through buildServerInstance with a no-op host, and a plugin caches the host
+	// it is given at Mount, so the second mount is the one its tools read from.
+	// A plugin that needs a runtime service has to refuse here, where the boot
+	// stops, instead of exposing tools that fail on every call.
+	if err := plugin.ValidateAll(ctx, a.plugins, plugin.EnsureHost(nil)); err != nil {
 		return err
 	}
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {

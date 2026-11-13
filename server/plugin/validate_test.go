@@ -69,6 +69,36 @@ func TestValidateAllNamesThePluginThatRefused(t *testing.T) {
 	}
 }
 
+// TestValidateAllRefusesAnIncompleteComposition pins the check the HTTP root's
+// preflight used to own. The other two roots have no preflight, so a requirement
+// that is not mounted must be refused here rather than treated as a leaf.
+func TestValidateAllRefusesAnIncompleteComposition(t *testing.T) {
+	var order []string
+	err := plugin.ValidateAll(context.Background(), []plugin.Plugin{
+		validatingPlugin{namedPlugin: namedPlugin{name: "mail", requires: []string{"dns"}}, order: &order},
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), `"dns"`) {
+		t.Fatalf("err = %v, want the missing requirement named", err)
+	}
+	if len(order) != 0 {
+		t.Fatalf("order = %v, want no validator to run on an incomplete composition", order)
+	}
+}
+
+// TestValidateAllRefusesADuplicateName pins the other half: DependencyOrder keys
+// its graph by name, so a second plugin with the same name would never be
+// validated while the mount still runs it.
+func TestValidateAllRefusesADuplicateName(t *testing.T) {
+	var order []string
+	err := plugin.ValidateAll(context.Background(), []plugin.Plugin{
+		validatingPlugin{namedPlugin: namedPlugin{name: "twice"}, order: &order},
+		validatingPlugin{namedPlugin: namedPlugin{name: "twice"}, order: &order},
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), "twice") {
+		t.Fatalf("err = %v, want the duplicate name reported", err)
+	}
+}
+
 func TestValidateAllRefusesDependencyCycle(t *testing.T) {
 	var order []string
 	err := plugin.ValidateAll(context.Background(), []plugin.Plugin{
