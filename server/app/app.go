@@ -186,9 +186,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
-	// Plugin startup validation happens inside RunWithPlugins, on the context
-	// that mount produced and therefore against the services the tools will
-	// actually read. Validating here as well would run every check twice.
+	// Validate against the host this mount built: that is the host the plugin
+	// tools read from. RunWithPlugins re-mounts for the stdio transport with a
+	// no-op host, so validating there would judge the plugins against a runtime
+	// the server itself never gives them.
+	if err := plugin.ValidateAll(ctx, a.plugins, pctx.Host); err != nil {
+		return err
+	}
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
 		emailMu.Lock()
 		handlers := deferredOnEmail
@@ -364,20 +368,8 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	// Validate in dependency order, not registration order: a plugin's
-	// Validate may Lookup a service provided by a plugin it Requires, and only
-	// Requires says which one that is. Registration order made that a coin
-	// flip decided by the composition root.
-	validating, err := plugin.DependencyOrder(a.plugins)
-	if err != nil {
+	if err := plugin.ValidateAll(ctx, a.plugins, pctx.Host); err != nil {
 		return err
-	}
-	for _, p := range validating {
-		if v, ok := p.(plugin.Validator); ok {
-			if err := v.Validate(ctx, pctx.Host); err != nil {
-				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
-			}
-		}
 	}
 
 	// Plugin goroutines get a context the shutdown path can cancel. The root

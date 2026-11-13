@@ -132,7 +132,16 @@ func composePluginsForCLI() []plugin.Plugin {
 // notify, and whatever the composed plugins register) are exposed on the stdio
 // server.
 func runMCPServer(ctx context.Context) int {
-	if err := mcp.RunWithPlugins(ctx, composePluginsForCLI(), nil); err != nil {
+	plugins := composePluginsForCLI()
+	// Validate before the stdio mount registers any tool. The mount serves no
+	// HTTP and has no host behind it, so validators see the same no-op host
+	// their tools will: a plugin that needs a runtime service refuses the boot
+	// here instead of failing on first use.
+	if err := plugin.ValidateAll(ctx, plugins, plugin.EnsureHost(nil)); err != nil {
+		slog.Error("mcp failed", "err", err)
+		return 1
+	}
+	if err := mcp.RunWithPlugins(ctx, plugins, nil); err != nil {
 		slog.Error("mcp failed", "err", err)
 		return 1
 	}

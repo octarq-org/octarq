@@ -78,7 +78,7 @@ func Run(ctx context.Context) error {
 // Mounting used to (re)build; it is required, not optional, so a caller cannot
 // quietly drop it and lose the export tools.
 func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool)) *mcp.Server {
-	return buildServerInstance(gdb, orgID, plugins, lookup, nil, nil)
+	return buildServerInstance(gdb, orgID, plugins, lookup, false, nil)
 }
 
 // NewServerInstance builds an MCP server for a single operator, scoped to
@@ -88,92 +88,44 @@ func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugi
 // means the build has no tier model (core). The networked counterpart is
 // NewNetworkedServerInstance. Both expose the same tenant-scoped tool set;
 // there is no transport that gets extra reach.
-//
-// The plugins are mounted and then validated here, in Requires order, before
-// any tool is registered. `octarq mcp` is a composition root of its own: it
-// never goes through app.Run, so without this pass a plugin that refuses to
-// start over HTTP would still expose its tools here. A validation failure is
-// returned, never logged and survived.
-func NewServerInstance(ctx context.Context, gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) (*mcp.Server, error) {
-	mounted := mountPlugins(gdb, plugins)
-	if err := validatePlugins(ctx, plugins, mounted.host); err != nil {
-		return nil, err
-	}
-	return buildServerInstance(gdb, orgID, plugins, mounted.lookup, mounted.endpoints, gate), nil
-}
-
-// mounted is what mounting plugins produces: the host the validators see, the
-// service registry the tools read, and the endpoint engine plugin-declared
-// endpoints were registered into.
-type mounted struct {
-	host      plugin.Host
-	lookup    func(string) (any, bool)
-	endpoints *endpoint.Engine
-}
-
-// mountPlugins mounts every plugin once, the way app boot does, in the
-// composition root's registration order. Only the validation order is
-// normalised; changing the mount order here would make the CLI mount a
-// different sequence than the server it stands in for.
-func mountPlugins(gdb *gorm.DB, plugins []plugin.Plugin) *mounted {
-	reg := plugin.NewRegistry()
-	cacheBackend := cache.New("")
-	endpoints := endpoint.NewEngine()
-	pctx := &plugin.Context{
-		DB:               gdb,
-		Provide:          reg.Provide,
-		Lookup:           reg.Lookup,
-		Cache:            cache.NewScoped(cacheBackend, "mcp"),
-		RegisterEndpoint: endpoints.Register,
-		RegisterTenantView: func(view plugin.TenantView) {
-			if err := tenantsql.DefaultRegistry().Register(view); err != nil {
-				slog.Warn("mcp: failed to register tenant view", "name", view.Name, "err", err)
-			}
-		},
-		RegisterReactor: eventbus.RegisterReactor,
-		// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
-		// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
-	}
-	pctx.Host = plugin.EnsureHost(pctx)
-	for _, p := range plugins {
-		pctxCopy := *pctx
-		pctxCopy.Cache = cache.NewScoped(cacheBackend, p.Name())
-		p.Mount(nil, &pctxCopy)
-	}
-	return &mounted{host: pctx.Host, lookup: reg.Lookup, endpoints: endpoints}
-}
-
-// validatePlugins runs every plugin's own startup check in Requires order. The
-// two composition roots that mount plugins (app.Run and NewServerInstance) must
-// both call it, or a plugin's refusal to start holds on one surface only.
-func validatePlugins(ctx context.Context, plugins []plugin.Plugin, host plugin.Host) error {
-	ordered, err := plugin.DependencyOrder(plugins)
-	if err != nil {
-		return err
-	}
-	for _, p := range ordered {
-		if v, ok := p.(plugin.Validator); ok {
-			if err := v.Validate(ctx, host); err != nil {
-				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
-			}
-		}
-	}
-	return nil
+func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) *mcp.Server {
+	return buildServerInstance(gdb, orgID, plugins, nil, true, gate)
 }
 
 // buildServerInstance is the single chokepoint that constructs an MCP server.
-// It neither mounts nor validates: the caller decides whether the plugins were
-// mounted here (NewServerInstance) or by the app that owns them
-// (NewNetworkedServerInstance). lookup is the service registry those mounts
-// produced; nil means there is none, and only core tools are registered.
-// endpoints is the engine those mounts registered into, or nil when nothing was
-// mounted.
-func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), endpoints *endpoint.Engine, gate plugin.TierGate) *mcp.Server {
-	if endpoints == nil {
-		endpoints = endpoint.NewEngine()
+func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool, gate plugin.TierGate) *mcp.Server {
+	lookupFn := lookup
+	endpointEngine := endpoint.NewEngine()
+	if mountPlugins {
+		reg := plugin.NewRegistry()
+		cacheBackend := cache.New("")
+		pctx := &plugin.Context{
+			DB:               gdb,
+			Provide:          reg.Provide,
+			Lookup:           reg.Lookup,
+			Cache:            cache.NewScoped(cacheBackend, "mcp"),
+			RegisterEndpoint: endpointEngine.Register,
+			RegisterTenantView: func(view plugin.TenantView) {
+				if err := tenantsql.DefaultRegistry().Register(view); err != nil {
+					slog.Warn("mcp: failed to register tenant view", "name", view.Name, "err", err)
+				}
+			},
+			RegisterReactor: eventbus.RegisterReactor,
+			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
+			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
+		}
+		pctx.Host = plugin.EnsureHost(pctx)
+		for _, p := range plugins {
+			pctxCopy := *pctx
+			pctxCopy.Cache = cache.NewScoped(cacheBackend, p.Name())
+			p.Mount(nil, &pctxCopy)
+		}
+		if lookupFn == nil {
+			lookupFn = reg.Lookup
+		}
 	}
 
-	s := &server{gdb: gdb, orgID: orgID, lookup: lookup, subs: &subscriptionTracker{}}
+	s := &server{gdb: gdb, orgID: orgID, lookup: lookupFn, subs: &subscriptionTracker{}}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
 	opts := &mcp.ServerOptions{
@@ -188,7 +140,7 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	s.registerTools(srv)
 	s.registerResources(srv)
 	s.registerExtraResources(srv)
-	if err := endpoints.MountMCP(srv, gate); err != nil {
+	if err := endpointEngine.MountMCP(srv, gate); err != nil {
 		slog.Warn("mcp: failed to mount endpoint engine tools", "err", err)
 	}
 
@@ -228,10 +180,7 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.Ti
 	// fallback — a fallback that is harmless here and a cross-tenant read over
 	// the network. One line at the entry point removes the need for all of them.
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
-	srv, err := NewServerInstance(ctx, gdb, stdioOrgID, plugins, gate)
-	if err != nil {
-		return err
-	}
+	srv := NewServerInstance(gdb, stdioOrgID, plugins, gate)
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }
 

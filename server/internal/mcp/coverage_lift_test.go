@@ -28,7 +28,7 @@ func TestCoverageLiftRegisterTenantViewAndRunWithPlugins(t *testing.T) {
 	gdb := setupExtraResourcesTestDB(t)
 
 	// 1. RegisterTenantView in NewServerInstance
-	srv := newStdioServer(t, gdb, 1, []plugin.Plugin{dummyTenantViewPlugin{}}, nil)
+	srv := NewServerInstance(gdb, 1, []plugin.Plugin{dummyTenantViewPlugin{}}, nil)
 	if srv == nil {
 		t.Fatalf("expected non-nil server")
 	}

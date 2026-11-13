@@ -41,7 +41,7 @@ func TestRegisterMCPSkipsUncoveredTiers(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &tieredPlugin{name: "tiered", tier: tc.tier}
-			newStdioServer(t, nil, 1, []plugin.Plugin{p}, tc.gate)
+			NewServerInstance(nil, 1, []plugin.Plugin{p}, tc.gate)
 			if p.calls != tc.want {
 				t.Errorf("RegisterMCP calls = %d, want %d", p.calls, tc.want)
 			}
