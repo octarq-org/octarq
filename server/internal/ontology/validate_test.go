@@ -79,6 +79,23 @@ func TestValidateAcceptsAWellFormedSpec(t *testing.T) {
 	}
 }
 
+// TestValidateAcceptsTypedDefaultsAndKnownTiers is the positive half of the two
+// checks above: a default that parses and a tier the license ladder knows must
+// pass, or the refusals would be indistinguishable from "this is unsupported".
+func TestValidateAcceptsTypedDefaultsAndKnownTiers(t *testing.T) {
+	spec := validSpec()
+	spec.Fields = append(spec.Fields,
+		ontology.Field{Name: "due_at", Type: ontology.TypeTimestamp, Default: strptr("2026-01-02T03:04:05Z")},
+		ontology.Field{Name: "owner", Type: ontology.TypeUUID, Default: strptr("3f0e1a52-9a4a-4a2e-8f1f-2b6c9f0d1e2a")},
+	)
+	for _, tier := range []string{"", ontology.TierPro, ontology.TierElite} {
+		spec.Operations[ontology.OpGet] = ontology.OperationACL{Roles: []string{"member"}, Tier: tier}
+		if err := ontology.Validate(spec); err != nil {
+			t.Fatalf("Validate with tier %q = %v, want nil", tier, err)
+		}
+	}
+}
+
 func TestValidateRejectsBadFields(t *testing.T) {
 	base := func(mut func(*ontology.Spec)) ontology.Spec {
 		s := validSpec()
@@ -129,6 +146,15 @@ func TestValidateRejectsBadFields(t *testing.T) {
 		{"non-boolean default", base(func(s *ontology.Spec) {
 			s.Fields = append(s.Fields, ontology.Field{Name: "on", Type: ontology.TypeBoolean, Default: strptr("yes")})
 		}), ontology.CodeDefaultInvalid},
+		{"non-timestamp default", base(func(s *ontology.Spec) {
+			s.Fields = append(s.Fields, ontology.Field{Name: "due_at", Type: ontology.TypeTimestamp, Default: strptr("yesterday")})
+		}), ontology.CodeDefaultInvalid},
+		{"non-uuid default", base(func(s *ontology.Spec) {
+			s.Fields = append(s.Fields, ontology.Field{Name: "owner", Type: ontology.TypeUUID, Default: strptr("nope")})
+		}), ontology.CodeDefaultInvalid},
+		{"unknown tier", base(func(s *ontology.Spec) {
+			s.Operations[ontology.OpGet] = ontology.OperationACL{Roles: []string{"member"}, Tier: "Pro"}
+		}), ontology.CodeTierUnknown},
 		{"missing operation", base(func(s *ontology.Spec) {
 			delete(s.Operations, ontology.OpDelete)
 		}), ontology.CodeACLEmpty},

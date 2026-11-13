@@ -96,6 +96,13 @@ type OperationACL struct {
 	RequireApproval bool     `json:"requireApproval,omitempty"`
 }
 
+// License tiers an operation can require. They are the self-hosted ladder, where
+// elite covers pro; an empty tier is free.
+const (
+	TierPro   = "pro"
+	TierElite = "elite"
+)
+
 // Spec is one entity declaration.
 type Spec struct {
 	Slug        string                     `json:"slug"`
@@ -181,6 +188,16 @@ func validRole(r string) bool {
 		}
 	}
 	return false
+}
+
+// validTier reports whether tier is one the license ladder knows, or free.
+func validTier(tier string) bool {
+	switch tier {
+	case "", TierPro, TierElite:
+		return true
+	default:
+		return false
+	}
 }
 
 // FieldByType maps a declared type to a Go-free zero value used when a column is

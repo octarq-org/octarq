@@ -9,9 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
+
+// maxStringChars is the width of a string column on Postgres and MySQL.
+const maxStringChars = 255
 
 // Value issue codes. They share the Issue shape with declaration codes so one
 // error type reaches the client for both.
@@ -120,6 +124,12 @@ func coerceValue(f Field, v any) (any, error) {
 		s, ok := v.(string)
 		if !ok {
 			return nil, fmt.Errorf("%q must be a string", f.Name)
+		}
+		// A string column is VARCHAR(255) on Postgres and MySQL and TEXT on
+		// SQLite. Without this check the same body is accepted on one dialect and
+		// refused by the driver on the other two.
+		if f.Type == TypeString && utf8.RuneCountInString(s) > maxStringChars {
+			return nil, fmt.Errorf("%q is longer than %d characters", f.Name, maxStringChars)
 		}
 		return s, nil
 	case TypeUUID:

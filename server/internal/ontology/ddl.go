@@ -160,11 +160,23 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	}
 	table := TableName(spec.Slug)
 
-	cols := []string{
-		d.Quote(ColumnID) + " " + quoteColumnType(d, TypeString) + " PRIMARY KEY",
-		d.Quote(ColumnOrgID) + " " + quoteColumnType(d, TypeInteger) + " NOT NULL",
-		d.Quote(ColumnCreatedAt) + " " + quoteColumnType(d, TypeTimestamp) + " NOT NULL",
-		d.Quote(ColumnUpdatedAt) + " " + quoteColumnType(d, TypeTimestamp) + " NOT NULL",
+	platform := []struct {
+		name       string
+		typ        FieldType
+		constraint string
+	}{
+		{ColumnID, TypeString, "PRIMARY KEY"},
+		{ColumnOrgID, TypeInteger, "NOT NULL"},
+		{ColumnCreatedAt, TypeTimestamp, "NOT NULL"},
+		{ColumnUpdatedAt, TypeTimestamp, "NOT NULL"},
+	}
+	cols := make([]string, 0, len(platform)+len(spec.Fields))
+	for _, p := range platform {
+		ct, err := d.ColumnType(p.typ)
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, d.Quote(p.name)+" "+ct+" "+p.constraint)
 	}
 	for _, f := range spec.Fields {
 		def, err := columnDefinition(d, f)
@@ -196,14 +208,6 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	}
 
 	return stmts, nil
-}
-
-func quoteColumnType(d Dialect, t FieldType) string {
-	ct, err := d.ColumnType(t)
-	if err != nil {
-		return "TEXT"
-	}
-	return ct
 }
 
 func columnDefinition(d Dialect, f Field) (string, error) {

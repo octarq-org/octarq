@@ -2,6 +2,7 @@ package ontology_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,6 +84,27 @@ func TestDecodeValuesRefusesWrongTypes(t *testing.T) {
 				t.Fatalf("expected an error for %s", body)
 			}
 		})
+	}
+}
+
+// TestDecodeValuesBoundsStringWidth pins the one limit the column type carries.
+// A string column is VARCHAR(255) on Postgres and MySQL and TEXT on SQLite, so
+// without this check the same body is accepted on SQLite and refused by the
+// driver on the other two — a 500 instead of a 422.
+func TestDecodeValuesBoundsStringWidth(t *testing.T) {
+	atLimit := strings.Repeat("a", 255)
+	if _, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"`+atLimit+`"}`)); err != nil {
+		t.Fatalf("DecodeValues at the column width: %v", err)
+	}
+	overLimit := strings.Repeat("a", 256)
+	if _, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"`+overLimit+`"}`)); err == nil {
+		t.Fatal("a value wider than the column was accepted")
+	}
+	// Text is unbounded on every dialect, so the same width passes there.
+	textSpec := valueSpec()
+	textSpec.Fields = append(textSpec.Fields, ontology.Field{Name: "body", Type: ontology.TypeText})
+	if _, err := ontology.DecodeValues(textSpec, []byte(`{"title":"x","body":"`+overLimit+`"}`)); err != nil {
+		t.Fatalf("DecodeValues on a text field: %v", err)
 	}
 }
 

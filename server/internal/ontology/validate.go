@@ -6,6 +6,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 // Issue codes. Each one is stable: callers branch on it, and operators see it in
@@ -32,6 +35,7 @@ const (
 	CodeApprovalUnsupported   = "APPROVAL_UNSUPPORTED"
 	CodeIndexRemoved          = "INDEX_REMOVED"
 	CodeColumnDropUnsupported = "COLUMN_DROP_UNSUPPORTED"
+	CodeTierUnknown           = "TIER_UNKNOWN"
 
 	CodeRequiredChangeUnsupported = "REQUIRED_CHANGE_UNSUPPORTED"
 	CodeDefaultChangeUnsupported  = "DEFAULT_CHANGE_UNSUPPORTED"
@@ -48,9 +52,9 @@ func sameDefault(a, b *string) bool {
 }
 
 // validDefault reports whether a literal default parses as its declared type.
-// Numeric and boolean defaults render unquoted in DDL, so a value that does not
-// parse would produce a statement the database either rejects or coerces
-// silently — both fail-closed violations.
+// A value that does not parse would produce a statement the database either
+// rejects or coerces silently — Postgres refuses the DDL, SQLite stores the
+// literal, and either way the declaration stops meaning what it says.
 func validDefault(t FieldType, raw string) bool {
 	s := strings.TrimSpace(raw)
 	switch t {
@@ -62,6 +66,12 @@ func validDefault(t FieldType, raw string) bool {
 		return err == nil
 	case TypeBoolean:
 		return s == "true" || s == "false"
+	case TypeTimestamp:
+		_, err := time.Parse(time.RFC3339, s)
+		return err == nil
+	case TypeUUID:
+		_, err := uuid.Parse(s)
+		return err == nil
 	default:
 		return true
 	}
@@ -195,6 +205,12 @@ func Validate(spec Spec) error {
 			if !validRole(r) {
 				errs = append(errs, issue(CodeRoleUnknown, path+".roles", "%q is not a known role", r))
 			}
+		}
+		// A tier the license ladder does not recognise ranks below every tier, so
+		// a typo would ship the operation without the gate it promised.
+		if !validTier(acl.Tier) {
+			errs = append(errs, issue(CodeTierUnknown, path+".tier",
+				"%q is not a known tier; use %q, %q or leave it empty", acl.Tier, TierPro, TierElite))
 		}
 		// Approval is enforced by the agent harness only, and the MCP surface
 		// merely appends "[approval required]" to the tool description. A
