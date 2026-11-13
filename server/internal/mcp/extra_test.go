@@ -32,7 +32,7 @@ func TestBuildServerInstance_WithMCPProvider(t *testing.T) {
 	}
 
 	p := &mockMCPPlugin{name: "mock-mcp"}
-	srv := NewServerInstance(gdb, 1, []plugin.Plugin{p}, nil)
+	srv := newStdioServer(t, gdb, 1, []plugin.Plugin{p}, nil)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 		return

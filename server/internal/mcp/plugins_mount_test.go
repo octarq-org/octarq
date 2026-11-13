@@ -20,7 +20,7 @@ func TestNewServerInstanceMountsBuiltins(t *testing.T) {
 				"mux and a nil Guard. Skip HTTP registration when they are absent.", r)
 		}
 	}()
-	if srv := NewServerInstance(nil, 1, builtin.Default(), nil); srv == nil {
+	if srv := newStdioServer(t, nil, 1, builtin.Default(), nil); srv == nil {
 		t.Fatal("NewServerInstance returned nil")
 	}
 }

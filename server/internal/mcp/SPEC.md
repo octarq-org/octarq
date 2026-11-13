@@ -11,6 +11,7 @@ The `internal/mcp` package implements Octarq's Model Context Protocol (MCP) prov
 - **Networked Mount Isolation**: Plugins are mounted once at bootstrap. Networked MCP instances **never re-mount plugins**; re-mounting per connection would overwrite process-wide resolvers and leak cross-tenant context.
 - **Tier-Gated Tools**: A plugin declares the license tier its MCP tools require with `MCPTier()`; an `EndpointSpec` declares it with `Tier`. The composition consults the injected `plugin.TierGate` and never registers a tool whose tier the instance does not cover. An empty tier is free and always registered. HTTP applies the same declaration: `RegisterHTTP` publishes it as `plugin.MetadataTier`, which the platform gate reads.
 - **Stdio Mount Contract**: `NewServerInstance` mounts plugins with no HTTP surface: `ctx.Huma` is nil, the mux is nil, and `ctx.Guard` is nil, because this transport serves no HTTP. Plugins **must skip HTTP registration** when that surface is absent, and keep their MCP tool registration (`RegisterMCP`) unconditional. A plugin that registers routes unconditionally panics the stdio server at startup.
+- **Startup Validation Before Tool Registration**: The stdio path is a composition root of its own — it never runs `app.Run` — so it calls every plugin's `plugin.Validator.Validate` itself, after mounting and before any tool is registered. A plugin that refuses to start over HTTP therefore cannot expose its tools here. The pass runs in `plugin.DependencyOrder`, the same order the HTTP boot path uses. A failure returns an error and no server.
 - **Resource Subscriptions & Live Updates**: Supports MCP push notifications (`notifications/resources/updated`) for streaming trending links and new incoming mailbox arrivals.
 - **Binary Embedding Guarantee**: Co-located at `server/internal/mcp/SPEC.md`. Strictly excluded from binary embedding.
 
@@ -20,11 +21,13 @@ The `internal/mcp` package implements Octarq's Model Context Protocol (MCP) prov
 
 ### 2.1 Constructors
 ```go
-// Single-operator stdio construction (mounts plugins locally). gate is the
-// operator's tier judge; nil means this build has no tier model.
-func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) *mcp.Server
+// Single-operator stdio construction (mounts plugins locally, then validates
+// them in Requires order). gate is the operator's tier judge; nil means this
+// build has no tier model. A plugin that fails Validate aborts the build.
+func NewServerInstance(ctx context.Context, gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) (*mcp.Server, error)
 
-// Multi-tenant networked construction (consumes shared registry, does NOT re-mount)
+// Multi-tenant networked construction (consumes shared registry, does NOT re-mount
+// and does NOT validate: the owning app validated these plugins at boot)
 func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool)) *mcp.Server
 
 // CLI stdio runner
