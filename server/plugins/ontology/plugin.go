@@ -136,6 +136,13 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 
 	p.registerRoutes(ctx)
+
+	// A workspace deletion has to take its declared rows with it, and nothing
+	// else knows these tables exist. Provided after Apply, so the tables this
+	// purge walks are the ones that were actually created.
+	if ctx.Provide != nil {
+		ctx.Provide(plugin.PurgeServiceName(p.Name()), plugin.PurgeFunc(p.purge))
+	}
 }
 
 // ensureLoaded reads and validates the declarations once.

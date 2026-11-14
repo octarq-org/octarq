@@ -74,6 +74,20 @@ Also absent, by design rather than by omission: relations, lifecycle hooks,
 computed fields, row-level ACLs and hot reload. A module whose table needs those
 keeps it in Go.
 
+### Workspace deletion
+
+A generated table belongs to the workspace that wrote it, so the plugin provides
+`plugin.PurgeServiceName("ontology")` as a `plugin.PurgeFunc`. The platform looks
+it up before it deletes an org and passes the org id.
+
+The purge walks the applied set — not the file — and deletes each entity's rows
+through a `TenantDB` scoped to that org. A declaration that arrived in Go is
+purged the same way; a declaration that failed to apply has no table to purge. A
+purge with org 0 is refused rather than deleting nothing and reporting success.
+
+Nothing else knows these tables exist, so a plugin that skips this seam leaves
+every deleted workspace's rows behind, silently.
+
 ## Declaration sources
 
 Two sources, merged:
