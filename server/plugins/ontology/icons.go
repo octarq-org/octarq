@@ -3,7 +3,7 @@ package ontology
 import (
 	"fmt"
 
-	core "github.com/octarq-org/octarq/server/internal/ontology"
+	core "github.com/octarq-org/octarq/server/ontology"
 )
 
 // defaultIcon is the sidebar glyph for an entity that declares none. It must be

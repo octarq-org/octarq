@@ -1,7 +1,7 @@
 package ontology
 
 import (
-	core "github.com/octarq-org/octarq/server/internal/ontology"
+	core "github.com/octarq-org/octarq/server/ontology"
 )
 
 // entity is one declared spec together with the values derived from it once at

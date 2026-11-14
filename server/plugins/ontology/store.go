@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	core "github.com/octarq-org/octarq/server/internal/ontology"
+	core "github.com/octarq-org/octarq/server/ontology"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )

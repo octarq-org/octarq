@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	core "github.com/octarq-org/octarq/server/internal/ontology"
+	core "github.com/octarq-org/octarq/server/ontology"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/server/internal/ontology"
+	"github.com/octarq-org/octarq/server/ontology"
 )
 
 func strptr(s string) *string { return &s }

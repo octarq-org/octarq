@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/server/internal/ontology"
+	"github.com/octarq-org/octarq/server/ontology"
 )
 
 const oneEntity = `{"entities":[{"slug":"tickets","label":"Ticket",
