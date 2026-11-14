@@ -107,13 +107,27 @@ func (postgresDialect) ColumnType(t FieldType) (string, error) { return columnTy
 func (mysqlDialect) ColumnType(t FieldType) (string, error)    { return columnType("mysql", t) }
 
 // PlatformColumns are the columns every generated table carries. A declaration
-// cannot name them (see ReservedColumnNames).
+// cannot name them (see ReservedColumnNames). ColumnUserID joins them only when
+// the entity is user-scoped.
 const (
 	ColumnID        = "id"
 	ColumnOrgID     = "org_id"
+	ColumnUserID    = "user_id"
 	ColumnCreatedAt = "created_at"
 	ColumnUpdatedAt = "updated_at"
 )
+
+// ScopeColumns returns the columns that partition a table, in index order. Every
+// index the platform creates starts with them, so a unique field is unique
+// inside a workspace, and inside one member's rows when the entity is
+// user-scoped.
+func ScopeColumns(spec Spec) []string {
+	cols := []string{ColumnOrgID}
+	if ScopeOf(spec) == ScopeUser {
+		cols = append(cols, ColumnUserID)
+	}
+	return cols
+}
 
 // maxIdentLen is the smallest identifier limit across the three dialects
 // (Postgres and MySQL both stop at 63/64 bytes). Longer names are truncated and
@@ -131,25 +145,36 @@ func indexName(prefix, table, column string) string {
 	return name[:keep] + "_" + suffix
 }
 
-// TenantIndexName is the name of the (org_id) index every entity table carries.
+// TenantIndexName is the name of the scope index every entity table carries.
 // Creation and reconciliation call this same function on purpose: a name longer
 // than maxIdentLen gains a hash suffix, so a reconciler that spelled
 // "idx_<table>_<column>" by hand would miss the index actually created and
 // re-create it on every boot.
-func TenantIndexName(table string) string { return indexName("idx", table, ColumnOrgID) }
+func TenantIndexName(spec Spec) string {
+	return indexName("idx", TableName(spec.Slug), strings.Join(ScopeColumns(spec), "_"))
+}
 
-// FieldIndexName is the name of the index for one declared field. The index is
-// always (org_id, field), so a tenant's rows never collide across tenants.
-func FieldIndexName(table string, f Field) string {
+// FieldIndexName is the name of the index for one declared field. The index
+// always starts with the scope columns, so a tenant's rows never collide across
+// tenants — nor, on a user-scoped entity, across members of one tenant.
+func FieldIndexName(spec Spec, f Field) string {
 	prefix := "idx"
 	if f.Unique {
 		prefix = "uq"
 	}
-	return indexName(prefix, table, ColumnOrgID+"_"+f.Name)
+	cols := append(ScopeColumns(spec), f.Name)
+	return indexName(prefix, TableName(spec.Slug), strings.Join(cols, "_"))
+}
+
+// platformColumn is one column the platform adds to every generated table.
+type platformColumn struct {
+	name       string
+	typ        FieldType
+	constraint string
 }
 
 // CreateTableSQL returns the statements that create an entity's table: the table
-// itself, the tenant index, and one index per declared index or unique field.
+// itself, the scope index, and one index per declared index or unique field.
 // The caller runs them in order.
 func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	if d == nil {
@@ -160,16 +185,17 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	}
 	table := TableName(spec.Slug)
 
-	platform := []struct {
-		name       string
-		typ        FieldType
-		constraint string
-	}{
+	platform := []platformColumn{
 		{ColumnID, TypeString, "PRIMARY KEY"},
 		{ColumnOrgID, TypeInteger, "NOT NULL"},
-		{ColumnCreatedAt, TypeTimestamp, "NOT NULL"},
-		{ColumnUpdatedAt, TypeTimestamp, "NOT NULL"},
 	}
+	if ScopeOf(spec) == ScopeUser {
+		platform = append(platform, platformColumn{ColumnUserID, TypeInteger, "NOT NULL"})
+	}
+	platform = append(platform,
+		platformColumn{ColumnCreatedAt, TypeTimestamp, "NOT NULL"},
+		platformColumn{ColumnUpdatedAt, TypeTimestamp, "NOT NULL"},
+	)
 	cols := make([]string, 0, len(platform)+len(spec.Fields))
 	for _, p := range platform {
 		ct, err := d.ColumnType(p.typ)
@@ -190,7 +216,7 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 		"CREATE TABLE " + d.Quote(table) + " (\n  " + strings.Join(cols, ",\n  ") + "\n)",
 	}
 
-	tenantIdx, err := CreateIndexSQL(d, table, []string{ColumnOrgID}, false, "")
+	tenantIdx, err := CreateIndexSQL(d, table, ScopeColumns(spec), false, "")
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +226,7 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 		if !f.Indexed && !f.Unique {
 			continue
 		}
-		stmt, err := CreateIndexSQL(d, table, []string{ColumnOrgID, f.Name}, f.Unique, "")
+		stmt, err := CreateIndexSQL(d, table, append(ScopeColumns(spec), f.Name), f.Unique, "")
 		if err != nil {
 			return nil, err
 		}

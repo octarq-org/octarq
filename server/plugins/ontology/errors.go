@@ -71,6 +71,13 @@ func asFailure(err error) *failure {
 			message:    ErrNoRole.Error(),
 			suggestion: "Connect to the HTTP MCP endpoint with an API token whose role allows this operation.",
 		}
+	case errors.Is(err, ErrNoUserScope):
+		return &failure{
+			status:     403,
+			code:       "FORBIDDEN",
+			message:    ErrNoUserScope.Error(),
+			suggestion: "This entity keeps one record set per member. Call it over HTTP with a session or an API token.",
+		}
 	case errors.Is(err, ErrForbidden):
 		return &failure{
 			status:     403,

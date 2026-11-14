@@ -11,6 +11,7 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 
@@ -350,5 +351,49 @@ func TestRequireMiddleware(t *testing.T) {
 	}
 	if rec.Body.String() != "uid=0,orgID=88" {
 		t.Errorf("expected 'uid=0,orgID=88', got '%s'", rec.Body.String())
+	}
+}
+
+// TestRequireStampsTheUserIDForPlugins pins the key a plugin reads. The middleware
+// used to write only this package's own key, so plugin.UserIDFromContext — and
+// every reader built on it — answered 0 on every authenticated request.
+func TestRequireStampsTheUserIDForPlugins(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	var got uint
+	handler := m.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = plugin.UserIDFromContext(r.Context())
+	}))
+
+	// Session cookie.
+	recCookie := httptest.NewRecorder()
+	m.SetSession(recCookie, httptest.NewRequest(http.MethodGet, "/", nil), 42, 99)
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	for _, c := range recCookie.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	if got != 42 {
+		t.Fatalf("plugin.UserIDFromContext after a session request = %d, want 42", got)
+	}
+
+	// Bearer token.
+	raw := "oct_testtoken_plugin_userid_1234"
+	tok := models.Token{
+		UserID: 7,
+		OrgID:  88,
+		Name:   "plugin-userid",
+		Hash:   models.HashToken(raw),
+		Prefix: raw[:8],
+	}
+	if err := db.Create(&tok).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+	reqBearer := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	reqBearer.Header.Set("Authorization", "Bearer "+raw)
+	handler.ServeHTTP(httptest.NewRecorder(), reqBearer)
+	if got != 7 {
+		t.Fatalf("plugin.UserIDFromContext after a token request = %d, want 7", got)
 	}
 }

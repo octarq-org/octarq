@@ -29,6 +29,14 @@ var (
 
 	// ErrInvalidTenantColumn is returned when TableScoped receives an empty or malformed tenant column.
 	ErrInvalidTenantColumn = errors.New("tenantsql: invalid tenant column")
+
+	// ErrInvalidScopeColumn is returned when TableScopedBy receives a malformed scope column.
+	ErrInvalidScopeColumn = errors.New("tenantsql: invalid scope column")
+
+	// ErrEmptyScopeValue is returned when a scope predicate would bind a zero
+	// value. `user_id = 0` matches no row, so a caller that resolved nothing
+	// would get an empty page instead of the refusal it should see.
+	ErrEmptyScopeValue = errors.New("tenantsql: scope value must not be zero")
 )
 
 // DefaultTenantColumn is the standard column used for tenant isolation in Octarq (legacy owner_id).
@@ -245,6 +253,16 @@ func (t *TenantDB) Table(name string, args ...any) *gorm.DB {
 	return tx.Where(fmt.Sprintf("%s = ?", t.defaultColumn), t.orgID)
 }
 
+// Scope is one equality predicate a scoped handle binds. It exists for the
+// tables that are isolated by more than their workspace: a row may belong to one
+// member of the workspace. The column is the caller's to name, but the value is
+// server-side truth — a scope value read from request input is the isolation
+// this type exists to prevent.
+type Scope struct {
+	Column string
+	Value  any
+}
+
 // TableScoped returns a tenant-scoped query handle for a table this handle has
 // no Go model for. Every other method infers the tenant column by reflecting on
 // a model; a table created at runtime has no struct to reflect over, so the
@@ -252,6 +270,14 @@ func (t *TenantDB) Table(name string, args ...any) *gorm.DB {
 // predicate is built as a column clause rather than a format string, so neither
 // name can carry SQL.
 func (t *TenantDB) TableScoped(table, tenantColumn string) (*gorm.DB, error) {
+	return t.TableScopedBy(table, tenantColumn)
+}
+
+// TableScopedBy is TableScoped plus the caller's own isolation predicates. The
+// workspace predicate is always added here; a second dimension is a column the
+// caller names but a value this handle binds, so a query built through it cannot
+// silently omit the owner.
+func (t *TenantDB) TableScopedBy(table, tenantColumn string, extra ...Scope) (*gorm.DB, error) {
 	if t == nil || t.db == nil {
 		return nil, ErrNilDB
 	}
@@ -264,10 +290,41 @@ func (t *TenantDB) TableScoped(table, tenantColumn string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("%w: %q", ErrInvalidTenantColumn, tenantColumn)
 	}
 
-	return t.db.Table(table).Where(clause.Eq{
+	query := t.db.Table(table).Where(clause.Eq{
 		Column: clause.Column{Name: tenantColumn},
 		Value:  t.orgID,
-	}), nil
+	})
+	for _, s := range extra {
+		column := strings.TrimSpace(s.Column)
+		if column == "" || !validIdentPattern.MatchString(column) {
+			return nil, fmt.Errorf("%w: %q", ErrInvalidScopeColumn, s.Column)
+		}
+		if isZeroScopeValue(s.Value) {
+			return nil, fmt.Errorf("%w: %q", ErrEmptyScopeValue, column)
+		}
+		query = query.Where(clause.Eq{
+			Column: clause.Column{Name: column},
+			Value:  s.Value,
+		})
+	}
+	return query, nil
+}
+
+// isZeroScopeValue reports whether v would make an equality predicate match
+// nothing: nil, an empty string, or a zero number.
+func isZeroScopeValue(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.String, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return rv.IsZero()
+	default:
+		return false
+	}
 }
 
 // Where appends a query condition to the tenant-scoped query.

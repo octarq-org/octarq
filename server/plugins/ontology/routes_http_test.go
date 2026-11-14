@@ -38,9 +38,16 @@ func (f *httpFixture) auditLog() []string {
 }
 
 func newHTTPFixture(t *testing.T, role string, orgID uint) *httpFixture {
+	return newHTTPFixtureDoc(t, role, orgID, 0, ticketDoc)
+}
+
+// newHTTPFixtureDoc is newHTTPFixture with an authenticated member and another
+// declaration. userID 0 models a transport that stamps a workspace and no
+// identity, which is what stdio MCP does.
+func newHTTPFixtureDoc(t *testing.T, role string, orgID, userID uint, doc string) *httpFixture {
 	t.Helper()
-	db := openDB(t)
-	t.Setenv(EntitiesEnv, ticketDoc)
+	db := openDocDB(t, doc)
+	t.Setenv(EntitiesEnv, doc)
 	t.Setenv(EntitiesFileEnv, "")
 
 	mux := http.NewServeMux()
@@ -49,6 +56,9 @@ func newHTTPFixture(t *testing.T, role string, orgID uint) *httpFixture {
 	// operation when it is registered.
 	api.UseMiddleware(func(c huma.Context, next func(huma.Context)) {
 		ctx := plugin.WithOrgID(plugin.WithTokenRole(context.Background(), role), orgID)
+		if userID != 0 {
+			ctx = plugin.WithUserID(ctx, userID)
+		}
 		next(huma.WithContext(c, ctx))
 	})
 

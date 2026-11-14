@@ -182,6 +182,7 @@ func TestAsFailureMapsEveryRefusal(t *testing.T) {
 		{ErrNoTenantScope, 401, "UNAUTHENTICATED"},
 		{ErrNoDatabase, 503, "DATABASE_UNAVAILABLE"},
 		{ErrNoRole, 403, "FORBIDDEN"},
+		{ErrNoUserScope, 403, "FORBIDDEN"},
 		{ErrForbidden, 403, "FORBIDDEN"},
 		{ErrUnknownSort, 422, "UNKNOWN_SORT"},
 		{ErrInvalidArgument, 422, "INVALID_ARGUMENT"},

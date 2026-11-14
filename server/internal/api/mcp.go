@@ -35,6 +35,7 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 				// MCP-driven mutation lands in the audit log with actor 0 and no
 				// tokenId, i.e. attributable to nobody at all.
 				ctx := auth.WithOrgID(r.Context(), tok.OrgID)
+				ctx = auth.WithUserID(ctx, tok.UserID)
 				ctx = h.auth.WithTokenIdentity(ctx, tok)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return

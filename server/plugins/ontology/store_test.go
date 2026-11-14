@@ -15,6 +15,12 @@ import (
 // booted server leaves behind.
 func openDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	return openDocDB(t, ticketDoc)
+}
+
+// openDocDB is openDB for another declaration document.
+func openDocDB(t *testing.T, doc string) *gorm.DB {
+	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
@@ -22,7 +28,7 @@ func openDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(&core.AppliedSpec{}); err != nil {
 		t.Fatalf("migrate bookkeeping: %v", err)
 	}
-	specs, err := core.DecodeString(ticketDoc)
+	specs, err := core.DecodeString(doc)
 	if err != nil {
 		t.Fatalf("decode declaration: %v", err)
 	}

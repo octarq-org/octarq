@@ -61,8 +61,8 @@ func TestApplyCreatesTableAndIsIdempotent(t *testing.T) {
 		t.Fatalf("indexes: %v", err)
 	}
 	for _, want := range []string{
-		ontology.TenantIndexName("ont_tickets"),
-		ontology.FieldIndexName("ont_tickets", spec.Fields[0]),
+		ontology.TenantIndexName(spec),
+		ontology.FieldIndexName(spec, spec.Fields[0]),
 	} {
 		if !idx[want] {
 			t.Fatalf("index %q missing, have %v", want, idx)
@@ -230,7 +230,7 @@ func TestApplyRecreatesMissingIndex(t *testing.T) {
 	if err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{spec}); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	name := ontology.TenantIndexName("ont_tickets")
+	name := ontology.TenantIndexName(spec)
 	if err := db.Exec(`DROP INDEX "` + name + `"`).Error; err != nil {
 		t.Fatalf("drop index: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestApplyIndexesAddedField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("indexes: %v", err)
 	}
-	if want := ontology.FieldIndexName("ont_tickets", v2.Fields[2]); !idx[want] {
+	if want := ontology.FieldIndexName(v2, v2.Fields[2]); !idx[want] {
 		t.Fatalf("index %q missing after adding a unique field: %v", want, idx)
 	}
 }

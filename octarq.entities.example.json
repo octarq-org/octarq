@@ -50,11 +50,92 @@
         }
       ],
       "operations": {
-        "list": { "roles": ["member"], "exposeMcp": true },
-        "get": { "roles": ["member"], "exposeMcp": true },
-        "create": { "roles": ["member"], "exposeMcp": true },
-        "update": { "roles": ["member"], "exposeMcp": true },
-        "delete": { "roles": ["admin"], "exposeMcp": true }
+        "list": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "get": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "create": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "update": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "delete": {
+          "roles": [
+            "admin"
+          ],
+          "exposeMcp": true
+        }
+      }
+    },
+    {
+      "slug": "notes",
+      "label": "Note",
+      "pluralLabel": "Notes",
+      "icon": "scroll-text",
+      "scope": "user",
+      "fields": [
+        {
+          "name": "body",
+          "type": "text",
+          "label": "Note",
+          "required": true,
+          "widget": "textarea",
+          "listColumn": true
+        },
+        {
+          "name": "pinned",
+          "type": "boolean",
+          "label": "Pinned",
+          "default": "false",
+          "listColumn": true
+        }
+      ],
+      "operations": {
+        "list": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "get": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "create": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "update": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        },
+        "delete": {
+          "roles": [
+            "member"
+          ],
+          "exposeMcp": true
+        }
       }
     }
   ]

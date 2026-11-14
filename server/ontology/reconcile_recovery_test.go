@@ -70,8 +70,8 @@ func TestApplyStepClaimsTableCreatedBeforeAFailure(t *testing.T) {
 		t.Fatalf("indexes: %v", err)
 	}
 	for _, want := range []string{
-		TenantIndexName("ont_tickets"),
-		FieldIndexName("ont_tickets", spec.Fields[0]),
+		TenantIndexName(spec),
+		FieldIndexName(spec, spec.Fields[0]),
 	} {
 		if !idx[want] {
 			t.Fatalf("index %q was not repaired on the next boot: %v", want, idx)

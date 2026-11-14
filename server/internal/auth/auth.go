@@ -347,7 +347,10 @@ func (m *Manager) identify(r *http.Request) (context.Context, bool) {
 	// 1. Stateful session cookie.
 	if token := cookieToken(r); token != "" {
 		if s := m.sessionByToken(token); s != nil {
-			ctx := context.WithValue(r.Context(), userIDKey, s.UserID)
+			// WithUserID writes both the key this package reads and the one
+			// tenantsql (and therefore plugin.UserIDFromContext) reads. Writing
+			// only the local key left every plugin-facing reader at 0.
+			ctx := WithUserID(r.Context(), s.UserID)
 			ctx = plugin.WithOrgID(ctx, s.OrgID)
 			return context.WithValue(ctx, sessionIDKey, s.ID), true
 		}
@@ -355,7 +358,7 @@ func (m *Manager) identify(r *http.Request) (context.Context, bool) {
 
 	// 2. Bearer token (API access, no session row).
 	if tok, ok := m.TokenByRequest(r); ok {
-		ctx := context.WithValue(r.Context(), userIDKey, tok.UserID)
+		ctx := WithUserID(r.Context(), tok.UserID)
 		ctx = plugin.WithOrgID(ctx, tok.OrgID)
 		ctx = context.WithValue(ctx, sessionIDKey, uint(0))
 		return m.WithTokenIdentity(ctx, tok), true

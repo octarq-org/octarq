@@ -24,6 +24,11 @@ var ErrNotFound = errors.New("ontology: record not found")
 // no meaning without one.
 var ErrNoTenantScope = errors.New("ontology: no workspace in this request")
 
+// ErrNoUserScope is returned when a user-scoped entity is reached over a
+// transport that carries no user: stdio MCP stamps a workspace and no identity.
+// Reading the whole workspace instead would hand one member another's rows.
+var ErrNoUserScope = errors.New("ontology: this transport carries no user")
+
 // ErrNoDatabase is returned when the composition gave the plugin no database at
 // all. It is not an authentication problem, so it is not reported as one.
 var ErrNoDatabase = errors.New("ontology: the host provided no database")
@@ -61,7 +66,7 @@ type listParams struct {
 func (store) list(ctx context.Context, tdb *plugin.TenantDB, e *entity, p listParams) ([]map[string]any, int64, error) {
 	// Count on its own handle: reusing one handle across Count and Find makes
 	// GORM carry the count's SELECT list into the row query.
-	countQ, err := tenantScope(tdb, e)
+	countQ, _, err := tenantScope(ctx, tdb, e)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -70,7 +75,7 @@ func (store) list(ctx context.Context, tdb *plugin.TenantDB, e *entity, p listPa
 		return nil, 0, fmt.Errorf("ontology: count %s: %w", e.table, err)
 	}
 
-	scope, err := tenantScope(tdb, e)
+	scope, _, err := tenantScope(ctx, tdb, e)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -88,7 +93,7 @@ func (store) list(ctx context.Context, tdb *plugin.TenantDB, e *entity, p listPa
 
 // get reads one record. ErrNotFound covers both "absent" and "another tenant's".
 func (store) get(ctx context.Context, tdb *plugin.TenantDB, e *entity, id string) (map[string]any, error) {
-	scope, err := tenantScope(tdb, e)
+	scope, _, err := tenantScope(ctx, tdb, e)
 	if err != nil {
 		return nil, err
 	}
@@ -104,23 +109,27 @@ func (store) get(ctx context.Context, tdb *plugin.TenantDB, e *entity, id string
 
 // create inserts one record and returns the stored values.
 func (store) create(ctx context.Context, tdb *plugin.TenantDB, e *entity, values map[string]any) (map[string]any, error) {
-	scope, err := tenantScope(tdb, e)
+	scope, userID, err := tenantScope(ctx, tdb, e)
 	if err != nil {
 		return nil, err
 	}
 	id := uuid.NewString()
 	now := time.Now().UTC()
 
-	row := make(map[string]any, len(values)+4)
+	row := make(map[string]any, len(values)+5)
 	for k, v := range values {
 		row[k] = v
 	}
 	row[core.ColumnID] = id
-	// The org predicate TableScoped attaches applies to SELECT, UPDATE and
-	// DELETE; GORM drops the WHERE clause when it builds an INSERT. The column
-	// is therefore written here, from the handle itself, and never from the
-	// request — the reserved-key check upstream is what guarantees the latter.
+	// The scope predicates TableScopedBy attaches apply to SELECT, UPDATE and
+	// DELETE; GORM drops the WHERE clause when it builds an INSERT. The columns
+	// are therefore written here, from the handle and the request context, and
+	// never from the request body — the reserved-key check upstream is what
+	// guarantees the latter.
 	row[core.ColumnOrgID] = tdb.OrgID()
+	if core.ScopeOf(e.spec) == core.ScopeUser {
+		row[core.ColumnUserID] = userID
+	}
 	row[core.ColumnCreatedAt] = now
 	row[core.ColumnUpdatedAt] = now
 
@@ -136,7 +145,7 @@ func (store) update(ctx context.Context, tdb *plugin.TenantDB, e *entity, id str
 	if len(patch) == 0 {
 		return (store{}).get(ctx, tdb, e, id)
 	}
-	scope, err := tenantScope(tdb, e)
+	scope, _, err := tenantScope(ctx, tdb, e)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +170,7 @@ func (store) update(ctx context.Context, tdb *plugin.TenantDB, e *entity, id str
 // delete removes one record. Delete returns no error for a miss, so the count is
 // the answer.
 func (store) delete(ctx context.Context, tdb *plugin.TenantDB, e *entity, id string) error {
-	scope, err := tenantScope(tdb, e)
+	scope, _, err := tenantScope(ctx, tdb, e)
 	if err != nil {
 		return err
 	}
@@ -175,13 +184,33 @@ func (store) delete(ctx context.Context, tdb *plugin.TenantDB, e *entity, id str
 	return nil
 }
 
-// tenantScope is the one place the org predicate is attached. Always called with
-// the entity's own table, so a handler cannot point it at another table.
-func tenantScope(tdb *plugin.TenantDB, e *entity) (*gorm.DB, error) {
+// tenantScope is the one place the isolation predicates are attached, and the
+// one place a user id is read. Always called with the entity's own table, so a
+// handler cannot point it at another table. The user id it returns is the same
+// value it bound, so the row an insert writes and the predicate a read applies
+// cannot disagree.
+func tenantScope(ctx context.Context, tdb *plugin.TenantDB, e *entity) (*gorm.DB, uint, error) {
 	if tdb == nil || tdb.OrgID() == 0 {
-		return nil, ErrNoTenantScope
+		return nil, 0, ErrNoTenantScope
 	}
-	return tdb.TableScoped(e.table, core.ColumnOrgID)
+	if core.ScopeOf(e.spec) != core.ScopeUser {
+		scope, err := tdb.TableScoped(e.table, core.ColumnOrgID)
+		return scope, 0, err
+	}
+	// A user-scoped row belongs to the caller. The value comes from the request
+	// context, never from the body: a caller that could name the owner could read
+	// another member's rows.
+	userID := plugin.UserIDFromContext(ctx)
+	if userID == 0 {
+		// stdio MCP stamps a workspace and no identity, and an unauthenticated
+		// path has neither. Refuse rather than fall back to the whole workspace.
+		return nil, 0, ErrNoUserScope
+	}
+	scope, err := tdb.TableScopedBy(e.table, core.ColumnOrgID, plugin.Scope{
+		Column: core.ColumnUserID,
+		Value:  userID,
+	})
+	return scope, userID, err
 }
 
 // orderClause renders the declared sort. Every name was checked against the
