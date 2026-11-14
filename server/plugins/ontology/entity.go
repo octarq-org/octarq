@@ -25,6 +25,17 @@ func (e *entity) validate() error { return validateIcon(e.spec) }
 // than a tenant condition.
 func (e *entity) acl(op core.Operation) core.OperationACL { return e.spec.Operations[op] }
 
+// declares reports whether name is a field of this declaration. The writer uses
+// it to keep a caller-supplied lookup column inside the declared set.
+func (e *entity) declares(name string) bool {
+	for _, f := range e.spec.Fields {
+		if f.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // sortable reports whether name is a column the list endpoint may sort by.
 // Declared fields qualify, and so do the two platform timestamps: they exist on
 // every generated table and the default order already uses created_at, so
