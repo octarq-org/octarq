@@ -253,6 +253,15 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 
 	order := []string{}
 	byKey := map[string]*featureOut{}
+	// A menu entry may belong to another feature: the ontology plugin publishes
+	// one per declared entity on behalf of the plugin that declared it. Entries
+	// are collected with the feature that owns them and attached after the loop,
+	// so a card lists the pages its own toggle governs and no others.
+	type ownedMenu struct {
+		feature string
+		menu    pluginMenuOut
+	}
+	var ownedMenus []ownedMenu
 	for _, p := range h.plugins {
 		info := plugin.Describe(p)
 		key := plugin.FeatureKey(p)
@@ -313,17 +322,32 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
-				f.Menus = append(f.Menus, pluginMenuOut{
-					ID:       m.ID,
-					Label:    m.Label,
-					Path:     m.Path,
-					Icon:     m.Icon,
-					Category: m.Category,
-					Area:     m.Area,
-					Order:    m.Order,
-					External: m.External,
+				owner := m.Feature
+				if owner == "" {
+					owner = key
+				}
+				ownedMenus = append(ownedMenus, ownedMenu{
+					feature: owner,
+					menu: pluginMenuOut{
+						ID:       m.ID,
+						Label:    m.Label,
+						Path:     m.Path,
+						Icon:     m.Icon,
+						Category: m.Category,
+						Area:     m.Area,
+						Order:    m.Order,
+						External: m.External,
+					},
 				})
 			}
+		}
+	}
+
+	// A key no plugin answers to has no card to show the entry on, so the entry
+	// is dropped rather than attached to whichever card was built last.
+	for _, om := range ownedMenus {
+		if f := byKey[om.feature]; f != nil {
+			f.Menus = append(f.Menus, om.menu)
 		}
 	}
 

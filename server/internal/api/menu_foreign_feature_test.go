@@ -96,3 +96,52 @@ func TestAForeignFeatureMenuFollowsItsOwnSwitch(t *testing.T) {
 		t.Fatal("disabling runbooks took an unrelated entry with it")
 	}
 }
+
+// TestThePluginManagerShowsAPageOnItsOwnersCard pins the other half of the
+// attribution: the Data card is always on, so listing a disabled module's page
+// there would tell an admin the page belongs to a feature they cannot switch
+// off. The entry goes on the card whose toggle governs it.
+func TestThePluginManagerShowsAPageOnItsOwnersCard(t *testing.T) {
+	h, srv, _ := newTestHandlerWithInstance(t)
+	h.SetPlugins([]plugin.Plugin{entityHost{}, runbooks{}})
+	cookies := loginCookies(t, srv)
+
+	rec := do(srv, "GET", "/api/plugins", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list features: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var feats []struct {
+		Key   string `json:"key"`
+		Menus []struct {
+			Path string `json:"path"`
+		} `json:"menus"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &feats); err != nil {
+		t.Fatalf("decode features: %v (%s)", err, rec.Body.String())
+	}
+
+	paths := map[string][]string{}
+	for _, f := range feats {
+		for _, m := range f.Menus {
+			paths[f.Key] = append(paths[f.Key], m.Path)
+		}
+	}
+	if hasPath(paths["ontology"], "/data/runbooks") {
+		t.Fatalf("the Data card lists %v; a page its toggle cannot govern belongs to its owner", paths["ontology"])
+	}
+	if !hasPath(paths["ontology"], "/data/tickets") {
+		t.Fatalf("the Data card lost its own entry: %v", paths["ontology"])
+	}
+	if !hasPath(paths["runbooks"], "/data/runbooks") {
+		t.Fatalf("the runbooks card does not list its page: %v", paths["runbooks"])
+	}
+}
+
+func hasPath(paths []string, want string) bool {
+	for _, p := range paths {
+		if p == want {
+			return true
+		}
+	}
+	return false
+}
