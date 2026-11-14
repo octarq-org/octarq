@@ -193,8 +193,8 @@ func tierMetadata(acl core.OperationACL) map[string]any {
 	return map[string]any{plugin.MetadataTier: acl.Tier}
 }
 
-func (p *Plugin) catalog(_ context.Context, in *catalogInput) (*catalogOutput, error) {
-	role, err := p.httpRole(in.Ctx)
+func (p *Plugin) catalog(ctx context.Context, in *catalogInput) (*catalogOutput, error) {
+	role, err := p.httpRole(ctx, in.Ctx)
 	if err != nil {
 		return nil, humaError(err)
 	}
@@ -208,7 +208,7 @@ func (p *Plugin) catalog(_ context.Context, in *catalogInput) (*catalogOutput, e
 }
 
 func (p *Plugin) list(ctx context.Context, e *entity, in *listInput) (*listOutput, error) {
-	if _, err := p.authorize(in.Ctx, e, core.OpList); err != nil {
+	if _, err := p.authorize(ctx, in.Ctx, e, core.OpList); err != nil {
 		return nil, humaError(err)
 	}
 	tdb, err := p.tenantDB(ctx)
@@ -232,7 +232,7 @@ func (p *Plugin) list(ctx context.Context, e *entity, in *listInput) (*listOutpu
 }
 
 func (p *Plugin) get(ctx context.Context, e *entity, in *getInput) (*recordOutput, error) {
-	if _, err := p.authorize(in.Ctx, e, core.OpGet); err != nil {
+	if _, err := p.authorize(ctx, in.Ctx, e, core.OpGet); err != nil {
 		return nil, humaError(err)
 	}
 	tdb, err := p.tenantDB(ctx)
@@ -247,7 +247,7 @@ func (p *Plugin) get(ctx context.Context, e *entity, in *getInput) (*recordOutpu
 }
 
 func (p *Plugin) create(ctx context.Context, e *entity, in *createInput) (*recordOutput, error) {
-	if _, err := p.authorize(in.Ctx, e, core.OpCreate); err != nil {
+	if _, err := p.authorize(ctx, in.Ctx, e, core.OpCreate); err != nil {
 		return nil, humaError(err)
 	}
 	values, err := core.DecodeValues(e.spec, in.Body)
@@ -262,12 +262,12 @@ func (p *Plugin) create(ctx context.Context, e *entity, in *createInput) (*recor
 	if err != nil {
 		return nil, humaError(err)
 	}
-	p.audit(in.Ctx, "data.create", e, rowID(row))
+	p.audit(ctx, in.Ctx, "data.create", e, rowID(row))
 	return &recordOutput{Body: core.FromRow(e.spec, row)}, nil
 }
 
 func (p *Plugin) update(ctx context.Context, e *entity, in *updateInput) (*recordOutput, error) {
-	if _, err := p.authorize(in.Ctx, e, core.OpUpdate); err != nil {
+	if _, err := p.authorize(ctx, in.Ctx, e, core.OpUpdate); err != nil {
 		return nil, humaError(err)
 	}
 	patch, err := core.DecodePatch(e.spec, in.Body)
@@ -282,12 +282,12 @@ func (p *Plugin) update(ctx context.Context, e *entity, in *updateInput) (*recor
 	if err != nil {
 		return nil, humaError(err)
 	}
-	p.audit(in.Ctx, "data.update", e, in.ID)
+	p.audit(ctx, in.Ctx, "data.update", e, in.ID)
 	return &recordOutput{Body: core.FromRow(e.spec, row)}, nil
 }
 
 func (p *Plugin) delete(ctx context.Context, e *entity, in *deleteInput) (*okOutput, error) {
-	if _, err := p.authorize(in.Ctx, e, core.OpDelete); err != nil {
+	if _, err := p.authorize(ctx, in.Ctx, e, core.OpDelete); err != nil {
 		return nil, humaError(err)
 	}
 	tdb, err := p.tenantDB(ctx)
@@ -297,19 +297,32 @@ func (p *Plugin) delete(ctx context.Context, e *entity, in *deleteInput) (*okOut
 	if err := (store{}).delete(ctx, tdb, e, in.ID); err != nil {
 		return nil, humaError(err)
 	}
-	p.audit(in.Ctx, "data.delete", e, in.ID)
+	p.audit(ctx, in.Ctx, "data.delete", e, in.ID)
 	return &okOutput{Body: okBody{OK: true}}, nil
 }
 
 // httpRole is the caller's effective role in the active workspace. The huma
 // middleware has already authenticated the request; a caller without a role here
 // is authenticated but not a member of the workspace it addressed.
-func (p *Plugin) httpRole(c huma.Context) (string, error) {
+func (p *Plugin) httpRole(ctx context.Context, c huma.Context) (string, error) {
 	r, _ := humago.Unwrap(c)
+	return p.roleForRequest(ctx, r)
+}
+
+// roleForRequest asks the host about a request the middleware already resolved.
+//
+// The auth middleware authenticates the request and hands the resulting context
+// to the handler as its first argument; the *http.Request the adapter returns
+// still carries the context it arrived with. A cookie session hides that,
+// because the auth manager falls back to reading the cookie itself — but a
+// bearer token has no cookie to fall back to, so an agent calling these routes
+// with an API token would read as holding no role and be refused on every one.
+// The context has to travel with the request for both.
+func (p *Plugin) roleForRequest(ctx context.Context, r *http.Request) (string, error) {
 	if r == nil || p.host == nil {
 		return "", ErrForbidden
 	}
-	role := p.host.Session().OrgRole(r)
+	role := p.host.Session().OrgRole(r.WithContext(ctx))
 	if role == "" {
 		return "", ErrForbidden
 	}
@@ -317,8 +330,8 @@ func (p *Plugin) httpRole(c huma.Context) (string, error) {
 }
 
 // authorize judges one operation's ACL for this request.
-func (p *Plugin) authorize(c huma.Context, e *entity, op core.Operation) (string, error) {
-	role, err := p.httpRole(c)
+func (p *Plugin) authorize(ctx context.Context, c huma.Context, e *entity, op core.Operation) (string, error) {
+	role, err := p.httpRole(ctx, c)
 	if err != nil {
 		return "", err
 	}
@@ -340,7 +353,7 @@ func (p *Plugin) tenantDB(ctx context.Context) (*plugin.TenantDB, error) {
 
 // audit records a write. Generated ids are UUIDs, which the audit ledger's
 // numeric target does not carry, so the id travels in the metadata instead.
-func (p *Plugin) audit(c huma.Context, action string, e *entity, id string) {
+func (p *Plugin) audit(ctx context.Context, c huma.Context, action string, e *entity, id string) {
 	if p.ctx == nil || p.ctx.Audit == nil {
 		return
 	}
@@ -348,7 +361,7 @@ func (p *Plugin) audit(c huma.Context, action string, e *entity, id string) {
 	if r == nil {
 		return
 	}
-	p.ctx.Audit(r, action, e.spec.Slug, 0, map[string]any{"id": id})
+	p.ctx.Audit(r.WithContext(ctx), action, e.spec.Slug, 0, map[string]any{"id": id})
 }
 
 // rowID reads the id out of a stored row.
