@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,13 +46,11 @@ func TestAIChatStream_TheSpecAllowlistIsEnforcedAtExecution(t *testing.T) {
 	}
 
 	srv, _, h := newAIStreamTestHandlerFull(t, fake, src)
-	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
-		return harness.HarnessSpec{
-			Version:   harness.HarnessSpecVersion,
-			Name:      "narrow",
-			ToolAllow: []string{"read_things"},
-		}, nil
-	})
+	h.SetHost(hostWithPublishedHarness(t, harness.HarnessSpec{
+		Version:   harness.HarnessSpecVersion,
+		Name:      "narrow",
+		ToolAllow: []string{"read_things"},
+	}))
 
 	body := `{"messages":[{"role":"user","content":"read more"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", strings.NewReader(body))
@@ -91,13 +88,11 @@ func TestAIChatStream_TheSpecAllowlistPermitsTheListedTool(t *testing.T) {
 	}
 
 	srv, _, h := newAIStreamTestHandlerFull(t, fake, src)
-	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
-		return harness.HarnessSpec{
-			Version:   harness.HarnessSpecVersion,
-			Name:      "narrow",
-			ToolAllow: []string{"read_things"},
-		}, nil
-	})
+	h.SetHost(hostWithPublishedHarness(t, harness.HarnessSpec{
+		Version:   harness.HarnessSpecVersion,
+		Name:      "narrow",
+		ToolAllow: []string{"read_things"},
+	}))
 
 	body := `{"messages":[{"role":"user","content":"read things"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", strings.NewReader(body))
@@ -110,31 +105,5 @@ func TestAIChatStream_TheSpecAllowlistPermitsTheListedTool(t *testing.T) {
 
 	if !executed {
 		t.Fatal("a tool inside the published allowlist was not executed")
-	}
-}
-
-// TestAIChatStream_AMissingHarnessStoreFailsClosed covers the difference
-// between "this workspace published no harness" and "the harness is not
-// wired into this process".
-//
-// The first is the product's normal state and uses the built-in default. The
-// second is a misconfiguration, and answering it with the default would run
-// a harness nobody published — with no error and no log.
-func TestAIChatStream_AMissingHarnessStoreFailsClosed(t *testing.T) {
-	llm := &fakeStreamingLLM{texts: []string{"hello"}}
-	src := &fakeEndpointSource{endpoints: map[string]plugin.Endpoint{
-		"read_things": catalogTestEndpoint("read_things", http.MethodGet),
-	}}
-	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
-	// No provider: the handler was never given the harness store.
-	h.SetHarnessSpecProvider(nil)
-
-	rec := postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
-
-	if rec.Code == http.StatusOK {
-		t.Fatal("expected the request to fail without a harness store, got 200")
-	}
-	if llm.lastReq.System != "" {
-		t.Errorf("a request without a harness store still reached the provider:\n%s", llm.lastReq.System)
 	}
 }

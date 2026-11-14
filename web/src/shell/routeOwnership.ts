@@ -4,8 +4,6 @@ import { uiRoutes } from "@octarq/plugin-sdk";
 // Keep this list equal to the static <Route> table there.
 const SHELL_ROUTES = [
   "/overview",
-  "/workforce",
-  "/ai-workforce",
   "/notifications",
   "/settings",
   "/onboarding",

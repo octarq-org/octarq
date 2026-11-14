@@ -24,7 +24,6 @@ import (
 
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/idempotency"
-	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/cache"
@@ -282,11 +281,10 @@ func (a *App) Run(ctx context.Context) error {
 		plugins:  a.plugins,
 	})
 	apiHandler.SetEndpointSource(endpointEngine)
-	harnessStore := agentstore.NewHarnessStore(a.gdb)
-	apiHandler.SetHarnessStore(harnessStore)
-	apiHandler.SetHarnessSpecProvider(harnessStore.Spec)
-	workforceStore := agentstore.NewWorkforceStore(a.gdb)
-	apiHandler.SetWorkforceStore(workforceStore)
+	// The host is installed before plugins mount, but its Workforce() and
+	// HarnessSpec() resolve the providing plugin's service at call time, so the
+	// ledger and the published harness appear as soon as that plugin mounts.
+	apiHandler.SetHost(pctx.Host)
 	a.Setup(pctx, apiHandler)
 	healthCollector := monitor.NewCollector(30*time.Second,
 		monitor.NewRuntimeProvider(),

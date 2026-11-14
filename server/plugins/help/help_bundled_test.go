@@ -129,9 +129,9 @@ func TestEveryCategoryHasAtLeastOneDoc(t *testing.T) {
 	}
 
 	for _, c := range categories {
-		// commerce, licensing, and infrastructure are contributed by plugins
-		// outside core (Pro modules and the octarq-plugins dns plugin).
-		if c.Key == "commerce" || c.Key == "licensing" || c.Key == "infrastructure" {
+		// commerce, licensing, infrastructure and operations are contributed by
+		// plugins outside core (Pro modules and the octarq-plugins dns plugin).
+		if c.Key == "commerce" || c.Key == "licensing" || c.Key == "infrastructure" || c.Key == "operations" {
 			continue
 		}
 		if categoryCounts[c.Key] == 0 {

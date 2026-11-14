@@ -257,21 +257,9 @@ func OpenDualPool(cfg *config.Config) (writeDB *gorm.DB, readDB *gorm.DB, err er
 // runs one-off data migrations. Call this once, after every plugin has been
 // registered, before serving traffic.
 func Migrate(gdb *gorm.DB, extraModels ...any) error {
-	// A workspace runs one harness, and the database says so: the unique
-	// index on (owner_id, live_slot) refuses a second live version. The rows
-	// that would block that index are repaired before the schema changes.
-	if err := repairHarnessLiveSlots(gdb); err != nil {
-		return err
-	}
-
 	all := append(models.AllModels(), extraModels...)
 	if err := gdb.AutoMigrate(all...); err != nil {
 		return fmt.Errorf("migrate: %w", err)
-	}
-
-	// The live slot column exists now; the live version takes the slot.
-	if err := markHarnessLiveSlots(gdb); err != nil {
-		return err
 	}
 
 	// Data migration: move org-level settings from global settings to workspace_settings (for org 1)

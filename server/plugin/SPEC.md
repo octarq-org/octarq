@@ -65,6 +65,13 @@ budget counter and its own approval table. Two ledgers disagree the first time o
 of them misses a turn, and the operator's monthly budget is the number that has to
 be right.
 
+The contract is core; the implementation is not. Core ships the interface and a
+host that refuses every call. The plugin that owns agents registers the ledger
+under `workforce.ledger`, and the published-harness store under `workforce.spec`
+(`plugin.HarnessSpecProvider`). `plugin.Host.Workforce()` and
+`plugin.Host.HarnessSpec()` resolve those services lazily on each call, so mount
+order does not matter and core never imports the feature plugin.
+
 | Method | Contract |
 |---|---|
 | `AuthorizeTurn` | Refuses an unknown agent, a paused agent, an unpriced model, and an exhausted budget. A model without a price is refused because a cost ceiling over it could never trip. |
@@ -72,15 +79,14 @@ be right.
 | `RecordSpend` | Prices the turn, appends the ledger row, and accrues the agent's monthly budget. A runtime turn must carry `TurnID`; a replay is refused with `ErrWorkforceSpendReplayed`. |
 | `DecideApproval` | Compare-and-swap on the task's current status. A replayed or concurrent decision returns `ErrWorkforceApprovalNotPending`. |
 
-- The ledger lives in `internal/agentstore`. A plugin cannot import it and must
-  not read its tables; `app.workforceService` is the only implementation, and
-  `app` mounts it on the host runtime.
+- Prices come from `plugin.ModelPricing` (`llmgateway.pricing`). The ledger has no
+  price table of its own, so a ceiling and a charge over the same model are the
+  same number.
 - Every outcome a caller branches on is a `ErrWorkforce*` sentinel, so a plugin
-  never parses a store error message. Errors the adapter does not recognise pass
-  through unchanged.
-- A host with no database has no ledger: every call returns
-  `ErrWorkforceUnavailable`. A turn nobody can bill must not start on a
-  zero-cost answer.
+  never parses a store error message.
+- A build with no ledger plugin registered has no ledger: `Workforce()` returns
+  the fail-closed host and every call returns `ErrWorkforceUnavailable`. A turn
+  nobody can bill must not start on a zero-cost answer.
 
 ---
 

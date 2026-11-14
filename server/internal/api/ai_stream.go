@@ -18,10 +18,8 @@ import (
 	ssewriter "github.com/ag-ui-protocol/ag-ui/sdks/community/go/pkg/encoding/sse"
 	"github.com/octarq-org/octarq/server/agent/agui"
 	"github.com/octarq-org/octarq/server/agent/harness"
-	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/authz"
-	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -86,17 +84,22 @@ func composeToolFilter(policy harness.ToolFilter, spec harness.HarnessSpec) harn
 // product's normal state, not a fallback. A spec that fails validation is an
 // error: it is never silently replaced by the default.
 //
-// A missing provider is an error too, and that is a different thing: it
-// means the harness is not wired into this process, not that the workspace
-// published nothing. Answering with the default there would run a harness
-// nobody published, with no error and no log.
+// The published document comes from the host, which resolves it from whichever
+// plugin provides the harness store. A nil document means nobody published one.
 func (h *Handler) harnessSpec(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
-	if h == nil || h.harnessSpecProvider == nil {
+	if h == nil || h.host == nil {
 		return harness.HarnessSpec{}, errors.New("the agent harness is not configured on this instance")
 	}
-	spec, err := h.harnessSpecProvider(ctx, orgID)
+	raw, err := h.host.HarnessSpec(ctx, orgID)
 	if err != nil {
 		return harness.HarnessSpec{}, err
+	}
+	if len(raw) == 0 {
+		return harness.DefaultHarnessSpec(), nil
+	}
+	spec, err := harness.DecodeSpec(raw)
+	if err != nil {
+		return harness.HarnessSpec{}, fmt.Errorf("published harness spec is invalid: %w", err)
 	}
 	if err := harness.Validate(spec); err != nil {
 		return harness.HarnessSpec{}, fmt.Errorf("published harness spec is invalid: %w", err)
@@ -161,13 +164,16 @@ func (h *Handler) auditAgentTurn(
 // when this happens, so a stalled database must not hold the stream open.
 const spendWriteTimeout = 10 * time.Second
 
+// spendSourceChat marks a turn that ran through the dashboard chat.
+const spendSourceChat = "chat"
+
 // recordTurnSpend writes one ledger row on a context that outlives the request.
 // A client that closes the tab cancels r.Context(), but the turn already ran and
 // the provider bills its tokens, so the spend must still reach the ledger.
-func recordTurnSpend(parent context.Context, store *agentstore.WorkforceStore, orgID uint, in agentstore.SpendInput) error {
+func recordTurnSpend(parent context.Context, ledger plugin.Workforce, orgID uint, in plugin.TurnSpend) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), spendWriteTimeout)
 	defer cancel()
-	_, _, err := store.RecordSpend(ctx, orgID, in)
+	_, err := ledger.RecordSpend(ctx, orgID, in)
 	return err
 }
 
@@ -176,13 +182,15 @@ func recordTurnSpend(parent context.Context, store *agentstore.WorkforceStore, o
 // client translate that action instead of showing raw prose.
 func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, agentstore.ErrAgentNotFound):
+	case errors.Is(err, plugin.ErrWorkforceUnavailable):
+		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceAgentNotFound, "This build has no workforce ledger. Install the workforce feature to bill agent turns.")
+	case errors.Is(err, plugin.ErrWorkforceAgentNotFound):
 		writeErr(w, r, http.StatusNotFound, apierror.CodeWorkforceAgentNotFound, "No such workforce agent found in this workspace.")
-	case errors.Is(err, agentstore.ErrAgentPaused):
+	case errors.Is(err, plugin.ErrWorkforceAgentPaused):
 		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceAgentPaused, "This agent is paused. Resume it before you run a turn.")
-	case errors.Is(err, agentstore.ErrBudgetExceeded):
+	case errors.Is(err, plugin.ErrWorkforceBudgetExhausted):
 		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceBudgetExceeded, "This agent reached its monthly budget limit. Raise the limit before you run a turn.")
-	case errors.Is(err, agentstore.ErrModelPriceMissing):
+	case errors.Is(err, plugin.ErrWorkforceModelUnpriced):
 		writeErr(w, r, http.StatusBadRequest, apierror.CodeWorkforceModelPriceAbsent, "No price is configured for this model. Add a price before you bill agent turns.")
 	default:
 		writeErr(w, r, http.StatusInternalServerError, "", "Could not check the agent budget; retry the request.")
@@ -269,18 +277,6 @@ func parseRunInput(msgs []AIChatStreamMessage) ([]harness.Message, string, strin
 // SetEndpointSource configures the endpoint source for agent tool dispatch.
 func (h *Handler) SetEndpointSource(src harness.EndpointSource) {
 	h.endpointSource = src
-}
-
-// SetHarnessSpecProvider configures where the published agent harness spec of
-// a workspace is resolved from. Without one the built-in default applies.
-func (h *Handler) SetHarnessSpecProvider(fn func(ctx context.Context, orgID uint) (harness.HarnessSpec, error)) {
-	h.harnessSpecProvider = fn
-}
-
-// SetHarnessStore configures the store that persists the published harness
-// versions of a workspace.
-func (h *Handler) SetHarnessStore(store *agentstore.HarnessStore) {
-	h.harnessStore = store
 }
 
 // aiChatStream handles POST /api/ai/chat/stream via Server-Sent Events (SSE).
@@ -392,30 +388,17 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	//
 	// A caller that names an agent spends workspace money, so it carries the
 	// same authority as the workforce page that configures the agent. A turn
-	// that names none bills the workspace default agent: an admin chose that
-	// agent for every member, so a member needs no extra role to use it. When
-	// the default cannot be read, the turn is refused rather than run free.
-	var billingStore *agentstore.WorkforceStore
+	// that names none is not attributed and is not charged. The ledger comes
+	// from the host: a build without the workforce plugin has none, and naming
+	// an agent on such a build is refused instead of run free.
+	ledger := h.workforce()
 	billingAgent := req.AgentID
-	if billingAgent != "" && !h.callerHoldsRole(r, authz.RoleAdmin) {
-		writeErr(w, r, http.StatusForbidden, "", "Workspace permission denied; higher workspace role required")
-		return
-	}
-	billingStore = h.getWorkforceStore()
-	if billingStore == nil {
-		writeErr(w, r, http.StatusInternalServerError, "", "The workforce store is not configured; retry the request.")
-		return
-	}
-	if billingAgent == "" {
-		defaultAgent, err := billingStore.GetDefaultAgent(r.Context(), orgID)
-		if err != nil {
-			writeErr(w, r, http.StatusInternalServerError, "", "Could not read the default agent; retry the request.")
+	if billingAgent != "" {
+		if !h.callerHoldsRole(r, authz.RoleAdmin) {
+			writeErr(w, r, http.StatusForbidden, "", "Workspace permission denied; higher workspace role required")
 			return
 		}
-		billingAgent = defaultAgent
-	}
-	if billingAgent != "" {
-		if _, err := billingStore.AuthorizeTurn(r.Context(), orgID, billingAgent, model); err != nil {
+		if err := ledger.AuthorizeTurn(r.Context(), orgID, billingAgent, model); err != nil {
 			writeBillingRefusal(w, r, err)
 			return
 		}
@@ -426,7 +409,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// and a limit the operator believes is on but is not is worse than none.
 	var cost func(input, output, reasoning int) float64
 	if spec.MaxCostUSD > 0 {
-		cost, err = billingStore.TurnCostFunc(r.Context(), orgID, model)
+		cost, err = ledger.TurnCost(r.Context(), orgID, model)
 		if err != nil {
 			writeBillingRefusal(w, r, err)
 			return
@@ -549,17 +532,17 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// billing failure is surfaced, not swallowed — an unrecorded turn would
 	// leave the budget unaware of real spend.
 	if billingAgent != "" {
-		err := recordTurnSpend(r.Context(), billingStore, orgID, agentstore.SpendInput{
+		err := recordTurnSpend(r.Context(), ledger, orgID, plugin.TurnSpend{
 			AgentID:         billingAgent,
 			Model:           model,
 			InputTokens:     turn.InputTokens,
 			OutputTokens:    turn.OutputTokens,
 			ReasoningTokens: turn.ReasoningTokens,
-			Source:          models.WorkforceSpendSourceChat,
+			Source:          spendSourceChat,
 			SessionID:       threadID,
 			TurnID:          runID,
 		})
-		if err != nil && !errors.Is(err, agentstore.ErrSpendReplayed) {
+		if err != nil && !errors.Is(err, plugin.ErrWorkforceSpendReplayed) {
 			slog.Error("failed to record agent spend", "orgId", orgID, "agentId", billingAgent, "err", err)
 			stream.Fail(apierror.CodeWorkforceSpendNotRecorded,
 				"The turn finished, but its spend was not recorded. Check the billing setup before the next turn.")

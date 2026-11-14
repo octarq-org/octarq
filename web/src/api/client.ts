@@ -10,17 +10,7 @@ import type {
   AbuseReport,
   Action,
   AuditLog,
-  CreateHarnessLessonInput,
   Domain,
-  HarnessActiveVersion,
-  HarnessLesson,
-  HarnessLessonsResponse,
-  HarnessProposalInput,
-  HarnessSpecInput,
-  HarnessSpecDetail,
-  HarnessSpecsListResponse,
-  HarnessVersionItem,
-  HarnessVersionStatus,
   HelpCategory,
   HelpDocContent,
   HelpDocMeta,
@@ -42,27 +32,19 @@ import type {
   ProviderAccount,
   ProviderAccountInput,
   ReadinessCheck,
+  LLMProviderDTO,
+  LLMProviderInput,
+  ModelPriceDTO,
   RegisteredChannel,
   SessionRecord,
   Settings,
   SMTPSender,
   SMTPSenderInput,
+  SetModelPriceInput,
   SubsystemStatusResponse,
   Token,
   Webhook,
   WebhookEventGroup,
-  WorkforceAgentDTO,
-  CreateWorkforceAgentInput,
-  UpdateWorkforceAgentInput,
-  WorkforceTaskDTO,
-  CreateWorkforceTaskInput,
-  UpdateWorkforceTaskInput,
-  WorkforceOverviewDTO,
-  WorkforceModelPriceDTO,
-  SetWorkforceModelPriceInput,
-  WorkforceSpendEventDTO,
-  RecordWorkforceSpendInput,
-  WorkforceDefaultAgentDTO,
 } from "./types";
 
 export class ApiError extends Error {
@@ -426,106 +408,31 @@ export const api = {
   helpIndex: (lang?: string) => req<HelpDocMeta[]>("GET", lang ? `/api/help/docs?lang=${encodeURIComponent(lang)}` : "/api/help/docs", undefined, lang),
   helpPage: (slug: string, lang?: string) => req<HelpDocContent>("GET", lang ? `/api/help/docs/${encodeURIComponent(slug)}?lang=${encodeURIComponent(lang)}` : `/api/help/docs/${encodeURIComponent(slug)}`, undefined, lang),
 
-  // Agent Harness
-  agentHarnessSpecs: () => req<HarnessSpecsListResponse>("GET", "/api/agent-harness/specs"),
-  agentHarnessSpec: (id: number) => req<HarnessSpecDetail>("GET", `/api/agent-harness/specs/${id}`),
-  createAgentHarnessDraft: (spec: HarnessSpecInput) =>
-    req<HarnessSpecDetail>("POST", "/api/agent-harness/drafts", { spec }),
-  importAgentHarnessProposal: (proposal: HarnessProposalInput) =>
-    req<HarnessSpecDetail>("POST", "/api/agent-harness/proposals", proposal),
-  activateAgentHarnessSpec: (id: number) =>
-    req<{ ok: boolean }>("POST", `/api/agent-harness/specs/${id}/activate`),
-  discardAgentHarnessSpec: (id: number) =>
-    req<{ ok: boolean }>("POST", `/api/agent-harness/specs/${id}/discard`),
-  agentHarnessLessons: () => req<HarnessLessonsResponse>("GET", "/api/agent-harness/lessons"),
-  createAgentHarnessLesson: (input: CreateHarnessLessonInput) =>
-    req<HarnessLesson>("POST", "/api/agent-harness/lessons", input),
-  dismissAgentHarnessLesson: (id: number) =>
-    req<{ ok: boolean }>("POST", `/api/agent-harness/lessons/${id}/dismiss`),
-
-  // AI Workforce - Fleet
-  workforceAgents: async (): Promise<WorkforceAgentDTO[]> => {
-    const res = await req<{ items?: WorkforceAgentDTO[]; agents?: WorkforceAgentDTO[] }>(
-      "GET",
-      "/api/workforce/agents"
-    );
-    return res.items ?? res.agents ?? (Array.isArray(res) ? res : []);
+  // LLM Gateway
+  llmBackends: async (): Promise<string[]> => {
+    const res = await req<{ backends?: string[] }>("GET", "/api/llm-gateway/backends");
+    return res.backends ?? [];
   },
-  workforceAgent: (id: string): Promise<WorkforceAgentDTO> =>
-    req<WorkforceAgentDTO>("GET", `/api/workforce/agents/${encodeURIComponent(id)}`),
-  createWorkforceAgent: (input: CreateWorkforceAgentInput): Promise<WorkforceAgentDTO> =>
-    req<WorkforceAgentDTO>("POST", "/api/workforce/agents", input),
-  updateWorkforceAgent: (id: string, input: UpdateWorkforceAgentInput): Promise<WorkforceAgentDTO> =>
-    req<WorkforceAgentDTO>("PATCH", `/api/workforce/agents/${encodeURIComponent(id)}`, input),
-  pauseWorkforceAgent: (id: string): Promise<WorkforceAgentDTO> =>
-    req<WorkforceAgentDTO>("POST", `/api/workforce/agents/${encodeURIComponent(id)}/pause`),
-  resumeWorkforceAgent: (id: string): Promise<WorkforceAgentDTO> =>
-    req<WorkforceAgentDTO>("POST", `/api/workforce/agents/${encodeURIComponent(id)}/resume`),
-  triggerWorkforceHeartbeat: (id: string): Promise<WorkforceAgentDTO> =>
-    req<WorkforceAgentDTO>("POST", `/api/workforce/agents/${encodeURIComponent(id)}/heartbeat`),
-  deleteWorkforceAgent: (id: string): Promise<{ ok: boolean }> =>
-    req<{ ok: boolean }>("DELETE", `/api/workforce/agents/${encodeURIComponent(id)}`),
-
-  // AI Workforce - Tasks
-  workforceTasks: async (params?: { status?: string; assignee?: string }): Promise<WorkforceTaskDTO[]> => {
-    const q = new URLSearchParams();
-    if (params?.status && params.status !== "all") q.set("status", params.status);
-    if (params?.assignee) q.set("assignee", params.assignee);
-    const qs = q.toString();
-    const res = await req<{ items?: WorkforceTaskDTO[]; tasks?: WorkforceTaskDTO[] }>(
-      "GET",
-      qs ? `/api/workforce/tasks?${qs}` : "/api/workforce/tasks"
-    );
-    return res.items ?? res.tasks ?? (Array.isArray(res) ? res : []);
+  llmProviders: async (): Promise<LLMProviderDTO[]> => {
+    const res = await req<{ providers?: LLMProviderDTO[] }>("GET", "/api/llm-gateway/providers");
+    return res.providers ?? [];
   },
-  workforceTask: (id: string): Promise<WorkforceTaskDTO> =>
-    req<WorkforceTaskDTO>("GET", `/api/workforce/tasks/${encodeURIComponent(id)}`),
-  createWorkforceTask: (input: CreateWorkforceTaskInput): Promise<WorkforceTaskDTO> =>
-    req<WorkforceTaskDTO>("POST", "/api/workforce/tasks", input),
-  updateWorkforceTask: (id: string, input: UpdateWorkforceTaskInput): Promise<WorkforceTaskDTO> =>
-    req<WorkforceTaskDTO>("PATCH", `/api/workforce/tasks/${encodeURIComponent(id)}`, input),
-
-  // AI Workforce - Task Approvals (the awaiting_approval gate)
-  workforceApprovals: async (): Promise<WorkforceTaskDTO[]> => {
-    const res = await req<{ items?: WorkforceTaskDTO[] }>("GET", "/api/workforce/approvals");
-    return res.items ?? (Array.isArray(res) ? res : []);
+  createLLMProvider: (input: LLMProviderInput): Promise<LLMProviderDTO> =>
+    req<{ provider: LLMProviderDTO }>("POST", "/api/llm-gateway/providers", input).then((r) => r.provider),
+  updateLLMProvider: (id: number, input: LLMProviderInput): Promise<LLMProviderDTO> =>
+    req<{ provider: LLMProviderDTO }>("PUT", `/api/llm-gateway/providers/${id}`, input).then((r) => r.provider),
+  deleteLLMProvider: (id: number): Promise<{ ok: boolean }> =>
+    req<{ ok: boolean }>("DELETE", `/api/llm-gateway/providers/${id}`),
+  setDefaultLLMProvider: (id: number): Promise<{ ok: boolean }> =>
+    req<{ ok: boolean }>("POST", `/api/llm-gateway/providers/${id}/default`),
+  testLLMProvider: (id: number): Promise<{ ok: boolean; model: string }> =>
+    req<{ ok: boolean; model: string }>("POST", `/api/llm-gateway/providers/${id}/test`),
+  modelPrices: async (): Promise<ModelPriceDTO[]> => {
+    const res = await req<{ prices?: ModelPriceDTO[] }>("GET", "/api/llm-gateway/prices");
+    return res.prices ?? [];
   },
-  decideWorkforceApproval: (id: string, decision: "approve" | "reject"): Promise<WorkforceTaskDTO> =>
-    req<WorkforceTaskDTO>("POST", `/api/workforce/approvals/${encodeURIComponent(id)}`, { decision }),
-
-  // AI Workforce - Governance & Overview
-  workforceOverview: (): Promise<WorkforceOverviewDTO> =>
-    req<WorkforceOverviewDTO>("GET", "/api/workforce/overview"),
-  toggleWorkforceAutoHalt: (autoHalt: boolean): Promise<{ autoHalt: boolean }> =>
-    req<{ autoHalt: boolean }>("POST", "/api/workforce/budgets/auto-halt", { autoHalt }),
-
-  // AI Workforce - Billing
-  workforceModelPrices: async (): Promise<WorkforceModelPriceDTO[]> => {
-    const res = await req<{ items?: WorkforceModelPriceDTO[] }>("GET", "/api/workforce/model-prices");
-    return res.items ?? [];
-  },
-  setWorkforceModelPrice: (input: SetWorkforceModelPriceInput): Promise<WorkforceModelPriceDTO> =>
-    req<WorkforceModelPriceDTO>("PUT", "/api/workforce/model-prices", input),
-  deleteWorkforceModelPrice: (model: string): Promise<{ ok: boolean }> =>
-    req<{ ok: boolean }>("DELETE", `/api/workforce/model-prices?model=${encodeURIComponent(model)}`),
-  workforceAgentSpend: async (id: string, limit = 100): Promise<WorkforceSpendEventDTO[]> => {
-    const res = await req<{ items?: WorkforceSpendEventDTO[] }>(
-      "GET",
-      `/api/workforce/agents/${encodeURIComponent(id)}/spend?limit=${limit}`
-    );
-    return res.items ?? [];
-  },
-  recordWorkforceAgentSpend: (
-    id: string,
-    input: RecordWorkforceSpendInput
-  ): Promise<{ event: WorkforceSpendEventDTO; agent: WorkforceAgentDTO }> =>
-    req<{ event: WorkforceSpendEventDTO; agent: WorkforceAgentDTO }>(
-      "POST",
-      `/api/workforce/agents/${encodeURIComponent(id)}/spend`,
-      input
-    ),
-  workforceDefaultAgent: (): Promise<WorkforceDefaultAgentDTO> =>
-    req<WorkforceDefaultAgentDTO>("GET", "/api/workforce/default-agent"),
-  setWorkforceDefaultAgent: (agentId: string): Promise<WorkforceDefaultAgentDTO> =>
-    req<WorkforceDefaultAgentDTO>("PUT", "/api/workforce/default-agent", { agentId }),
+  setModelPrice: (input: SetModelPriceInput): Promise<ModelPriceDTO[]> =>
+    req<{ prices?: ModelPriceDTO[] }>("PUT", "/api/llm-gateway/prices", input).then((r) => r.prices ?? []),
+  deleteModelPrice: (model: string): Promise<{ ok: boolean }> =>
+    req<{ ok: boolean }>("DELETE", `/api/llm-gateway/prices?model=${encodeURIComponent(model)}`),
 };

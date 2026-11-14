@@ -1,6 +1,7 @@
 import {
   Bell,
   Blocks,
+  Brain,
   Book,
   BookOpen,
   Bot,
@@ -83,7 +84,6 @@ export const STATIC_AREAS: Area[] = [
         label: "Workspace",
         items: [
           { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
-          { id: "workforce", label: "AI Workforce", Icon: Bot, path: "/workforce" },
         ],
       },
     ],
@@ -119,6 +119,7 @@ export const SETTINGS_AREA: Area = {
       label: "Workspace",
       items: [
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
+        { id: "gateway",       label: "Model Gateway", Icon: Brain,     path: "/settings/gateway" },
         { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
         { id: "notifications", label: "Notifications & Alerts", Icon: Bell, path: "/settings/notifications" },
@@ -183,6 +184,7 @@ const PLUGIN_ICONS: Record<string, React.ElementType> = {
   book: Book,
   "book-open": BookOpen,
   bot: Bot,
+  brain: Brain,
   boxes: Boxes,
   "credit-card": CreditCard,
   database: Database,

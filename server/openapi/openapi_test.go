@@ -37,8 +37,8 @@ func TestGenerateValidSpec(t *testing.T) {
 	if !ok {
 		t.Fatal("missing or non-object 'paths' key in spec")
 	}
-	if n := len(paths); n < 100 {
-		t.Errorf("paths count = %d, want ≥ 100 (guard against regression to 24-path hand-written spec)", n)
+	if n := len(paths); n < 90 {
+		t.Errorf("paths count = %d, want ≥ 90 (guard against regression to the old hand-written spec; workforce and harness routes moved to Pro)", n)
 	}
 
 	// ---- representative routes exist with correct methods ----

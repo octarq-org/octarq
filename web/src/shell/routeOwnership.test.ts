@@ -14,7 +14,7 @@ describe("dashboardOwnsPath", () => {
     expect(dashboardOwnsPath("/")).toBe(true);
     expect(dashboardOwnsPath("/overview")).toBe(true);
     expect(dashboardOwnsPath("/settings/general")).toBe(true);
-    expect(dashboardOwnsPath("/workforce/agents?tab=all")).toBe(true);
+    expect(dashboardOwnsPath("/settings/gateway")).toBe(true);
   });
 
   it("does not own a page served by another application", () => {

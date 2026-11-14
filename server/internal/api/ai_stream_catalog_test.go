@@ -180,15 +180,13 @@ func TestAIChatStream_UsesThePublishedHarnessSpec(t *testing.T) {
 	}}
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
-	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
-		return harness.HarnessSpec{
-			Version:    harness.HarnessSpecVersion,
-			Name:       "support",
-			Preamble:   "You are the support agent of this workspace.",
-			ExtraRules: []string{"Always greet the operator by name."},
-			MaxSteps:   2,
-		}, nil
-	})
+	h.SetHost(hostWithPublishedHarness(t, harness.HarnessSpec{
+		Version:    harness.HarnessSpecVersion,
+		Name:       "support",
+		Preamble:   "You are the support agent of this workspace.",
+		ExtraRules: []string{"Always greet the operator by name."},
+		MaxSteps:   2,
+	}))
 
 	postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
 
@@ -211,11 +209,11 @@ func TestAIChatStream_AnInvalidPublishedSpecFailsClosed(t *testing.T) {
 	}}
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
-	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
+	h.SetHost(hostWithPublishedHarness(t, harness.HarnessSpec{
 		// A spec that does not validate must not reach the model, and must
 		// not silently degrade into the built-in default.
-		return harness.HarnessSpec{Version: harness.HarnessSpecVersion, Name: ""}, nil
-	})
+		Version: harness.HarnessSpecVersion, Name: "",
+	}))
 
 	rec := postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
 
@@ -236,13 +234,11 @@ func TestAIChatStream_TheSpecAllowlistNarrowsTheAdvertisedTools(t *testing.T) {
 	}}
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
-	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
-		return harness.HarnessSpec{
-			Version:   harness.HarnessSpecVersion,
-			Name:      "narrow",
-			ToolAllow: []string{"read_things"},
-		}, nil
-	})
+	h.SetHost(hostWithPublishedHarness(t, harness.HarnessSpec{
+		Version:   harness.HarnessSpecVersion,
+		Name:      "narrow",
+		ToolAllow: []string{"read_things"},
+	}))
 
 	postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
 

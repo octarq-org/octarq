@@ -1,0 +1,56 @@
+---
+title: LLM Gateway
+description: Connect a model backend and set the price of each model.
+category: settings
+order: 70
+---
+
+The LLM Gateway connects the workspace to a model backend. AI features use the gateway. They do not keep their own keys.
+
+A workspace with no provider has no AI. The platform does not use instance credentials for a workspace.
+
+## Add a provider
+
+**Workspace → LLM Gateway → Add provider** opens the provider form.
+
+1. Enter a name. The name is a label for operators.
+2. Select a backend.
+3. Enter the API key.
+4. Optional: enter a base URL for a proxy or a local model.
+5. Optional: enter a default model and a cheap model.
+6. Select **Save**.
+
+The first provider becomes the default provider.
+
+A local backend, such as Ollama, needs no API key.
+
+## Test a provider
+
+Select **Test** beside a provider. The gateway sends one small request to the backend.
+
+- **OK**: The key, the base URL, and the model work together.
+- **Error**: The message from the backend shows the cause.
+
+## Choose the default provider
+
+The default provider serves every AI request of the workspace.
+
+Select **Set default** beside a provider. A workspace has one default at a time.
+
+Delete a provider only after you select another default. A workspace with no default refuses AI requests.
+
+## Set model prices
+
+**Model prices** sets the cost of one model per one million tokens.
+
+Enter the model identifier that the backend uses. Enter the input price, the output price, and the reasoning price. Select **Save price**.
+
+AI features that charge a budget refuse a model without a price. Add the price before you use the model.
+
+A price of zero marks a model with no token cost.
+
+## Access permissions
+
+The LLM Gateway page needs the workspace admin role.
+
+Members cannot read or change provider credentials.

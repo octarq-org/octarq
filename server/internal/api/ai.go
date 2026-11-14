@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
+
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -17,39 +17,18 @@ import (
 )
 
 // Single-step, user-triggered AI assists for the open-source build: suggest a
-// short-link slug, summarize one email on demand. Configuration is BYO key via
-// the OCTARQ_LLM_* environment (llmprovider.FromEnv) — no key, no AI, and the
-// endpoints say so instead of erroring. Unattended AI automation (per-email
-// pipelines, briefings) lives in downstream plugins, not here.
+// short-link slug, summarize one email on demand. The backend comes from the
+// LLM gateway plugin, which installs its resolver during Mount
+// (ctx.SetLLMResolverForOrg) — no configured provider, no AI, and the endpoints
+// say so instead of erroring. Unattended AI automation (per-email pipelines,
+// briefings) lives in downstream plugins, not here.
 
 const aiTimeout = 60 * time.Second
 
-// errLLMNotConfigured is what the default (env-backed) resolver returns when
-// nothing points at a usable backend. Injected resolvers return their own
-// configuration hint (e.g. "select a provider in Inbox AI → Configure").
-var errLLMNotConfigured = errors.New("AI is not configured: set OCTARQ_LLM_API_KEY (or ANTHROPIC_API_KEY), or point OCTARQ_LLM_PROVIDER/OCTARQ_LLM_BASE_URL at a local model")
-
-// envLLMResolver is the core's default LLM resolver: OCTARQ_LLM_* environment,
-// built at most once (env doesn't change at runtime). It ignores orgID because
-// OCTARQ_LLM_* environment variables are instance-wide configuration. A downstream ai
-// plugin replaces it via SetLLMResolverForOrg with its DB-backed provider so the
-// assists follow the dashboard configuration.
-func envLLMResolver() func(uint) (llmprovider.Provider, error) {
-	var (
-		once sync.Once
-		p    llmprovider.Provider
-		err  error
-	)
-	return func(_ uint) (llmprovider.Provider, error) {
-		o := llmprovider.OptionsFromEnv()
-		// Usable = a cloud key, a local Ollama, or a keyless OpenAI-compatible gateway.
-		if o.APIKey == "" && o.Provider != "ollama" && o.BaseURL == "" {
-			return nil, errLLMNotConfigured
-		}
-		once.Do(func() { p, err = llmprovider.FromEnv() })
-		return p, err
-	}
-}
+// errLLMNotConfigured is what the handler returns when no resolver is
+// installed. The gateway installs one at Mount; a build without the gateway
+// therefore has no AI, which is the documented fail-closed state.
+var errLLMNotConfigured = errors.New("AI is not configured: add an LLM provider in Workspace → LLM Gateway")
 
 // SetLLMResolverForOrg swaps the resolver behind the AI assists using an org-aware
 // resolver. It backs plugin.Context.SetLLMResolverForOrg; registration happens during

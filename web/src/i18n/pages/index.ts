@@ -14,7 +14,7 @@ import { uiCommon } from "./uiCommon";
 import { notifications } from "./notifications";
 import { proTable } from "./proTable";
 import { copilot } from "./copilot";
-import { agentHarness } from "./agentHarness";
+import { gateway } from "./gateway";
 
 const NS = {
   appearance,
@@ -29,7 +29,7 @@ const NS = {
   notifications,
   proTable,
   copilot,
-  agentHarness,
+  gateway,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));

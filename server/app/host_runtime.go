@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/cache"
@@ -40,14 +39,11 @@ type hostRuntime struct {
 	settings plugin.SettingsStore
 	events   plugin.EventSpine
 	db       *gorm.DB
-	// harnessStore resolves the workspace's published agent harness. It is
-	// what lets a plugin's agent run on the same harness the dashboard
-	// publishes, instead of a second, hand-written prompt.
-	harnessStore *agentstore.HarnessStore
-	// workforce is the agent ledger a plugin reports to: turn authorisation,
-	// spend, and approval decisions.
-	workforce plugin.Workforce
-	services  *plugin.Registry
+	// services is the plugin service registry. The ledger and the published
+	// harness are business features supplied by a plugin, so this host never
+	// owns them: every call resolves the provider at call time, and a build
+	// without that plugin reports the fail-closed answer instead.
+	services *plugin.Registry
 }
 
 func (h *hostRuntime) Session() plugin.HostSession    { return h.session }
@@ -68,21 +64,19 @@ func (h *hostRuntime) TenantDB(orgID uint) *plugin.TenantDB {
 // HarnessSpec returns the workspace's published agent harness as its
 // canonical JSON document.
 //
-// A nil document means the workspace has published none: the caller uses the
-// built-in default. An error means the published harness could not be read —
-// the caller must fail closed rather than run a different harness.
+// A nil document means the workspace has published none, or this build ships no
+// harness provider: the caller uses the built-in default. An error means a
+// published harness exists but could not be read — the caller must fail closed
+// rather than run a different harness.
 func (h *hostRuntime) HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error) {
-	if h == nil || h.harnessStore == nil {
+	if h == nil || h.services == nil {
 		return nil, nil
 	}
-	row, err := h.harnessStore.Active(ctx, orgID)
-	if err != nil {
-		if errors.Is(err, agentstore.ErrNotFound) {
-			return nil, nil
-		}
-		return nil, err
+	provider, ok := plugin.LookupServiceAs[plugin.HarnessSpecProvider](h.services.Lookup, plugin.ServiceHarnessSpec)
+	if !ok || provider == nil {
+		return nil, nil
 	}
-	return json.RawMessage(row.SpecJSON), nil
+	return provider.HarnessSpec(ctx, orgID)
 }
 
 // LookupCredential resolves third-party integration credentials via the
@@ -105,14 +99,19 @@ var _ plugin.Host = (*hostRuntime)(nil)
 
 // Workforce returns the agent ledger plugins bill their turns against.
 //
-// A host without a database has no ledger, and the returned service reports
-// ErrWorkforceUnavailable rather than a zero-cost answer: a turn nobody billed
-// is worse than a turn that was refused.
+// The ledger is supplied by the workforce plugin, which registers it during
+// Mount. A build without that plugin has no ledger, and the returned service
+// reports ErrWorkforceUnavailable rather than a zero-cost answer: a turn nobody
+// billed is worse than a turn that was refused.
 func (h *hostRuntime) Workforce() plugin.Workforce {
-	if h == nil || h.workforce == nil {
-		return newWorkforceService(nil)
+	if h == nil || h.services == nil {
+		return plugin.EnsureHost(nil).Workforce()
 	}
-	return h.workforce
+	ledger, ok := plugin.LookupServiceAs[plugin.Workforce](h.services.Lookup, plugin.ServiceWorkforceLedger)
+	if !ok || ledger == nil {
+		return plugin.EnsureHost(nil).Workforce()
+	}
+	return ledger
 }
 
 // pluginContextParams collects dependencies needed to construct a plugin.Context.
@@ -199,8 +198,7 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		services: params.services,
 	}
 	if db != nil {
-		host.harnessStore = agentstore.NewHarnessStore(db)
-		host.workforce = newWorkforceService(agentstore.NewWorkforceStore(db))
+		_ = db
 	}
 	if params.notifRouter != nil {
 		params.notifRouter.SetHost(host)

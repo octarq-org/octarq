@@ -367,272 +367,43 @@ export interface WebhookEventGroup {
   events: WebhookEventDef[];
 }
 
-// Agent Harness
-export type HarnessVersionStatus = "draft" | "published" | "archived" | "discarded";
-
-export interface HarnessSpecContent {
-  version: number;
-  name: string;
-  preamble: string;
-  extraRules: string[];
-  toolAllow: string[];
-  profile: number;
-  maxSteps: number;
-  maxTokens: number;
-  maxCostUSD: number;
-  maxWallTimeSec: number;
-}
-
-// A spec on the way in. The optional fields may be left out: an omitted
-// field means the same thing as an empty one.
-export interface HarnessSpecInput {
-  version: number;
-  name: string;
-  preamble?: string;
-  extraRules?: string[];
-  toolAllow?: string[];
-  profile?: number;
-  maxSteps?: number;
-  maxTokens?: number;
-  maxCostUSD?: number;
-  maxWallTimeSec?: number;
-}
-
-export interface HarnessActiveVersion {
+// LLM Gateway — the workspace's model backend and prices.
+export interface LLMProviderDTO {
   id: number;
   name: string;
-  version: number;
-  fingerprint: string;
-  status: HarnessVersionStatus;
-  createdBy: string;
-  createdAt: string;
-  publishedAt: string | null;
-  evidence: unknown | null;
-}
-
-export interface HarnessVersionItem {
-  id: number;
-  name: string;
-  version: number;
-  fingerprint: string;
-  status: HarnessVersionStatus;
-  createdBy: string;
-  createdAt: string;
-  publishedAt: string | null;
-  evidence: unknown | null;
-}
-
-export interface HarnessSpecsListResponse {
-  active: HarnessActiveVersion | null;
-  versions: HarnessVersionItem[];
-}
-
-export interface HarnessSpecDetail {
-  id: number;
-  name: string;
-  version: number;
-  fingerprint: string;
-  status: HarnessVersionStatus;
-  createdBy: string;
-  createdAt: string;
-  publishedAt: string | null;
-  evidence: unknown | null;
-  spec: HarnessSpecContent;
-}
-
-export interface HarnessProposalInput {
-  spec: HarnessSpecInput;
-  evidence?: unknown;
-  [key: string]: unknown;
-}
-
-export type HarnessLessonStatus = "suggested" | "adopted" | "dismissed";
-
-export interface HarnessLesson {
-  id: number;
-  scope: string;
-  note: string;
-  status: HarnessLessonStatus;
-  evidence: unknown | null;
-  createdBy: string;
-  createdAt: string;
-  specId: number | null;
-}
-
-export interface HarnessLessonsResponse {
-  lessons: HarnessLesson[];
-}
-
-export interface CreateHarnessLessonInput {
-  scope: string;
-  note: string;
-  evidence?: unknown;
-}
-
-// AI Workforce
-export type WorkforceAgentStatus = "active" | "executing" | "idle" | "paused";
-export type WorkforceTaskPriority = "urgent" | "high" | "normal" | "low";
-export type WorkforceTaskStatus = "todo" | "in_progress" | "awaiting_approval" | "done";
-
-export interface WorkforceAgentDTO {
-  id: string;
-  orgId?: number;
-  name: string;
-  role: string;
-  department: string;
+  backend: string;
+  baseUrl: string;
   model: string;
-  status: WorkforceAgentStatus;
-  heartbeat: string;
-  budgetUsed: number;
-  budgetLimit: number;
-  // budgetPeriodStart stamps the calendar month budgetUsed covers.
-  budgetPeriodStart?: string;
-  capabilities: string[];
-  directives: string;
-  lastHeartbeatAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  cheapModel: string;
+  isDefault: boolean;
+  /** The API key itself is never returned. */
+  hasKey: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CreateWorkforceAgentInput {
+export interface LLMProviderInput {
   name: string;
-  role: string;
-  department: string;
-  model: string;
-  directives?: string;
-  heartbeat?: string;
-  budgetLimit: number;
-  capabilities?: string[];
-}
-
-export interface UpdateWorkforceAgentInput {
-  name?: string;
-  role?: string;
-  department?: string;
+  backend: string;
+  /** Omit to keep the stored key on update. */
+  apiKey?: string;
+  baseUrl?: string;
   model?: string;
-  directives?: string;
-  heartbeat?: string;
-  budgetLimit?: number;
-  status?: WorkforceAgentStatus;
-  capabilities?: string[];
+  cheapModel?: string;
 }
 
-export interface WorkforceTaskStepDTO {
-  id: number;
-  taskId: string;
-  stepNumber: number;
-  stepText: string;
-  status: string;
-  createdAt: string;
-}
-
-export interface WorkforceTaskDTO {
-  id: string;
-  orgId?: number;
-  title: string;
-  assigneeAgentId?: string;
-  assignee: string;
-  assigneeRole: string;
-  priority: WorkforceTaskPriority;
-  status: WorkforceTaskStatus;
-  createdAt: string;
-  lastHeartbeat: string;
-  lastHeartbeatAt?: string;
-  summary: string;
-  context?: string;
-  executionSteps?: string[];
-}
-
-export interface CreateWorkforceTaskInput {
-  title: string;
-  // The assignee is a real agent from this workspace; the server copies its
-  // name and role onto the ticket.
-  assigneeAgentId: string;
-  priority?: WorkforceTaskPriority;
-  summary: string;
-  context?: string;
-}
-
-export interface UpdateWorkforceTaskInput {
-  title?: string;
-  status?: WorkforceTaskStatus;
-  priority?: WorkforceTaskPriority;
-  summary?: string;
-  context?: string;
-}
-
-export interface WorkforceSpendAgentItem {
-  name: string;
+/** Price of one million tokens, in US dollars. */
+export interface ModelPriceDTO {
   model: string;
-  spend: number;
-  pct: number;
+  input: number;
+  output: number;
+  reasoning: number;
+  updatedAt: string;
 }
 
-export interface WorkforceSpendProviderItem {
-  provider: string;
-  spend: number;
-  pct: number;
-}
-
-// Prices are per million tokens in US dollars. A model with no price cannot
-// bill a turn.
-export interface WorkforceModelPriceDTO {
+export interface SetModelPriceInput {
   model: string;
-  inputPerMTok: number;
-  outputPerMTok: number;
-  createdAt?: string;
-  updatedAt?: string;
+  input: number;
+  output: number;
+  reasoning: number;
 }
-
-export interface SetWorkforceModelPriceInput {
-  model: string;
-  inputPerMTok: number;
-  outputPerMTok: number;
-}
-
-export type WorkforceSpendSource = "chat" | "runtime";
-
-export interface WorkforceSpendEventDTO {
-  id: number;
-  agentId: string;
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  costUsd: number;
-  source: WorkforceSpendSource;
-  sessionId?: string;
-  /** Set on a runtime turn: the producer's identifier for it. */
-  turnId?: string;
-  createdAt: string;
-}
-
-export interface RecordWorkforceSpendInput {
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens?: number;
-  /** The runner's identifier for this turn. A retry with the same value bills once. */
-  turnId: string;
-}
-
-/** The agent a chat turn is billed to when the request names none. */
-export interface WorkforceDefaultAgentDTO {
-  /** Empty when the workspace bills no default. */
-  agentId: string;
-  /** Display name of the agent. Empty when the setting outlives its agent. */
-  name: string;
-}
-
-export interface WorkforceOverviewDTO {
-  activeAgents: number;
-  runningTasks: number;
-  queuedTasks: number;
-  pendingApprovals: number;
-  monthlySpend: number;
-  monthlyLimit: number;
-  autoHalt: boolean;
-  spendByAgent?: WorkforceSpendAgentItem[];
-  spendByProvider?: WorkforceSpendProviderItem[];
-}
-

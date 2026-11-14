@@ -15,7 +15,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/config"
-	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -69,8 +68,8 @@ type Handler struct {
 	queue       queue.Queue
 
 	// llmResolver supplies the LLM backend for the single-step AI assists
-	// (ai.go). Defaults to the env-backed envLLMResolver; the Pro ai plugin
-	// swaps in its DB-backed provider via SetLLMResolverForOrg during Mount.
+	// (ai.go). It starts nil — no AI — and the LLM gateway plugin installs the
+	// workspace-aware resolver via SetLLMResolverForOrg during Mount.
 	llmMu       sync.RWMutex
 	llmResolver func(orgID uint) (llmprovider.Provider, error)
 
@@ -80,13 +79,12 @@ type Handler struct {
 	// by the app via SetServiceLookup.
 	lookupService  func(name string) (any, bool)
 	endpointSource harness.EndpointSource
-	// harnessSpecProvider resolves the published agent harness spec of a
-	// workspace. Nil means the built-in default applies.
-	harnessSpecProvider func(ctx context.Context, orgID uint) (harness.HarnessSpec, error)
-	// harnessStore persists the published harness versions of a workspace.
-	harnessStore   *agentstore.HarnessStore
-	workforceStore *agentstore.WorkforceStore
-	humaAPI        huma.API
+	// host is the plugin host runtime. The AI chat bills attributed turns
+	// through host.Workforce() and reads the published harness through
+	// host.HarnessSpec(); both resolve the providing plugin's service at call
+	// time, so a build without that plugin has no ledger and no published spec.
+	host    plugin.Host
+	humaAPI huma.API
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
@@ -96,19 +94,20 @@ type Handler struct {
 	resendInviteLimits sync.Map
 }
 
-// SetWorkforceStore configures the store for AI workforce fleet and tasks.
-func (h *Handler) SetWorkforceStore(store *agentstore.WorkforceStore) {
-	h.workforceStore = store
+// SetHost installs the plugin host runtime. The chat path asks it for the
+// workforce ledger at call time, so a ledger registered by a plugin during
+// Mount is visible even though this runs before Mount.
+func (h *Handler) SetHost(host plugin.Host) {
+	h.host = host
 }
 
-func (h *Handler) getWorkforceStore() *agentstore.WorkforceStore {
-	if h.workforceStore != nil {
-		return h.workforceStore
+// workforce returns the host's agent ledger, or a ledger that refuses every
+// call when the build has none.
+func (h *Handler) workforce() plugin.Workforce {
+	if h.host == nil {
+		return plugin.EnsureHost(nil).Workforce()
 	}
-	if h.db != nil {
-		return agentstore.NewWorkforceStore(h.db)
-	}
-	return nil
+	return h.host.Workforce()
 }
 
 func (h *Handler) Storage() *plugin.LocalStorageService {
@@ -162,7 +161,6 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		queue:       q,
 		lookupTXT:   net.LookupTXT,
 		lookupCNAME: net.LookupCNAME,
-		llmResolver: envLLMResolver(),
 		origins:     origin.NewResolver(db),
 	}
 	// Each budget is built through the same counter store. A configured store

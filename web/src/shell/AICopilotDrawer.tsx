@@ -7,11 +7,7 @@ import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
 import { newChatRunId, newChatThreadId, streamChatResponse } from "./command/streamChat";
 import type { ChatMessage } from "./command/types";
 import { A2UIRenderer, type A2UIWidget } from "../components/a2ui";
-import { CopilotAgentPicker } from "./CopilotAgentPicker";
 import { agentFailureText } from "./agentFailureText";
-import { useWorkforceAgents } from "../lib/useWorkforceAgents";
-import { useDefaultAgent } from "../lib/useDefaultAgent";
-import { roleSatisfies, useCurrentRole } from "./role";
 
 export interface AICopilotUIState {
   isOpen: boolean;
@@ -149,29 +145,6 @@ export function AICopilotDrawer() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Attribution spends workspace money, so the control only exists for an
-  // admin. The server enforces the same rule. A member's turns bill the
-  // workspace default the admin set, which is why the setting is read for
-  // every caller.
-  const { role, isInstanceAdmin } = useCurrentRole();
-  const canAttribute = roleSatisfies("admin", role, isInstanceAdmin);
-  const {
-    agents,
-    autoHalt,
-    failed: agentsFailed,
-    loaded: agentsLoaded,
-    refresh: refreshAgents,
-  } = useWorkforceAgents(isOpen && canAttribute);
-  const { agentId, name: defaultAgentName, save: saveDefaultAgent } = useDefaultAgent(isOpen);
-
-  // Drop a picker value whose agent was deleted since the list was read. The
-  // server clears the stored default on delete; this keeps the open drawer in
-  // step with it.
-  useEffect(() => {
-    if (!agentsLoaded || !agentId) return;
-    if (!agents.some((a) => a.id === agentId)) void saveDefaultAgent("", "");
-  }, [agents, agentsLoaded, agentId, saveDefaultAgent]);
-
   // Global keydown listeners for Mod+J and Mod+/ shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -294,9 +267,6 @@ export function AICopilotDrawer() {
         },
       });
 
-      // The response body ends after the server records the spend, so the
-      // refreshed figures include this turn.
-      if (canAttribute) void refreshAgents();
     },
     [
       input,
@@ -307,8 +277,6 @@ export function AICopilotDrawer() {
       setInput,
       setMessages,
       updateLastMessage,
-      canAttribute,
-      refreshAgents,
       t,
     ],
   );
@@ -511,26 +479,6 @@ export function AICopilotDrawer() {
 
         {/* Input Footer */}
         <div className="border-t border-border bg-background p-3 space-y-2">
-          {canAttribute && (agents.length > 0 || agentsFailed) && (
-            <CopilotAgentPicker
-              agents={agents}
-              value={agentId}
-              onChange={(next) => void saveDefaultAgent(next, agents.find((a) => a.id === next)?.name ?? "")}
-              loadFailed={agentsFailed}
-              autoHalt={autoHalt}
-            />
-          )}
-          {/* A member cannot pick the agent, but still has to know whose budget
-              the turn spends. No name means no default, or a setting whose
-              agent is gone; the chat refuses that turn and says why. */}
-          {!canAttribute && defaultAgentName !== "" && (
-            <p className="flex items-center gap-2 text-xs text-foreground">
-              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                {t("copilot.agentBillTo", "Bill to")}
-              </span>
-              <span className="truncate">{defaultAgentName}</span>
-            </p>
-          )}
           <div className="relative flex items-center rounded-xl border border-input bg-card p-1 shadow-[inset_0_1px_1px_rgb(0_0_0/0.02)] transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-out)] focus-within:border-accent-border focus-within:ring-2 focus-within:ring-accent-soft">
             <textarea
               ref={inputRef}

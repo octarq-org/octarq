@@ -97,8 +97,8 @@ func TestAIStatusUnconfigured(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("unconfigured suggest-slug: got %d want 400 (%s)", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "OCTARQ_LLM_API_KEY") {
-		t.Errorf("error should hint at OCTARQ_LLM_API_KEY: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "LLM Gateway") {
+		t.Errorf("error should point at the LLM Gateway: %s", rec.Body.String())
 	}
 }
 

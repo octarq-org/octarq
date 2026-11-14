@@ -413,7 +413,16 @@ The spec is versioned per workspace. Rows live in `agent_harness_specs`
   nothing: the first is a misconfiguration and fails the request, the second
   is the product's normal state and uses the built-in default.
 
-### 7.2 Admin API (workspace admin, `authz.RoleAdmin`)
+### 7.2 Admin API
+
+Core does not ship the harness admin API. A plugin that owns agents registers a
+`plugin.HarnessSpecProvider` under `workforce.spec` and serves the version
+management routes itself. Core's chat reads the published document through
+`plugin.Host.HarnessSpec`, compiles it here, and fails closed when the store
+returns an error.
+
+The routes, the audit actions and the version lifecycle below belong to that
+plugin (octarq-pro `modules/workforce`).
 
 | Method | Path | Purpose |
 |---|---|---|
