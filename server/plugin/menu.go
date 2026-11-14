@@ -24,6 +24,12 @@ type MenuItem struct {
 	// route: those are rendered as SPA links and a path outside the router
 	// only shows the "unavailable" page.
 	External bool `json:"external"`
+	// Feature names the feature this entry belongs to when that is not the
+	// publishing plugin's own feature. The ontology plugin publishes one entry
+	// per declared entity on behalf of the plugin that declared it, so the
+	// workspace's toggle for THAT plugin decides whether the entry is offered.
+	// Empty means the publishing plugin's own feature, which is the usual case.
+	Feature string `json:"-"`
 }
 
 // MenuProvider is an optional interface a Plugin may implement if it registers

@@ -10,10 +10,33 @@ import (
 type entity struct {
 	spec  core.Spec
 	table string
+	// featureKey is the feature switch that governs this entity, resolved from
+	// the declaring plugin at boot. Empty for an operator-declared entity, which
+	// no switch turns off.
+	featureKey string
+	// active answers whether a feature is on for a workspace. It is the host's
+	// hook, stamped at Mount; nil means the host gave the plugin no way to ask,
+	// which leaves an owned entity switched off.
+	active func(orgID uint, featureKey string) bool
 }
 
 func newEntity(spec core.Spec) *entity {
 	return &entity{spec: spec, table: core.TableName(spec.Slug)}
+}
+
+// owned reports whether a plugin's feature switch governs this entity.
+func (e *entity) owned() bool { return e.spec.Owner != "" }
+
+// featureOff reports whether the plugin that declared this entity is switched
+// off for the workspace. An operator-declared entity has no owner and no switch.
+func (e *entity) featureOff(orgID uint) bool {
+	if !e.owned() {
+		return false
+	}
+	if e.active == nil {
+		return true
+	}
+	return !e.active(orgID, e.featureKey)
 }
 
 // validate refuses the part of a declaration only this package can judge: the

@@ -193,6 +193,13 @@ func tenantScope(ctx context.Context, tdb *plugin.TenantDB, e *entity) (*gorm.DB
 	if tdb == nil || tdb.OrgID() == 0 {
 		return nil, 0, ErrNoTenantScope
 	}
+	// A feature the workspace switched off is not a permissions problem and not
+	// an absent record: the page, its menu entry and its tools are gone, and so
+	// is the data behind them. Every operation reaches this line, so no transport
+	// can be the one that forgot.
+	if e.featureOff(tdb.OrgID()) {
+		return nil, 0, ErrFeatureOff
+	}
 	if core.ScopeOf(e.spec) != core.ScopeUser {
 		scope, err := tdb.TableScoped(e.table, core.ColumnOrgID)
 		return scope, 0, err

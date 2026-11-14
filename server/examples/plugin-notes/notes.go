@@ -6,11 +6,9 @@
 // this one shows the part a plugin can stop writing. Copy this file, change the
 // spec, and the platform builds the rest.
 //
-// It is deliberately NOT mounted in server/main.go. The ontology plugin owns the
-// routes and the sidebar entry of every declared entity, and it does not consult
-// the declaring plugin's feature toggle — so mounting this would put a Notes
-// page in every OSS install, and turning "notes" off in Settings → Plugins would
-// not remove it. A real module wants its page; an example does not.
+// It is deliberately NOT mounted in server/main.go: an example that shipped in
+// the binary would put a Notes page in every installation. A real module mounts
+// itself and wants that page.
 package notes
 
 import (
@@ -52,7 +50,11 @@ var entity = ontology.Spec{
 // module can declare: the composition root receives []plugin.Plugin and never
 // holds the ontology plugin instance, so there is nothing to call later. The
 // registry refuses a declaration that arrives after boot.
-func init() { ontology.MustRegister(entity) }
+//
+// The first argument is the plugin's own Name(). It is what ties the entity to
+// the workspace's switch for this plugin: turn Notes off in Settings → Plugins
+// and the page, its sidebar entry and its agent tools go with it.
+func init() { ontology.MustRegister(Plugin{}.Name(), entity) }
 
 // Plugin is the value a composition root mounts with app.App.Use(notes.Plugin{}).
 type Plugin struct{}

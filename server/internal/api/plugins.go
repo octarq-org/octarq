@@ -64,11 +64,17 @@ func (h *Handler) FeatureDefaultEnabled(featureKey string) bool {
 // workspace: core plumbing is always on; every other plugin follows its
 // feature's per-workspace toggle.
 func (h *Handler) pluginActive(orgID uint, p plugin.Plugin) bool {
-	key := plugin.FeatureKey(p)
-	if plugin.FeatureIsCore(h.plugins, key) {
+	return h.featureActive(orgID, plugin.FeatureKey(p))
+}
+
+// featureActive answers for one feature key, which is what a menu entry carries
+// when it belongs to another plugin's feature. Core plumbing ignores the stored
+// toggle entirely, so asking about it is the same as asking about its plugin.
+func (h *Handler) featureActive(orgID uint, featureKey string) bool {
+	if plugin.FeatureIsCore(h.plugins, featureKey) {
 		return true
 	}
-	return h.PluginEnabled(orgID, key)
+	return h.PluginEnabled(orgID, featureKey)
 }
 
 // activePlugins returns the plugins that are live for the workspace. The MCP

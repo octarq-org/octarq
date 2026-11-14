@@ -198,8 +198,15 @@ func (p *Plugin) catalog(ctx context.Context, in *catalogInput) (*catalogOutput,
 	if err != nil {
 		return nil, humaError(err)
 	}
+	r, _ := humago.Unwrap(in.Ctx)
+	orgID := p.orgForRequest(ctx, r)
 	out := &catalogOutput{Body: catalogBody{Entities: make([]catalogEntry, 0, len(p.entities))}}
 	for _, e := range p.entities {
+		// An entity whose plugin is switched off has no page to open, so the
+		// page it would be listed on must not offer it.
+		if e.featureOff(orgID) {
+			continue
+		}
 		out.Body.Entities = append(out.Body.Entities, e.catalog(func(op core.Operation) bool {
 			return aclAllows(e.acl(op).Roles, role)
 		}))
@@ -307,6 +314,17 @@ func (p *Plugin) delete(ctx context.Context, e *entity, in *deleteInput) (*okOut
 func (p *Plugin) httpRole(ctx context.Context, c huma.Context) (string, error) {
 	r, _ := humago.Unwrap(c)
 	return p.roleForRequest(ctx, r)
+}
+
+// orgForRequest reads the workspace the request resolved to. It goes through the
+// session for the same reason roleForRequest does: the *http.Request the huma
+// adapter hands back still carries the context it arrived with, so a bearer
+// token has nothing else to read.
+func (p *Plugin) orgForRequest(ctx context.Context, r *http.Request) uint {
+	if r == nil || p.host == nil {
+		return 0
+	}
+	return p.host.Session().OrgID(r.WithContext(ctx))
 }
 
 // roleForRequest asks the host about a request the middleware already resolved.

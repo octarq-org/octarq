@@ -123,13 +123,18 @@ var ScopeKinds = []ScopeKind{ScopeOrg, ScopeUser}
 
 // Spec is one entity declaration.
 type Spec struct {
-	Slug        string                     `json:"slug"`
-	Label       string                     `json:"label"`
-	PluralLabel string                     `json:"pluralLabel,omitempty"`
-	Icon        string                     `json:"icon,omitempty"`
-	Scope       ScopeKind                  `json:"scope,omitempty"`
-	Fields      []Field                    `json:"fields"`
-	Operations  map[Operation]OperationACL `json:"operations"`
+	Slug        string    `json:"slug"`
+	Label       string    `json:"label"`
+	PluralLabel string    `json:"pluralLabel,omitempty"`
+	Icon        string    `json:"icon,omitempty"`
+	Scope       ScopeKind `json:"scope,omitempty"`
+	// Owner is the plugin whose feature switch governs this entity, by Name().
+	// The registry stamps it from Register's first argument; it never appears in
+	// the declaration file, and an operator-declared entity has none — nothing
+	// turns it off but deleting it.
+	Owner      string                     `json:"-"`
+	Fields     []Field                    `json:"fields"`
+	Operations map[Operation]OperationACL `json:"operations"`
 }
 
 // ScopeOf returns the declared scope. An empty value means ScopeOrg: a

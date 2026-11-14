@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -33,6 +34,13 @@ type fixture struct {
 	orgID  uint
 	userID uint
 	role   string
+	// featureOn is the workspace's switch for the notes feature. The host's
+	// FeatureActive hook reads it, so a test can turn the plugin off mid-flight
+	// exactly as an admin does in Settings → Plugins.
+	featureOn atomic.Bool
+	// data is the mounted ontology plugin, so a test can read the menus it
+	// published. builtin.Default() hands out fresh values on every call.
+	data *ontologyplugin.Plugin
 }
 
 func newFixture(t *testing.T) (*fixture, *gorm.DB) {
@@ -54,6 +62,7 @@ func newFixture(t *testing.T) (*fixture, *gorm.DB) {
 	api := humago.New(mux, huma.DefaultConfig("Notes Example Test", "1.0.0"))
 
 	f := &fixture{orgID: 1, userID: 1, role: "member"}
+	f.featureOn.Store(true)
 	// The identity has to be on the context before the plugin registers its
 	// routes: huma bakes the middleware chain into an operation at registration.
 	api.UseMiddleware(func(c huma.Context, next func(huma.Context)) {
@@ -66,10 +75,22 @@ func newFixture(t *testing.T) (*fixture, *gorm.DB) {
 		UserIDFn:  func(*http.Request) uint { return f.userID },
 		OrgRoleFn: func(*http.Request) string { return f.role },
 	}}
-	wiring := &plugin.Context{Huma: api, DB: db, Host: host}
+	// The composition root hands over every plugin it mounts, which is how a
+	// declaration's owner resolves to the switch that governs it.
+	composed := append(append([]plugin.Plugin{}, builtin.Default()...), notes.Plugin{})
+	wiring := &plugin.Context{
+		Huma:          api,
+		DB:            db,
+		Host:          host,
+		ActivePlugins: func() []plugin.Plugin { return composed },
+		FeatureActive: func(_ uint, key string) bool {
+			// notes is the only feature here; the ontology plumbing is core.
+			return key != "notes" || f.featureOn.Load()
+		},
+	}
 
 	var mounted bool
-	for _, p := range builtin.Default() {
+	for _, p := range composed {
 		if p.Name() != "ontology" {
 			continue
 		}
@@ -81,6 +102,7 @@ func newFixture(t *testing.T) (*fixture, *gorm.DB) {
 		if err := validator.Validate(context.Background(), host); err != nil {
 			t.Fatalf("Validate: %v", err)
 		}
+		f.data, _ = p.(*ontologyplugin.Plugin)
 		mounted = true
 	}
 	if !mounted {
@@ -178,6 +200,85 @@ func TestDeclaredEntityIsServed(t *testing.T) {
 	t.Logf("org 2 GET one -> %d", status)
 	if status != http.StatusNotFound {
 		t.Fatalf("org 2 read of org 1 row = %d, want 404", status)
+	}
+}
+
+// TestTurningThePluginOffRemovesItsSurface pins the switch the declaration is
+// tied to. An admin who turns Notes off in Settings → Plugins expects the page,
+// its sidebar entry and its agent tools to go with it; a data surface that kept
+// answering would be a second, invisible switch.
+func TestTurningThePluginOffRemovesItsSurface(t *testing.T) {
+	f, _ := newFixture(t)
+
+	status, created := f.do(t, http.MethodPost, "/api/data/notes", `{"title":"Before the switch"}`)
+	if status != http.StatusOK {
+		t.Fatalf("create = %d %v", status, created)
+	}
+	id, _ := created["id"].(string)
+
+	status, list := f.do(t, http.MethodGet, "/api/data/notes", "")
+	if status != http.StatusOK {
+		t.Fatalf("list while on = %d %v", status, list)
+	}
+	if total, _ := list["total"].(float64); total != 1 {
+		t.Fatalf("total while on = %v, want 1", list["total"])
+	}
+
+	f.featureOn.Store(false)
+
+	// The catalog is the page's source of truth: an entity that is off must not
+	// be offered, or the sidebar would link to a page that 404s.
+	status, catalog := f.do(t, http.MethodGet, "/api/data", "")
+	if status != http.StatusOK {
+		t.Fatalf("catalog while off = %d %v", status, catalog)
+	}
+	if catalogLists(catalog, "notes") {
+		t.Fatalf("catalog still lists notes while the plugin is off: %v", catalog)
+	}
+
+	for _, tc := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/data/notes", ""},
+		{http.MethodGet, "/api/data/notes/" + id, ""},
+		{http.MethodPost, "/api/data/notes", `{"title":"After the switch"}`},
+	} {
+		status, resp := f.do(t, tc.method, tc.path, tc.body)
+		t.Logf("%s %s while off -> %d %v", tc.method, tc.path, status, resp["detail"])
+		if status != http.StatusNotFound {
+			t.Fatalf("%s %s while off = %d %v, want 404", tc.method, tc.path, status, resp)
+		}
+	}
+
+	// Turning it back on brings the rows back: the switch hides the surface, it
+	// does not delete anything.
+	f.featureOn.Store(true)
+	status, list = f.do(t, http.MethodGet, "/api/data/notes", "")
+	if status != http.StatusOK {
+		t.Fatalf("list after turning it back on = %d %v", status, list)
+	}
+	if total, _ := list["total"].(float64); total != 1 {
+		t.Fatalf("total after turning it back on = %v, want 1", list["total"])
+	}
+}
+
+// TestTheMenuEntryCarriesItsOwner pins that the sidebar entry names the feature
+// that governs it. The ontology plugin publishes the entry; the notes plugin's
+// switch decides whether the shell offers it.
+func TestTheMenuEntryCarriesItsOwner(t *testing.T) {
+	f, _ := newFixture(t)
+
+	mp, ok := any(f.data).(plugin.MenuProvider)
+	if !ok {
+		t.Fatal("the ontology plugin is no longer a plugin.MenuProvider")
+	}
+	menus := mp.Menus()
+	if len(menus) != 1 {
+		t.Fatalf("menus = %v, want one entry for notes", menus)
+	}
+	if menus[0].Path != "/data/notes" {
+		t.Fatalf("menu path = %q, want /data/notes", menus[0].Path)
+	}
+	if menus[0].Feature != "notes" {
+		t.Fatalf("menu Feature = %q, want notes", menus[0].Feature)
 	}
 }
 

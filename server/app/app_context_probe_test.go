@@ -34,8 +34,10 @@ func (l covLLM) Complete(context.Context, llmprovider.Request) (llmprovider.Resp
 // receive the Notify, the cache must round-trip, Guard must admit only an
 // authenticated request, and UserID/OrgID/OrgRole must come back from the
 // request. A broken wire (say SetGlobalSetting pointing at a no-op) turns the
-// boot tests red. httpMode selects the surface Run wires (it adds
-// PluginActive/FeatureActive/ActivePlugins) versus the MCP path that omits them.
+// boot tests red. httpMode selects the surface Run wires (it adds PluginActive,
+// which gates routes) versus the MCP path that serves none. FeatureActive and
+// ActivePlugins are wired in both, because an entity a module declares resolves
+// its owner through them at Mount.
 type ctxAssertPlugin struct {
 	t        *testing.T
 	name     string
@@ -139,11 +141,14 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		p.present("HandleRoot", ctx.HandleRoot != nil)
 		p.present("HandleStatic", ctx.HandleStatic != nil)
 	} else {
-		for _, name := range []string{"PluginActive", "FeatureActive", "ActivePlugins"} {
-			if !isNilFunc(ctxField(ctx, name)) {
-				t.Errorf("plugin.Context.%s must stay nil in the MCP path", name)
-			}
+		// PluginActive gates HTTP routes, and this process serves none. The
+		// other two are not HTTP-specific: an entity a module declares resolves
+		// its owner through them at Mount, so the MCP process needs them too.
+		if !isNilFunc(ctxField(ctx, "PluginActive")) {
+			t.Errorf("plugin.Context.PluginActive must stay nil in the MCP path")
 		}
+		p.present("FeatureActive", ctx.FeatureActive != nil)
+		p.present("ActivePlugins", ctx.ActivePlugins != nil)
 	}
 
 	// Global setting round-trip.
@@ -380,15 +385,18 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		})
 	}
 
+	// ActivePlugins answers the composed set in both processes, so a module's
+	// declaration can resolve its owner wherever it boots.
+	names := map[string]bool{}
+	for _, pl := range ctx.ActivePlugins() {
+		names[pl.Name()] = true
+	}
+	if !names[p.name] {
+		t.Errorf("ActivePlugins missing %s (have %v)", p.name, names)
+	}
+
 	// HTTP-only enablement behavior.
 	if p.httpMode {
-		names := map[string]bool{}
-		for _, pl := range ctx.ActivePlugins() {
-			names[pl.Name()] = true
-		}
-		if !names[p.name] {
-			t.Errorf("ActivePlugins missing %s (have %v)", p.name, names)
-		}
 		if !ctx.PluginActive(1, help.New()) {
 			t.Error("core help plugin reported inactive")
 		}

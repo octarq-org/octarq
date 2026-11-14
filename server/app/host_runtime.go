@@ -397,28 +397,32 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 			}
 			return false
 		}
-		pctx.FeatureActive = func(orgID uint, featureKey string) bool {
-			if plugin.FeatureIsCore(pluginsList, featureKey) {
-				return true
-			}
-			// Unlike the route gate, this answers for content that is listed
-			// before a workspace is chosen (help docs). PluginEnabled fails
-			// closed at orgID 0 by design, so ask for the declared default
-			// instead of inheriting a "disabled" that only means "no org yet".
-			if orgID == 0 {
-				if params.apiHandler != nil {
-					return params.apiHandler.FeatureDefaultEnabled(featureKey)
-				}
-				return false
-			}
+	}
+
+	// Neither hook is HTTP-specific, so both are wired in every mode. An entity
+	// declared by a module resolves its owner through them at Mount; leaving
+	// them nil in the MCP process would refuse that boot.
+	pctx.FeatureActive = func(orgID uint, featureKey string) bool {
+		if plugin.FeatureIsCore(pluginsList, featureKey) {
+			return true
+		}
+		// Unlike the route gate, this answers for content that is listed
+		// before a workspace is chosen (help docs). PluginEnabled fails
+		// closed at orgID 0 by design, so ask for the declared default
+		// instead of inheriting a "disabled" that only means "no org yet".
+		if orgID == 0 {
 			if params.apiHandler != nil {
-				return params.apiHandler.PluginEnabled(orgID, featureKey)
+				return params.apiHandler.FeatureDefaultEnabled(featureKey)
 			}
 			return false
 		}
-		pctx.ActivePlugins = func() []plugin.Plugin {
-			return pluginsList
+		if params.apiHandler != nil {
+			return params.apiHandler.PluginEnabled(orgID, featureKey)
 		}
+		return false
+	}
+	pctx.ActivePlugins = func() []plugin.Plugin {
+		return pluginsList
 	}
 
 	return pctx

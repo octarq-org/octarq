@@ -130,8 +130,9 @@ var entity = ontology.Spec{
     Operations: ontology.AllowAllOperations(),
 }
 
-// Declare before any plugin mounts.
-func init() { ontology.MustRegister(entity) }
+// Declare before any plugin mounts. The first argument is the plugin's own
+// Name(): it is the switch that governs the entity.
+func init() { ontology.MustRegister(Plugin{}.Name(), entity) }
 
 type Plugin struct{}
 
@@ -160,12 +161,12 @@ Mounted as `app.Use(notes.Plugin{})`, the plugin gives the workspace:
 
 Rules:
 
-- **Declare in `init()`.** The registry freezes at boot. A later `Register` returns `ErrFrozen`; `MustRegister` panics.
+- **Declare in `init()`, and name the owner.** The registry freezes at boot. A later `Register` returns `ErrFrozen`; `MustRegister` panics. The first argument is your plugin's `Name()`; a name no mounted plugin answers to stops the boot.
 - **Set `Requires: []string{"ontology"}`.** A build without the ontology plugin then refuses to start, instead of mounting a plugin with no surface.
 - **Isolation is enforced by the handle.** `ScopeOrg` (the default) partitions rows by workspace. `ScopeUser` also partitions by member. Your code never filters by either. Deleting the workspace deletes its rows.
 - **The icon must be a sidebar key.** An unknown key stops the boot and names the file that holds the accepted keys.
 - **Charge per operation with `Tier`.** `OperationACL{Tier: ontology.TierPro}` answers `402` on that operation, and the admin page names the tier on its upsell card. Leave the tier empty for a free entity.
-- **The page is always on.** The ontology plugin owns the route and the sidebar entry of every declared entity. Disabling your plugin in Settings → Plugins does not remove them. Declare only what should exist whenever the build ships.
+- **The entity follows your feature switch.** Turning the plugin off in Settings → Plugins hides the page, its sidebar entry and its agent tools, and the data API answers `404`. Turning it back on restores them; no row is deleted. An entity declared in the operator's file has no owner and no switch.
 - **Keep the hard half in Go.** Relations, lifecycle hooks, computed fields and row-level ACLs are not in the declaration language. A table that needs them stays a GORM model in `Models()`, with your own routes.
 
 The complete file is [`server/examples/plugin-notes`](https://github.com/octarq-org/octarq/tree/main/server/examples/plugin-notes).
@@ -175,6 +176,7 @@ Verify the declared entity:
 - `GET /api/data` lists your entity with its fields and operations.
 - `POST /api/data/notes` with `{"title": "First"}` returns `200`; the same title again returns `409`.
 - `/data/notes` renders the table. A second member of the workspace sees the same row.
+- Turning the plugin off in Settings → Plugins removes the sidebar entry, and `GET /api/data/notes` returns `404`.
 </Aside>
 
 ---
@@ -207,7 +209,7 @@ Key frontend rules:
 - **A settings page's `Path` is `/settings/<menu id>`.** The last segment is the menu's **`ID`**, not its `Label`. The Go `Path` and frontend `UIRoute.path` must match exactly — `PluginGate` compares them to tell "operator disabled this" apart from "this build doesn't have it".
 - **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu entries and pre-renders access-denied below `requiredRole` — but the server stays authoritative: enforce with `403`/`402` in your backend.
 - **Set `External` for a page outside the dashboard.** A plugin that mounts its own frontend with `Context.HandleStatic` (for example under `/desk`) sets `External: true` on the menu item. The sidebar then renders a plain link. Without the flag the router treats the path as a dashboard route and shows the "unavailable" page.
-- **MCP tools follow the feature toggle.** `RegisterMCP` is called only for a plugin the caller's workspace enabled, so turning the feature off also removes its tools from `tools/list`. Read the workspace per call with `plugin.OrgIDFromContext`.
+- **MCP tools follow the feature toggle.** `RegisterMCP` is called only for a plugin the caller's workspace enabled, so turning the feature off also removes its tools from `tools/list`. Read the workspace per call with `plugin.OrgIDFromContext`. A core plugin is always called: a tool it publishes on another plugin's behalf stays listed and answers `404` `FEATURE_OFF` while that plugin is off.
 - **i18n namespace = your `name`.** `i18n.en`/`i18n.zh` merge under `"<name>"`, so a `pageTitle` key is read as `t("hello.pageTitle")`.
 
 <Aside type="tip" title="Success check">
@@ -428,7 +430,7 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 - [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).
 - [ ] Backend `/api` routes live under `/api/x/<name>/`; write endpoints accept `Idempotency-Key`.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
-- [ ] A declared entity registers in `init()` with `ontology.MustRegister`, and the plugin sets `Requires: ["ontology"]`.
+- [ ] A declared entity registers in `init()` with `ontology.MustRegister(Plugin{}.Name(), spec)`, and the plugin sets `Requires: ["ontology"]`.
 - [ ] Every outbound fetch of a user-supplied URL goes through `server/plugin/safehttp`, not a bare `http.Client`.
 - [ ] Tiered routes return **402** when gated; rely on the host's auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
