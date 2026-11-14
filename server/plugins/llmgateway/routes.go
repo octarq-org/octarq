@@ -333,24 +333,21 @@ func (p *Plugin) listPrices(ctx context.Context, input *ListPricesInput) (*ListP
 	if err != nil {
 		return nil, err
 	}
-	rows, err := p.store.ListPrices(ctx, orgID)
-	if err != nil {
-		return nil, mapError(err)
-	}
-	out := &ListPricesOutput{}
-	out.Body.Prices = make([]PriceDTO, 0, len(rows))
-	for _, row := range rows {
-		out.Body.Prices = append(out.Body.Prices, PriceDTO{
-			Model: row.Model, Input: row.Input, Output: row.Output,
-			Reasoning: row.Reasoning, UpdatedAt: row.UpdatedAt,
-		})
-	}
-	return out, nil
+	return p.prices(ctx, orgID)
+}
+
+// PriceBody is what a client may set. The row's timestamp is the server's to
+// write, so it is not part of the request shape.
+type PriceBody struct {
+	Model     string  `json:"model" required:"true" maxLength:"128"`
+	Input     float64 `json:"input"`
+	Output    float64 `json:"output"`
+	Reasoning float64 `json:"reasoning"`
 }
 
 type SetPriceInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body PriceDTO
+	Body PriceBody
 }
 
 func (i *SetPriceInput) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
@@ -366,7 +363,26 @@ func (p *Plugin) setPrice(ctx context.Context, input *SetPriceInput) (*ListPrice
 	}); err != nil {
 		return nil, mapError(err)
 	}
-	return p.listPrices(ctx, &ListPricesInput{})
+	return p.prices(ctx, orgID)
+}
+
+// prices reads the workspace's price rows. It answers both the list route and
+// the write route's refreshed body, so a caller never re-runs an authorization
+// check it already passed.
+func (p *Plugin) prices(ctx context.Context, orgID uint) (*ListPricesOutput, error) {
+	rows, err := p.store.ListPrices(ctx, orgID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	out := &ListPricesOutput{}
+	out.Body.Prices = make([]PriceDTO, 0, len(rows))
+	for _, row := range rows {
+		out.Body.Prices = append(out.Body.Prices, PriceDTO{
+			Model: row.Model, Input: row.Input, Output: row.Output,
+			Reasoning: row.Reasoning, UpdatedAt: row.UpdatedAt,
+		})
+	}
+	return out, nil
 }
 
 type DeletePriceInput struct {
