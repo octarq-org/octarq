@@ -32,6 +32,8 @@ import type {
   ProviderAccount,
   ProviderAccountInput,
   ReadinessCheck,
+  DiscoverModelsInput,
+  LLMModel,
   LLMProviderDTO,
   LLMProviderInput,
   ModelPriceDTO,
@@ -427,6 +429,12 @@ export const api = {
     req<{ ok: boolean }>("POST", `/api/llm-gateway/providers/${id}/default`),
   testLLMProvider: (id: number): Promise<{ ok: boolean; model: string }> =>
     req<{ ok: boolean; model: string }>("POST", `/api/llm-gateway/providers/${id}/test`),
+  // The model list is the provider's own answer, for a saved row or for the
+  // form a person is still filling in.
+  discoverModels: async (input: DiscoverModelsInput): Promise<LLMModel[]> => {
+    const res = await req<{ models?: LLMModel[] }>("POST", "/api/llm-gateway/models", input);
+    return res.models ?? [];
+  },
   modelPrices: async (): Promise<ModelPriceDTO[]> => {
     const res = await req<{ prices?: ModelPriceDTO[] }>("GET", "/api/llm-gateway/prices");
     return res.prices ?? [];

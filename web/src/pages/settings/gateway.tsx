@@ -23,6 +23,12 @@ export function GatewaySettings() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [priceDraft, setPriceDraft] = useState<ModelPriceDTO | null>(null);
   const [busy, setBusy] = useState(false);
+  // The model names come from the provider, never from this form. `models` is
+  // empty until the provider answers, which is what keeps a typed-in name from
+  // reaching the store.
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [modelsFailed, setModelsFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +51,42 @@ export function GatewaySettings() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadModels = useCallback(async (next: Draft) => {
+    if (!next.backend) return;
+    setModelsBusy(true);
+    setModelsFailed(false);
+    try {
+      const rows = await api.discoverModels({
+        ...(next.id ? { providerId: next.id } : {}),
+        backend: next.backend,
+        baseUrl: next.baseUrl?.trim() ?? "",
+        ...(next.apiKey?.trim() ? { apiKey: next.apiKey.trim() } : {}),
+      });
+      setModels(rows.map((row) => row.id));
+      setModelsFailed(rows.length === 0);
+    } catch {
+      setModels([]);
+      setModelsFailed(true);
+    } finally {
+      setModelsBusy(false);
+    }
+  }, []);
+
+  const openDraft = (next: Draft) => {
+    setModels([]);
+    setModelsFailed(false);
+    setDraft(next);
+    if (next.id) void loadModels(next);
+  };
+
+  // The stored value stays selectable even when the provider stops listing it,
+  // so an edit does not silently drop the model the workspace runs on.
+  const modelOptions = (current: string | undefined) => {
+    const names = [...models];
+    if (current && !names.includes(current)) names.unshift(current);
+    return names.map((name) => ({ value: name, label: name }));
+  };
 
   const save = async () => {
     if (!draft) return;
@@ -113,7 +155,7 @@ export function GatewaySettings() {
         title={t("gateway.providersTitle", "Providers")}
         description={t("gateway.providersDesc", "A provider holds the backend, the endpoint and the API key.")}
         action={
-          <Button size="sm" onClick={() => setDraft({ ...emptyDraft })}>
+          <Button size="sm" onClick={() => openDraft({ ...emptyDraft })}>
             {t("gateway.addProvider", "Add provider")}
           </Button>
         }
@@ -156,7 +198,7 @@ export function GatewaySettings() {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  setDraft({
+                  openDraft({
                     id: p.id,
                     name: p.name,
                     backend: p.backend,
@@ -217,6 +259,24 @@ export function GatewaySettings() {
         </div>
       </Panel>
 
+      <Panel
+        title={t("gateway.agentsTitle", "Coding agents")}
+        description={t("gateway.agentsDesc", "Point a coding agent at this endpoint. The agent reads the model list from the gateway and never holds the provider key.")}
+      >
+        <dl className="grid gap-2 text-xs sm:grid-cols-[9rem_1fr]">
+          <dt className="text-muted-foreground">{t("gateway.agentsBaseUrl", "Base URL")}</dt>
+          <dd className="min-w-0">
+            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`${window.location.origin}/v1`}</code>
+          </dd>
+          <dt className="text-muted-foreground">{t("gateway.agentsKey", "API key")}</dt>
+          <dd className="text-foreground">{t("gateway.agentsKeyValue", "A workspace token. Mint one on the tokens page.")}</dd>
+          <dt className="text-muted-foreground">{t("gateway.agentsModels", "Model list")}</dt>
+          <dd className="min-w-0">
+            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`GET /v1/models`}</code>
+          </dd>
+        </dl>
+      </Panel>
+
       {draft && (
         <Modal title={draft.id ? t("gateway.editProvider", "Edit provider") : t("gateway.addProvider", "Add provider")} onClose={() => setDraft(null)}>
           <Field label={t("gateway.fieldName", "Name")} hint={t("gateway.fieldNameHint", "A name your team recognises. For example: Production Claude.")}>
@@ -240,11 +300,42 @@ export function GatewaySettings() {
           <Field label={t("gateway.fieldBaseUrl", "Base URL")} hint={t("gateway.fieldBaseUrlHint", "Leave empty to use the backend default.")}>
             <Input value={draft.baseUrl ?? ""} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} />
           </Field>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">{t("gateway.modelsHint", "Load the models from the provider. Do not type a model name.")}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 whitespace-nowrap"
+              disabled={modelsBusy || !draft.backend}
+              onClick={() => void loadModels(draft)}
+            >
+              {modelsBusy ? t("gateway.modelsLoading", "Loading…") : t("gateway.modelsLoad", "Load models")}
+            </Button>
+          </div>
+          {modelsFailed && (
+            <p role="alert" className="rounded-xl border border-danger-border bg-danger-bg p-3 text-xs text-danger-fg">
+              {t("gateway.modelsFailed", "The provider did not list its models. Check the backend, the base URL and the API key.")}
+            </p>
+          )}
           <Field label={t("gateway.fieldModel", "Model")}>
-            <Input value={draft.model ?? ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
+            <Select
+              aria-label={t("gateway.fieldModel", "Model")}
+              value={draft.model ?? ""}
+              onValueChange={(v) => setDraft({ ...draft, model: v })}
+              options={modelOptions(draft.model)}
+              disabled={models.length === 0}
+              placeholder={t("gateway.modelsPlaceholder", "Load the models first")}
+            />
           </Field>
           <Field label={t("gateway.fieldCheapModel", "Cheap model")} hint={t("gateway.fieldCheapModelHint", "Used for short jobs. Leave empty to use the main model.")}>
-            <Input value={draft.cheapModel ?? ""} onChange={(e) => setDraft({ ...draft, cheapModel: e.target.value })} />
+            <Select
+              aria-label={t("gateway.fieldCheapModel", "Cheap model")}
+              value={draft.cheapModel ?? ""}
+              onValueChange={(v) => setDraft({ ...draft, cheapModel: v })}
+              options={[{ value: "", label: t("gateway.cheapModelSame", "Same as the main model") }, ...modelOptions(draft.cheapModel)]}
+              disabled={models.length === 0}
+              placeholder={t("gateway.modelsPlaceholder", "Load the models first")}
+            />
           </Field>
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setDraft(null)}>

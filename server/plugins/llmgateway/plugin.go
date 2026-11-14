@@ -49,7 +49,7 @@ func (p *Plugin) Models() []any {
 }
 
 // Mount wires the store, the price service, the AI resolver, and the routes.
-func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
+func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx == nil {
 		return
 	}
@@ -68,6 +68,7 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		})
 	}
 	p.registerRoutes(ctx)
+	p.registerAgentRoutes(mux, ctx)
 }
 
 // HelpDocsFS hands the embedded pages to the help aggregator.

@@ -8,7 +8,8 @@ costs. No feature holds a provider key or a price table of its own.
 
 - **Module identifier**: `llmgateway`
 - **Plugin kind**: Core (always mounted, never gated, not listed as toggleable)
-- **Routes**: `/api/llm-gateway/providers`, `/api/llm-gateway/prices`
+- **Routes**: `/api/llm-gateway/providers`, `/api/llm-gateway/prices`,
+  plus the OpenAI-compatible agent surface `/v1/models`, `/v1/chat/completions`
 - **Services provided**: `plugin.ServiceModelPricing` (`llmgateway.pricing`)
 - **Host seam used**: `ctx.SetLLMResolverForOrg`
 
@@ -58,12 +59,43 @@ a zero price can never trip. A consumer without a price registry receives
 | DELETE | `/api/llm-gateway/providers/{id}` | Delete |
 | POST | `/api/llm-gateway/providers/{id}/default` | Set default (single transaction) |
 | POST | `/api/llm-gateway/providers/{id}/test` | One small completion, 15 s timeout |
+| POST | `/api/llm-gateway/models` | Ask a provider for its model list; unsaved form values are allowed |
 | GET | `/api/llm-gateway/prices` | List prices |
 | PUT | `/api/llm-gateway/prices` | Upsert one price |
 | DELETE | `/api/llm-gateway/prices?model=` | Delete one price |
 
 Every route requires the workspace admin role. The credentials behind the
 routes spend money.
+
+## 5.1 Agent Model API
+
+Coding agents speak the OpenAI wire format, so the gateway serves it on the plain
+mux, behind the token guard rather than the huma admin routes.
+
+| Method | Path | Effect |
+|---|---|---|
+| GET | `/v1/models` | The provider's own model list, normalised |
+| POST | `/v1/chat/completions` | The turn, relayed byte for byte |
+
+- The token decides the workspace: `Host.Session().OrgID(r)`. Org 0 is refused;
+  a token never names a workspace it does not belong to.
+- `?provider=<id>` selects a non-default provider. No selector means the
+  workspace's active provider, resolved by the same `Resolve` rules.
+- The model list comes from the provider's `/models`, never from a typed-in
+  string or a local table. `POST /api/llm-gateway/models` answers the same list
+  for a saved provider or for a form that is still being filled in, so the
+  console picker can fill itself before the row exists. OpenAI-shaped (`data[]`) and Ollama-shaped
+  (`models[]`) answers are both read. An empty list is an error.
+- The chat body is forwarded unchanged, so tools, `stream`, and
+  `response_format` need no per-vendor handling here. Streaming answers are
+  flushed as they arrive.
+- Errors use the OpenAI `{"error":{...}}` shape, because the client parses that
+  shape and nothing else.
+- The bounds are 16 MiB per chat body and 15 s for the model-list call.
+- A backend with no OpenAI surface (`claude`, `gemini`, `mistral`, `cohere`) is
+  refused by name unless the row sets a base URL that has one.
+- The routes live outside `/api/`, so `internal/server` forwards `/v1/` to the
+  API mux. Without that branch the handlers exist but nothing routes to them.
 
 ## 6. Failure Modes
 
@@ -75,6 +107,9 @@ routes spend money.
 | No price for a billed model | `plugin.ErrModelUnpriced` |
 | Two providers, no default | `ErrNotConfigured` with "choose a default provider" |
 | Org 0 | Refused by `TenantDB` |
+| Agent token names no workspace | 403 in the OpenAI error shape |
+| Provider lists no models | 502; the console picker and the agent both fail closed |
+| Provider base URL cannot be parsed | 400; nothing is sent |
 
 ## 7. Extension Points
 
