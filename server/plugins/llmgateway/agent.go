@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -375,12 +376,13 @@ func agentProviderID(w http.ResponseWriter, r *http.Request) (uint, bool) {
 	if raw == "" {
 		return 0, true
 	}
-	var id uint
-	if _, err := fmt.Sscanf(raw, "%d", &id); err != nil || id == 0 {
+	// Parsed strictly: "12abc" is a mistake, not provider 12.
+	n, err := strconv.ParseUint(raw, 10, 32)
+	if err != nil || n == 0 {
 		writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The provider id is not a number.")
 		return 0, false
 	}
-	return id, true
+	return uint(n), true
 }
 
 // agentErrorText turns a resolution failure into one sentence a client can read.
