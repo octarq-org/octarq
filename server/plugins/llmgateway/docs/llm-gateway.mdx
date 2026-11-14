@@ -75,11 +75,13 @@ Set three environment variables:
 
 1. `ANTHROPIC_BASE_URL`: your workspace address.
 2. `ANTHROPIC_AUTH_TOKEN`: a workspace token.
-3. `ANTHROPIC_MODEL`: a model from the workspace list, for example `gpt-4.1`.
+3. `ANTHROPIC_MODEL`: a model that the provider serves. Read the list on the Model page.
 
 Claude Code sends tools and streaming to the same routes. The gateway converts them to the provider format, and converts the answers back.
 
 The requested model reaches the provider unchanged. Set `ANTHROPIC_MODEL` to a model the provider serves. A wrong name returns the provider error.
+
+The Model page has a button named **Read the model list**. It shows the names that the provider serves. A native Anthropic key also works on this button.
 
 :::note
 The provider key stays in the workspace. The agent never holds it.
