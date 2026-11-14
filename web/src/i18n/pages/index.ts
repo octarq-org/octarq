@@ -15,6 +15,7 @@ import { notifications } from "./notifications";
 import { proTable } from "./proTable";
 import { copilot } from "./copilot";
 import { agentHarness } from "./agentHarness";
+import { data } from "./data";
 
 const NS = {
   appearance,
@@ -30,6 +31,7 @@ const NS = {
   proTable,
   copilot,
   agentHarness,
+  data,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));

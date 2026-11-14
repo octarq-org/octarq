@@ -1,0 +1,120 @@
+---
+title: Custom records
+description: Add a record type to the workspace by declaring its fields in one configuration file.
+category: operations
+order: 20
+---
+
+Custom records keep structured data in Octarq without a new module. An operator declares a record type once. Octarq then creates the page, the API and the agent tools for it.
+
+:::note
+Adding a record type needs file access to the server. Workspace members use the page that results from it.
+:::
+
+## Add a record type
+
+1. Create a file named `octarq.entities.json` in the server working directory.
+2. Declare each record type in that file.
+3. Restart the server.
+
+The server refuses to start when a declaration is invalid. The message names the file and the field that failed.
+
+To keep the file somewhere else, set `OCTARQ_ENTITIES_FILE` to its path. To pass the declaration inline, set `OCTARQ_ENTITIES` to the JSON itself. The inline value wins when both are set.
+
+## Declare the fields
+
+```json
+{
+  "entities": [
+    {
+      "slug": "tickets",
+      "label": "Ticket",
+      "pluralLabel": "Tickets",
+      "icon": "ticket",
+      "fields": [
+        { "name": "title", "type": "string", "label": "Title", "required": true, "unique": true, "listColumn": true },
+        { "name": "status", "type": "string", "label": "Status", "default": "open", "listColumn": true },
+        { "name": "priority", "type": "integer", "label": "Priority" },
+        { "name": "due_at", "type": "timestamp", "label": "Due" }
+      ],
+      "operations": {
+        "list": { "roles": ["member"], "exposeMcp": true },
+        "get": { "roles": ["member"], "exposeMcp": true },
+        "create": { "roles": ["member"], "exposeMcp": true },
+        "update": { "roles": ["member"], "exposeMcp": true },
+        "delete": { "roles": ["admin"], "exposeMcp": true }
+      }
+    }
+  ]
+}
+```
+
+The `slug` names the page and the API path. It cannot change after the first start. The `icon` must be a sidebar icon key. Leave it empty to get the default icon.
+
+## Field options
+
+| Option | Meaning |
+| --- | --- |
+| `type` | `string`, `text`, `integer`, `number`, `boolean`, `timestamp`, `uuid` or `json`. |
+| `label` | The column and form label. Defaults to the field name. |
+| `widget` | How the form shows the field: `text`, `textarea`, `number`, `checkbox`, `datetime` or `json`. |
+| `required` | The form and the API refuse an empty value. |
+| `unique` | Two records in the workspace cannot share the value. |
+| `default` | A literal value for new records. It must match the type. |
+| `listColumn` | The field appears in the table. Otherwise the table shows every field. |
+| `indexed` | Adds an index. Sorting and filtering on this field stay fast. |
+
+## Set permissions
+
+Every record type declares five operations: `list`, `get`, `create`, `update` and `delete`. Each one lists the roles that may run it. The roles are `member`, `admin` and `owner`.
+
+A member sees only the actions their role allows. The same rule applies to agents that use API tokens.
+
+Two more operation options exist:
+
+- `exposeMcp`: adds the operation as an agent tool. Off unless you set it.
+- `tier`: sets `pro` or `elite` to require that license. Leave it empty for no gate.
+
+:::caution
+A `delete` granted to `member` lets any member remove records. Grant `delete` to `admin` and `owner` unless every member should delete.
+:::
+
+## Change a declaration
+
+You can add fields at any time. You can also widen a permission or add a default to a new field.
+
+Some changes are refused, because they would corrupt existing records:
+
+- Changing the type of a field.
+- Removing a field.
+- Dropping `unique` or `indexed`.
+- Making a field required while the record type has records.
+- Changing the default of an existing field.
+
+To change one of these, declare a new field instead and stop using the old one.
+
+## Use the API and agents
+
+The API answers under `/api/data/<slug>`. It supports list, get, create, update and delete. The list supports `limit`, `offset` and `sort`.
+
+Each exposed operation also becomes an agent tool. An agent connects over MCP and calls the tool with an API token.
+
+:::note
+Agent writes do not appear in the audit log. Only browser writes are recorded.
+:::
+
+## Limits
+
+Custom records hold plain values. They do not support:
+
+- Links between record types.
+- Calculated fields or totals.
+- Custom pages or forms beyond the generated table.
+- Reports, exports or grouped queries.
+
+For behaviour like that, use a module instead.
+
+## Related
+
+- [API tokens](/help/api-tokens)
+- [Model Context Protocol (MCP)](/help/mcp)
