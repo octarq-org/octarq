@@ -62,6 +62,8 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		Summary: "Set Default LLM Provider", Tags: []string{"LLM Gateway"}}, p.setDefaultProvider)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/llm-gateway/providers/{id}/test",
 		Summary: "Test LLM Provider", Tags: []string{"LLM Gateway"}}, p.testProvider)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/llm-gateway/models",
+		Summary: "Discover Provider Models", Tags: []string{"LLM Gateway"}}, p.discoverModels)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/llm-gateway/backends",
 		Summary: "List LLM Backends", Tags: []string{"LLM Gateway"}}, p.listBackends)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/llm-gateway/prices",
@@ -259,6 +261,75 @@ type TestProviderOutput struct {
 		OK    bool   `json:"ok"`
 		Model string `json:"model"`
 	}
+}
+
+// ListProviderModelsOutput is the workspace's model list, fetched from the
+// provider itself. A console picker reads this instead of asking the operator
+// to type model names, which drift the moment the provider adds one.
+type ListProviderModelsOutput struct {
+	Body struct {
+		Models []modelEntry `json:"models"`
+	}
+}
+
+// DiscoverModelsBody is a provider configuration that may not be saved yet.
+// The console discovers models while a person still fills the form, so the
+// answer must match the form and not the stored row.
+type DiscoverModelsBody struct {
+	ProviderID uint   `json:"providerId,omitempty"`
+	Backend    string `json:"backend,omitempty" maxLength:"32"`
+	BaseURL    string `json:"baseUrl,omitempty" maxLength:"256"`
+	APIKey     string `json:"apiKey,omitempty"`
+}
+
+type DiscoverModelsInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body DiscoverModelsBody
+}
+
+func (i *DiscoverModelsInput) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
+
+// discoverModels asks a provider what it serves. A saved provider is read from
+// its row, with the form's edits applied on top. An unsaved one is built from
+// the form alone.
+func (p *Plugin) discoverModels(ctx context.Context, input *DiscoverModelsInput) (*ListProviderModelsOutput, error) {
+	orgID, err := p.caller(input.Ctx)
+	if err != nil {
+		return nil, err
+	}
+	ap, err := p.draftProvider(ctx, orgID, input.Body)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	models, err := p.discoveredModels(ctx, ap)
+	if err != nil {
+		return nil, huma.Error502BadGateway(fmt.Sprintf("The provider did not list its models: %v", err))
+	}
+	out := &ListProviderModelsOutput{}
+	out.Body.Models = models
+	return out, nil
+}
+
+// draftProvider resolves the provider a form describes. Edits win over the
+// stored row, so the list matches the values on screen.
+func (p *Plugin) draftProvider(ctx context.Context, orgID uint, in DiscoverModelsBody) (agentProvider, error) {
+	if in.ProviderID != 0 {
+		row, err := p.store.GetProvider(ctx, orgID, in.ProviderID)
+		if err != nil {
+			return agentProvider{}, err
+		}
+		if b := strings.TrimSpace(in.Backend); b != "" {
+			row.Backend = b
+		}
+		if u := strings.TrimSpace(in.BaseURL); u != "" {
+			row.BaseURL = u
+		}
+		return p.agentProviderFromRow(row, in.APIKey)
+	}
+	if strings.TrimSpace(in.Backend) == "" {
+		return agentProvider{}, fmt.Errorf("%w: backend is required", ErrInvalidProvider)
+	}
+	return p.agentProviderFromRow(&Provider{Backend: in.Backend, BaseURL: in.BaseURL}, in.APIKey)
 }
 
 // testProvider resolves the stored row the way a real turn does and sends one

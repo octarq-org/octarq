@@ -193,6 +193,17 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1.6 The OpenAI-compatible agent surface. A coding agent is configured with
+	// a base URL of <instance>/v1, which sits outside /api/ by convention. Without
+	// this branch the route reached the API mux only in tests and every real
+	// model call fell through to the short-link router and 404ed. Authorisation
+	// is the token guard on the routes themselves; a two-segment path cannot be
+	// a short-link slug, so the root namespace keeps its shape.
+	if strings.HasPrefix(path, "/v1/") {
+		s.api.ServeHTTP(w, r)
+		return
+	}
+
 	// 1.75 Robots.txt: disallow all crawlers and robots across all hosts.
 	if path == "/robots.txt" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

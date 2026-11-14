@@ -401,3 +401,22 @@ func TestStatusTierFor(t *testing.T) {
 		}
 	}
 }
+
+// TestAgentAPIPathReachesTheAPIMux guards the production wiring, not the
+// handler: /v1 sits outside /api/, and until the router forwarded it the agent
+// routes were reachable only from a test that mounted a bare mux.
+func TestAgentAPIPathReachesTheAPIMux(t *testing.T) {
+	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
+	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	for _, path := range []string{"/v1/models", "/v1/chat/completions"} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, path, nil))
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "api response") {
+			t.Fatalf("%s reached %d %q, want the API mux", path, rec.Code, rec.Body.String())
+		}
+	}
+}

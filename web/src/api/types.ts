@@ -392,6 +392,21 @@ export interface LLMProviderInput {
   cheapModel?: string;
 }
 
+/** One model a provider reports. The list comes from the provider, never from a typed string. */
+export interface LLMModel {
+  id: string;
+  object?: string;
+  owned_by?: string;
+}
+
+/** A provider configuration the console may not have saved yet. */
+export interface DiscoverModelsInput {
+  providerId?: number;
+  backend?: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
+
 /** Price of one million tokens, in US dollars. */
 export interface ModelPriceDTO {
   model: string;

@@ -58,6 +58,7 @@ type httpFixture struct {
 	server   *httptest.Server
 	provided map[string]any
 	resolver func(uint) (llmprovider.Provider, error)
+	db       *gorm.DB
 }
 
 func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture {
@@ -76,17 +77,20 @@ func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture 
 		next(huma.WithContext(c, context.Background()))
 	})
 
-	f := &httpFixture{provided: map[string]any{}}
+	f := &httpFixture{provided: map[string]any{}, db: db}
 	session := &plugin.TestSession{
 		UserIDFn:      func(*http.Request) uint { return userID },
 		OrgIDFn:       func(*http.Request) uint { return orgID },
 		RequireRoleFn: func(_ *http.Request, want string) bool { return role == want },
 	}
 	p := New()
-	p.Mount(nil, &plugin.Context{
+	p.Mount(mux, &plugin.Context{
 		Huma: api,
 		DB:   db,
 		Host: &plugin.TestHost{SessionMock: session, CryptoMock: &plugin.TestCrypto{}},
+		// The platform guard stamps the caller's session. These tests carry the
+		// session in the fixture, so the guard is the identity.
+		Guard: func(next http.Handler) http.Handler { return next },
 		Provide: func(name string, svc any) {
 			f.provided[name] = svc
 		},
