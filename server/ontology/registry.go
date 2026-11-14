@@ -48,6 +48,12 @@ var defaultRegistry = NewRegistry()
 // instance sees it.
 func Default() *Registry { return defaultRegistry }
 
+// MustRegister declares entities in the process-wide registry. It is the form a
+// module calls from init, where there is no caller to return an error to: a
+// declaration the registry refuses is a programming error in the module that
+// wrote it, so it stops the process instead of leaving half a schema behind.
+func MustRegister(specs ...Spec) { Default().MustRegister(specs...) }
+
 // Register appends declarations and validates each one immediately, so a module
 // that registers at init fails there rather than at boot.
 //

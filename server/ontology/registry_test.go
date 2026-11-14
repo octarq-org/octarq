@@ -118,6 +118,21 @@ func TestMustRegisterPanics(t *testing.T) {
 	ontology.NewRegistry().MustRegister(bad)
 }
 
+// TestPackageMustRegisterReachesTheDefaultRegistry pins the init form a module
+// actually calls. It registers nothing valid here: a good declaration would
+// freeze the process-wide set for every later test. The Pro e2e suite covers the
+// success path end to end.
+func TestPackageMustRegisterReachesTheDefaultRegistry(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("ontology.MustRegister with an invalid spec did not panic")
+		}
+	}()
+	bad := validSpec()
+	bad.Slug = "Not A Slug"
+	ontology.MustRegister(bad)
+}
+
 // TestRegistriesAreIndependent pins that a test or a composition root can keep
 // its declarations away from the process-wide set.
 func TestRegistriesAreIndependent(t *testing.T) {
