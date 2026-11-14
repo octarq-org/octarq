@@ -214,16 +214,6 @@ func findAGUI(events []map[string]any, typ string) (map[string]any, bool) {
 	return nil, false
 }
 
-// requireAGUI fails the test when the event is absent.
-func requireAGUI(t *testing.T, events []map[string]any, typ string) map[string]any {
-	t.Helper()
-	ev, ok := findAGUI(events, typ)
-	if !ok {
-		t.Fatalf("missing %s event in %v", typ, events)
-	}
-	return ev
-}
-
 func TestAIChatStream_StreamingSuccess(t *testing.T) {
 	fake := &fakeStreamingLLM{
 		thinking: []string{"Thinking...", " deeply."},
