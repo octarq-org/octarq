@@ -116,7 +116,10 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	// `octarq mcp` may be the only process an installation ever runs, so leaving
 	// the schema to the HTTP server would leave the tools unusable there
 	// forever. Apply plans before it writes and is idempotent.
-	if err := core.Apply(context.Background(), p.db, p.db.Dialector.Name(), specs); err != nil {
+	//
+	// Name() is the dialector's: gorm embeds the Dialector in Config, so the
+	// promoted method answers with the driver the connection was opened with.
+	if err := core.Apply(context.Background(), p.db, p.db.Name(), specs); err != nil {
 		if errors.Is(err, core.ErrBookkeepingMissing) {
 			// Migrations have not run in this process. The declarations are
 			// valid; the tables simply do not exist yet.
