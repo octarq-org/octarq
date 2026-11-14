@@ -133,7 +133,8 @@ func TestRegistriesAreIndependent(t *testing.T) {
 // TestDefaultIsStable pins that Default answers the same registry every time: a
 // module registers into it from init, and the plugin reads it later.
 func TestDefaultIsStable(t *testing.T) {
-	if ontology.Default() != ontology.Default() {
+	first, second := ontology.Default(), ontology.Default()
+	if first != second {
 		t.Fatal("Default returned two registries")
 	}
 }
