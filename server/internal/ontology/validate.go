@@ -6,6 +6,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 // Issue codes. Each one is stable: callers branch on it, and operators see it in
@@ -23,18 +26,35 @@ const (
 	CodeWidgetUnknown         = "WIDGET_UNKNOWN"
 	CodeRequiredFieldNonEmpty = "REQUIRED_FIELD_NONEMPTY"
 	CodeTypeChangeUnsupported = "TYPE_CHANGE_UNSUPPORTED"
-	CodeColumnDropNonEmpty    = "COLUMN_DROP_NONEMPTY"
 	CodeACLEmpty              = "ACL_EMPTY"
 	CodeRoleUnknown           = "ROLE_UNKNOWN"
 	CodeIndexUnsupported      = "INDEX_UNSUPPORTED"
 	CodeDefaultUnsupported    = "DEFAULT_UNSUPPORTED"
 	CodeDefaultInvalid        = "DEFAULT_INVALID"
+	CodeSlugDuplicate         = "SLUG_DUPLICATE"
+	CodeApprovalUnsupported   = "APPROVAL_UNSUPPORTED"
+	CodeIndexRemoved          = "INDEX_REMOVED"
+	CodeColumnDropUnsupported = "COLUMN_DROP_UNSUPPORTED"
+	CodeTierUnknown           = "TIER_UNKNOWN"
+
+	CodeRequiredChangeUnsupported = "REQUIRED_CHANGE_UNSUPPORTED"
+	CodeDefaultChangeUnsupported  = "DEFAULT_CHANGE_UNSUPPORTED"
 )
 
+// sameDefault compares two literal defaults. nil and a pointer to an equal
+// string are different declarations to DDL (the second renders DEFAULT), so both
+// the presence and the value matter.
+func sameDefault(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
 // validDefault reports whether a literal default parses as its declared type.
-// Numeric and boolean defaults render unquoted in DDL, so a value that does not
-// parse would produce a statement the database either rejects or coerces
-// silently — both fail-closed violations.
+// A value that does not parse would produce a statement the database either
+// rejects or coerces silently — Postgres refuses the DDL, SQLite stores the
+// literal, and either way the declaration stops meaning what it says.
 func validDefault(t FieldType, raw string) bool {
 	s := strings.TrimSpace(raw)
 	switch t {
@@ -46,6 +66,12 @@ func validDefault(t FieldType, raw string) bool {
 		return err == nil
 	case TypeBoolean:
 		return s == "true" || s == "false"
+	case TypeTimestamp:
+		_, err := time.Parse(time.RFC3339, s)
+		return err == nil
+	case TypeUUID:
+		_, err := uuid.Parse(s)
+		return err == nil
 	default:
 		return true
 	}
@@ -180,6 +206,20 @@ func Validate(spec Spec) error {
 				errs = append(errs, issue(CodeRoleUnknown, path+".roles", "%q is not a known role", r))
 			}
 		}
+		// A tier the license ladder does not recognise ranks below every tier, so
+		// a typo would ship the operation without the gate it promised.
+		if !validTier(acl.Tier) {
+			errs = append(errs, issue(CodeTierUnknown, path+".tier",
+				"%q is not a known tier; use %q, %q or leave it empty", acl.Tier, TierPro, TierElite))
+		}
+		// Approval is enforced by the agent harness only, and the MCP surface
+		// merely appends "[approval required]" to the tool description. A
+		// declaration that promises a gate which does not exist is worse than a
+		// refusal, so the promise is rejected until the gate is real.
+		if acl.RequireApproval {
+			errs = append(errs, issue(CodeApprovalUnsupported, path+".requireApproval",
+				"operator approval is not enforced on generated endpoints yet"))
+		}
 	}
 	for op := range spec.Operations {
 		known := false
@@ -220,15 +260,42 @@ func ValidateTransition(old, next Spec, rows int64) error {
 	for _, f := range old.Fields {
 		n, kept := nextFields[f.Name]
 		if !kept {
-			if rows > 0 {
-				errs = append(errs, issue(CodeColumnDropNonEmpty, "fields."+f.Name,
-					"cannot drop %q while the table holds %d rows", f.Name, rows))
-			}
+			// Not even an empty table allows it. DROP COLUMN leaves the index the
+			// column carried behind, and the bookkeeping row could no longer
+			// describe the table it is supposed to match. Add a field instead.
+			errs = append(errs, issue(CodeColumnDropUnsupported, "fields."+f.Name,
+				"cannot remove %q; the generated table keeps its columns", f.Name))
 			continue
 		}
 		if n.Type != f.Type {
 			errs = append(errs, issue(CodeTypeChangeUnsupported, "fields."+n.Name+".type",
 				"cannot change %q from %s to %s", n.Name, f.Type, n.Type))
+		}
+		// Dropping an index the physical table still carries would leave the
+		// database enforcing a rule the declaration no longer states: a unique
+		// index the operator removed keeps rejecting duplicates at runtime.
+		// Refusing is honest until DROP INDEX is implemented.
+		if f.Unique && !n.Unique {
+			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".unique",
+				"cannot drop the unique constraint on %q", n.Name))
+		}
+		if f.Indexed && !n.Indexed {
+			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".indexed",
+				"cannot drop the index on %q", n.Name))
+		}
+		// A column's NOT NULL and DEFAULT are part of the table, not of the
+		// bookkeeping row. The only ALTER this layer can emit is ADD COLUMN, so a
+		// change to either one would be recorded as applied while the database
+		// kept the old rule: a relaxed `required` would still reject the write, a
+		// tightened one would silently accept NULLs, and a new default would
+		// never reach a row. Refuse until a column can be altered.
+		if f.Required != n.Required {
+			errs = append(errs, issue(CodeRequiredChangeUnsupported, "fields."+n.Name+".required",
+				"cannot change required on %q; add a field instead", n.Name))
+		}
+		if !sameDefault(f.Default, n.Default) {
+			errs = append(errs, issue(CodeDefaultChangeUnsupported, "fields."+n.Name+".default",
+				"cannot change the default of %q; add a field instead", n.Name))
 		}
 	}
 
