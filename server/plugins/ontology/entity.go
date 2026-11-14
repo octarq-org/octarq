@@ -63,8 +63,14 @@ type catalogEntry struct {
 	PluralLabel string         `json:"pluralLabel"`
 	Icon        string         `json:"icon,omitempty"`
 	Scope       core.ScopeKind `json:"scope"`
-	Fields      []catalogField `json:"fields"`
-	Operations  []string       `json:"operations"`
+	// Tier is what the page needs to open, in the self-hosted vocabulary
+	// ("" = free). It is the list operation's tier, because listing is the
+	// request the generic page makes first and therefore the one that answers
+	// 402. Without it the upsell mask can only say "locked feature", and would
+	// label an elite-only entity as Pro.
+	Tier       string         `json:"tier,omitempty"`
+	Fields     []catalogField `json:"fields"`
+	Operations []string       `json:"operations"`
 }
 
 type catalogField struct {
@@ -86,6 +92,7 @@ func (e *entity) catalog(can func(op core.Operation) bool) catalogEntry {
 		PluralLabel: pluralLabel(e.spec),
 		Icon:        e.spec.Icon,
 		Scope:       core.ScopeOf(e.spec),
+		Tier:        e.acl(core.OpList).Tier,
 		Fields:      make([]catalogField, 0, len(e.spec.Fields)),
 		Operations:  []string{},
 	}

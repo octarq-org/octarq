@@ -30,6 +30,12 @@ export interface CatalogEntity {
   label: string;
   pluralLabel: string;
   icon: string;
+  /**
+   * The license tier the page needs to open, in the self-hosted vocabulary.
+   * Absent means free. It is the list operation's tier: that is the request
+   * this page makes first, so it is the one a 402 comes from.
+   */
+  tier?: "pro" | "elite";
   fields: EntityField[];
   /** The operations this caller may perform. The backend already filtered. */
   operations: EntityOperation[];
