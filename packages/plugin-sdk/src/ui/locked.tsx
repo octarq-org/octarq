@@ -1,7 +1,6 @@
 import { forwardRef, type ReactNode } from "react";
 import { cn } from "./cn";
 import { useTranslation } from "../i18n";
-import { useAppName } from "../brand";
 import { GlassCard, ProPill, Button, TIER_LABEL } from "./primitives";
 
 // The gated-state UI: LockedFeature (the upsell mask for 402 unlicensed / 404
@@ -29,7 +28,6 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
     // failures fall through to the neutral message.
     const locked = status === 402 || status === 404;
     const label = TIER_LABEL[tier];
-    const appName = useAppName();
     const { t } = useTranslation();
 
     return (
@@ -57,11 +55,7 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             {locked ? (
               <>
-                {t("uiCommon.lockedIntroPre")}
-                <span className="font-medium text-accent-fg">
-                  {appName} {label}
-                </span>
-                {t("uiCommon.lockedIntroPost")}
+                {t("uiCommon.lockedIntro", { tier: label })}
                 {description ? ` ${description}` : ""}
               </>
             ) : (

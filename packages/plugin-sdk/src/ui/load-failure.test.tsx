@@ -10,8 +10,7 @@ const resources = {
       retry: "Retry",
     },
     uiCommon: {
-      lockedIntroPre: "This is a ",
-      lockedIntroPost: " feature.",
+      lockedIntro: "This is a {{tier}} feature.",
       upgradeTo: "Upgrade to {{tier}}",
       comparePlans: "Compare plans",
       notAvailable: "{{feature}} is not available.",
