@@ -42,6 +42,9 @@ describe("GatewaySettings", () => {
     expect(await screen.findByText("Production")).toBeTruthy();
     expect(screen.getByText("Coding agents")).toBeTruthy();
     expect(screen.getByText(`${window.location.origin}/v1`)).toBeTruthy();
+    // Both wire formats are stated: OpenAI clients and Claude Code.
+    expect(screen.getByText("GET /v1/models")).toBeTruthy();
+    expect(screen.getByText("POST /v1/messages")).toBeTruthy();
   });
 
   it("reads the model list from the provider when the form opens", async () => {
