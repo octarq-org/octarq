@@ -97,6 +97,49 @@ mux, behind the token guard rather than the huma admin routes.
 - The routes live outside `/api/`, so `internal/server` forwards `/v1/` to the
   API mux. Without that branch the handlers exist but nothing routes to them.
 
+## 5.2 Anthropic Messages API (Claude Code)
+
+Claude Code speaks Anthropic's format, not OpenAI's, so the gateway translates it
+rather than relaying it.
+
+| Method | Path | Effect |
+|---|---|---|
+| POST | `/v1/messages` | One Messages turn, streamed or not |
+| POST | `/v1/messages/count_tokens` | The client's context meter |
+
+Translation, both directions:
+
+| Anthropic | OpenAI |
+|---|---|
+| `system` (string or blocks) | a `system` message |
+| text part | `content` part of type `text` |
+| image part (`base64` or `url`) | `image_url` part (data URI or URL) |
+| assistant `tool_use` | `tool_calls[]` with the id kept |
+| user `tool_result` | a `tool` message, emitted before the user message |
+| `tools[].input_schema` | `tools[].function.parameters` |
+| `tool_choice` auto/any/tool/none | `auto` / `required` / named function / `none` |
+| `stop_sequences` | `stop` |
+| `finish_reason` | `stop_reason` (`stop`→`end_turn`, `length`→`max_tokens`, `tool_calls`→`tool_use`) |
+| provider `tool_call.id` | `tool_use.id`, returned unchanged so the next `tool_result` matches |
+
+Rules:
+
+- The model name reaches the provider unchanged. The operator sets
+  `ANTHROPIC_MODEL` to a model the provider serves; a wrong name returns the
+  provider's error rather than being silently replaced.
+- A block with no OpenAI counterpart (`thinking`, a tool result image) is refused
+  with 400. Losing part of the client's context silently would be worse.
+- Streaming emits the event sequence the SDK parses: `message_start`,
+  `content_block_start` / `content_block_delta` / `content_block_stop`,
+  `message_delta`, `message_stop`. Text deltas use `text_delta`; tool arguments
+  use `input_json_delta`.
+- The provider is asked for `stream_options.include_usage`, so
+  `message_delta.usage.output_tokens` is the provider's own count.
+  `message_start.usage.input_tokens` is an **estimate** (`estimateTokens`, about
+  four characters per token): no provider on this path exposes a tokenizer, and
+  the client uses the figure only for its context meter. Nothing bills on it.
+- `count_tokens` answers with the same estimate.
+
 ## 6. Failure Modes
 
 | Condition | Behavior |
@@ -110,6 +153,8 @@ mux, behind the token guard rather than the huma admin routes.
 | Agent token names no workspace | 403 in the OpenAI error shape |
 | Provider lists no models | 502; the console picker and the agent both fail closed |
 | Provider base URL cannot be parsed | 400; nothing is sent |
+| A Messages block has no OpenAI counterpart | 400; the turn is refused |
+| The provider refuses a Messages turn | 502 with the provider's message |
 
 ## 7. Extension Points
 
