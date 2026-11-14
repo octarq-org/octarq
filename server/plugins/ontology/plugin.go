@@ -29,6 +29,8 @@ const (
 // Plugin is the generated data surface.
 type Plugin struct {
 	entities []*entity
+	specs    []core.Spec
+	loaded   bool
 	db       *gorm.DB
 	host     plugin.Host
 	ctx      *plugin.Context
@@ -51,7 +53,8 @@ var (
 	_ plugin.MCPProvider  = (*Plugin)(nil)
 )
 
-// New returns the plugin. Declarations are read during Mount.
+// New returns the plugin. Declarations are read on first use, by Mount or by
+// Validate, whichever runs first in the composition root.
 func New() *Plugin { return &Plugin{} }
 
 func (p *Plugin) Name() string { return "ontology" }
@@ -72,8 +75,7 @@ func (p *Plugin) Describe() plugin.Info {
 // can tell an unchanged declaration from a changed one.
 func (p *Plugin) Models() []any { return []any{&core.AppliedSpec{}} }
 
-// Mount loads the declarations, validates the whole set, applies it, and
-// registers the HTTP surface.
+// Mount loads the declarations, applies them, and registers the HTTP surface.
 //
 // Everything is read and checked before the first statement runs: a declaration
 // refused half way through would leave a schema no declaration describes.
@@ -86,30 +88,17 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.db = ctx.DB
 	p.host = ctx.Host
 
-	specs, err := core.Load(os.Getenv(EntitiesEnv), os.Getenv(EntitiesFileEnv))
-	if err != nil {
-		p.err = err
+	if err := p.ensureLoaded(); err != nil {
 		return
 	}
-	if len(specs) == 0 {
+	if len(p.specs) == 0 {
 		// No declaration anywhere: the feature is off. An installation that
 		// declares no entities is a valid installation, not a broken one.
 		return
 	}
 
-	entities := make([]*entity, 0, len(specs))
-	for _, spec := range specs {
-		e := newEntity(spec)
-		if err := e.validate(); err != nil {
-			p.err = err
-			return
-		}
-		entities = append(entities, e)
-	}
-	p.entities = entities
-
 	if p.db == nil {
-		p.schemaErr = errors.New("ontology: the host provided no database")
+		p.schemaErr = ErrNoDatabase
 		return
 	}
 	// The declarations are applied by whichever process opened the database.
@@ -119,7 +108,7 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	//
 	// Name() is the dialector's: gorm embeds the Dialector in Config, so the
 	// promoted method answers with the driver the connection was opened with.
-	if err := core.Apply(context.Background(), p.db, p.db.Name(), specs); err != nil {
+	if err := core.Apply(context.Background(), p.db, p.db.Name(), p.specs); err != nil {
 		if errors.Is(err, core.ErrBookkeepingMissing) {
 			// Migrations have not run in this process. The declarations are
 			// valid; the tables simply do not exist yet.
@@ -133,11 +122,54 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.registerRoutes(ctx)
 }
 
+// ensureLoaded reads and validates the declaration once.
+//
+// Validate calls it as well as Mount, because the order differs per composition
+// root: app.Run mounts first and validates after, while `octarq mcp` validates
+// before the stdio mount. Reading the declaration only in Mount would let the
+// CLI start with a declaration it never checked and publish no tool at all.
+func (p *Plugin) ensureLoaded() error {
+	if p.err != nil {
+		return p.err
+	}
+	if p.loaded {
+		return nil
+	}
+	p.loaded = true
+
+	specs, err := core.Load(os.Getenv(EntitiesEnv), os.Getenv(EntitiesFileEnv))
+	if err != nil {
+		p.err = err
+		return err
+	}
+	if len(specs) == 0 {
+		return nil
+	}
+
+	entities := make([]*entity, 0, len(specs))
+	for _, spec := range specs {
+		e := newEntity(spec)
+		if err := e.validate(); err != nil {
+			p.err = err
+			return err
+		}
+		entities = append(entities, e)
+	}
+	p.specs = specs
+	p.entities = entities
+	return nil
+}
+
 // Validate reports a declaration the boot must not continue with.
-func (p *Plugin) Validate(context.Context, plugin.Host) error { return p.err }
+func (p *Plugin) Validate(context.Context, plugin.Host) error { return p.ensureLoaded() }
 
 // Menus publishes one sidebar entry per declared entity.
 func (p *Plugin) Menus() []plugin.MenuItem {
+	// A schema that was never applied has no route behind it, so an entry would
+	// open a 404.
+	if p.schemaErr != nil {
+		return nil
+	}
 	out := make([]plugin.MenuItem, 0, len(p.entities))
 	for i, e := range p.entities {
 		item := plugin.MenuItem{

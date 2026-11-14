@@ -24,6 +24,16 @@ var ErrNotFound = errors.New("ontology: record not found")
 // no meaning without one.
 var ErrNoTenantScope = errors.New("ontology: no workspace in this request")
 
+// ErrNoDatabase is returned when the composition gave the plugin no database at
+// all. It is not an authentication problem, so it is not reported as one.
+var ErrNoDatabase = errors.New("ontology: the host provided no database")
+
+// ErrNoRole is returned when the transport carries no role at all, which is the
+// stdio composition: it stamps a workspace but no identity. It is refused like
+// any other missing grant, and told apart from a role that is simply too low so
+// the caller learns which of the two it can fix.
+var ErrNoRole = errors.New("ontology: this transport carries no role")
+
 // ErrUnknownSort is returned when a caller sorts by something that is not a
 // declared field.
 var ErrUnknownSort = errors.New("ontology: unknown sort field")

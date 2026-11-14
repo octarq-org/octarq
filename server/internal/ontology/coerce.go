@@ -52,6 +52,12 @@ func decode(spec Spec, raw []byte, create bool) (map[string]any, error) {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, Errors{issue(CodeValueRequired, "body", "a JSON object is required")}
 	}
+	// encoding/json keeps the last of two keys with the same name and says
+	// nothing. The caller who sent both believes the first one applied, so the
+	// document is refused before it is decoded.
+	if key, dup := DuplicateKey(raw); dup {
+		return nil, Errors{issue(CodeValueInvalid, key, "%q is sent twice; send it once", key)}
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
 	var in map[string]any
@@ -111,6 +117,71 @@ func decode(spec Spec, raw []byte, create bool) (map[string]any, error) {
 		return nil, normalize(errs)
 	}
 	return out, nil
+}
+
+// DuplicateKey reports the first key a JSON document declares twice, at any
+// depth. encoding/json resolves the collision silently by keeping the last
+// value, which is the one behaviour a declaration and a request body must not
+// have: the sender cannot tell which value was stored.
+//
+// A malformed document is left to the caller's own decode, which reports it with
+// a position; this scan only answers the duplicate question.
+func DuplicateKey(raw []byte) (string, bool) {
+	type frame struct {
+		object    bool
+		expectKey bool
+		seen      map[string]bool
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var stack []frame
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return "", false
+		}
+		if delim, ok := tok.(json.Delim); ok {
+			switch delim {
+			case '{':
+				stack = append(stack, frame{object: true, expectKey: true, seen: map[string]bool{}})
+			case '[':
+				stack = append(stack, frame{})
+			default: // '}' or ']'
+				if len(stack) == 0 {
+					return "", false
+				}
+				stack = stack[:len(stack)-1]
+				// The container was its parent's value, which is now complete.
+				if n := len(stack); n > 0 && stack[n-1].object {
+					stack[n-1].expectKey = true
+				}
+			}
+			continue
+		}
+
+		if len(stack) == 0 {
+			return "", false
+		}
+		top := &stack[len(stack)-1]
+		if !top.object {
+			continue
+		}
+		if top.expectKey {
+			key, ok := tok.(string)
+			if !ok {
+				return "", false
+			}
+			if top.seen[key] {
+				return key, true
+			}
+			top.seen[key] = true
+			top.expectKey = false
+			continue
+		}
+		// A scalar value just ended; the next token is this object's key.
+		top.expectKey = true
+	}
 }
 
 // coerceValue turns a decoded JSON value into the Go value the column expects.
@@ -188,6 +259,12 @@ func toInt64(f Field, v any) (any, error) {
 	case float64: // MCP tool arguments arrive as decoded JSON, not json.Number.
 		if n != math.Trunc(n) || math.IsInf(n, 0) || math.IsNaN(n) {
 			return nil, fmt.Errorf("%q must be a whole number", f.Name)
+		}
+		// A float64 holds every integer up to 2^53 and stops being able to tell
+		// them apart after that. Accepting the value would store a number the
+		// caller never sent.
+		if math.Abs(n) > 1<<53 {
+			return nil, fmt.Errorf("%q is out of range", f.Name)
 		}
 		return int64(n), nil
 	case int64:

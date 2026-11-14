@@ -90,7 +90,10 @@ func inputSchema(e *entity, op core.Operation) map[string]any {
 // validates the whole schema at AddTool and a string default on an integer
 // property panics the server.
 func fieldSchema(f core.Field) map[string]any {
-	out := map[string]any{"type": jsonType(f.Type)}
+	out := map[string]any{}
+	if t := jsonType(f.Type); t != "" {
+		out["type"] = t
+	}
 	if label := fieldLabel(f); label != f.Name {
 		out["description"] = label
 	}
@@ -103,6 +106,11 @@ func fieldSchema(f core.Field) map[string]any {
 }
 
 // jsonType maps a declared type to its JSON Schema type.
+//
+// A json field has no type on purpose. The column holds any JSON value — an
+// object, an array, a number — and core.DecodeValues accepts all of them, so
+// declaring "object" here would make the SDK refuse the array the server would
+// happily store.
 func jsonType(t core.FieldType) string {
 	switch t {
 	case core.TypeInteger:
@@ -112,7 +120,7 @@ func jsonType(t core.FieldType) string {
 	case core.TypeBoolean:
 		return "boolean"
 	case core.TypeJSON:
-		return "object"
+		return ""
 	default:
 		return "string"
 	}

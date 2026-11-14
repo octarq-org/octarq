@@ -92,8 +92,10 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	// Entity routes are generated from a declaration, so their paths are
 	// runtime values and do not belong in the published spec. An exported
 	// OCTARQ_ENTITIES in the developer's shell would otherwise put them there
-	// and fail the committed-spec diff check.
-	os.Setenv("OCTARQ_ENTITIES", "")
+	// and fail the committed-spec diff check. An inline empty declaration wins
+	// over both the file variable and ./octarq.entities.json, which a developer
+	// following the help page has in the working directory.
+	os.Setenv("OCTARQ_ENTITIES", `{"entities":[]}`)
 	os.Setenv("OCTARQ_ENTITIES_FILE", "")
 
 	a, err := app.New()

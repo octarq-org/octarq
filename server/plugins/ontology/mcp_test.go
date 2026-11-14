@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	core "github.com/octarq-org/octarq/server/internal/ontology"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -258,4 +259,45 @@ func resultString(t *testing.T, res *mcp.CallToolResult, key string) string {
 		}
 	}
 	return ""
+}
+
+// TestReadyTellsAMissingRoleApartFromALowOne pins the three refusals apart. A
+// transport that carries no role — stdio — cannot be fixed by changing the
+// token, so it must not answer with the message that says it can.
+func TestReadyTellsAMissingRoleApartFromALowOne(t *testing.T) {
+	p := mountedMCP(t)
+	e := p.entities[0]
+	ctx := plugin.WithOrgID(context.Background(), 1)
+
+	if err := p.ready(ctx, e, core.OpList); !errors.Is(err, ErrNoRole) {
+		t.Fatalf("ready without a role = %v, want ErrNoRole", err)
+	}
+	if err := p.ready(plugin.WithTokenRole(ctx, "member"), e, core.OpList); err != nil {
+		t.Fatalf("ready as member = %v, want nil", err)
+	}
+	if err := p.ready(plugin.WithTokenRole(ctx, "member"), e, core.OpDelete); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("ready as member for delete = %v, want ErrForbidden", err)
+	}
+}
+
+// TestInputSchemaLeavesAJSONFieldUntyped pins the schema to what the decoder
+// accepts: a json field holds any JSON value, so a declared "object" would make
+// the SDK refuse an array the server would store.
+func TestInputSchemaLeavesAJSONFieldUntyped(t *testing.T) {
+	doc := strings.Replace(ticketDoc,
+		`{"name":"due_at","type":"timestamp"}`,
+		`{"name":"due_at","type":"timestamp"},{"name":"extra","type":"json"}`, 1)
+	p := mount(t, doc)
+
+	props, ok := inputSchema(p.entities[0], core.OpCreate)["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("create schema has no properties")
+	}
+	extra, ok := props["extra"].(map[string]any)
+	if !ok {
+		t.Fatalf("extra = %#v, want a property", props["extra"])
+	}
+	if typ, ok := extra["type"]; ok {
+		t.Fatalf("extra advertises type %v, want none: the column stores any JSON value", typ)
+	}
 }

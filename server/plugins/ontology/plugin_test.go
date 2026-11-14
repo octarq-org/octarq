@@ -2,6 +2,7 @@ package ontology
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -33,7 +34,9 @@ func mount(t *testing.T, doc string) *Plugin {
 	t.Setenv(EntitiesEnv, doc)
 	t.Setenv(EntitiesFileEnv, "")
 	p := New()
-	p.Mount(nil, &plugin.Context{})
+	// A mounted plugin publishes menus only when it has a database to apply the
+	// declaration to, so the fixture supplies the one a booted server has.
+	p.Mount(nil, &plugin.Context{DB: openDB(t)})
 	return p
 }
 
@@ -219,5 +222,36 @@ func TestInputSchemaDefaultsAreTyped(t *testing.T) {
 	priority, _ := props["priority"].(map[string]any)
 	if _, ok := priority["default"].(int64); !ok {
 		t.Fatalf("priority default = %#v, want a JSON number: a string default panics the MCP server", priority["default"])
+	}
+}
+
+// TestValidateReadsTheDeclarationBeforeAnyMount pins the order `octarq mcp`
+// uses: it validates first, then mounts. A declaration only Mount read would
+// never be checked on that path, and the CLI would start with no tool, no
+// message and exit status 0.
+func TestValidateReadsTheDeclarationBeforeAnyMount(t *testing.T) {
+	t.Setenv(EntitiesEnv, `{"entities":[{"slug":"tickets","label":"Ticket","fields":[{"name":"title","type":"strin"}]}]}`)
+	t.Setenv(EntitiesFileEnv, "")
+
+	p := New()
+	if err := p.Validate(context.Background(), nil); err == nil {
+		t.Fatal("Validate = nil, want the declaration refused before the mount")
+	}
+}
+
+// TestMenusStayHiddenWhenTheSchemaWasNotApplied pins the sidebar to the routes:
+// a composition that applied nothing publishes no menu, because the page the
+// entry opens does not exist.
+func TestMenusStayHiddenWhenTheSchemaWasNotApplied(t *testing.T) {
+	t.Setenv(EntitiesEnv, ticketDoc)
+	t.Setenv(EntitiesFileEnv, "")
+
+	p := New()
+	p.Mount(nil, &plugin.Context{})
+	if !errors.Is(p.schemaErr, ErrNoDatabase) {
+		t.Fatalf("schemaErr = %v, want ErrNoDatabase", p.schemaErr)
+	}
+	if len(p.Menus()) != 0 {
+		t.Fatalf("menus = %v, want none without an applied schema", p.Menus())
 	}
 }

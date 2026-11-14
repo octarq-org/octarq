@@ -2,6 +2,7 @@ package ontology
 
 import (
 	"errors"
+	"log/slog"
 
 	"github.com/danielgtaylor/huma/v2"
 	core "github.com/octarq-org/octarq/server/internal/ontology"
@@ -56,6 +57,20 @@ func asFailure(err error) *failure {
 		return &failure{status: 404, code: "NOT_FOUND", message: "Record not found."}
 	case errors.Is(err, ErrNoTenantScope):
 		return &failure{status: 401, code: "UNAUTHENTICATED", message: "Sign in to continue."}
+	case errors.Is(err, ErrNoDatabase):
+		return &failure{
+			status:     503,
+			code:       "DATABASE_UNAVAILABLE",
+			message:    ErrNoDatabase.Error(),
+			suggestion: "Start the server with a database so it can apply the entity declarations.",
+		}
+	case errors.Is(err, ErrNoRole):
+		return &failure{
+			status:     403,
+			code:       "FORBIDDEN",
+			message:    ErrNoRole.Error(),
+			suggestion: "Connect to the HTTP MCP endpoint with an API token whose role allows this operation.",
+		}
 	case errors.Is(err, ErrForbidden):
 		return &failure{
 			status:     403,
@@ -100,8 +115,13 @@ func humaError(err error) error {
 	if f == nil {
 		return nil
 	}
-	// The underlying error is kept for the log (huma does not print it to the
-	// client beyond the message).
+	// A 5xx is the only case where the operator cannot see the cause from the
+	// client's side: the message is deliberately generic, so the underlying
+	// error — a driver error, a lost connection — goes to the log instead. It is
+	// not handed to huma, which would put it in the response body.
+	if f.status >= 500 {
+		slog.Error("ontology: request failed", "status", f.status, "code", f.code, "err", err)
+	}
 	return huma.NewError(f.status, f.message)
 }
 

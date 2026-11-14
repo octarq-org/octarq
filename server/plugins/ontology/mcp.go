@@ -249,9 +249,16 @@ func (p *Plugin) ready(ctx context.Context, e *entity, op core.Operation) error 
 		return p.schemaErr
 	}
 	if p.db == nil {
-		return ErrNoTenantScope
+		return ErrNoDatabase
 	}
-	if !aclAllows(e.acl(op).Roles, plugin.RoleFromContext(ctx)) {
+	// The stdio composition stamps a workspace but no identity, so a tool called
+	// over `octarq mcp` has no role to compare. Saying so is the difference
+	// between "your token is too weak" and "this transport cannot carry a token".
+	role := plugin.RoleFromContext(ctx)
+	if role == "" {
+		return ErrNoRole
+	}
+	if !aclAllows(e.acl(op).Roles, role) {
 		return ErrForbidden
 	}
 	return nil
@@ -320,6 +327,12 @@ func argInt(in toolArgs, key string) (int, error) {
 	case float64:
 		if n != math.Trunc(n) {
 			return 0, fmt.Errorf("%w: %s must be a whole number", ErrInvalidArgument, key)
+		}
+		// The MCP SDK decodes arguments as float64. Beyond 2^53 a float64 can no
+		// longer tell two integers apart, so the value that arrives is already
+		// not the value the caller sent.
+		if math.Abs(n) > 1<<53 {
+			return 0, fmt.Errorf("%w: %s is out of range", ErrInvalidArgument, key)
 		}
 		return int(n), nil
 	case int:
