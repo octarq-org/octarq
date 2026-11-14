@@ -59,6 +59,17 @@ describe("TableError", () => {
     expect(screen.getByText(/Data tables/i)).toBeTruthy();
   });
 
+  it("names the feature the caller passed instead of the generic label", () => {
+    renderWithI18n(<TableError error={{ status: 402 }} lockedFeature="Runbooks" />);
+    expect(screen.getByText("Runbooks")).toBeTruthy();
+    expect(screen.queryByText("Data tables")).toBeNull();
+  });
+
+  it("labels an elite feature elite", () => {
+    renderWithI18n(<TableError error={{ status: 402 }} lockedTier="elite" />);
+    expect(screen.getByText("Elite")).toBeTruthy();
+  });
+
   it("falls back to the localized title when a non-Error is rejected", () => {
     // The title and the message fallback are the same string here, so assert on
     // the rendered set rather than a single node.

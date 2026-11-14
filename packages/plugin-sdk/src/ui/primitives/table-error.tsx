@@ -15,6 +15,13 @@ export interface TableErrorProps {
   errorText?: ReactNode;
   onRetry?: () => void;
   className?: string;
+  // The upsell mask on a 402 has to say which feature is locked. The caller
+  // knows; this component does not, and the generic label it falls back to
+  // reads as a mismatch next to the page title the user just clicked.
+  lockedFeature?: string;
+  // The tier the 402 asks for, so an elite-only feature is not labelled Pro.
+  // Undefined keeps LockedFeature's own default.
+  lockedTier?: "pro" | "elite";
 }
 
 // Narrowed without `as any`: the error arrives from whatever the caller's data
@@ -33,13 +40,17 @@ export function errorStatus(error: unknown): number {
 }
 
 export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
-  ({ error, errorText, onRetry, className }, ref) => {
+  ({ error, errorText, onRetry, className, lockedFeature, lockedTier }, ref) => {
     const { t } = useTranslation();
 
     if (errorStatus(error) === 402) {
       return (
         <div ref={ref} className={cn("p-6", className)}>
-          <LockedFeature status={402} feature={t("proTable.lockedFeature", "Locked feature")} />
+          <LockedFeature
+            status={402}
+            feature={lockedFeature ?? t("proTable.lockedFeature", "Locked feature")}
+            tier={lockedTier}
+          />
         </div>
       );
     }

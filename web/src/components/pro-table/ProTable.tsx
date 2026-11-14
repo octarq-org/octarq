@@ -49,6 +49,8 @@ function ProTableInner<
     emptyText,
     emptyReason,
     errorText,
+    lockedFeature,
+    lockedTier,
     showToolbar = true,
     rowKey = "id",
     pagination = true,
@@ -148,6 +150,8 @@ function ProTableInner<
           <TableError
             error={error}
             errorText={errorText}
+            lockedFeature={lockedFeature}
+            lockedTier={lockedTier}
             onRetry={() => reload(false)}
           />
         ) : data.length === 0 ? (

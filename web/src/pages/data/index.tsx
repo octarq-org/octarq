@@ -127,6 +127,10 @@ export default function DataPage() {
         }}
         emptyText={t("data.empty")}
         emptyReason={t("data.emptyReason")}
+        // A declared Pro entity answers 402 on the first list. The mask has to
+        // name the feature the user clicked, not "Locked feature".
+        lockedFeature={entity.pluralLabel}
+        lockedTier={entity.tier}
         toolBarRender={() =>
           canCreate
             ? [

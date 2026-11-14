@@ -170,6 +170,10 @@ export interface ProTableProps<TData, TParams extends Record<string, any> = Reco
   emptyText?: ReactNode;
   emptyReason?: ReactNode;
   errorText?: ReactNode;
+  // Forwarded to TableError's upsell mask: the feature name and the tier a 402
+  // is asking for. A page that knows its own name should pass both.
+  lockedFeature?: string;
+  lockedTier?: "pro" | "elite";
   showToolbar?: boolean;
   ariaLabel?: string;
 }
