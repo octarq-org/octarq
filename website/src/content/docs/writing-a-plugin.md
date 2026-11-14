@@ -101,7 +101,85 @@ Verify backend implementation:
 
 ---
 
-## 3. Frontend Implementation (`UIPlugin`)
+## 3. Declare Data Instead of Writing a Table
+
+Most plugin features are one table plus CRUD. You do not write that half. Declare
+the entity in Go and the platform builds the table, the REST surface, the admin
+page and the agent tools.
+
+```go
+package notes
+
+import (
+    "github.com/octarq-org/octarq/server/ontology"
+    "github.com/octarq-org/octarq/server/plugin"
+)
+
+var entity = ontology.Spec{
+    Slug:        "notes",
+    Label:       "Note",
+    PluralLabel: "Notes",
+    Icon:        "scroll-text",
+    Scope:       ontology.ScopeOrg,
+    Fields: []ontology.Field{
+        {Name: "title", Type: ontology.TypeString, Required: true, Unique: true,
+            Label: "Title", Widget: ontology.WidgetText, ListColumn: true},
+        {Name: "body", Type: ontology.TypeText,
+            Label: "Body", Widget: ontology.WidgetTextarea},
+    },
+    Operations: ontology.AllowAllOperations(),
+}
+
+// Declare before any plugin mounts.
+func init() { ontology.MustRegister(entity) }
+
+type Plugin struct{}
+
+func (Plugin) Name() string { return "notes" }
+
+func (Plugin) Describe() plugin.Info {
+    return plugin.Info{
+        Title:    "Notes",
+        Category: plugin.CategoryUtilities,
+        Requires: []string{"ontology"},
+    }
+}
+
+func (Plugin) Models() []any { return nil } // the ontology plugin owns the table
+func (Plugin) Mount(plugin.Mux, *plugin.Context) {}
+```
+
+Mounted as `app.Use(notes.Plugin{})`, the plugin gives the workspace:
+
+| Surface | Where |
+| --- | --- |
+| Table | `ont_notes`, created and reconciled at boot |
+| REST | `GET`/`POST` `/api/data/notes`, `GET`/`PUT`/`DELETE` `/api/data/notes/{id}` |
+| Admin page | `/data/notes`, with a sidebar entry |
+| Agent tools | `octarq_data__list_notes` and one per operation |
+
+Rules:
+
+- **Declare in `init()`.** The registry freezes at boot. A later `Register` returns `ErrFrozen`; `MustRegister` panics.
+- **Set `Requires: []string{"ontology"}`.** A build without the ontology plugin then refuses to start, instead of mounting a plugin with no surface.
+- **Isolation is enforced by the handle.** `ScopeOrg` (the default) partitions rows by workspace. `ScopeUser` also partitions by member. Your code never filters by either. Deleting the workspace deletes its rows.
+- **The icon must be a sidebar key.** An unknown key stops the boot and names the file that holds the accepted keys.
+- **Charge per operation with `Tier`.** `OperationACL{Tier: ontology.TierPro}` answers `402` on that operation, and the admin page names the tier on its upsell card. Leave the tier empty for a free entity.
+- **The page is always on.** The ontology plugin owns the route and the sidebar entry of every declared entity. Disabling your plugin in Settings → Plugins does not remove them. Declare only what should exist whenever the build ships.
+- **Keep the hard half in Go.** Relations, lifecycle hooks, computed fields and row-level ACLs are not in the declaration language. A table that needs them stays a GORM model in `Models()`, with your own routes.
+
+The complete file is [`server/examples/plugin-notes`](https://github.com/octarq-org/octarq/tree/main/server/examples/plugin-notes).
+
+<Aside type="tip" title="Success check">
+Verify the declared entity:
+- `GET /api/data` lists your entity with its fields and operations.
+- `POST /api/data/notes` with `{"title": "First"}` returns `200`; the same title again returns `409`.
+- `/data/notes` renders the table. A second member of the workspace sees the same row.
+</Aside>
+
+---
+
+## 4. Frontend Implementation (`UIPlugin`)
 
 The frontend uses `@octarq/plugin-sdk` to register routes, sidebar items, widgets, and translation dictionaries.
 
@@ -141,7 +219,7 @@ Verify frontend registration:
 
 ---
 
-## 4. Instance vs Tenant Scope
+## 5. Instance vs Tenant Scope
 
 Octarq runs at two scopes, and a plugin page belongs to exactly one of them:
 
@@ -189,7 +267,7 @@ sidebar merge in `web/src/App.tsx`). The rail ignores `Category` and
 
 ---
 
-## 5. Route Namespace & Idempotent Writes
+## 6. Route Namespace & Idempotent Writes
 
 ### Namespace
 
@@ -257,7 +335,7 @@ Behaviour, once wrapped:
 
 ---
 
-## 6. Inter-Plugin Service Registry
+## 7. Inter-Plugin Service Registry
 
 Plugins communicate through an in-memory service registry provided on `plugin.Context`.
 
@@ -278,7 +356,7 @@ Services are resolved **lazily** — in `Start` or per-request, never in your ow
 
 ---
 
-## 7. Ship In-App Help Docs
+## 8. Ship In-App Help Docs
 
 Ship documentation as a `docs/` directory, embedded and served under `/help/<slug>`:
 
@@ -293,7 +371,7 @@ The naming is the contract: `docs/webhooks.mdx` is a page whose slug is `webhook
 
 ---
 
-## 8. Composition & Building
+## 9. Composition & Building
 
 Octarq plugins are composed at build time (similar to `xcaddy`):
 
@@ -314,7 +392,7 @@ Verify composite binary build:
 
 ---
 
-## 9. Trust model
+## 10. Trust model
 
 There is **no runtime plugin loading** — a compiled-in plugin runs **in-process with
 full access** (DB, secrets, network). This fits a **curated / operator-opt-in**
@@ -332,22 +410,25 @@ before you send it does not. See the package documentation for the details.
 
 ---
 
-## 10. Distribution
+## 11. Distribution
 
 A plugin is **one repo** with the two halves: the Go module is `go get`-able, and
 the `web/` package publishes to npm with `@octarq/plugin-sdk` and `react` as
 **peer** dependencies. The working reference is
-[`examples/plugin-hello`](https://github.com/octarq-org/octarq/tree/main/server/examples/plugin-hello).
+[`examples/plugin-hello`](https://github.com/octarq-org/octarq/tree/main/server/examples/plugin-hello);
+[`examples/plugin-notes`](https://github.com/octarq-org/octarq/tree/main/server/examples/plugin-notes)
+is the same shape for a plugin whose whole feature is a declared entity.
 For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 
 ---
 
-## 11. Checklist
+## 12. Checklist
 
 - [ ] `Plugin.Name()` and `UIPlugin.name` are identical.
 - [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).
 - [ ] Backend `/api` routes live under `/api/x/<name>/`; write endpoints accept `Idempotency-Key`.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
+- [ ] A declared entity registers in `init()` with `ontology.MustRegister`, and the plugin sets `Requires: ["ontology"]`.
 - [ ] Every outbound fetch of a user-supplied URL goes through `server/plugin/safehttp`, not a bare `http.Client`.
 - [ ] Tiered routes return **402** when gated; rely on the host's auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
