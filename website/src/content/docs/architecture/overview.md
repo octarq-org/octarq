@@ -92,4 +92,5 @@ Core codebase layout:
 - `web/src/plugins/PluginRoutes.tsx` — Route renderer & degradation boundary.
 - `web/src/plugins/core/` — Built-in core feature UI plugins.
 - `server/examples/plugin-hello/` — Reference plugin implementation.
+- `server/examples/plugin-notes/` — Reference plugin whose whole feature is one declared entity.
 - `website/src/content/docs/` — Documentation site source.

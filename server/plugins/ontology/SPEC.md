@@ -41,6 +41,9 @@ the values it is given, so no module ever holds the plugin instance to hand it a
 declaration. `Provide`/`Lookup` was rejected for the same reason: it is visible
 only to plugins mounted later, which makes correctness depend on mount order.
 
+`server/examples/plugin-notes` is the copy-me file: one declaration, a plugin
+shell with no routes, and a test that validates what `init` registered.
+
 Rules:
 
 - `Register` validates each spec immediately and refuses a slug already in the

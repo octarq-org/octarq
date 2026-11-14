@@ -7,6 +7,9 @@
 // a Go module + a JS package, each conforming to its side's plugin contract,
 // composed into the app WITHOUT forking it — the Go plugin mounted via
 // app.App.Use(...), the UI plugin composed at build time via registerUIPlugin.
+//
+// If your feature is one table plus CRUD, you do not write either half by hand:
+// see ../plugin-notes for the same plugin with its data declared instead.
 package hello
 
 import (
