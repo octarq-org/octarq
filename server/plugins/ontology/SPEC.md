@@ -22,9 +22,9 @@ package. It registers entities in Go; the plugin merges them with the operator's
 document and applies one set.
 
 ```go
-// module side, at init
+// module side, at init. The first argument is the plugin's own Name().
 func init() {
-    ontology.MustRegister(ontology.Spec{Slug: "notes", /* … */})
+    ontology.MustRegister(Plugin{}.Name(), ontology.Spec{Slug: "notes", /* … */})
 }
 ```
 
@@ -50,16 +50,46 @@ Rules:
   registry. `MustRegister` is the `init` form and panics. The package-level
   `ontology.MustRegister` registers into `Default()`; the method form exists for
   a registry a caller built itself.
+- The first argument is the declaring plugin's `Name()`. It is stamped into
+  `Spec.Owner`, which the declaration cannot set: an operator's entity has no
+  owner, and a module that could name one could claim an entity another plugin's
+  switch governs. `Register` refuses an empty owner (`ErrNoOwner`) and a name
+  that is not a plugin name.
 - `Declared` freezes the registry. A `Register` after it returns `ErrFrozen`: the
   tables, routes and tools are built from the set that was read, so a late
   declaration would exist in the registry and nowhere else.
 - The plugin refuses to boot when a slug is declared in both the file and code.
   It also refuses a nil registry: applying only the file would be half of what
   the binary declares.
+- At `Mount` the owner resolves to a feature key through `Context.ActivePlugins()`
+  and `plugin.FeatureKey`, so a plugin that joins a group is governed by the
+  group's switch. Boot refuses when the host cannot list its plugins, or when no
+  mounted plugin answers to the name. `Context.FeatureActive` is then stored on
+  the entity.
 - `New()` reads `ontology.Default()`. `NewWithRegistry(r)` is for tests and for a
   composition root that wants its declarations owned by one binary.
 - `openapi` generation is unaffected: the routes are generic per method and path,
   so no per-entity path reaches the published spec.
+
+### The feature switch
+
+An owned entity follows the workspace's toggle for the plugin that declared it.
+Four places read it, all through `entity.featureOff(orgID)`:
+
+| Surface | When the feature is off |
+| --- | --- |
+| REST and MCP | `tenantScope` returns `ErrFeatureOff` → `404 FEATURE_OFF` |
+| Module write seam | the same, through `recordWriter` |
+| Catalog (`GET /api/data`) | the entity is omitted, so the page offers nothing |
+| Sidebar | `MenuItem.Feature` carries the owner's key, and `/api/menus` drops the entry |
+
+The switch hides the surface; it does not touch rows. Turning the plugin back on
+restores every record.
+
+`tenantScope` is the choke point on purpose: it is the one function every
+operation on both transports passes through, so no handler can be the one that
+forgot. An operator-declared entity (`Spec.Owner == ""`) has no switch and is
+never gated.
 
 ### What a module still does not get
 
@@ -275,6 +305,7 @@ answers `404`, never `403`, so the response does not leak existence.
 | Transport carries no user, on a user-scoped entity | 403 | `FORBIDDEN` |
 | No tenant scope | 401 | `UNAUTHENTICATED` |
 | Record not found, or another tenant's record | 404 | `NOT_FOUND` |
+| The declaring plugin is off in this workspace | 404 | `FEATURE_OFF` |
 | Unique constraint violated | 409 | `CONFLICT` |
 | Bookkeeping row missing | 503 | `SCHEMA_NOT_APPLIED` |
 | The host provided no database | 503 | `DATABASE_UNAVAILABLE` |
@@ -326,6 +357,12 @@ One entry per entity: id `data-<slug>`, path `/data/<slug>`, label
 `operations`. `Menus()` runs per request and hides the entry when the caller's
 role cannot `list` the entity.
 
+An owned entity's entry also carries `MenuItem.Feature`, the owner's feature key.
+`/api/menus` drops the entry when that feature is off for the workspace. The
+publisher is core and always on, so without the field the sidebar would offer a
+disabled plugin's page forever. `MenuItem.Feature` is `json:"-"`: it is routing
+information for the aggregator, not a wire field.
+
 No entry is published when the schema was not applied. The route behind the
 entry is registered only after `Apply` succeeds, so an entry in that state would
 open a 404.
@@ -340,6 +377,9 @@ The boot is refused when:
 - the document does not parse, carries an unknown key, or declares a key twice;
 - any declaration issue is reported;
 - two entities share a slug, across the file and the code registry;
+- a declaration names no owner, or a name that is not a plugin name;
+- the host cannot list its composed plugins, or no mounted plugin answers to a
+  declaration's owner;
 - a declared icon is not a sidebar icon key;
 - a declared scope is not in the vocabulary, or an applied entity changes scope;
 - an operation's tier is not in the vocabulary;
@@ -350,5 +390,5 @@ The boot is refused when:
 
 At request time nothing is silently corrected: an unknown field, a reserved
 field, a duplicate key, a wrong type, a missing required value, an unknown sort, a
-page outside the bounds, a role outside the ACL and a user-scoped entity reached
-without a member all answer with an error.
+page outside the bounds, a role outside the ACL, a user-scoped entity reached
+without a member and an entity whose plugin is off all answer with an error.

@@ -13,6 +13,12 @@ import (
 // ErrForbidden is returned when the caller's role is not in an operation's ACL.
 var ErrForbidden = errors.New("ontology: insufficient role for this operation")
 
+// ErrFeatureOff is returned for an entity whose declaring plugin the workspace
+// has switched off. It is a 404 rather than a 403: the feature is not there to
+// be permitted, and the platform's other disabled-plugin routes answer the same
+// way.
+var ErrFeatureOff = errors.New("ontology: the plugin that declares this entity is off in this workspace")
+
 // ErrInvalidArgument is returned when a caller sends a value the platform does
 // not serve, such as a page size outside the declared bounds. Both surfaces
 // refuse it; neither substitutes a different value.
@@ -55,6 +61,12 @@ func asFailure(err error) *failure {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return &failure{status: 404, code: "NOT_FOUND", message: "Record not found."}
+	case errors.Is(err, ErrFeatureOff):
+		return &failure{
+			status:  404,
+			code:    "FEATURE_OFF",
+			message: "This feature is not enabled in this workspace.",
+		}
 	case errors.Is(err, ErrNoTenantScope):
 		return &failure{status: 401, code: "UNAUTHENTICATED", message: "Sign in to continue."}
 	case errors.Is(err, ErrNoDatabase):

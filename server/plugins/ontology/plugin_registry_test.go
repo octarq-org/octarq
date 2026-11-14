@@ -25,6 +25,26 @@ func codeSpec() core.Spec {
 	}
 }
 
+// notesOwner is the plugin that declares codeSpec, standing in for a real module.
+// The composition must answer to the name the declaration carries, or the
+// entity would have no switch and boot would refuse it.
+type notesOwner struct{}
+
+func (notesOwner) Name() string                      { return "notes" }
+func (notesOwner) Describe() plugin.Info             { return plugin.Info{Title: "Notes"} }
+func (notesOwner) Models() []any                     { return nil }
+func (notesOwner) Mount(plugin.Mux, *plugin.Context) {}
+
+// wiring is the context a composition root provides: the composed plugins, so a
+// declaration's owner resolves to a feature, and the workspace's switch.
+func wiring(db *gorm.DB, on bool) *plugin.Context {
+	return &plugin.Context{
+		DB:            db,
+		ActivePlugins: func() []plugin.Plugin { return []plugin.Plugin{notesOwner{}} },
+		FeatureActive: func(uint, string) bool { return on },
+	}
+}
+
 // registryPlugin returns a plugin reading its own registry, with no declaration
 // file in the environment.
 func registryPlugin(t *testing.T, specs ...core.Spec) *Plugin {
@@ -35,7 +55,7 @@ func registryPlugin(t *testing.T, specs ...core.Spec) *Plugin {
 
 	r := core.NewRegistry()
 	if len(specs) > 0 {
-		if err := r.Register(specs...); err != nil {
+		if err := r.Register("notes", specs...); err != nil {
 			t.Fatalf("register: %v", err)
 		}
 	}
@@ -70,7 +90,7 @@ func TestNewReadsTheProcessWideRegistry(t *testing.T) {
 func TestCodeDeclaredEntityIsApplied(t *testing.T) {
 	p := registryPlugin(t, codeSpec())
 	db := openBookkeepingDB(t)
-	p.Mount(nil, &plugin.Context{DB: db})
+	p.Mount(nil, wiring(db, true))
 
 	if err := p.Validate(context.Background(), nil); err != nil {
 		t.Fatalf("Validate = %v, want nil", err)
@@ -91,7 +111,7 @@ func TestCodeAndFileDeclarationsAreMerged(t *testing.T) {
 	t.Setenv(EntitiesEnv, ticketDoc)
 
 	db := openBookkeepingDB(t)
-	p.Mount(nil, &plugin.Context{DB: db})
+	p.Mount(nil, wiring(db, true))
 
 	if err := p.Validate(context.Background(), nil); err != nil {
 		t.Fatalf("Validate = %v, want nil", err)
@@ -114,7 +134,7 @@ func TestASlugDeclaredInBothSourcesRefusesBoot(t *testing.T) {
 	p := registryPlugin(t, spec)
 	t.Setenv(EntitiesEnv, ticketDoc)
 
-	p.Mount(nil, &plugin.Context{DB: openBookkeepingDB(t)})
+	p.Mount(nil, wiring(openBookkeepingDB(t), true))
 
 	err := p.Validate(context.Background(), nil)
 	if err == nil {
@@ -134,7 +154,7 @@ func TestAMissingRegistryRefusesBoot(t *testing.T) {
 	t.Setenv(EntitiesFileEnv, "")
 
 	p := NewWithRegistry(nil)
-	p.Mount(nil, &plugin.Context{DB: openBookkeepingDB(t)})
+	p.Mount(nil, wiring(openBookkeepingDB(t), true))
 
 	if err := p.Validate(context.Background(), nil); !errors.Is(err, ErrNoRegistry) {
 		t.Fatalf("Validate = %v, want ErrNoRegistry", err)
@@ -145,7 +165,7 @@ func TestAMissingRegistryRefusesBoot(t *testing.T) {
 // declarations and no file is still a valid installation.
 func TestAnEmptyRegistryWithNoFileIsOff(t *testing.T) {
 	p := registryPlugin(t)
-	p.Mount(nil, &plugin.Context{})
+	p.Mount(nil, wiring(nil, true))
 
 	if err := p.Validate(context.Background(), nil); err != nil {
 		t.Fatalf("Validate = %v, want nil", err)
@@ -162,4 +182,78 @@ func contains(items []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// TestAnOwnedEntityIsRefusedWithoutTheComposedPlugins pins fail-closed boot: an
+// entity whose owner cannot be resolved has no switch, and a host that cannot
+// name its plugins cannot resolve one.
+func TestAnOwnedEntityIsRefusedWithoutTheComposedPlugins(t *testing.T) {
+	p := registryPlugin(t, codeSpec())
+	p.Mount(nil, &plugin.Context{DB: openBookkeepingDB(t)})
+
+	err := p.Validate(context.Background(), nil)
+	if err == nil || !strings.Contains(err.Error(), "cannot list the composed plugins") {
+		t.Fatalf("Validate = %v, want the composition refused", err)
+	}
+}
+
+// TestAnEntityWhoseOwnerIsNotComposedIsRefused pins the other half: a
+// declaration naming a plugin this build does not mount would exist with a
+// switch nothing can flip, so it is refused at boot instead.
+func TestAnEntityWhoseOwnerIsNotComposedIsRefused(t *testing.T) {
+	p := registryPlugin(t, codeSpec())
+	p.Mount(nil, &plugin.Context{
+		DB:            openBookkeepingDB(t),
+		ActivePlugins: func() []plugin.Plugin { return nil },
+		FeatureActive: func(uint, string) bool { return true },
+	})
+
+	err := p.Validate(context.Background(), nil)
+	if err == nil || !strings.Contains(err.Error(), `plugin "notes", which is not in this build`) {
+		t.Fatalf("Validate = %v, want the missing plugin named", err)
+	}
+}
+
+// TestAnOperatorDeclaredEntityHasNoSwitch pins that the declaration file keeps
+// its meaning: an operator who declares an entity gets it in every workspace,
+// and no plugin toggle can hide it.
+func TestAnOperatorDeclaredEntityHasNoSwitch(t *testing.T) {
+	p := registryPlugin(t)
+	t.Setenv(EntitiesEnv, ticketDoc)
+
+	// Every feature is off; the operator's entity must not care.
+	p.Mount(nil, &plugin.Context{
+		DB:            openBookkeepingDB(t),
+		ActivePlugins: func() []plugin.Plugin { return []plugin.Plugin{notesOwner{}} },
+		FeatureActive: func(uint, string) bool { return false },
+	})
+	if err := p.Validate(context.Background(), nil); err != nil {
+		t.Fatalf("Validate = %v, want nil", err)
+	}
+	if len(p.entities) != 1 || p.entities[0].owned() {
+		t.Fatalf("entities = %v, want one unowned entity", p.entities)
+	}
+	if p.entities[0].featureOff(1) {
+		t.Fatal("an operator-declared entity reports itself as switched off")
+	}
+	menus := p.Menus()
+	if len(menus) != 1 || menus[0].Feature != "" {
+		t.Fatalf("menus = %v, want one entry with no feature", menus)
+	}
+}
+
+// TestAnOwnedEntityIsRefusedWithoutTheFeatureHook pins the second half of the
+// wiring: a host that can name its plugins but cannot answer whether a feature
+// is on would leave the entity switched off forever.
+func TestAnOwnedEntityIsRefusedWithoutTheFeatureHook(t *testing.T) {
+	p := registryPlugin(t, codeSpec())
+	p.Mount(nil, &plugin.Context{
+		DB:            openBookkeepingDB(t),
+		ActivePlugins: func() []plugin.Plugin { return []plugin.Plugin{notesOwner{}} },
+	})
+
+	err := p.Validate(context.Background(), nil)
+	if err == nil || !strings.Contains(err.Error(), "cannot answer whether a feature is on") {
+		t.Fatalf("Validate = %v, want the composition refused", err)
+	}
 }

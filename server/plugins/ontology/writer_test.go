@@ -16,6 +16,13 @@ import (
 // actually looks up rather than the store underneath it.
 func writerHarness(t *testing.T, specs ...core.Spec) (core.RecordWriter, *gorm.DB) {
 	t.Helper()
+	return writerHarnessOn(t, true, specs...)
+}
+
+// writerHarnessOn is writerHarness with the workspace's switch for the declaring
+// plugin set explicitly.
+func writerHarnessOn(t *testing.T, on bool, specs ...core.Spec) (core.RecordWriter, *gorm.DB) {
+	t.Helper()
 	p := registryPlugin(t, specs...)
 	db := openBookkeepingDB(t)
 	var got core.RecordWriter
@@ -28,6 +35,8 @@ func writerHarness(t *testing.T, specs ...core.Spec) (core.RecordWriter, *gorm.D
 			}
 			return tdb
 		}},
+		ActivePlugins: func() []plugin.Plugin { return []plugin.Plugin{notesOwner{}} },
+		FeatureActive: func(uint, string) bool { return on },
 		Provide: func(name string, svc any) {
 			if name != core.ServiceRecords {
 				return
@@ -181,5 +190,26 @@ func TestAUserScopedEntityBindsTheMember(t *testing.T) {
 	}
 	if len(rows) != 0 {
 		t.Fatalf("another member sees %d rows, want none", len(rows))
+	}
+}
+
+// TestTheWriterRefusesAnEntityWhosePluginIsOff pins the switch on the module
+// write seam. A module that keeps writing through the service while its page is
+// gone would be a second, invisible switch.
+func TestTheWriterRefusesAnEntityWhosePluginIsOff(t *testing.T) {
+	w, _ := writerHarnessOn(t, false, codeSpec())
+	ctx := context.Background()
+
+	if _, err := w.Create(ctx, 1, "notes", map[string]any{"body": "x"}); !errors.Is(err, ErrFeatureOff) {
+		t.Fatalf("Create while the plugin is off = %v, want ErrFeatureOff", err)
+	}
+	if _, err := w.Get(ctx, 1, "notes", "some-id"); !errors.Is(err, ErrFeatureOff) {
+		t.Fatalf("Get while the plugin is off = %v, want ErrFeatureOff", err)
+	}
+	if _, err := w.Update(ctx, 1, "notes", "some-id", map[string]any{"body": "y"}); !errors.Is(err, ErrFeatureOff) {
+		t.Fatalf("Update while the plugin is off = %v, want ErrFeatureOff", err)
+	}
+	if _, err := w.Find(ctx, 1, "notes", "body", "x"); !errors.Is(err, ErrFeatureOff) {
+		t.Fatalf("Find while the plugin is off = %v, want ErrFeatureOff", err)
 	}
 }

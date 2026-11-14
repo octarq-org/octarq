@@ -78,6 +78,13 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 		}
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
+				// An entry may belong to another plugin's feature: the ontology
+				// plugin publishes one per declared entity on behalf of the
+				// plugin that declared it. The workspace's toggle for that
+				// plugin decides, not the publisher's.
+				if m.Feature != "" && !h.featureActive(orgID, m.Feature) {
+					continue
+				}
 				menus = append(menus, MenuItem{
 					ID:           m.ID,
 					Label:        m.Label,

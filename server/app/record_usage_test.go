@@ -380,8 +380,13 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	if mcpCtx.RegisterNotificationChannel == nil {
 		t.Fatal("expected mcpCtx.RegisterNotificationChannel to be non-nil")
 	}
-	// MCP mode contract: PluginActive, FeatureActive, ActivePlugins must stay nil
-	if mcpCtx.PluginActive != nil || mcpCtx.FeatureActive != nil || mcpCtx.ActivePlugins != nil {
-		t.Fatal("expected plugin/feature active closures to stay nil in MCP mode")
+	// MCP mode contract: PluginActive gates routes and this process serves none.
+	// FeatureActive and ActivePlugins are wired in both processes, because an
+	// entity a module declares resolves its owner through them at Mount.
+	if mcpCtx.PluginActive != nil {
+		t.Fatal("expected PluginActive to stay nil in MCP mode")
+	}
+	if mcpCtx.FeatureActive == nil || mcpCtx.ActivePlugins == nil {
+		t.Fatal("expected FeatureActive and ActivePlugins to be wired in MCP mode")
 	}
 }

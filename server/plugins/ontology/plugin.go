@@ -107,6 +107,10 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	if err := p.ensureLoaded(); err != nil {
 		return
 	}
+	if err := p.resolveOwners(); err != nil {
+		p.err = err
+		return
+	}
 	if len(p.specs) == 0 {
 		// No declaration anywhere: the feature is off. An installation that
 		// declares no entities is a valid installation, not a broken one.
@@ -229,6 +233,56 @@ func (p *Plugin) ensureLoaded() error {
 // Validate reports a declaration the boot must not continue with.
 func (p *Plugin) Validate(context.Context, plugin.Host) error { return p.ensureLoaded() }
 
+// resolveOwners turns the plugin name a declaration carries into the feature
+// switch that governs the entity, and stamps the host's "is this feature on"
+// hook onto it.
+//
+// The name is the module's; the key is the platform's, because a plugin that
+// joins a group is governed by the group's switch. A name no composed plugin
+// answers to is refused here: the entity would otherwise exist with a switch
+// nothing can flip, and every request to it would answer as if the feature were
+// off with no way to turn it on.
+func (p *Plugin) resolveOwners() error {
+	var first *entity
+	for _, e := range p.entities {
+		if e.owned() {
+			first = e
+			break
+		}
+	}
+	if first == nil {
+		// Nothing in this installation belongs to a plugin, so nothing needs a
+		// switch.
+		return nil
+	}
+	// Both hooks are required: one names the key, the other answers for it.
+	// Refusing the boot is the only alternative to an entity that is off
+	// forever with no way to turn it on.
+	if p.ctx == nil || p.ctx.ActivePlugins == nil {
+		return fmt.Errorf("ontology: entity %q is declared by plugin %q, and this host cannot list the composed plugins; the entity would have no switch", first.spec.Slug, first.spec.Owner)
+	}
+	if p.ctx.FeatureActive == nil {
+		return fmt.Errorf("ontology: entity %q is declared by plugin %q, and this host cannot answer whether a feature is on; the entity would have no switch", first.spec.Slug, first.spec.Owner)
+	}
+
+	byName := make(map[string]plugin.Plugin, len(p.entities))
+	for _, pl := range p.ctx.ActivePlugins() {
+		byName[pl.Name()] = pl
+	}
+	for _, e := range p.entities {
+		if !e.owned() {
+			continue
+		}
+		pl, ok := byName[e.spec.Owner]
+		if !ok {
+			return fmt.Errorf("ontology: entity %q is declared by plugin %q, which is not in this build; mount the plugin or drop the declaration", e.spec.Slug, e.spec.Owner)
+		}
+		e.featureKey = plugin.FeatureKey(pl)
+		e.active = p.ctx.FeatureActive
+	}
+	return nil
+}
+
 // Menus publishes one sidebar entry per declared entity.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	// A schema that was never applied has no route behind it, so an entry would
@@ -246,6 +300,10 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 			Category: "Workspace",
 			Area:     "operations",
 			Order:    50 + i,
+			// The entry belongs to the plugin that declared the entity, not to
+			// this one, so the workspace's toggle for that plugin decides whether
+			// the sidebar offers it.
+			Feature: e.featureKey,
 		}
 		// The entry opens the list. Hide it from roles that could not list the
 		// entity, so the sidebar never leads to a permission error.
