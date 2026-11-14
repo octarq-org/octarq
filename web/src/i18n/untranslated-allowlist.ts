@@ -70,4 +70,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "copilot.quotationSubtotal", // Identical spelling in ES/PT (Subtotal)
   "copilot.quotationColItem", // Identical spelling in PT (Item)
   "copilot.financeSlidePrefix", // Presentation layout notation in PT (SLIDE #)
+
+  "data.no", // Identical spelling in ES (No) — the Spanish word for "no"
 ]);
