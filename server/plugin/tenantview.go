@@ -14,6 +14,10 @@ type TenantView = tenantsql.TenantView
 // TenantDB provides a type-safe, fail-closed database handle strictly scoped to a specific tenant (OrgID).
 type TenantDB = tenantsql.TenantDB
 
+// Scope is one extra isolation predicate a TenantDB handle binds, for a table
+// that is partitioned by more than its workspace (see TableScopedBy).
+type Scope = tenantsql.Scope
+
 // NewTenantDB constructs a new TenantDB scoped to orgID.
 func NewTenantDB(db *gorm.DB, orgID uint) (*TenantDB, error) {
 	return tenantsql.NewTenantDB(db, orgID)

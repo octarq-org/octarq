@@ -103,14 +103,65 @@ const (
 	TierElite = "elite"
 )
 
+// ScopeKind is the dimension a table is partitioned by. It decides which columns
+// the platform adds, which columns every index starts with, and which value the
+// tenant handle binds when it reads.
+type ScopeKind string
+
+const (
+	// ScopeOrg is the default: a row belongs to the workspace, and every member
+	// of the workspace sees it.
+	ScopeOrg ScopeKind = "org"
+	// ScopeUser partitions the table by the member who owns the row. A row is
+	// written by one member and read by that member only; the platform adds the
+	// column and binds the value, so no caller filters by owner by hand.
+	ScopeUser ScopeKind = "user"
+)
+
+// ScopeKinds lists the accepted scopes, in documentation order.
+var ScopeKinds = []ScopeKind{ScopeOrg, ScopeUser}
+
 // Spec is one entity declaration.
 type Spec struct {
 	Slug        string                     `json:"slug"`
 	Label       string                     `json:"label"`
 	PluralLabel string                     `json:"pluralLabel,omitempty"`
 	Icon        string                     `json:"icon,omitempty"`
+	Scope       ScopeKind                  `json:"scope,omitempty"`
 	Fields      []Field                    `json:"fields"`
 	Operations  map[Operation]OperationACL `json:"operations"`
+}
+
+// ScopeOf returns the declared scope. An empty value means ScopeOrg: a
+// declaration that says nothing about scope is a workspace-wide table, which is
+// what every declaration written before scopes existed means.
+func ScopeOf(spec Spec) ScopeKind {
+	if spec.Scope == "" {
+		return ScopeOrg
+	}
+	return spec.Scope
+}
+
+// validScope reports whether s is one of ScopeKinds, or empty for the default.
+func validScope(s ScopeKind) bool {
+	if s == "" {
+		return true
+	}
+	for _, known := range ScopeKinds {
+		if s == known {
+			return true
+		}
+	}
+	return false
+}
+
+// scopeNames renders the accepted scopes for an error message.
+func scopeNames() string {
+	names := make([]string, len(ScopeKinds))
+	for i, s := range ScopeKinds {
+		names[i] = string(s)
+	}
+	return strings.Join(names, ", ")
 }
 
 // SlugPattern is the only shape an entity slug may take. The table name and the
@@ -132,8 +183,11 @@ var reservedSlugs = map[string]bool{
 }
 
 // ReservedColumnNames cannot be declared as fields: the platform owns them.
+// user_id is reserved whether or not the entity is user-scoped, so adding a
+// scope later never collides with a field the operator already declared.
 var ReservedColumnNames = map[string]bool{
-	"id": true, "org_id": true, "created_at": true, "updated_at": true,
+	"id": true, "org_id": true, "user_id": true,
+	"created_at": true, "updated_at": true,
 }
 
 // TableName returns the physical table for a slug.

@@ -58,17 +58,19 @@ Rules:
 
 ### What a module still does not get
 
-Isolation is one column. Every generated table is scoped by `org_id`, written
-from the tenant handle and enforced by `TableScoped`. There is no owner-level
-scope, so a table that belongs to one owner inside a workspace — a mailbox, a
-domain, a link, an order — has no way to say so. Filtering by the owner would be
-an ordinary column the caller could forget, which is the isolation model this
-plugin exists to avoid.
+Isolation has two dimensions: the workspace (`org_id`) and, for `scope: "user"`,
+the member (`user_id`). Both are enforced by the handle, so a query cannot omit
+them.
 
-A module that adopted these tables today would move them into a shell that cannot
-express them: its own lifecycle and its own owner scoping would have to be
-rebuilt inside a declaration that has neither. Tables that need those stay Go
-modules.
+What is absent is any other partition. There is no `scope_key`: no core request
+path stamps one, so a key-scoped entity would be a table no request could ever
+read. The predicate machinery (`TableScopedBy`) takes the extra columns already,
+so the dimension is a spec value and a context read away when a transport starts
+carrying one.
+
+Also absent, by design rather than by omission: relations, lifecycle hooks,
+computed fields, row-level ACLs and hot reload. A module whose table needs those
+keeps it in Go.
 
 ## Declaration sources
 
@@ -139,6 +141,7 @@ index) leaves the row alone.
 | New index / unique | `CREATE INDEX` |
 | Unchanged | Nothing, but missing indexes are repaired |
 | Slug changed | Refused (`SLUG_IMMUTABLE`) |
+| Scope changed | Refused (`SCOPE_IMMUTABLE`) |
 | Field type changed | Refused (`TYPE_CHANGE_UNSUPPORTED`) |
 | Field removed | Refused (`COLUMN_DROP_UNSUPPORTED`), even on an empty table |
 | `unique` / `indexed` dropped | Refused (`INDEX_REMOVED`) |
@@ -147,8 +150,10 @@ index) leaves the row alone.
 | New required field, table non-empty, no default | Refused (`REQUIRED_FIELD_NONEMPTY`) |
 
 Platform columns are `id` (TEXT primary key, a UUID), `org_id` (integer, not
-null), `created_at` and `updated_at` (timestamps, not null). A declared field may
-not use those names.
+null), `created_at` and `updated_at` (timestamps, not null). A `scope: "user"`
+entity also carries `user_id` (integer, not null). A declared field may not use
+any of those names, whether or not the entity is user-scoped: adding a scope
+later must never collide with a field the operator already declared.
 
 Table name: `ont_<slug>`. Index names come from `TenantIndexName` and
 `FieldIndexName`, which append a hash when the name would exceed the identifier
@@ -213,16 +218,31 @@ context it arrived with, so `roleForRequest` attaches the handler context before
 asking the host. Without that step a bearer token — which has no cookie to fall
 back to — reads as holding no role and every route answers 403.
 
-### Tenancy
+### Tenancy and scope
 
 Every read, update and delete goes through `plugin.NewTenantDB(db, orgID)` with
 `orgID` from the handler context. `TableScoped` adds the `org_id` predicate to
 SELECT, UPDATE and DELETE; GORM drops `WHERE` on INSERT, so `create` writes
 `org_id` from the handle itself.
 
-A body that carries `id`, `org_id`, `created_at` or `updated_at` is refused with
-`422 VALUE_RESERVED`. A cross-tenant read or delete answers `404`, never `403`,
-so the response does not leak existence.
+`scope: "user"` adds a second dimension. The table carries `user_id`, every
+index starts with `(org_id, user_id)`, and the predicate is bound by the handle:
+`TableScopedBy(table, "org_id", plugin.Scope{Column: "user_id", Value: uid})`.
+The value comes from `plugin.UserIDFromContext`, never from the body, and the
+same value is written on insert. A caller that filters by owner by hand is
+exactly what this removes.
+
+`store.tenantScope` is the only place the predicates are built and the only place
+a user id is read. It returns the id it bound, so an insert and a read cannot
+disagree.
+
+`internal/auth` stamps that id on every authenticated request — session and
+bearer token, including the network MCP endpoint. The stdio composition stamps a
+workspace and no identity, so a user-scoped entity answers `403 FORBIDDEN` there.
+
+A body that carries `id`, `org_id`, `user_id`, `created_at` or `updated_at` is
+refused with `422 VALUE_RESERVED`. A read or delete outside the caller's scope
+answers `404`, never `403`, so the response does not leak existence.
 
 ### Errors
 
@@ -233,6 +253,7 @@ so the response does not leak existence.
 | Argument outside the platform's bounds | 422 | `INVALID_ARGUMENT` |
 | Role not in the operation's ACL | 403 | `FORBIDDEN` |
 | Transport carries no role | 403 | `FORBIDDEN` |
+| Transport carries no user, on a user-scoped entity | 403 | `FORBIDDEN` |
 | No tenant scope | 401 | `UNAUTHENTICATED` |
 | Record not found, or another tenant's record | 404 | `NOT_FOUND` |
 | Unique constraint violated | 409 | `CONFLICT` |
@@ -299,8 +320,9 @@ The boot is refused when:
 
 - the document does not parse, carries an unknown key, or declares a key twice;
 - any declaration issue is reported;
-- two entities share a slug;
+- two entities share a slug, across the file and the code registry;
 - a declared icon is not a sidebar icon key;
+- a declared scope is not in the vocabulary, or an applied entity changes scope;
 - an operation's tier is not in the vocabulary;
 - `requireApproval` is set;
 - a tool name would exceed 64 characters;
@@ -309,4 +331,5 @@ The boot is refused when:
 
 At request time nothing is silently corrected: an unknown field, a reserved
 field, a duplicate key, a wrong type, a missing required value, an unknown sort, a
-page outside the bounds and a role outside the ACL all answer with an error.
+page outside the bounds, a role outside the ACL and a user-scoped entity reached
+without a member all answer with an error.

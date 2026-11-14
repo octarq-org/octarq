@@ -51,6 +51,22 @@ To keep the file somewhere else, set `OCTARQ_ENTITIES_FILE` to its path. To pass
 
 The `slug` names the page and the API path. It cannot change after the first start. The `icon` must be a sidebar icon key. Leave it empty to get the default icon.
 
+## Choose who owns a record
+
+A record belongs to the workspace by default. Every member sees it.
+
+Set `"scope": "user"` to give each member a private set. Octarq adds an owner column. It fills the column from the signed-in member and filters every read by it. A member cannot read, change or delete another member's records.
+
+```json
+{ "slug": "notes", "label": "Note", "pluralLabel": "Notes", "scope": "user", "fields": [ … ], "operations": { … } }
+```
+
+The scope cannot change after the first start. Declare a new record type to use another scope.
+
+:::note
+Agents reach these records over the network endpoint with an API token. A local agent session carries no member, so it cannot read them.
+:::
+
 ## Field options
 
 | Option | Meaning |
@@ -59,7 +75,7 @@ The `slug` names the page and the API path. It cannot change after the first sta
 | `label` | The column and form label. Defaults to the field name. |
 | `widget` | How the form shows the field: `text`, `textarea`, `number`, `checkbox`, `datetime` or `json`. |
 | `required` | The form and the API refuse an empty value. |
-| `unique` | Two records in the workspace cannot share the value. |
+| `unique` | Two records cannot share the value. The rule applies inside the workspace, or inside one member's records. |
 | `default` | A literal value for new records. It must match the type. |
 | `listColumn` | The field appears in the table. Otherwise the table shows every field. |
 | `indexed` | Adds an index. Sorting and filtering on this field stay fast. |

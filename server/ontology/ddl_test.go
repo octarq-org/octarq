@@ -1,6 +1,7 @@
 package ontology_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -233,5 +234,69 @@ func TestQuoteEscapes(t *testing.T) {
 	my, _ := ontology.DialectFor("mysql")
 	if got := my.Quote("a`b"); got != "`a``b`" {
 		t.Errorf("mysql quote = %q", got)
+	}
+}
+
+// userScopedSpec is sqliteSpec partitioned by the member who owns the row.
+func userScopedSpec() ontology.Spec {
+	s := sqliteSpec()
+	s.Scope = ontology.ScopeUser
+	return s
+}
+
+// TestUserScopedTableCarriesTheOwnerColumn pins the DDL half of owner-level
+// isolation: the platform adds the column, and every index starts with it, so a
+// unique field is unique inside one member's rows rather than across the whole
+// workspace.
+func TestUserScopedTableCarriesTheOwnerColumn(t *testing.T) {
+	d, err := ontology.DialectFor("sqlite")
+	if err != nil {
+		t.Fatalf("DialectFor: %v", err)
+	}
+	spec := userScopedSpec()
+
+	stmts, err := ontology.CreateTableSQL(d, spec)
+	if err != nil {
+		t.Fatalf("CreateTableSQL: %v", err)
+	}
+	if !strings.Contains(stmts[0], `"user_id" INTEGER NOT NULL`) {
+		t.Fatalf("create table does not carry the owner column:\n%s", stmts[0])
+	}
+
+	want := []string{
+		`CREATE INDEX IF NOT EXISTS "idx_ont_widget_org_id_user_id" ON "ont_widget" ("org_id", "user_id")`,
+		`CREATE INDEX IF NOT EXISTS "idx_ont_widget_org_id_user_id_count" ON "ont_widget" ("org_id", "user_id", "count")`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS "uq_ont_widget_org_id_user_id_code" ON "ont_widget" ("org_id", "user_id", "code")`,
+	}
+	for _, w := range want {
+		if !slices.Contains(stmts, w) {
+			t.Fatalf("missing statement %q, have:\n%s", w, strings.Join(stmts, "\n"))
+		}
+	}
+
+	// The same declaration without a scope keeps the workspace-wide shape.
+	orgStmts, err := ontology.CreateTableSQL(d, sqliteSpec())
+	if err != nil {
+		t.Fatalf("CreateTableSQL: %v", err)
+	}
+	if strings.Contains(orgStmts[0], `"user_id"`) {
+		t.Fatalf("a workspace-scoped table gained an owner column:\n%s", orgStmts[0])
+	}
+}
+
+// TestIndexNamesFollowTheScope pins that creation and reconciliation agree on
+// the name of a scoped index. A reconciler that spelled the org-only name would
+// miss the index the table actually carries and rebuild it on every boot.
+func TestIndexNamesFollowTheScope(t *testing.T) {
+	user := userScopedSpec()
+	if got, want := ontology.TenantIndexName(user), "idx_ont_widget_org_id_user_id"; got != want {
+		t.Fatalf("TenantIndexName = %q, want %q", got, want)
+	}
+	if got, want := ontology.FieldIndexName(user, user.Fields[2]), "uq_ont_widget_org_id_user_id_code"; got != want {
+		t.Fatalf("FieldIndexName = %q, want %q", got, want)
+	}
+	org := sqliteSpec()
+	if got, want := ontology.TenantIndexName(org), "idx_ont_widget_org_id"; got != want {
+		t.Fatalf("TenantIndexName = %q, want %q", got, want)
 	}
 }

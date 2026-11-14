@@ -39,6 +39,8 @@ const (
 
 	CodeRequiredChangeUnsupported = "REQUIRED_CHANGE_UNSUPPORTED"
 	CodeDefaultChangeUnsupported  = "DEFAULT_CHANGE_UNSUPPORTED"
+	CodeScopeUnknown              = "SCOPE_UNKNOWN"
+	CodeScopeImmutable            = "SCOPE_IMMUTABLE"
 )
 
 // sameDefault compares two literal defaults. nil and a pointer to an equal
@@ -152,6 +154,11 @@ func Validate(spec Spec) error {
 		errs = append(errs, issue(CodeLabelRequired, "label", "label cannot be empty"))
 	}
 
+	if !validScope(spec.Scope) {
+		errs = append(errs, issue(CodeScopeUnknown, "scope",
+			"%q is not a known scope; use %s", spec.Scope, scopeNames()))
+	}
+
 	if len(spec.Fields) == 0 {
 		errs = append(errs, issue(CodeFieldsEmpty, "fields", "an entity needs at least one field"))
 	}
@@ -246,6 +253,15 @@ func ValidateTransition(old, next Spec, rows int64) error {
 	if old.Slug != next.Slug {
 		errs = append(errs, issue(CodeSlugImmutable, "slug",
 			"cannot change slug from %q to %q", old.Slug, next.Slug))
+	}
+
+	// Scope is a column, not a declaration detail: changing it would mean adding
+	// or dropping a platform column, and the only ALTER this layer can emit is
+	// ADD COLUMN. A table that recorded the new scope while keeping the old
+	// column would let rows from one member be read by the whole workspace.
+	if ScopeOf(old) != ScopeOf(next) {
+		errs = append(errs, issue(CodeScopeImmutable, "scope",
+			"cannot change scope from %q to %q on an existing table", ScopeOf(old), ScopeOf(next)))
 	}
 
 	oldFields := make(map[string]Field, len(old.Fields))

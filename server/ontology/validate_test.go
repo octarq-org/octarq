@@ -277,3 +277,60 @@ func contains(hay []string, needle string) bool {
 	}
 	return false
 }
+
+// TestScopeDefaultsToTheWorkspace pins that a declaration written before scopes
+// existed, or one that says nothing about scope, is a workspace-wide table.
+func TestScopeDefaultsToTheWorkspace(t *testing.T) {
+	if got := ontology.ScopeOf(ontology.Spec{}); got != ontology.ScopeOrg {
+		t.Fatalf("ScopeOf(empty) = %q, want %q", got, ontology.ScopeOrg)
+	}
+	user := ontology.Spec{Scope: ontology.ScopeUser}
+	if got := ontology.ScopeOf(user); got != ontology.ScopeUser {
+		t.Fatalf("ScopeOf(user) = %q, want %q", got, ontology.ScopeUser)
+	}
+}
+
+// TestUnknownScopeIsRefused pins the closed set: a typo in the scope would
+// otherwise build a table with no owner column and isolate nothing.
+func TestUnknownScopeIsRefused(t *testing.T) {
+	spec := validSpec()
+	spec.Scope = "personal"
+	if err := ontology.Validate(spec); !hasCode(err, ontology.CodeScopeUnknown) {
+		t.Fatalf("Validate = %v, want %s", err, ontology.CodeScopeUnknown)
+	}
+}
+
+// TestScopeCannotChangeOnAnExistingTable pins that scope is a column, not a
+// declaration detail. Recording the new scope while the table kept the old
+// column would let one member's rows be read by the whole workspace.
+func TestScopeCannotChangeOnAnExistingTable(t *testing.T) {
+	old := validSpec()
+	next := validSpec()
+	next.Scope = ontology.ScopeUser
+
+	if err := ontology.ValidateTransition(old, next, 0); !hasCode(err, ontology.CodeScopeImmutable) {
+		t.Fatalf("ValidateTransition = %v, want %s", err, ontology.CodeScopeImmutable)
+	}
+
+	// The reverse direction too: dropping the owner column is the same ALTER.
+	user := validSpec()
+	user.Scope = ontology.ScopeUser
+	if err := ontology.ValidateTransition(user, old, 0); !hasCode(err, ontology.CodeScopeImmutable) {
+		t.Fatalf("ValidateTransition = %v, want %s", err, ontology.CodeScopeImmutable)
+	}
+
+	// An unchanged scope is not a transition.
+	if err := ontology.ValidateTransition(old, validSpec(), 0); err != nil {
+		t.Fatalf("ValidateTransition of an unchanged declaration = %v, want nil", err)
+	}
+}
+
+// TestUserIDIsAReservedColumn pins that the owner column cannot be declared as a
+// field, whether or not the entity is user-scoped.
+func TestUserIDIsAReservedColumn(t *testing.T) {
+	spec := validSpec()
+	spec.Fields = append(spec.Fields, ontology.Field{Name: "user_id", Type: ontology.TypeInteger})
+	if err := ontology.Validate(spec); !hasCode(err, ontology.CodeNameReserved) {
+		t.Fatalf("Validate = %v, want %s", err, ontology.CodeNameReserved)
+	}
+}

@@ -28,8 +28,8 @@ func (e *entity) acl(op core.Operation) core.OperationACL { return e.spec.Operat
 // sortable reports whether name is a column the list endpoint may sort by.
 // Declared fields qualify, and so do the two platform timestamps: they exist on
 // every generated table and the default order already uses created_at, so
-// refusing them would be a surprise. org_id is excluded — it is the same value
-// on every row of a workspace, and id is a UUID.
+// refusing them would be a surprise. org_id and user_id are excluded — they are
+// the same value on every row the caller can see, and id is a UUID.
 func (e *entity) sortable(name string) bool {
 	if name == core.ColumnCreatedAt || name == core.ColumnUpdatedAt {
 		return true
@@ -51,6 +51,7 @@ type catalogEntry struct {
 	Label       string         `json:"label"`
 	PluralLabel string         `json:"pluralLabel"`
 	Icon        string         `json:"icon,omitempty"`
+	Scope       core.ScopeKind `json:"scope"`
 	Fields      []catalogField `json:"fields"`
 	Operations  []string       `json:"operations"`
 }
@@ -73,6 +74,7 @@ func (e *entity) catalog(can func(op core.Operation) bool) catalogEntry {
 		Label:       e.spec.Label,
 		PluralLabel: pluralLabel(e.spec),
 		Icon:        e.spec.Icon,
+		Scope:       core.ScopeOf(e.spec),
 		Fields:      make([]catalogField, 0, len(e.spec.Fields)),
 		Operations:  []string{},
 	}

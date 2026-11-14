@@ -179,8 +179,8 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 	// An index the bookkeeping says exists but the database lost (a manual drop,
 	// a restore from a partial dump) is re-created. The reverse case is refused
 	// by ValidateTransition.
-	if !idx[TenantIndexName(table)] {
-		stmt, err := CreateIndexSQL(dial, table, []string{ColumnOrgID}, false, TenantIndexName(table))
+	if !idx[TenantIndexName(spec)] {
+		stmt, err := CreateIndexSQL(dial, table, ScopeColumns(spec), false, TenantIndexName(spec))
 		if err != nil {
 			return Step{}, err
 		}
@@ -194,11 +194,11 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 		if !f.Unique && !f.Indexed {
 			continue
 		}
-		name := FieldIndexName(table, f)
+		name := FieldIndexName(spec, f)
 		if idx[name] {
 			continue
 		}
-		stmt, err := CreateIndexSQL(dial, table, []string{ColumnOrgID, f.Name}, f.Unique, name)
+		stmt, err := CreateIndexSQL(dial, table, append(ScopeColumns(spec), f.Name), f.Unique, name)
 		if err != nil {
 			return Step{}, err
 		}

@@ -265,7 +265,13 @@ func TestExampleDeclarationLoads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the shipped example: %v", err)
 	}
-	if len(specs) != 1 || specs[0].Slug != "tickets" {
-		t.Fatalf("example declares %d entities, want the one tickets entity", len(specs))
+	if len(specs) != 2 || specs[0].Slug != "tickets" || specs[1].Slug != "notes" {
+		t.Fatalf("example declares %d entities, want the tickets and notes entities", len(specs))
+	}
+	// The example must show both scopes: a workspace table and one that belongs
+	// to a member.
+	if core.ScopeOf(specs[0]) != core.ScopeOrg || core.ScopeOf(specs[1]) != core.ScopeUser {
+		t.Fatalf("example scopes = %q, %q, want org then user",
+			core.ScopeOf(specs[0]), core.ScopeOf(specs[1]))
 	}
 }
