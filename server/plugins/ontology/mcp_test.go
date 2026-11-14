@@ -17,7 +17,14 @@ import (
 // stdio entry point stamps them.
 func connect(t *testing.T, srv *mcp.Server) (*mcp.ClientSession, func()) {
 	t.Helper()
-	ctx := plugin.WithTokenRole(plugin.WithOrgID(context.Background(), 1), "member")
+	return connectAs(t, srv, "member")
+}
+
+// connectAs is connect with an explicit role ceiling, for the tools a member
+// cannot reach.
+func connectAs(t *testing.T, srv *mcp.Server, role string) (*mcp.ClientSession, func()) {
+	t.Helper()
+	ctx := plugin.WithTokenRole(plugin.WithOrgID(context.Background(), 1), role)
 
 	serverT, clientT := mcp.NewInMemoryTransports()
 	ss, err := srv.Connect(ctx, serverT, nil)
@@ -299,5 +306,51 @@ func TestInputSchemaLeavesAJSONFieldUntyped(t *testing.T) {
 	}
 	if typ, ok := extra["type"]; ok {
 		t.Fatalf("extra advertises type %v, want none: the column stores any JSON value", typ)
+	}
+}
+
+// TestMCPOwnerDeletesARecord pins the success path of the delete tool, and the
+// not-found answer of get, update and delete once the record is gone: an agent
+// asking for a record that no longer exists is told, not handed an empty object.
+func TestMCPOwnerDeletesARecord(t *testing.T) {
+	p := mountedMCP(t)
+	srv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1"}, nil)
+	p.RegisterMCP(srv)
+	client, closeFn := connectAs(t, srv, "owner")
+	defer closeFn()
+	ctx := context.Background()
+
+	created, err := client.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "octarq_data__create_tickets",
+		Arguments: map[string]any{"title": "Printer is down"},
+	})
+	if err != nil || created.IsError {
+		t.Fatalf("create = %v, %v", err, created)
+	}
+	id := resultString(t, created, "id")
+
+	deleted, err := client.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "octarq_data__delete_tickets",
+		Arguments: map[string]any{"id": id},
+	})
+	if err != nil || deleted.IsError {
+		t.Fatalf("delete as owner = %v, %v", err, deleted)
+	}
+
+	for _, call := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"octarq_data__get_tickets", map[string]any{"id": id}},
+		{"octarq_data__update_tickets", map[string]any{"id": id, "status": "closed"}},
+		{"octarq_data__delete_tickets", map[string]any{"id": id}},
+	} {
+		res, err := client.CallTool(ctx, &mcp.CallToolParams{Name: call.tool, Arguments: call.args})
+		if err != nil {
+			t.Fatalf("%s: %v", call.tool, err)
+		}
+		if !res.IsError {
+			t.Fatalf("%s on a deleted record = %s, want a refusal", call.tool, textOf(res))
+		}
 	}
 }
