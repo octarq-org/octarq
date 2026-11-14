@@ -115,6 +115,12 @@ func Provision(db *gorm.DB, orgID uint, slug string) (name string, provisioned b
 	return name, true, nil
 }
 
+// IsDuplicateKey is isDuplicateKey for callers outside this package: a plugin
+// that owns its own unique constraints needs to answer "already taken" instead
+// of "internal error", and the two message shapes below are the only reliable
+// signal without TranslateError.
+func IsDuplicateKey(err error) bool { return isDuplicateKey(err) }
+
 // isDuplicateKey reports whether err is a unique-index violation. GORM only
 // translates these to gorm.ErrDuplicatedKey when the dialector is opened with
 // TranslateError enabled, which this codebase does not do — production Postgres

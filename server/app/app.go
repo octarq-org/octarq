@@ -185,20 +185,14 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
-	// Validate in dependency order, not registration order: a plugin's
-	// Validate may Lookup a service provided by a plugin it Requires, and only
-	// Requires says which one that is. Registration order made that a coin
-	// flip decided by the composition root.
-	mcpOrder, err := dependencyOrder(a.plugins)
-	if err != nil {
+	// Validate against the host the plugins will run against on this path, which
+	// is not the one this mount built. RunWithPlugins re-mounts every plugin
+	// through buildServerInstance with a no-op host, and a plugin caches the host
+	// it is given at Mount, so the second mount is the one its tools read from.
+	// A plugin that needs a runtime service has to refuse here, where the boot
+	// stops, instead of exposing tools that fail on every call.
+	if err := plugin.ValidateAll(ctx, a.plugins, plugin.EnsureHost(nil)); err != nil {
 		return err
-	}
-	for _, p := range mcpOrder {
-		if v, ok := p.(plugin.Validator); ok {
-			if err := v.Validate(ctx, pctx.Host); err != nil {
-				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
-			}
-		}
 	}
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
 		emailMu.Lock()
@@ -374,20 +368,8 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	// Validate in dependency order, not registration order: a plugin's
-	// Validate may Lookup a service provided by a plugin it Requires, and only
-	// Requires says which one that is. Registration order made that a coin
-	// flip decided by the composition root.
-	validating, err := dependencyOrder(a.plugins)
-	if err != nil {
+	if err := plugin.ValidateAll(ctx, a.plugins, pctx.Host); err != nil {
 		return err
-	}
-	for _, p := range validating {
-		if v, ok := p.(plugin.Validator); ok {
-			if err := v.Validate(ctx, pctx.Host); err != nil {
-				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
-			}
-		}
 	}
 
 	// Plugin goroutines get a context the shutdown path can cancel. The root

@@ -6,6 +6,7 @@ const SHELL_ROUTES = [
   "/overview",
   "/notifications",
   "/settings",
+  "/data",
   "/onboarding",
   "/admin/invite/accept",
   "/admin/reset",

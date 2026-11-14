@@ -300,6 +300,16 @@ func TestSecurityHeadersCSP(t *testing.T) {
 	if strings.Contains(scriptSrc, "'unsafe-inline'") {
 		t.Errorf("script-src must not contain 'unsafe-inline', got %q", scriptSrc)
 	}
+	// 'wasm-unsafe-eval' lets a plugin's WebAssembly app compile; 'unsafe-eval'
+	// would let any injected string run. Drop the wasm keyword and a served
+	// wasm app dies at instantiate time; add 'unsafe-eval' and an XSS becomes
+	// code execution, so pin both sides.
+	if !strings.Contains(scriptSrc, "'wasm-unsafe-eval'") {
+		t.Errorf("script-src must keep 'wasm-unsafe-eval' for WebAssembly apps, got %q", scriptSrc)
+	}
+	if strings.Contains(scriptSrc, "'unsafe-eval'") {
+		t.Errorf("script-src must not contain 'unsafe-eval', got %q", scriptSrc)
+	}
 	styleSrc := cspDirective(csp, "style-src")
 	if !strings.Contains(styleSrc, "'unsafe-inline'") {
 		t.Errorf("style-src must keep 'unsafe-inline' (Tailwind), got %q", styleSrc)

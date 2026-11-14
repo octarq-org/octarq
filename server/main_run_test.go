@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/glebarez/sqlite"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 
@@ -122,6 +125,86 @@ func TestRunMCPDispatchFailure(t *testing.T) {
 	var out, errb bytes.Buffer
 	if code := run(context.Background(), []string{"mcp"}, &out, &errb); code != 1 {
 		t.Fatalf("run mcp with bad driver = %d, want 1", code)
+	}
+}
+
+// refusingMCPPlugin refuses startup, the shape a plugin that needs a runtime
+// service uses. The CLI root is the one boot path that used to skip validation,
+// so this is the guard that keeps `octarq mcp` from exposing tools that fail on
+// every call.
+type refusingMCPPlugin struct {
+	refuse     error
+	registered bool
+}
+
+func (p *refusingMCPPlugin) Name() string                      { return "refusing-mcp" }
+func (p *refusingMCPPlugin) Models() []any                     { return nil }
+func (p *refusingMCPPlugin) Mount(plugin.Mux, *plugin.Context) {}
+func (p *refusingMCPPlugin) MCPTier() string                   { return "" }
+func (p *refusingMCPPlugin) RegisterMCP(*mcp.Server)           { p.registered = true }
+
+func (p *refusingMCPPlugin) Validate(context.Context, plugin.Host) error { return p.refuse }
+
+// envProbeMCPPlugin records the environment its validator saw, so a test can
+// tell whether .env had been applied by then.
+type envProbeMCPPlugin struct {
+	validated bool
+	key       string
+}
+
+func (p *envProbeMCPPlugin) Name() string                      { return "env-probe" }
+func (p *envProbeMCPPlugin) Models() []any                     { return nil }
+func (p *envProbeMCPPlugin) Mount(plugin.Mux, *plugin.Context) {}
+func (p *envProbeMCPPlugin) MCPTier() string                   { return "" }
+func (p *envProbeMCPPlugin) RegisterMCP(*mcp.Server)           {}
+
+func (p *envProbeMCPPlugin) Validate(context.Context, plugin.Host) error {
+	p.validated = true
+	p.key = os.Getenv("OCTARQ_TEST_VAULT_KEY")
+	return nil
+}
+
+// TestRunMCPServerValidatesWithDotEnvApplied pins the order at the CLI root.
+// config.Load applies .env to the process environment, and a validator reads the
+// environment for the credentials its plugin will use. Validating first would
+// refuse a plugin the mount can serve a moment later.
+func TestRunMCPServerValidatesWithDotEnvApplied(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("OCTARQ_TEST_VAULT_KEY=from-dotenv\n"), 0o600); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
+	t.Chdir(dir)
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "mcp-env.db"))
+	t.Setenv("OCTARQ_SECRET_KEY", "app-boot-secret-key-32-bytes-long!!!")
+
+	p := &envProbeMCPPlugin{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_ = runMCPServerWith(ctx, []plugin.Plugin{p})
+
+	if !p.validated {
+		t.Fatal("runMCPServerWith did not validate the plugin")
+	}
+	if p.key != "from-dotenv" {
+		t.Fatalf("validator saw OCTARQ_TEST_VAULT_KEY=%q, want the .env value", p.key)
+	}
+}
+
+// TestRunMCPServerStopsOnAStartupRefusal pins the CLI root's order: validate,
+// then mount. The plugin's tools must never reach an agent when its validator
+// refuses.
+func TestRunMCPServerStopsOnAStartupRefusal(t *testing.T) {
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(t.TempDir(), "mcp-refuse.db"))
+	t.Setenv("OCTARQ_SECRET_KEY", "app-boot-secret-key-32-bytes-long!!!")
+
+	p := &refusingMCPPlugin{refuse: errors.New("refusing-mcp: no vault")}
+	if code := runMCPServerWith(context.Background(), []plugin.Plugin{p}); code != 1 {
+		t.Fatalf("runMCPServerWith = %d, want 1", code)
+	}
+	if p.registered {
+		t.Fatal("tools were registered after the plugin refused to start")
 	}
 }
 

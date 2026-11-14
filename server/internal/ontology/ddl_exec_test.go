@@ -46,14 +46,6 @@ func TestGeneratedDDLRunsOnSQLite(t *testing.T) {
 		t.Fatalf("exec add column: %v", err)
 	}
 
-	drop, err := ontology.DropColumnSQL(d, spec, "note")
-	if err != nil {
-		t.Fatalf("DropColumnSQL: %v", err)
-	}
-	if err := db.Exec(drop).Error; err != nil {
-		t.Fatalf("exec drop column: %v", err)
-	}
-
 	if err := db.Exec(`INSERT INTO ont_widget (id, org_id, created_at, updated_at, name, code, sku) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		"w1", 7, "2026-01-01", "2026-01-01", "gizmo", "G-1", "S-1").Error; err != nil {
 		t.Fatalf("insert: %v", err)

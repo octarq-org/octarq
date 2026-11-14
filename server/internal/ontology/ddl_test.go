@@ -153,7 +153,7 @@ func TestCreateTableSQLRefusesBadInput(t *testing.T) {
 	}
 }
 
-func TestAddAndDropColumn(t *testing.T) {
+func TestAddColumnSQL(t *testing.T) {
 	d, _ := ontology.DialectFor("sqlite")
 	spec := sqliteSpec()
 
@@ -191,25 +191,6 @@ func TestAddAndDropColumn(t *testing.T) {
 	}
 	if _, err := ontology.AddColumnSQL(d, spec, ontology.Field{Name: "raw", Type: "bytes"}); err == nil {
 		t.Error("unknown type = nil error")
-	}
-
-	drop, err := ontology.DropColumnSQL(d, spec, "sku")
-	if err != nil {
-		t.Fatalf("DropColumnSQL: %v", err)
-	}
-	if want := `ALTER TABLE "ont_widget" DROP COLUMN "sku"`; drop != want {
-		t.Errorf("DropColumnSQL = %q, want %q", drop, want)
-	}
-	for _, reserved := range []string{"id", "org_id", "created_at", "updated_at"} {
-		if _, err := ontology.DropColumnSQL(d, spec, reserved); err == nil {
-			t.Errorf("DropColumnSQL(%q) = nil error, want refusal", reserved)
-		}
-	}
-	if _, err := ontology.DropColumnSQL(nil, spec, "sku"); err == nil {
-		t.Error("nil dialect = nil error")
-	}
-	if _, err := ontology.DropColumnSQL(d, ontology.Spec{Slug: "bad slug"}, "sku"); err == nil {
-		t.Error("invalid slug = nil error")
 	}
 }
 

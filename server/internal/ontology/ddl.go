@@ -131,6 +131,23 @@ func indexName(prefix, table, column string) string {
 	return name[:keep] + "_" + suffix
 }
 
+// TenantIndexName is the name of the (org_id) index every entity table carries.
+// Creation and reconciliation call this same function on purpose: a name longer
+// than maxIdentLen gains a hash suffix, so a reconciler that spelled
+// "idx_<table>_<column>" by hand would miss the index actually created and
+// re-create it on every boot.
+func TenantIndexName(table string) string { return indexName("idx", table, ColumnOrgID) }
+
+// FieldIndexName is the name of the index for one declared field. The index is
+// always (org_id, field), so a tenant's rows never collide across tenants.
+func FieldIndexName(table string, f Field) string {
+	prefix := "idx"
+	if f.Unique {
+		prefix = "uq"
+	}
+	return indexName(prefix, table, ColumnOrgID+"_"+f.Name)
+}
+
 // CreateTableSQL returns the statements that create an entity's table: the table
 // itself, the tenant index, and one index per declared index or unique field.
 // The caller runs them in order.
@@ -143,11 +160,23 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	}
 	table := TableName(spec.Slug)
 
-	cols := []string{
-		d.Quote(ColumnID) + " " + quoteColumnType(d, TypeString) + " PRIMARY KEY",
-		d.Quote(ColumnOrgID) + " " + quoteColumnType(d, TypeInteger) + " NOT NULL",
-		d.Quote(ColumnCreatedAt) + " " + quoteColumnType(d, TypeTimestamp) + " NOT NULL",
-		d.Quote(ColumnUpdatedAt) + " " + quoteColumnType(d, TypeTimestamp) + " NOT NULL",
+	platform := []struct {
+		name       string
+		typ        FieldType
+		constraint string
+	}{
+		{ColumnID, TypeString, "PRIMARY KEY"},
+		{ColumnOrgID, TypeInteger, "NOT NULL"},
+		{ColumnCreatedAt, TypeTimestamp, "NOT NULL"},
+		{ColumnUpdatedAt, TypeTimestamp, "NOT NULL"},
+	}
+	cols := make([]string, 0, len(platform)+len(spec.Fields))
+	for _, p := range platform {
+		ct, err := d.ColumnType(p.typ)
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, d.Quote(p.name)+" "+ct+" "+p.constraint)
 	}
 	for _, f := range spec.Fields {
 		def, err := columnDefinition(d, f)
@@ -179,14 +208,6 @@ func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	}
 
 	return stmts, nil
-}
-
-func quoteColumnType(d Dialect, t FieldType) string {
-	ct, err := d.ColumnType(t)
-	if err != nil {
-		return "TEXT"
-	}
-	return ct
 }
 
 func columnDefinition(d Dialect, f Field) (string, error) {
@@ -239,21 +260,6 @@ func AddColumnSQL(d Dialect, spec Spec, f Field) (string, error) {
 	}
 	return "ALTER TABLE " + d.Quote(TableName(spec.Slug)) +
 		" ADD COLUMN " + d.Quote(f.Name) + " " + def, nil
-}
-
-// DropColumnSQL returns the statement that drops one field.
-func DropColumnSQL(d Dialect, spec Spec, column string) (string, error) {
-	if d == nil {
-		return "", errors.New("ontology: nil dialect")
-	}
-	if !ValidSlug(spec.Slug) {
-		return "", fmt.Errorf("ontology: refusing to build DDL for slug %q", spec.Slug)
-	}
-	if ReservedColumnNames[column] {
-		return "", fmt.Errorf("ontology: refusing to drop platform column %q", column)
-	}
-	return "ALTER TABLE " + d.Quote(TableName(spec.Slug)) +
-		" DROP COLUMN " + d.Quote(column), nil
 }
 
 // CreateIndexSQL returns a CREATE INDEX statement. Pass columns in query order:

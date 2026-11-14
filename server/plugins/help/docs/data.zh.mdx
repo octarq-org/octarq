@@ -1,0 +1,120 @@
+---
+title: 自定义记录
+description: 用一个配置文件声明字段，即可在工作区中增加一种记录类型。
+category: operations
+order: 20
+---
+
+自定义记录让你在 Octarq 中保存结构化数据，无需新增模块。运维人员声明一次记录类型。Octarq 随后生成页面、API 与 Agent 工具。
+
+:::note
+增加记录类型需要访问服务器的文件。工作区成员使用由此生成的页面。
+:::
+
+## 增加记录类型
+
+1. 在服务器工作目录中创建名为 `octarq.entities.json` 的文件。
+2. 在该文件中声明每种记录类型。
+3. 重启服务器。
+
+声明不合法时服务器拒绝启动。错误信息会指出出错的文件与字段。
+
+要把文件放在别处，把 `OCTARQ_ENTITIES_FILE` 设为它的路径。要直接传入声明，把 `OCTARQ_ENTITIES` 设为 JSON 本身。两者同时设置时，内联值优先。
+
+## 声明字段
+
+```json
+{
+  "entities": [
+    {
+      "slug": "tickets",
+      "label": "Ticket",
+      "pluralLabel": "Tickets",
+      "icon": "ticket",
+      "fields": [
+        { "name": "title", "type": "string", "label": "Title", "required": true, "unique": true, "listColumn": true },
+        { "name": "status", "type": "string", "label": "Status", "default": "open", "listColumn": true },
+        { "name": "priority", "type": "integer", "label": "Priority" },
+        { "name": "due_at", "type": "timestamp", "label": "Due" }
+      ],
+      "operations": {
+        "list": { "roles": ["member"], "exposeMcp": true },
+        "get": { "roles": ["member"], "exposeMcp": true },
+        "create": { "roles": ["member"], "exposeMcp": true },
+        "update": { "roles": ["member"], "exposeMcp": true },
+        "delete": { "roles": ["admin"], "exposeMcp": true }
+      }
+    }
+  ]
+}
+```
+
+`slug` 决定页面名与 API 路径。首次启动后它不能更改。`icon` 必须是侧栏图标键。留空则使用默认图标。
+
+## 字段选项
+
+| 选项 | 含义 |
+| --- | --- |
+| `type` | `string`、`text`、`integer`、`number`、`boolean`、`timestamp`、`uuid` 或 `json`。 |
+| `label` | 表格与表单的标签。默认使用字段名。 |
+| `widget` | 表单如何显示该字段：`text`、`textarea`、`number`、`checkbox`、`datetime` 或 `json`。 |
+| `required` | 表单与 API 都拒绝空值。 |
+| `unique` | 工作区内两条记录不能共用该值。 |
+| `default` | 新记录的固定初始值。它必须与类型匹配。 |
+| `listColumn` | 该字段出现在表格中。否则表格显示全部字段。 |
+| `indexed` | 增加索引。按该字段排序与筛选保持快速。 |
+
+## 设置权限
+
+每种记录类型声明五个操作：`list`、`get`、`create`、`update` 与 `delete`。每个操作列出可以执行它的角色。角色为 `member`、`admin` 与 `owner`。
+
+成员只看到其角色允许的操作。使用 API token 的 Agent 遵循同一规则。
+
+操作还有两个选项：
+
+- `exposeMcp`：把该操作变成 Agent 工具。不设置则不生成。
+- `tier`：设为 `pro` 或 `elite` 以要求对应授权。留空则不设门槛。
+
+:::caution
+把 `delete` 授予 `member` 会让任何成员删除记录。除非所有成员都该删除，否则把 `delete` 授予 `admin` 与 `owner`。
+:::
+
+## 修改声明
+
+你随时可以增加字段。也可以放宽权限，或为新字段加默认值。
+
+以下修改会被拒绝，因为它们会破坏已有记录：
+
+- 更改字段的类型。
+- 删除字段。
+- 取消 `unique` 或 `indexed`。
+- 记录类型已有记录时把字段改为必填。
+- 更改已有字段的默认值。
+
+要改其中一项，请声明一个新字段，并停用旧字段。
+
+## 使用 API 与 Agent
+
+API 在 `/api/data/<slug>` 下响应。它支持列表、读取、创建、更新与删除。列表支持 `limit`、`offset` 与 `sort`。
+
+每个开放的操作也会成为 Agent 工具。Agent 通过 MCP 连接，并用 API token 调用该工具。
+
+:::note
+Agent 的写入不会出现在审计日志中。只有浏览器写入会被记录。
+:::
+
+## 限制
+
+自定义记录保存普通值。它不支持：
+
+- 记录类型之间的关联。
+- 计算字段或汇总。
+- 生成表格之外的自定义页面或表单。
+- 报表、导出或分组查询。
+
+需要这类行为时，请改用模块。
+
+## 相关
+
+- [API token](/help/api-tokens)
+- [模型上下文协议 (MCP)](/help/mcp)

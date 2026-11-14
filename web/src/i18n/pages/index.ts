@@ -14,6 +14,7 @@ import { uiCommon } from "./uiCommon";
 import { notifications } from "./notifications";
 import { proTable } from "./proTable";
 import { copilot } from "./copilot";
+import { data } from "./data";
 import { gateway } from "./gateway";
 
 const NS = {
@@ -29,6 +30,7 @@ const NS = {
   notifications,
   proTable,
   copilot,
+  data,
   gateway,
 };
 

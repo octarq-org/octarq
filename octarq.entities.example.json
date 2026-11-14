@@ -1,0 +1,61 @@
+{
+  "entities": [
+    {
+      "slug": "tickets",
+      "label": "Ticket",
+      "pluralLabel": "Tickets",
+      "icon": "ticket",
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "label": "Title",
+          "required": true,
+          "unique": true,
+          "listColumn": true
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "label": "Status",
+          "default": "open",
+          "indexed": true,
+          "listColumn": true
+        },
+        {
+          "name": "priority",
+          "type": "integer",
+          "label": "Priority",
+          "widget": "number",
+          "listColumn": true
+        },
+        {
+          "name": "assignee",
+          "type": "string",
+          "label": "Assignee",
+          "listColumn": true
+        },
+        {
+          "name": "due_at",
+          "type": "timestamp",
+          "label": "Due",
+          "widget": "datetime",
+          "listColumn": true
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "label": "Notes",
+          "widget": "textarea"
+        }
+      ],
+      "operations": {
+        "list": { "roles": ["member"], "exposeMcp": true },
+        "get": { "roles": ["member"], "exposeMcp": true },
+        "create": { "roles": ["member"], "exposeMcp": true },
+        "update": { "roles": ["member"], "exposeMcp": true },
+        "delete": { "roles": ["admin"], "exposeMcp": true }
+      }
+    }
+  ]
+}
