@@ -15,6 +15,32 @@ The declaration is the only definition store. There is no definition CRUD, no
 version table and no optimistic locking; the platform never writes the
 declaration back.
 
+## Not a module API
+
+A module cannot build on this package yet, and two things stand in the way. Both
+are prerequisites, not polish:
+
+1. **Nothing is public.** `internal/ontology` is an internal package, so code
+   outside this module — `octarq-pro`, a third-party module — cannot import
+   `Spec`, `Load`, `Apply` or the DDL generators. The only way to declare an
+   entity is the process-wide document, read once at boot. There is no
+   programmatic registration: a module cannot hand the plugin its own entity at
+   mount time, per workspace or at all.
+2. **Isolation is one column.** Every generated table is scoped by `org_id`,
+   written from the tenant handle and enforced by `TableScoped`. There is no
+   `scope_key` and no owner-level scope, so a table that belongs to one owner
+   inside a workspace — a mailbox, a domain, a link, an order — has no way to say
+   so. Filtering by the owner would be an ordinary column the caller could
+   forget, which is the isolation model this plugin exists to avoid.
+
+Until both exist, a module that adopted these tables would move them into a shell
+that cannot express them: its own lifecycle, its own owner scoping and its own
+ACLs would have to be rebuilt inside a declaration that has none of those
+concepts. The eight tables that would be candidates for reuse stay Go modules.
+
+This plugin is therefore an operator-facing feature: an installation declares the
+records it needs, and gets a table, a page, an API and tools for them.
+
 ## Declaration sources
 
 Resolution order, first match wins:
@@ -118,9 +144,12 @@ succeeds, then the bookkeeping row is written, otherwise the boot aborts".
 | DELETE | `/api/data/{slug}/{id}` | delete |
 
 Registered with `huma.Register` so they sit behind the platform middleware chain:
-authentication, and any downstream tier gate reading `MetadataTier`. The
-`OperationID` is a constant per operation (`data_list`, `data_get`, …), because
-`huma.Register` panics on a duplicate id and the path is shared by every entity.
+authentication, and any downstream tier gate reading `MetadataTier`. The path is
+literal per entity and the `OperationID` carries the slug (`data_list_tickets`,
+`data_get_tickets`, …). One wildcard route shared by every entity would carry a
+single `OperationID` and a single tier, while a declaration sets both per
+operation; the registry also refuses two declarations of the same METHOD+path, so
+the literal form is the one that can express a declaration.
 
 The request-body schema is generated from the declaration and set on the
 operation before registration, so huma validates the body without a Go type per
