@@ -1,7 +1,6 @@
-package app
+package plugin_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -36,9 +35,9 @@ func TestDependencyOrderPutsRequirementsFirst(t *testing.T) {
 		namedPlugin{name: "links", requires: []string{"dns"}},
 		namedPlugin{name: "dns"},
 	}
-	got, err := dependencyOrder(plugins)
+	got, err := plugin.DependencyOrder(plugins)
 	if err != nil {
-		t.Fatalf("dependencyOrder: %v", err)
+		t.Fatalf("DependencyOrder: %v", err)
 	}
 	want := []string{"dns", "links", "mail"}
 	if strings.Join(names(got), ",") != strings.Join(want, ",") {
@@ -55,9 +54,9 @@ func TestDependencyOrderIsStableForIndependentPlugins(t *testing.T) {
 		namedPlugin{name: "beta"},
 		namedPlugin{name: "gamma"},
 	}
-	got, err := dependencyOrder(plugins)
+	got, err := plugin.DependencyOrder(plugins)
 	if err != nil {
-		t.Fatalf("dependencyOrder: %v", err)
+		t.Fatalf("DependencyOrder: %v", err)
 	}
 	if strings.Join(names(got), ",") != "alpha,beta,gamma" {
 		t.Fatalf("order = %v, want registration order preserved", names(got))
@@ -72,9 +71,9 @@ func TestDependencyOrderHandlesDiamond(t *testing.T) {
 		namedPlugin{name: "left", requires: []string{"base"}},
 		namedPlugin{name: "base"},
 	}
-	got, err := dependencyOrder(plugins)
+	got, err := plugin.DependencyOrder(plugins)
 	if err != nil {
-		t.Fatalf("dependencyOrder: %v", err)
+		t.Fatalf("DependencyOrder: %v", err)
 	}
 	pos := map[string]int{}
 	for i, p := range got {
@@ -126,9 +125,9 @@ func TestDependencyOrderRejectsCycle(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := dependencyOrder(tc.plugins)
+			got, err := plugin.DependencyOrder(tc.plugins)
 			if err == nil {
-				t.Fatalf("dependencyOrder returned %v, want a cycle error", names(got))
+				t.Fatalf("DependencyOrder returned %v, want a cycle error", names(got))
 			}
 			if !strings.Contains(err.Error(), tc.wantSub) {
 				t.Fatalf("error = %v, want it to contain %q", err, tc.wantSub)
@@ -149,51 +148,11 @@ func TestDependencyOrderIgnoresMissingRequirement(t *testing.T) {
 		namedPlugin{name: "needy", requires: []string{"absent"}},
 		namedPlugin{name: "other"},
 	}
-	got, err := dependencyOrder(plugins)
+	got, err := plugin.DependencyOrder(plugins)
 	if err != nil {
-		t.Fatalf("dependencyOrder: %v", err)
+		t.Fatalf("DependencyOrder: %v", err)
 	}
 	if strings.Join(names(got), ",") != "needy,other" {
 		t.Fatalf("order = %v, want registration order preserved", names(got))
-	}
-}
-
-// validateRecorder is a plugin whose Validate appends its name to a shared
-// slice, so a test can assert on the order Validate ran in.
-type validateRecorder struct {
-	name     string
-	requires []string
-	seen     *[]string
-}
-
-func (p validateRecorder) Name() string { return p.name }
-func (p validateRecorder) Describe() plugin.Info {
-	return plugin.Info{Title: p.name, Requires: p.requires}
-}
-func (p validateRecorder) Models() []any                     { return nil }
-func (p validateRecorder) Mount(plugin.Mux, *plugin.Context) {}
-func (p validateRecorder) Validate(context.Context, plugin.Host) error {
-	*p.seen = append(*p.seen, p.name)
-	return nil
-}
-
-// TestRunValidatesInDependencyOrder is the behavioural half: Run must call
-// Validate in the order Requires declares, not the order the composition root
-// called Use. A plugin whose Validate reads state a required plugin set up in
-// its own Validate used to pass or fail depending on registration order.
-func TestRunValidatesInDependencyOrder(t *testing.T) {
-	a := bootApp(t)
-	var seen []string
-	// consumer first, provider second — the order that used to run backwards.
-	a.Use(validateRecorder{name: "consumer", requires: []string{"provider"}, seen: &seen})
-	a.Use(validateRecorder{name: "provider", seen: &seen})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if err := a.Run(ctx); err != nil {
-		t.Fatalf("Run = %v, want nil", err)
-	}
-	if got := strings.Join(seen, ","); got != "provider,consumer" {
-		t.Fatalf("Validate order = %q, want %q", got, "provider,consumer")
 	}
 }

@@ -1,13 +1,11 @@
-package app
+package plugin
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// dependencyOrder returns plugins ordered so that every plugin comes after the
+// DependencyOrder returns plugins ordered so that every plugin comes after the
 // plugins it lists in Describe().Requires.
 //
 // Registration order used to be the only order, which made correctness depend
@@ -24,8 +22,12 @@ import (
 //
 // The order is deterministic: independent plugins keep their registration
 // order, and a plugin's dependencies are visited in the order it lists them.
-func dependencyOrder(plugins []plugin.Plugin) ([]plugin.Plugin, error) {
-	byName := make(map[string]plugin.Plugin, len(plugins))
+//
+// Every caller that runs Validate must use this order, or the guarantee above
+// holds on one surface and not the other. That is why it lives here rather than
+// in the composition root that used to own it.
+func DependencyOrder(plugins []Plugin) ([]Plugin, error) {
+	byName := make(map[string]Plugin, len(plugins))
 	for _, p := range plugins {
 		byName[p.Name()] = p
 	}
@@ -35,11 +37,11 @@ func dependencyOrder(plugins []plugin.Plugin) ([]plugin.Plugin, error) {
 		done     = 2
 	)
 	state := make(map[string]int, len(plugins))
-	ordered := make([]plugin.Plugin, 0, len(plugins))
+	ordered := make([]Plugin, 0, len(plugins))
 	var path []string
 
-	var visit func(p plugin.Plugin) error
-	visit = func(p plugin.Plugin) error {
+	var visit func(p Plugin) error
+	visit = func(p Plugin) error {
 		name := p.Name()
 		switch state[name] {
 		case done:
@@ -62,7 +64,7 @@ func dependencyOrder(plugins []plugin.Plugin) ([]plugin.Plugin, error) {
 		}
 		state[name] = visiting
 		path = append(path, name)
-		for _, req := range plugin.Describe(p).Requires {
+		for _, req := range Describe(p).Requires {
 			dep, ok := byName[req]
 			if !ok {
 				continue
