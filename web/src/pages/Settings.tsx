@@ -7,6 +7,7 @@ import { PluginUnavailable } from "../plugins/PluginRoutes";
 // Each settings panel is its own chunk, loaded when its sub-route is opened.
 const PluginsSettings = lazy(() => import("./settings/plugins").then((m) => ({ default: m.PluginsSettings })));
 const GeneralSettings = lazy(() => import("./settings/general").then((m) => ({ default: m.GeneralSettings })));
+const GatewaySettings = lazy(() => import("./settings/gateway").then((m) => ({ default: m.GatewaySettings })));
 const WebhooksSettings = lazy(() => import("./settings/webhooks").then((m) => ({ default: m.WebhooksSettings })));
 const NotificationChannels = lazy(() => import("./settings/notifications").then((m) => ({ default: m.NotificationChannels })));
 const PreferencesPage = lazy(() => import("./notifications").then((m) => ({ default: m.PreferencesPage })));
@@ -16,9 +17,6 @@ const SecuritySettings = lazy(() => import("./settings/security").then((m) => ({
 const ProfileSettings = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ProfileSettings })));
 const ApiTokens = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ApiTokens })));
 const AppearanceSettings = lazy(() => import("./settings/appearance").then((m) => ({ default: m.AppearanceSettings })));
-// The agent harness lives in the workspace settings space: it is a workspace
-// admin tool, not a plugin page.
-const AgentHarnessPage = lazy(() => import("./agent-harness").then((m) => ({ default: m.default })));
 
 function IntegrationsSlot() {
   const plugin = uiPlugins().find((p) => p.routes?.some((r) => r.path === "/settings/integrations"));
@@ -43,6 +41,7 @@ export default function SettingsPage() {
       <Routes>
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
+        <Route path="/gateway" element={<GatewaySettings />} />
         <Route path="/plugins" element={<PluginsSettings />} />
         <Route path="/integrations" element={<IntegrationsSlot />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
@@ -60,8 +59,6 @@ export default function SettingsPage() {
         <Route path="/security" element={<SecuritySettings />} />
         <Route path="/tokens" element={<ApiTokens />} />
         <Route path="/appearance" element={<AppearanceSettings />} />
-        <Route path="/agent-harness" element={<Navigate to="/workforce" replace />} />
-        <Route path="/workforce" element={<Navigate to="/workforce" replace />} />
       </Routes>
       </Suspense>
     </ScreenWrap>

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -174,13 +172,10 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 
-	// The app wires the harness store into the handler in production. A test
-	// handler without it would answer the agent chat with a 500 (the harness
-	// is not configured), so the default handler gets a store that publishes
-	// nothing — the state of a workspace that never staged a harness.
-	h.SetHarnessSpecProvider(func(context.Context, uint) (harness.HarnessSpec, error) {
-		return harness.DefaultHarnessSpec(), nil
-	})
+	// The chat resolves the published harness through the plugin host. A host
+	// with no harness provider means the workspace published nothing, which
+	// uses the built-in default.
+	h.SetHost(&plugin.TestHost{})
 
 	plugins := builtin.Default()
 	h.SetPlugins(plugins)

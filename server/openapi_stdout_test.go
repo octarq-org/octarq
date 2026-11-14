@@ -53,8 +53,8 @@ func TestOpenAPICommandStdoutIsParseableJSON(t *testing.T) {
 		}
 		t.Fatalf("stdout is not valid JSON (%v); first bytes:\n%s", jsonErr, head)
 	}
-	if len(doc.Paths) < 100 {
-		t.Errorf("spec has %d paths, want >= 100 — the generator regressed toward the old hand-written document", len(doc.Paths))
+	if len(doc.Paths) < 90 {
+		t.Errorf("spec has %d paths, want >= 90 — the generator regressed toward the old hand-written document", len(doc.Paths))
 	}
 	if strings.Contains(string(out), "record not found") {
 		t.Error("stdout carries a GORM log line")

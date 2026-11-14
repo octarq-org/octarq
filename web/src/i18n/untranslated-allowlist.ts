@@ -33,10 +33,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "personal.newEmailPlaceholder", // Example email placeholder (you@domain.com)
   "settings.apiKeysPlaceholderNew", // Technical input placeholder (API token...)
   "settings.botAuthToken", // Technical credential placeholder
-  "agentHarness.toolAllowPlaceholder", // Example tool identifiers (list_links, list_domains, dns_verify)
-  "agentHarness.lessonScopePlaceholder", // Example scope identifiers (links, domains, system)
-  "agentHarness.lessonEvidencePlaceholder", // Example JSON snippet for lesson evidence
-  "agentHarness.modelPlaceholder", // Provider model identifier; identifiers are never translated
 
   // Industry terms & loanwords standard in ES/PT tech communities
   "groups.Marketing", // Industry standard term in ES/PT (Marketing)
@@ -52,9 +48,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "nav.general", // Identical spelling in Spanish (General)
   "settings.generalTitle", // Identical spelling in Spanish (General)
   "audit.colActor", // Identical spelling in Spanish (Actor)
-  "agentHarness.priorityNormal", // Identical spelling in Spanish and Portuguese (Normal)
-  "agentHarness.spendSourceChat", // Identical spelling in Spanish and Portuguese (Chat)
-  "agentHarness.spendColTokens", // Technical term with the same spelling in Spanish and Portuguese
 
   // Protocol acronyms that are universal
   "uiCommon.formErrorStatus", // Technical acronym (HTTP)

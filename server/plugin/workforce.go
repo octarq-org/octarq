@@ -2,8 +2,33 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 )
+
+// Well-known service names a workforce plugin registers during Mount.
+//
+// Workforce is a business feature, not core plumbing: the open-source core
+// ships the contract and a host that refuses every call, and the plugin that
+// owns agents, tasks, approvals, the ledger, and the published harness supply
+// the implementation. Core never imports that plugin.
+const (
+	// ServiceWorkforceLedger is where the ledger implementing Workforce is
+	// registered.
+	ServiceWorkforceLedger = "workforce.ledger"
+	// ServiceHarnessSpec is where the published-harness store is registered.
+	ServiceHarnessSpec = "workforce.spec"
+)
+
+// HarnessSpecProvider supplies the workspace's published agent harness as its
+// canonical JSON document.
+//
+// A nil document means the workspace published none: the caller uses the
+// built-in default. An error means a published document exists but could not be
+// read — the caller must fail closed rather than run a different harness.
+type HarnessSpecProvider interface {
+	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
+}
 
 // Workforce is the host's agent ledger: whether an agent may run, what a turn
 // cost, and whether an operator approved a task.

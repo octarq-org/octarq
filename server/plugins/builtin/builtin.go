@@ -13,6 +13,7 @@ package builtin
 import (
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/help"
+	"github.com/octarq-org/octarq/server/plugins/llmgateway"
 	"github.com/octarq-org/octarq/server/plugins/notify"
 	"github.com/octarq-org/octarq/server/plugins/ontology"
 	"github.com/octarq-org/octarq/server/plugins/tenantquery"
@@ -21,5 +22,5 @@ import (
 // Default returns the OSS Core infrastructure plugins in dependency order.
 // Callers mount them via a.Use.
 func Default() []plugin.Plugin {
-	return []plugin.Plugin{help.New(), tenantquery.New(), notify.New(), ontology.New()}
+	return []plugin.Plugin{help.New(), tenantquery.New(), notify.New(), ontology.New(), llmgateway.New()}
 }
