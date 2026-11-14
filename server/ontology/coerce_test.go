@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/server/internal/ontology"
+	"github.com/octarq-org/octarq/server/ontology"
 )
 
 func valueSpec() ontology.Spec {

@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/danielgtaylor/huma/v2"
-	core "github.com/octarq-org/octarq/server/internal/ontology"
 	"github.com/octarq-org/octarq/server/internal/tenancy"
+	core "github.com/octarq-org/octarq/server/ontology"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 

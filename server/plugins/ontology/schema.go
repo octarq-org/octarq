@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	core "github.com/octarq-org/octarq/server/internal/ontology"
+	core "github.com/octarq-org/octarq/server/ontology"
 )
 
 // toolPrefix namespaces every generated tool. The protocol caps a tool name at

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/server/internal/ontology"
+	"github.com/octarq-org/octarq/server/ontology"
 	"gorm.io/gorm"
 )
 

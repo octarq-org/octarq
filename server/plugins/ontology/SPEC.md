@@ -20,12 +20,12 @@ declaration back.
 A module cannot build on this package yet, and two things stand in the way. Both
 are prerequisites, not polish:
 
-1. **Nothing is public.** `internal/ontology` is an internal package, so code
-   outside this module — `octarq-pro`, a third-party module — cannot import
-   `Spec`, `Load`, `Apply` or the DDL generators. The only way to declare an
-   entity is the process-wide document, read once at boot. There is no
-   programmatic registration: a module cannot hand the plugin its own entity at
-   mount time, per workspace or at all.
+1. **Nothing is programmable.** The declaration package is public
+   (`server/ontology`), so `octarq-pro` and a third-party module can import
+   `Spec`, `Load`, `Apply` and the DDL generators. But the only way to declare an
+   entity is still the process-wide document, read once at boot: there is no
+   programmatic registration, so a module cannot hand the plugin its own entity
+   at mount time, per workspace or at all.
 2. **Isolation is one column.** Every generated table is scoped by `org_id`,
    written from the tenant handle and enforced by `TableScoped`. There is no
    `scope_key` and no owner-level scope, so a table that belongs to one owner
