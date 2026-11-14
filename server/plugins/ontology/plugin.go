@@ -1,9 +1,10 @@
-// Package ontology turns an operator's declaration file into a working data
-// surface: one table, one REST resource, one set of MCP tools and one sidebar
-// entry per declared entity.
+// Package ontology turns a declaration into a working data surface: one table,
+// one REST resource, one set of MCP tools and one sidebar entry per declared
+// entity.
 //
-// The declaration is the only source of truth. It is read from the environment
-// at Mount, validated as a whole, and applied before any route or tool is
+// A declaration comes from the operator's document or from a module that
+// registered an entity in Go (see server/ontology.Registry). Both are read at
+// Mount, validated as one set, and applied before any route or tool is
 // published. A declaration that cannot be applied exactly as written refuses the
 // boot; nothing here falls back to a weaker interpretation of it.
 package ontology
@@ -11,6 +12,7 @@ package ontology
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	core "github.com/octarq-org/octarq/server/ontology"
@@ -30,6 +32,9 @@ const (
 type Plugin struct {
 	entities []*entity
 	specs    []core.Spec
+	// registry holds the entities a module declared in Go. It is read once, with
+	// the declaration file, so both sources are validated and applied together.
+	registry *core.Registry
 	loaded   bool
 	db       *gorm.DB
 	host     plugin.Host
@@ -53,9 +58,20 @@ var (
 	_ plugin.MCPProvider  = (*Plugin)(nil)
 )
 
-// New returns the plugin. Declarations are read on first use, by Mount or by
-// Validate, whichever runs first in the composition root.
-func New() *Plugin { return &Plugin{} }
+// ErrNoRegistry is returned by a plugin constructed without one. Every module's
+// declarations live there, so a nil registry is a composition that would apply
+// the file and silently drop the code — refused rather than half-applied.
+var ErrNoRegistry = errors.New("ontology: the plugin was constructed without a declaration registry")
+
+// New returns the plugin, reading the process-wide registry a module registers
+// its entities in. Declarations are read on first use, by Mount or by Validate,
+// whichever runs first in the composition root.
+func New() *Plugin { return NewWithRegistry(core.Default()) }
+
+// NewWithRegistry returns the plugin reading r instead of the process-wide set.
+// Tests use it to keep their declarations apart; a composition root uses it when
+// it wants its entities owned by one binary rather than by the process.
+func NewWithRegistry(r *core.Registry) *Plugin { return &Plugin{registry: r} }
 
 func (p *Plugin) Name() string { return "ontology" }
 
@@ -122,12 +138,17 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.registerRoutes(ctx)
 }
 
-// ensureLoaded reads and validates the declaration once.
+// ensureLoaded reads and validates the declarations once.
 //
 // Validate calls it as well as Mount, because the order differs per composition
 // root: app.Run mounts first and validates after, while `octarq mcp` validates
 // before the stdio mount. Reading the declaration only in Mount would let the
 // CLI start with a declaration it never checked and publish no tool at all.
+//
+// Two sources meet here: the operator's file and the entities a module
+// registered in Go. Neither is optional — a build can ship both, and an
+// installation can declare neither. They are validated as one set, so a slug
+// claimed twice is refused before a single statement runs.
 func (p *Plugin) ensureLoaded() error {
 	if p.err != nil {
 		return p.err
@@ -137,13 +158,40 @@ func (p *Plugin) ensureLoaded() error {
 	}
 	p.loaded = true
 
-	specs, err := core.Load(os.Getenv(EntitiesEnv), os.Getenv(EntitiesFileEnv))
+	fileSpecs, err := core.Load(os.Getenv(EntitiesEnv), os.Getenv(EntitiesFileEnv))
 	if err != nil {
 		p.err = err
 		return err
 	}
+	if p.registry == nil {
+		// A composition that constructs the plugin without a registry has no way
+		// to see a module's declarations, and silently ignoring them would apply
+		// half of what the binary declares.
+		p.err = ErrNoRegistry
+		return p.err
+	}
+	codeSpecs := p.registry.Declared()
+
+	for _, code := range codeSpecs {
+		for _, file := range fileSpecs {
+			if code.Slug == file.Slug {
+				// The set-wide validation below would catch this too, but it can
+				// only name the index. This is the message a module author needs.
+				p.err = fmt.Errorf("ontology: entity %q is declared both in the declaration file and in code; declare it once", code.Slug)
+				return p.err
+			}
+		}
+	}
+
+	specs := make([]core.Spec, 0, len(fileSpecs)+len(codeSpecs))
+	specs = append(specs, fileSpecs...)
+	specs = append(specs, codeSpecs...)
 	if len(specs) == 0 {
 		return nil
+	}
+	if err := core.ValidateAll(specs); err != nil {
+		p.err = err
+		return err
 	}
 
 	entities := make([]*entity, 0, len(specs))

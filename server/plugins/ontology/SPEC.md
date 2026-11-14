@@ -15,39 +15,70 @@ The declaration is the only definition store. There is no definition CRUD, no
 version table and no optimistic locking; the platform never writes the
 declaration back.
 
-## Not a module API
+## Module API
 
-A module cannot build on this package yet, and two things stand in the way. Both
-are prerequisites, not polish:
+A module builds on this plugin through `server/ontology`, the public declaration
+package. It registers entities in Go; the plugin merges them with the operator's
+document and applies one set.
 
-1. **Nothing is programmable.** The declaration package is public
-   (`server/ontology`), so `octarq-pro` and a third-party module can import
-   `Spec`, `Load`, `Apply` and the DDL generators. But the only way to declare an
-   entity is still the process-wide document, read once at boot: there is no
-   programmatic registration, so a module cannot hand the plugin its own entity
-   at mount time, per workspace or at all.
-2. **Isolation is one column.** Every generated table is scoped by `org_id`,
-   written from the tenant handle and enforced by `TableScoped`. There is no
-   `scope_key` and no owner-level scope, so a table that belongs to one owner
-   inside a workspace — a mailbox, a domain, a link, an order — has no way to say
-   so. Filtering by the owner would be an ordinary column the caller could
-   forget, which is the isolation model this plugin exists to avoid.
+```go
+// module side, at init
+func init() {
+    ontology.MustRegister(ontology.Spec{Slug: "notes", /* … */})
+}
+```
 
-Until both exist, a module that adopted these tables would move them into a shell
-that cannot express them: its own lifecycle, its own owner scoping and its own
-ACLs would have to be rebuilt inside a declaration that has none of those
-concepts. The eight tables that would be candidates for reuse stay Go modules.
+```go
+// plugin side, at boot
+code := ontology.Default().Declared() // freezes the registry
+specs := append(fileSpecs, code...)
+ontology.ValidateAll(specs)
+```
 
-This plugin is therefore an operator-facing feature: an installation declares the
-records it needs, and gets a table, a page, an API and tools for them.
+The registry exists because the two sides cannot meet anywhere else. A
+composition root receives `[]plugin.Plugin` from `builtin.Default()` and mounts
+the values it is given, so no module ever holds the plugin instance to hand it a
+declaration. `Provide`/`Lookup` was rejected for the same reason: it is visible
+only to plugins mounted later, which makes correctness depend on mount order.
+
+Rules:
+
+- `Register` validates each spec immediately and refuses a slug already in the
+  registry. `MustRegister` is the `init` form and panics.
+- `Declared` freezes the registry. A `Register` after it returns `ErrFrozen`: the
+  tables, routes and tools are built from the set that was read, so a late
+  declaration would exist in the registry and nowhere else.
+- The plugin refuses to boot when a slug is declared in both the file and code.
+  It also refuses a nil registry: applying only the file would be half of what
+  the binary declares.
+- `New()` reads `ontology.Default()`. `NewWithRegistry(r)` is for tests and for a
+  composition root that wants its declarations owned by one binary.
+- `openapi` generation is unaffected: the routes are generic per method and path,
+  so no per-entity path reaches the published spec.
+
+### What a module still does not get
+
+Isolation is one column. Every generated table is scoped by `org_id`, written
+from the tenant handle and enforced by `TableScoped`. There is no owner-level
+scope, so a table that belongs to one owner inside a workspace — a mailbox, a
+domain, a link, an order — has no way to say so. Filtering by the owner would be
+an ordinary column the caller could forget, which is the isolation model this
+plugin exists to avoid.
+
+A module that adopted these tables today would move them into a shell that cannot
+express them: its own lifecycle and its own owner scoping would have to be
+rebuilt inside a declaration that has neither. Tables that need those stay Go
+modules.
 
 ## Declaration sources
 
-Resolution order, first match wins:
+Two sources, merged:
 
-1. `OCTARQ_ENTITIES` — the document inline, `{"entities":[…]}`.
-2. `OCTARQ_ENTITIES_FILE` — a path.
-3. `./octarq.entities.json` — relative to the process working directory.
+1. The operator's document, resolved in this order — first match wins:
+   1. `OCTARQ_ENTITIES` — the document inline, `{"entities":[…]}`.
+   2. `OCTARQ_ENTITIES_FILE` — a path.
+   3. `./octarq.entities.json` — relative to the process working directory.
+2. The entities a module registered in Go, in registration order.
 
 No source at all is a valid installation: the plugin publishes nothing, registers
 no route, adds no menu. A source that exists but does not parse, or fails
@@ -62,14 +93,17 @@ cannot put runtime routes into the published spec.
 `Load` additionally refuses what a single-spec check cannot see: two entities with
 the same slug, an unknown JSON key (`DisallowUnknownFields`), a key declared
 twice, an icon outside `menuIcons`, a tier outside `{ "", pro, elite }`, and
-`requireApproval: true`.
+`requireApproval: true`. The merged set is validated again, so a slug claimed by
+both sources is refused before any statement runs.
 
 ## Load and apply
 
 `Mount` runs in this order, and the order is the fail-closed guarantee:
 
-1. Read the whole document and decode it. Any error stops here.
-2. Validate every entity. Any issue stops here.
+1. Read the whole document and decode it, then read the code registry. Any error
+   stops here.
+2. Validate every entity of the merged set, and refuse a slug both sources claim.
+   Any issue stops here.
 3. Apply the declarations (HTTP composition only — see below).
 4. Register routes and menus.
 
