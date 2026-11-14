@@ -1,7 +1,6 @@
 export const uiCommon = {
   en: {
-    lockedIntroPre: "This is a ",
-    lockedIntroPost: " feature.",
+    lockedIntro: "This is a {{tier}} feature.",
     notAvailable: "{{feature}} is not available or disabled in this installation.",
     routeUnavailableTitle: "Not part of this build",
     routeUnavailableBody: "This installation does not include this plugin.",
@@ -44,8 +43,7 @@ export const uiCommon = {
     accessDeniedLink: "Open Settings → Members",
   },
   zh: {
-    lockedIntroPre: "这是 ",
-    lockedIntroPost: " 功能。",
+    lockedIntro: "这是 {{tier}} 功能。",
     notAvailable: "{{feature}} 在此安装中不可用或已禁用。",
     routeUnavailableTitle: "此版本未包含",
     routeUnavailableBody: "当前安装未包含此插件。",
@@ -83,8 +81,7 @@ export const uiCommon = {
     accessDeniedLink: "打开 设置 → 成员",
   },
   es: {
-    lockedIntroPre: "Esta es una función ",
-    lockedIntroPost: ".",
+    lockedIntro: "Esta es una función {{tier}}.",
     notAvailable: "{{feature}} no está disponible o está desactivada en esta instalación.",
     routeUnavailableTitle: "No forma parte de esta versión",
     routeUnavailableBody: "Esta instalación no incluye este complemento.",
@@ -122,8 +119,7 @@ export const uiCommon = {
     accessDeniedLink: "Abrir Ajustes → Miembros",
   },
   pt: {
-    lockedIntroPre: "Este é um recurso ",
-    lockedIntroPost: ".",
+    lockedIntro: "Este é um recurso {{tier}}.",
     notAvailable: "{{feature}} não está disponível ou está desativado nesta instalação.",
     routeUnavailableTitle: "Não faz parte desta build",
     routeUnavailableBody: "Esta instalação não inclui este plugin.",
@@ -161,8 +157,7 @@ export const uiCommon = {
     accessDeniedLink: "Abrir Configurações → Membros",
   },
   ja: {
-    lockedIntroPre: "これは ",
-    lockedIntroPost: " の機能です。",
+    lockedIntro: "これは {{tier}} の機能です。",
     notAvailable: "{{feature}} はこのインストールでは利用できないか、無効になっています。",
     routeUnavailableTitle: "このビルドには含まれていません",
     routeUnavailableBody: "このインストールにはこのプラグインが含まれていません。",
