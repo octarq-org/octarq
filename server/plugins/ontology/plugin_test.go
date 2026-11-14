@@ -3,6 +3,7 @@ package ontology
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -253,5 +254,18 @@ func TestMenusStayHiddenWhenTheSchemaWasNotApplied(t *testing.T) {
 	}
 	if len(p.Menus()) != 0 {
 		t.Fatalf("menus = %v, want none without an applied schema", p.Menus())
+	}
+}
+
+// TestExampleDeclarationLoads keeps the shipped example honest. It is the file
+// an operator copies, so a key the loader refuses would be a broken first step
+// that no other test would notice.
+func TestExampleDeclarationLoads(t *testing.T) {
+	specs, err := core.Load("", filepath.Join("..", "..", "..", "octarq.entities.example.json"))
+	if err != nil {
+		t.Fatalf("load the shipped example: %v", err)
+	}
+	if len(specs) != 1 || specs[0].Slug != "tickets" {
+		t.Fatalf("example declares %d entities, want the one tickets entity", len(specs))
 	}
 }

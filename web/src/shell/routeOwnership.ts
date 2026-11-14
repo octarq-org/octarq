@@ -8,6 +8,7 @@ const SHELL_ROUTES = [
   "/ai-workforce",
   "/notifications",
   "/settings",
+  "/data",
   "/onboarding",
   "/admin/invite/accept",
   "/admin/reset",

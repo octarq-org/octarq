@@ -41,3 +41,22 @@ describe("Go-declared menu icons", () => {
     ).toEqual([]);
   });
 });
+
+// The ontology plugin validates a declared entity's icon against its own copy
+// of this table (server/plugins/ontology/icons.go) and refuses the boot on a
+// miss, because a declaration file is runtime data the literal scan above can
+// never see. That copy is the one place a key can drift without any other test
+// noticing: it is Go source, so nothing compares it to the sidebar.
+describe("the ontology icon allowlist", () => {
+  it("holds only keys the sidebar can resolve", () => {
+    const source = GO_SOURCES["../../../server/plugins/ontology/icons.go"];
+    expect(source, "icons.go was not parsed — did the file move?").toBeTruthy();
+    const keys = [...source.matchAll(/"([a-z0-9-]+)":\s*true/g)].map((m) => m[1]);
+    expect(keys.length, "no allowlist keys parsed — did the map shape change?").toBeGreaterThan(3);
+    const unknown = keys.filter((k) => !menuIcon(k));
+    expect(
+      unknown,
+      `remove these from server/plugins/ontology/icons.go, or add them to PLUGIN_ICONS:\n${unknown.join("\n")}`,
+    ).toEqual([]);
+  });
+});
