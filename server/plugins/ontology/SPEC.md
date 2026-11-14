@@ -44,7 +44,9 @@ only to plugins mounted later, which makes correctness depend on mount order.
 Rules:
 
 - `Register` validates each spec immediately and refuses a slug already in the
-  registry. `MustRegister` is the `init` form and panics.
+  registry. `MustRegister` is the `init` form and panics. The package-level
+  `ontology.MustRegister` registers into `Default()`; the method form exists for
+  a registry a caller built itself.
 - `Declared` freezes the registry. A `Register` after it returns `ErrFrozen`: the
   tables, routes and tools are built from the set that was read, so a late
   declaration would exist in the registry and nowhere else.
