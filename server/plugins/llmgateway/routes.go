@@ -324,12 +324,12 @@ func (p *Plugin) draftProvider(ctx context.Context, orgID uint, in DiscoverModel
 		if u := strings.TrimSpace(in.BaseURL); u != "" {
 			row.BaseURL = u
 		}
-		return p.agentProviderFromRow(row, in.APIKey)
+		return p.discoveryProviderFromRow(row, in.APIKey)
 	}
 	if strings.TrimSpace(in.Backend) == "" {
 		return agentProvider{}, fmt.Errorf("%w: backend is required", ErrInvalidProvider)
 	}
-	return p.agentProviderFromRow(&Provider{Backend: in.Backend, BaseURL: in.BaseURL}, in.APIKey)
+	return p.discoveryProviderFromRow(&Provider{Backend: in.Backend, BaseURL: in.BaseURL}, in.APIKey)
 }
 
 // testProvider resolves the stored row the way a real turn does and sends one

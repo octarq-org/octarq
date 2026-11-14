@@ -86,6 +86,12 @@ mux, behind the token guard rather than the huma admin routes.
   for a saved provider or for a form that is still being filled in, so the
   console picker can fill itself before the row exists. OpenAI-shaped (`data[]`) and Ollama-shaped
   (`models[]`) answers are both read. An empty list is an error.
+- A `claude` row with no base URL reads Anthropic's own paged list
+  (`GET /v1/models`, `x-api-key`, `after_id`) and follows every page. The relay
+  still refuses that row, because a native Anthropic endpoint does not speak the
+  OpenAI format; discovery reads it anyway, so the operator can choose the
+  workspace model with a native Anthropic key instead of typing a model name.
+  A base URL on Anthropic's own host is read the same way.
 - The chat body is forwarded unchanged, so tools, `stream`, and
   `response_format` need no per-vendor handling here. Streaming answers are
   flushed as they arrive.

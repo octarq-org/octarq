@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -76,6 +77,10 @@ type agentProvider struct {
 	BaseURL string
 	APIKey  string
 	Backend string
+	// Anthropic means the base URL is Anthropic's own API rather than an
+	// OpenAI-compatible endpoint. Only discovery sets it: the relay cannot
+	// serve that wire format, but the model list can be read from it.
+	Anthropic bool
 }
 
 // openAIBase returns where the OpenAI-compatible API of a backend lives.
@@ -126,19 +131,69 @@ func (p *Plugin) agentProviderFromRow(row *Provider, keyOverride string) (agentP
 	if err != nil {
 		return agentProvider{}, fmt.Errorf("%w: %v", ErrInvalidProvider, err)
 	}
-	key := strings.TrimSpace(keyOverride)
-	if key == "" && row.APIKeyEncr != "" {
-		vault := p.vault()
-		if vault == nil {
-			return agentProvider{}, fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
-		}
-		plain, err := vault.Decrypt(row.APIKeyEncr)
-		if err != nil {
-			return agentProvider{}, fmt.Errorf("%w: unseal API key: %v", ErrInvalidProvider, err)
-		}
-		key = string(plain)
+	key, err := p.unsealKey(row, keyOverride)
+	if err != nil {
+		return agentProvider{}, err
 	}
 	return agentProvider{BaseURL: base, APIKey: key, Backend: strings.ToLower(strings.TrimSpace(row.Backend))}, nil
+}
+
+// discoveryProviderFromRow builds the call that reads a provider's model list.
+//
+// It goes one step past the relay: an Anthropic key has no OpenAI-compatible
+// endpoint, so the relay refuses it, yet the operator still has to know which
+// models the key offers. Anthropic answers that in its own list shape, so
+// discovery reads it instead of asking the operator to type model names.
+func (p *Plugin) discoveryProviderFromRow(row *Provider, keyOverride string) (agentProvider, error) {
+	base, err := openAIBase(row)
+	anthropic := false
+	switch {
+	case err != nil && strings.EqualFold(strings.TrimSpace(row.Backend), "claude"):
+		base, anthropic = anthropicBaseURL, true
+	case err != nil:
+		return agentProvider{}, fmt.Errorf("%w: %v", ErrInvalidProvider, err)
+	case isAnthropicHost(base):
+		// The operator pasted Anthropic's own URL as the base. It reads its own
+		// list shape, and the /v1 the list request adds must not double up.
+		base, anthropic = strings.TrimSuffix(strings.TrimRight(base, "/"), "/v1"), true
+	}
+	key, err := p.unsealKey(row, keyOverride)
+	if err != nil {
+		return agentProvider{}, err
+	}
+	return agentProvider{
+		BaseURL:   base,
+		APIKey:    key,
+		Backend:   strings.ToLower(strings.TrimSpace(row.Backend)),
+		Anthropic: anthropic,
+	}, nil
+}
+
+// isAnthropicHost reports whether a base URL points at Anthropic's own API.
+func isAnthropicHost(base string) bool {
+	u, err := neturl.Parse(base)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Hostname(), "api.anthropic.com")
+}
+
+// unsealKey returns the key a call spends. A typed key wins over the stored
+// one, and a build without secret storage refuses rather than call unsigned.
+func (p *Plugin) unsealKey(row *Provider, keyOverride string) (string, error) {
+	key := strings.TrimSpace(keyOverride)
+	if key != "" || row.APIKeyEncr == "" {
+		return key, nil
+	}
+	vault := p.vault()
+	if vault == nil {
+		return "", fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
+	}
+	plain, err := vault.Decrypt(row.APIKeyEncr)
+	if err != nil {
+		return "", fmt.Errorf("%w: unseal API key: %v", ErrInvalidProvider, err)
+	}
+	return string(plain), nil
 }
 
 // sign adds the credential as a bearer token. Every backend that reaches this
@@ -163,14 +218,95 @@ type modelEntry struct {
 	OwnedBy string `json:"owned_by,omitempty"`
 }
 
+// anthropicBaseURL is where Anthropic's own API lives. A provider that names
+// the claude backend and no base URL reads its model list from here.
+const anthropicBaseURL = "https://api.anthropic.com"
+
+// anthropicVersion is the API version every Anthropic request must name. The
+// list endpoint refuses a request without it.
+const anthropicVersion = "2023-06-01"
+
+// anthropicListPage bounds the page size the model list asks for, and
+// anthropicListPages bounds how many pages one call follows. A list that keeps
+// saying "more" past that is a broken answer, not a large catalogue.
+const (
+	anthropicListPage  = 1000
+	anthropicListPages = 10
+)
+
+// anthropicModels reads the model list an Anthropic key can call.
+//
+// Anthropic answers GET /v1/models with its own shape and pages by after_id, so
+// the whole list is read rather than the first page: a form that offered only
+// the first twenty models would hide the one the operator wanted.
+func anthropicModels(ctx context.Context, ap agentProvider) ([]modelEntry, error) {
+	out := make([]modelEntry, 0, 8)
+	seen := make(map[string]bool, 8)
+	after := ""
+	for page := 0; page < anthropicListPages; page++ {
+		url := strings.TrimRight(ap.BaseURL, "/") + "/v1/models?limit=" + strconv.Itoa(anthropicListPage)
+		if after != "" {
+			url += "&after_id=" + neturl.QueryEscape(after)
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		if ap.APIKey != "" {
+			req.Header.Set("x-api-key", ap.APIKey)
+		}
+		req.Header.Set("anthropic-version", anthropicVersion)
+		req.Header.Set("Accept", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("the provider did not answer: %w", err)
+		}
+		raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("the provider answer cannot be read: %w", readErr)
+		}
+		if resp.StatusCode < 200 || resp.StatusCode > 299 {
+			return nil, fmt.Errorf("the provider refused the model list: %s", upstreamMessage(resp.StatusCode, raw))
+		}
+		var body struct {
+			Data    []modelEntry `json:"data"`
+			HasMore bool         `json:"has_more"`
+			LastID  string       `json:"last_id"`
+		}
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return nil, fmt.Errorf("the provider answer is not a model list: %w", err)
+		}
+		for _, m := range body.Data {
+			if m.ID == "" || seen[m.ID] {
+				continue
+			}
+			seen[m.ID] = true
+			if m.Object == "" {
+				m.Object = "model"
+			}
+			out = append(out, m)
+		}
+		if !body.HasMore || body.LastID == "" || body.LastID == after {
+			return out, nil
+		}
+		after = body.LastID
+	}
+	return nil, fmt.Errorf("the provider model list did not end after %d pages", anthropicListPages)
+}
+
 // discoveredModels calls the provider's own /models and normalises the answer.
 //
 // OpenAI-compatible backends answer {"data":[{"id":…}]}; Ollama answers
-// {"models":[{"name":…}]}. Both are read, so a workspace pointed at either
-// lists its models without anyone typing them in.
+// {"models":[{"name":…}]}. Anthropic answers its own paged shape. Every shape
+// is read, so a workspace pointed at any of them lists its models without
+// anyone typing them in.
 func (p *Plugin) discoveredModels(ctx context.Context, ap agentProvider) ([]modelEntry, error) {
 	ctx, cancel := context.WithTimeout(ctx, agentListTimeout)
 	defer cancel()
+	if ap.Anthropic {
+		return anthropicModels(ctx, ap)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ap.BaseURL+"/models", nil)
 	if err != nil {
 		return nil, err
