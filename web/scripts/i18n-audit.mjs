@@ -414,6 +414,20 @@ function definedKeysFor(sourceFiles, dictIdents) {
                   collectObjectKeys(prop.initializer, base, keys);
                 } else if (ts.isObjectLiteralExpression(prop.initializer)) {
                   collectObjectKeys(prop.initializer, `${pluginName}.${n}`, keys);
+                } else if (ts.isPropertyAccessExpression(prop.initializer)) {
+                  // The plugin dictionary borrows another dictionary verbatim —
+                  // `agentHarness: agentHarness.en` — instead of repeating it.
+                  // The keys then live under the referenced literal, so resolve
+                  // `<identifier>.<lang>` through dictIdents. Recording only
+                  // `plugin.n` would make every key in that block read as
+                  // undefined, and the call sites that use them as unresolved.
+                  const ref = dictIdents.get(prop.initializer.expression.getText());
+                  const borrowed = ref ? findProp(ref, prop.initializer.name.text) : null;
+                  if (borrowed && ts.isObjectLiteralExpression(borrowed)) {
+                    collectObjectKeys(borrowed, `${pluginName}.${n}`, keys);
+                  } else {
+                    keys.add(`${pluginName}.${n}`);
+                  }
                 } else {
                   keys.add(`${pluginName}.${n}`);
                 }
