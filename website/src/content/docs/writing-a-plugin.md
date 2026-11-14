@@ -163,7 +163,7 @@ Rules:
 - **Declare in `init()`.** The registry freezes at boot. A later `Register` returns `ErrFrozen`; `MustRegister` panics.
 - **Set `Requires: []string{"ontology"}`.** A build without the ontology plugin then refuses to start, instead of mounting a plugin with no surface.
 - **Isolation is enforced by the handle.** `ScopeOrg` (the default) partitions rows by workspace. `ScopeUser` also partitions by member. Your code never filters by either. Deleting the workspace deletes its rows.
-- **The icon must be a sidebar key.** An unknown key stops the boot and lists the accepted keys.
+- **The icon must be a sidebar key.** An unknown key stops the boot and names the file that holds the accepted keys.
 - **Charge per operation with `Tier`.** `OperationACL{Tier: ontology.TierPro}` answers `402` on that operation, and the admin page names the tier on its upsell card. Leave the tier empty for a free entity.
 - **The page is always on.** The ontology plugin owns the route and the sidebar entry of every declared entity. Disabling your plugin in Settings → Plugins does not remove them. Declare only what should exist whenever the build ships.
 - **Keep the hard half in Go.** Relations, lifecycle hooks, computed fields and row-level ACLs are not in the declaration language. A table that needs them stays a GORM model in `Models()`, with your own routes.
