@@ -143,6 +143,17 @@ func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	if ctx.Provide != nil {
 		ctx.Provide(plugin.PurgeServiceName(p.Name()), plugin.PurgeFunc(p.purge))
 	}
+	p.provideWriter(ctx)
+}
+
+// provideWriter publishes the module write seam. A composition that offers no
+// service registry cannot be written to from code; the module that looks the
+// service up refuses its own boot, so nothing is silently dropped here.
+func (p *Plugin) provideWriter(ctx *plugin.Context) {
+	if ctx.Provide == nil {
+		return
+	}
+	ctx.Provide(core.ServiceRecords, recordWriter{p: p})
 }
 
 // ensureLoaded reads and validates the declarations once.
