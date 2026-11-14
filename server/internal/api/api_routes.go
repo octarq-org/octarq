@@ -65,6 +65,15 @@ func (h *Handler) Routes() *http.ServeMux {
 					huma.WriteErr(api, ctx, http.StatusUnauthorized, "Authentication required; sign in to continue")
 					return
 				}
+				// A plugin reads its caller with humago.Unwrap, which peels
+				// this override back off and hands back the adapter's own
+				// request — the one still carrying the anonymous context. A
+				// cookie survives that because auth.UserID re-reads it from
+				// the header; a bearer token does not, so it authenticated
+				// here and then read as user 0 inside every plugin route.
+				// Stamping the authenticated copy onto the adapter's request
+				// keeps both readers on the same identity.
+				*r = *r2
 				ctx = huma.WithContext(ctx, r2.Context())
 			}
 		}
