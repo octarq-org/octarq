@@ -33,7 +33,12 @@ var ErrEntitiesFileMissing = errors.New("ontology: entity file not found")
 // or validated is an error, never an empty set.
 func Load(inline, path string) ([]Spec, error) {
 	if inline = strings.TrimSpace(inline); inline != "" {
-		return Decode(strings.NewReader(inline))
+		// An inline declaration may be empty. `{"entities":[]}` is the operator
+		// stating that this installation declares nothing — an explicit answer,
+		// not a half-written file — and it is also how a caller that must not
+		// pick up ./octarq.entities.json turns the feature off without changing
+		// its working directory.
+		return decodeDocument(strings.NewReader(inline), true)
 	}
 	if path = strings.TrimSpace(path); path != "" {
 		f, err := os.Open(path)
@@ -62,13 +67,24 @@ func Load(inline, path string) ([]Spec, error) {
 func DecodeString(doc string) ([]Spec, error) { return Decode(strings.NewReader(doc)) }
 
 // Decode parses a declaration document and validates the whole set.
-func Decode(r io.Reader) ([]Spec, error) {
+func Decode(r io.Reader) ([]Spec, error) { return decodeDocument(r, false) }
+
+// decodeDocument is Decode with the empty-declaration rule spelled out. A file that
+// declares nothing is refused: the operator who wrote it meant to declare
+// something. An inline document is the operator's own statement, so it may say
+// "nothing" and be believed.
+func decodeDocument(r io.Reader, allowEmpty bool) ([]Spec, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("ontology: read entities: %w", err)
 	}
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, errors.New("ontology: entities document is empty")
+	}
+	// A key declared twice is a declaration whose second half silently replaces
+	// the first. The operator would believe both were applied.
+	if key, dup := DuplicateKey(raw); dup {
+		return nil, fmt.Errorf("ontology: parse entities: %q is declared twice", key)
 	}
 
 	var doc struct {
@@ -85,6 +101,9 @@ func Decode(r io.Reader) ([]Spec, error) {
 		return nil, err
 	}
 	if len(doc.Entities) == 0 {
+		if allowEmpty {
+			return nil, nil
+		}
 		return nil, errors.New(`ontology: "entities" is empty; remove the file or declare at least one entity`)
 	}
 	if err := ValidateAll(doc.Entities); err != nil {

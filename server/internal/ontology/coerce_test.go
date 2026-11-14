@@ -153,3 +153,22 @@ func TestFromRowRendersColumns(t *testing.T) {
 		t.Fatalf("extra = %v, want raw JSON", got["extra"])
 	}
 }
+
+// TestDecodeValuesRefusesADuplicateKey pins the refusal of a body that names a
+// field twice. encoding/json keeps the last value and reports nothing, so the
+// caller would believe the first one was applied.
+func TestDecodeValuesRefusesADuplicateKey(t *testing.T) {
+	_, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"a","title":"b"}`))
+	if err == nil || !strings.Contains(err.Error(), "sent twice") {
+		t.Fatalf("DecodeValues = %v, want the duplicate key refused", err)
+	}
+}
+
+// TestDecodeValuesRefusesADuplicateKeyAtAnyDepth covers the nested case: a json
+// field carries its own object, and a duplicate inside it is just as silent.
+func TestDecodeValuesRefusesADuplicateKeyAtAnyDepth(t *testing.T) {
+	_, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"a","extra":{"a":1,"a":2}}`))
+	if err == nil || !strings.Contains(err.Error(), `"a"`) {
+		t.Fatalf("DecodeValues = %v, want the nested duplicate refused", err)
+	}
+}

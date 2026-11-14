@@ -69,6 +69,8 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	origSecret, hadSecret := os.LookupEnv("OCTARQ_SECRET_KEY")
 	origAdmin, hadAdmin := os.LookupEnv("OCTARQ_ADMIN_PASSWORD")
 	origListen, hadListen := os.LookupEnv("OCTARQ_LISTEN")
+	origEntities, hadEntities := os.LookupEnv("OCTARQ_ENTITIES")
+	origEntitiesFile, hadEntitiesFile := os.LookupEnv("OCTARQ_ENTITIES_FILE")
 
 	defer func() {
 		restoreEnv("OCTARQ_DB_DRIVER", origDriver, hadDriver)
@@ -76,6 +78,8 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 		restoreEnv("OCTARQ_SECRET_KEY", origSecret, hadSecret)
 		restoreEnv("OCTARQ_ADMIN_PASSWORD", origAdmin, hadAdmin)
 		restoreEnv("OCTARQ_LISTEN", origListen, hadListen)
+		restoreEnv("OCTARQ_ENTITIES", origEntities, hadEntities)
+		restoreEnv("OCTARQ_ENTITIES_FILE", origEntitiesFile, hadEntitiesFile)
 	}()
 
 	setIfUnset("OCTARQ_DB_DRIVER", "sqlite")
@@ -85,6 +89,14 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	// Port 0 so a generation run can never collide with a server already
 	// listening on the default or .env-configured port.
 	os.Setenv("OCTARQ_LISTEN", "127.0.0.1:0")
+	// Entity routes are generated from a declaration, so their paths are
+	// runtime values and do not belong in the published spec. An exported
+	// OCTARQ_ENTITIES in the developer's shell would otherwise put them there
+	// and fail the committed-spec diff check. An inline empty declaration wins
+	// over both the file variable and ./octarq.entities.json, which a developer
+	// following the help page has in the working directory.
+	os.Setenv("OCTARQ_ENTITIES", `{"entities":[]}`)
+	os.Setenv("OCTARQ_ENTITIES_FILE", "")
 
 	a, err := app.New()
 	if err != nil {

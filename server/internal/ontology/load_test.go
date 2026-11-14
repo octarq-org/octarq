@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/ontology"
@@ -97,5 +98,26 @@ func TestDecodeRejectsTrailingContent(t *testing.T) {
 func TestDecodeRejectsEmptyEntityList(t *testing.T) {
 	if _, err := ontology.DecodeString(`{"entities":[]}`); err == nil {
 		t.Fatal("expected an error for an empty list; remove the file instead")
+	}
+}
+
+// TestLoadAcceptsAnInlineEmptyDeclaration pins the one difference between the
+// sources: a file that declares nothing is a mistake, while an inline document
+// saying "nothing" is the operator's answer. openapi generation relies on it to
+// keep runtime routes out of the published spec.
+func TestLoadAcceptsAnInlineEmptyDeclaration(t *testing.T) {
+	specs, err := ontology.Load(`{"entities":[]}`, "")
+	if err != nil {
+		t.Fatalf("Load = %v, want an empty declaration accepted", err)
+	}
+	if len(specs) != 0 {
+		t.Fatalf("specs = %v, want none", specs)
+	}
+}
+
+func TestDecodeRejectsDuplicateKey(t *testing.T) {
+	_, err := ontology.DecodeString(`{"entities":[],"entities":[]}`)
+	if err == nil || !strings.Contains(err.Error(), "declared twice") {
+		t.Fatalf("Decode = %v, want the duplicate key refused", err)
 	}
 }
