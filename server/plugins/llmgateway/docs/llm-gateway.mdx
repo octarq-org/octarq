@@ -124,6 +124,37 @@ Add a model in the console, then run `opencode reload`. The new model appears in
 
 `curl <workspace address>/.well-known/opencode` shows the same document opencode reads.
 
+## Use Gemini CLI
+
+Gemini CLI uses the Google Gemini format. The workspace serves that format at `/v1beta`.
+
+First, tell Gemini CLI to use an API key. Add this setting to `~/.gemini/settings.json`:
+
+```json
+{ "security": { "auth": { "selectedType": "gemini-api-key" } } }
+```
+
+Then set two environment variables:
+
+1. `GOOGLE_GEMINI_BASE_URL`: your workspace address.
+2. `GEMINI_API_KEY`: a workspace token.
+
+Run `gemini -p "hello"` to test the connection.
+
+Gemini CLI sends each turn to `/v1beta/models/<model>:generateContent`. The gateway converts the turn to the provider format, and converts the answer back. Tools and streaming keep working.
+
+The gateway reads the model list from the provider. This command shows the list:
+
+```
+curl -H "X-Goog-Api-Key: <token>" <workspace address>/v1beta/models
+```
+
+The provider runs the model that you set on the Model page. The model name in the Gemini path does not change it. Add `?model=<name>` to the address to run another model.
+
+:::note
+Gemini CLI sends the token in the `X-Goog-Api-Key` header. The gateway accepts that header.
+:::
+
 ## Access permissions
 
 The model gateway page needs the workspace admin role.

@@ -124,6 +124,37 @@ opencode 自己找到工作区。它读取 `/.well-known/opencode`，运行该�
 
 `curl <工作区地址>/.well-known/opencode` 显示 opencode 读取的同一份文档。
 
+## 使用 Gemini CLI
+
+Gemini CLI 使用 Google Gemini 格式。工作区在 `/v1beta` 提供该格式。
+
+先让 Gemini CLI 使用 API 密钥。把以下设置加入 `~/.gemini/settings.json`：
+
+```json
+{ "security": { "auth": { "selectedType": "gemini-api-key" } } }
+```
+
+然后设置两个环境变量：
+
+1. `GOOGLE_GEMINI_BASE_URL`：你的工作区地址。
+2. `GEMINI_API_KEY`：一个工作区令牌。
+
+运行 `gemini -p "hello"` 测试连接。
+
+Gemini CLI 把每一轮发送到 `/v1beta/models/<model>:generateContent`。网关把请求转换成提供商格式，再把回答转换回来。工具调用和流式输出照常工作。
+
+网关从提供商读取模型列表。以下命令显示该列表：
+
+```
+curl -H "X-Goog-Api-Key: <令牌>" <工作区地址>/v1beta/models
+```
+
+提供商运行你在模型页面设置的模型。Gemini 路径中的模型名不会改变它。在地址后加 `?model=<名称>` 可以运行另一个模型。
+
+:::note
+Gemini CLI 在 `X-Goog-Api-Key` 请求头中发送令牌。网关接受该请求头。
+:::
+
 ## 访问权限
 
 模型网关页面需要工作区管理员角色。

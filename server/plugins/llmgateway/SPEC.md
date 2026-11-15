@@ -249,6 +249,53 @@ fetches `{origin}/.well-known/opencode` before it holds a credential.
   honoured because the document holds no secret and a TLS-terminating proxy
   would otherwise hand back `http`.
 
+## 5.5 Gemini generateContent API (Gemini CLI)
+
+Gemini CLI speaks Google's protocol and nothing else; it has no OpenAI mode. The
+gateway translates that protocol the same way it translates the Messages API:
+the provider is called over OpenAI, and the answer is rebuilt.
+
+| Method | Path | Effect |
+|---|---|---|
+| GET | `/v1beta/models` | The provider's models in the Gemini list shape |
+| GET | `/v1beta/models/{model}` | One model, 404 when the provider does not list it |
+| POST | `/v1beta/models/{model}:generateContent` | One turn |
+| POST | `/v1beta/models/{model}:streamGenerateContent?alt=sse` | The same turn as `data:` frames |
+| POST | `/v1beta/models/{model}:countTokens` | Estimate; the provider is not called |
+
+Translation, both directions:
+
+| Gemini | OpenAI |
+|---|---|
+| `systemInstruction` | a `system` message |
+| text part | `text` content part |
+| `inlineData` part | `image_url` part as a data URI |
+| `functionCall` part | assistant `tool_calls[]` |
+| `functionResponse` part | a `tool` message, emitted before the user message |
+| `tools[].functionDeclarations` | `tools[].function.parameters` |
+| `toolConfig` AUTO/ANY/NONE | `auto` / `required` or the one named function / `none` |
+| `maxOutputTokens`, `temperature`, `topP`, `stopSequences` | `max_tokens`, `temperature`, `top_p`, `stop` |
+| `responseJsonSchema`, `responseMimeType` | `response_format` `json_schema` or `json_object` |
+| `finishReason` | `finish_reason` (`STOP`, `MAX_TOKENS` for `length`, `SAFETY` for `content_filter`) |
+| `usageMetadata` | `usage` prompt and completion counts |
+
+- The Gemini protocol gives a function call no id and names the function in the
+  response. The gateway mints `call_N` while it walks the history and pairs each
+  `functionResponse` with the oldest unanswered call of the same name, so a turn
+  with two calls to one function answers in order.
+- A `thought` part is not sent upstream: no OpenAI field carries reasoning, and
+  replaying it as prose changes the turn. A `fileData` part is refused by name,
+  because its URL is only readable by Google's own platform.
+- The model in the path is not the model that runs. gemini-cli sends names such
+  as `gemini-2.5-pro` and its router sends internal names, while a workspace
+  provider serves the model it was configured with, so the turn goes to that
+  model; `?model=` names another. The answer reports the model that ran.
+- Function arguments are held until the stream closes: they are JSON that is
+  only whole at the end, and a Gemini client reads the call as one object. Text
+  streams as it arrives.
+- `parts` is written as an empty list, never `null`, on every frame: gemini-cli
+  reads `parts.length` and throws on null.
+
 ## 6. Failure Modes
 
 | Condition | Behavior |
@@ -264,6 +311,9 @@ fetches `{origin}/.well-known/opencode` before it holds a credential.
 | Provider base URL cannot be parsed | 400; nothing is sent |
 | A Messages block has no OpenAI counterpart | 400; the turn is refused |
 | The provider refuses a Messages turn | 502 with the provider's message |
+| A Gemini workspace names no model | 503 `FAILED_PRECONDITION` in the Gemini error shape |
+| A Gemini part has no OpenAI counterpart | 400 `INVALID_ARGUMENT` |
+| An unknown Gemini action | 404 `NOT_FOUND`; the action list is closed |
 
 ## 7. Extension Points
 

@@ -9,10 +9,10 @@
 // A workspace with no configured provider has no AI. Nothing falls back to the
 // instance environment: a tenant must never spend the operator's credentials.
 //
-// The gateway also serves the workspace's models to coding agents in the three
-// wire formats they speak: /v1/models, /v1/chat/completions, /v1/responses, and
-// /v1/messages. The agent asks for the model list, so nobody types a model
-// name, and the provider key stays here.
+// The gateway also serves the workspace's models to coding agents in every wire
+// format they speak: /v1/models, /v1/chat/completions, /v1/responses,
+// /v1/messages, and /v1beta/models/{model}:generateContent. The agent asks for
+// the model list, so nobody types a model name, and the provider key stays here.
 //
 // opencode configures itself from /.well-known/opencode: the discovery document
 // points it at /v1/opencode/config, which builds the provider block from that

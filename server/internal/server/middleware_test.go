@@ -249,6 +249,8 @@ func TestTierFor(t *testing.T) {
 		{"GET", "/.well-known/opencode", tierAPI},
 		{"POST", "/v1/chat/completions", tierAPI},
 		{"POST", "/v1/responses", tierAPI},
+		{"GET", "/v1beta/models", tierAPI},
+		{"POST", "/v1beta/models/gemini-2.5-pro:streamGenerateContent", tierAPI},
 		{"GET", "/admin/", tierAPI},
 		{"GET", "/portal/", tierAPI},
 		{"GET", "/", tierAPI},

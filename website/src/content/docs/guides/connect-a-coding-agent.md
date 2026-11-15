@@ -18,8 +18,9 @@ The model list comes from the workspace. Copy a name from that list; never inven
 | OpenAI Chat Completions | Cline, aider, opencode, most agents | `POST /v1/chat/completions` |
 | OpenAI Responses | Codex 0.167 and later | `POST /v1/responses` |
 | Anthropic Messages | Claude Code | `POST /v1/messages` |
+| Gemini generateContent | Gemini CLI | `POST /v1beta/models/{model}:generateContent` |
 
-All three formats share one list at `GET /v1/models`. The provider supplies the list, so a new model appears without a change here.
+The OpenAI and Anthropic formats share one list at `GET /v1/models`. Gemini clients read the same models from `GET /v1beta/models`. The provider supplies both lists, so a new model appears without a change here.
 
 ## What the agent needs
 
@@ -78,6 +79,32 @@ After you add a model in the console, run `opencode reload`. The picker shows th
 > **Tip**
 >
 > `curl https://<your-workspace>/.well-known/opencode` shows the document opencode reads. It holds no workspace data.
+
+## Gemini CLI
+
+Gemini CLI uses Google's format. The workspace serves it at `/v1beta`.
+
+First, tell Gemini CLI to use an API key. Add this setting to `~/.gemini/settings.json`:
+
+```json
+{ "security": { "auth": { "selectedType": "gemini-api-key" } } }
+```
+
+Then set two environment variables:
+
+```bash
+export GOOGLE_GEMINI_BASE_URL="https://<your-workspace>"
+export GEMINI_API_KEY="<workspace token>"
+gemini -p "hello"
+```
+
+Gemini CLI sends the token in the `X-Goog-Api-Key` header. The gateway accepts that header.
+
+The provider runs the model you set on the Model Gateway page. The model name in the Gemini path does not change it. Add `?model=<name>` to the address to run another model.
+
+> **Tip**
+>
+> `curl https://<your-workspace>/v1beta/models -H "X-Goog-Api-Key: $GEMINI_API_KEY"` shows the list Gemini clients read.
 
 ## Cline, aider, and other agents
 

@@ -145,16 +145,17 @@ func systemText(raw json.RawMessage) (string, error) {
 // --- request shapes (OpenAI out) ---
 
 type oaiRequest struct {
-	Model         string            `json:"model"`
-	Messages      []oaiMessage      `json:"messages"`
-	MaxTokens     int               `json:"max_tokens,omitempty"`
-	Temperature   *float64          `json:"temperature,omitempty"`
-	TopP          *float64          `json:"top_p,omitempty"`
-	Stop          []string          `json:"stop,omitempty"`
-	Tools         []oaiTool         `json:"tools,omitempty"`
-	ToolChoice    any               `json:"tool_choice,omitempty"`
-	Stream        bool              `json:"stream,omitempty"`
-	StreamOptions *oaiStreamOptions `json:"stream_options,omitempty"`
+	Model          string            `json:"model"`
+	Messages       []oaiMessage      `json:"messages"`
+	MaxTokens      int               `json:"max_tokens,omitempty"`
+	Temperature    *float64          `json:"temperature,omitempty"`
+	TopP           *float64          `json:"top_p,omitempty"`
+	Stop           []string          `json:"stop,omitempty"`
+	Tools          []oaiTool         `json:"tools,omitempty"`
+	ToolChoice     any               `json:"tool_choice,omitempty"`
+	ResponseFormat any               `json:"response_format,omitempty"`
+	Stream         bool              `json:"stream,omitempty"`
+	StreamOptions  *oaiStreamOptions `json:"stream_options,omitempty"`
 }
 
 type oaiStreamOptions struct {
