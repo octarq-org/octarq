@@ -55,7 +55,7 @@ order: 70
 
 编程代理可以使用工作区的模型提供商。
 
-Codex、Cline 和 aider 使用 OpenAI API 格式。工作区在 `/v1` 提供该格式。
+Codex、Cline、aider 和 opencode 使用 OpenAI API 格式。工作区在 `/v1` 提供该格式。
 
 代理需要三个设置：
 
@@ -109,6 +109,37 @@ Claude Code 把工具调用和流式输出发到同一组路由。网关把它�
 :::note
 提供商的密钥保存在工作区内。代理从不持有密钥。
 :::
+
+## 使用 opencode
+
+opencode 使用 OpenAI 聊天格式。它把模型列表保存在自己的配置文件里。从模型列表复制名称。
+
+在 `~/.config/opencode/opencode.json` 添加提供商：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "octarq": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Octarq",
+      "env": ["OCTARQ_TOKEN"],
+      "options": { "baseURL": "<workspace address>/v1" },
+      "models": {
+        "<a model from the list>": { "name": "<the same name>" }
+      }
+    }
+  }
+}
+```
+
+启动 opencode 之前，把 `OCTARQ_TOKEN` 设为工作区令牌。令牌留在环境变量里，不写进配置文件。
+
+用列表中的模型启动 opencode：
+
+```bash
+opencode run -m octarq/<model> "Explain this repository"
+```
 
 ## 访问权限
 
