@@ -126,7 +126,7 @@ The MCP server's own tools need no LLM, but AI features (such as AI email summar
 | `OCTARQ_LLM_PROVIDER` | `claude`, `openai`, `gemini`, `mistral`, `cohere`, or `ollama`. |
 | `OCTARQ_LLM_API_KEY` | Your own provider key — octarq never marks up tokens (BYOK). |
 
-:::tip
-Defaults are `claude-opus-4-8` for reasoning and `claude-haiku-4-5` for cheap
-classification. Switch vendor by name — no per-vendor code.
-:::
+> **Tip**
+>
+> Defaults are `claude-opus-4-8` for reasoning and `claude-haiku-4-5` for cheap
+> classification. Switch vendor by name — no per-vendor code.

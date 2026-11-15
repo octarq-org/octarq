@@ -12,10 +12,10 @@ platform: identity, workspaces, audit, notifications, jobs, webhooks, MCP and th
 dashboard shell. The business features you run on it — short links, mailboxes,
 DNS — are plugins. You pick them at build time.
 
-:::note
-Octarq is open source under the MIT License. Binaries are `octarq`, API tokens
-start with `oct_`.
-:::
+> **Note**
+>
+> Octarq is open source under the MIT License. Binaries are `octarq`, API tokens
+> start with `oct_`.
 
 ## What core provides
 
