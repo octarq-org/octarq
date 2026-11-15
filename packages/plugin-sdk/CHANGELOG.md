@@ -1,5 +1,11 @@
 # @octarq-org/plugin-sdk
 
+## 0.22.0
+
+### Minor Changes
+
+- c19c8a6: Add one HTTP surface for plugins and the host: `req`, `ApiError`, `configurePluginHttp` and `pluginURL`. Add `usePluginData`, `usePluginMutation` and `usePluginStream` over the host's single react-query client. Add the `./testing` subpath with `TestHarness` and `mockPluginApi`. Add `UIWidget.requires` so a widget disappears with a disabled dependency, and `useExtensionSlotContext` for typed slot context. A crashed widget now logs its slot name in development.
+
 ## 0.21.0
 
 ### Minor Changes
