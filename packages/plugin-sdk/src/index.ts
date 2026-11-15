@@ -14,3 +14,4 @@ export * from "./i18n";
 export * from "./brand";
 export * from "./tokens";
 export * from "./hooks";
+export * from "./data";
