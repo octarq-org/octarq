@@ -20,6 +20,9 @@ export const zh: Resources = {
     replay: "重放",
     replaying: "正在重放…",
   },
+  nsgo: {
+    failed: "工作台未加载。",
+  },
   app: {
     forgotPasswordTitle: "重置密码",
     forgotPasswordDesc: "输入账号邮箱以接收重置链接",

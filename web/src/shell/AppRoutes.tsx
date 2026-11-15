@@ -23,6 +23,7 @@ const OverviewPage = lazy(() => import("../pages/Overview"));
 const SettingsPage = lazy(() => import("../pages/Settings"));
 const NotificationsPage = lazy(() => import("../pages/notifications"));
 const DataPage = lazy(() => import("../pages/data"));
+const WorkbenchPage = lazy(() => import("../pages/Workbench"));
 const InviteAcceptPage = lazy(() => import("../pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("../pages/ResetPassword"));
 const DevWorkbench = import.meta.env.DEV ? lazy(() => import("../dev/workbench")) : null;
@@ -43,6 +44,7 @@ export function AppRoutes({ pluginGateCtxValue }: AppRoutesProps) {
           <Route path="/notifications/*" element={<NotificationsPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/data/:slug" element={<DataPage />} />
+          <Route path="/workbench" element={<WorkbenchPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
           <Route path="/admin/reset" element={<ResetPasswordPage />} />
           {pluginRouteElements()}

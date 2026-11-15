@@ -19,6 +19,9 @@ export const ja = {
     replay: "再送",
     replaying: "再送中…",
   },
+  nsgo: {
+    failed: "ワークベンチが読み込まれませんでした。",
+  },
   app: {
     forgotPasswordTitle: "パスワードをリセット",
     forgotPasswordDesc: "アカウントのメールアドレスを入力すると、リセットリンクが届きます",

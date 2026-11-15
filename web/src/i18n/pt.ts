@@ -19,6 +19,9 @@ export const pt = {
     replay: "Repetir",
     replaying: "Repetindo…",
   },
+  nsgo: {
+    failed: "A área de trabalho não carregou.",
+  },
   app: {
     forgotPasswordTitle: "Redefinir senha",
     forgotPasswordDesc: "Informe o e-mail da sua conta para receber um link de redefinição",

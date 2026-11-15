@@ -19,6 +19,9 @@ export const es = {
     replay: "Reproducir",
     replaying: "Reproduciendo…",
   },
+  nsgo: {
+    failed: "El área de trabajo no se cargó.",
+  },
   app: {
     forgotPasswordTitle: "Restablecer contraseña",
     forgotPasswordDesc: "Introduce el correo de tu cuenta para recibir un enlace de restablecimiento",
