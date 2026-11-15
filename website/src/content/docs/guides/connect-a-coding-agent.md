@@ -60,34 +60,24 @@ export ANTHROPIC_MODEL="<a model from the list>"
 
 ## opencode
 
-opencode uses the OpenAI chat format. It keeps its own model list in its config file. Copy the names that the endpoint returns.
+opencode discovers the workspace. It reads `/.well-known/opencode`, asks for a token, and loads every model the provider serves. You type no model name.
 
-Add a provider to `~/.config/opencode/opencode.json`:
+1. Mint a workspace token in the console.
+2. Run `opencode auth login https://<your-workspace>`.
+3. Enter the token when asked.
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "octarq": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Octarq",
-      "env": ["OCTARQ_TOKEN"],
-      "options": { "baseURL": "https://<your-workspace>/v1" },
-      "models": {
-        "<a model from the list>": { "name": "<the same name>" }
-      }
-    }
-  }
-}
-```
-
-Set `OCTARQ_TOKEN` to a workspace token before you start opencode. The token stays in the environment, not in the file.
-
-Start opencode with a model from the list:
+Set `OCTARQ_TOKEN` first to skip the question:
 
 ```bash
-opencode run -m octarq/<model> "Explain this repository"
+export OCTARQ_TOKEN="<workspace token>"
+opencode auth login https://<your-workspace>
 ```
+
+After you add a model in the console, run `opencode reload`. The picker shows the new model.
+
+> **Tip**
+>
+> `curl https://<your-workspace>/.well-known/opencode` shows the document opencode reads. It holds no workspace data.
 
 ## Cline, aider, and other agents
 

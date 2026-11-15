@@ -64,6 +64,8 @@ a zero price can never trip. A consumer without a price registry receives
 | GET | `/api/llm-gateway/prices` | List prices |
 | PUT | `/api/llm-gateway/prices` | Upsert one price |
 | DELETE | `/api/llm-gateway/prices?model=` | Delete one price |
+| GET | `/.well-known/opencode` | Discovery document; public, names no workspace data |
+| GET | `/v1/opencode/config` | opencode config with the provider's models; workspace token |
 
 Every route requires the workspace admin role. The credentials behind the
 routes spend money.
@@ -197,6 +199,55 @@ Rules:
 - The provider is asked for `stream_options.include_usage`, so the closing
   `usage` is the provider's own count when it reports one. Otherwise
   `input_tokens` is an estimate, as in 5.2.
+
+## 5.4 opencode Discovery
+
+opencode resolves a workspace the way it resolves an identity provider: it
+fetches `{origin}/.well-known/opencode` before it holds a credential.
+
+`GET /.well-known/opencode` (public):
+
+```json
+{
+  "auth": {
+    "command": ["sh", "-c", "…prints $OCTARQ_TOKEN, or prompts…"],
+    "env": "OCTARQ_TOKEN"
+  },
+  "remote_config": {
+    "url": "{origin}/v1/opencode/config",
+    "headers": {"Authorization": "Bearer {env:OCTARQ_TOKEN}"}
+  }
+}
+```
+
+- `auth.command` is argv, not a shell line: opencode spawns it and reads its
+  stdout as the credential. The command prints `$OCTARQ_TOKEN` when set, else
+  prompts on stderr.
+- The document carries no provider, model or key. Discoverability must not
+  reveal what a workspace spends, and it is fetched before authentication.
+
+`GET /v1/opencode/config` (workspace token, same guard as `/v1/models`):
+
+```json
+{"config": {"provider": {"octarq": {
+  "npm": "@ai-sdk/openai-compatible",
+  "name": "Octarq",
+  "env": ["OCTARQ_TOKEN"],
+  "options": {"baseURL": "{origin}/v1"},
+  "models": {"<provider model id>": {"name": "<same>"}}
+}}}}
+```
+
+- `models` is `discoveredModels` for the workspace's active provider (or
+  `?provider=<id>`). opencode keeps its own list and never calls
+  `/v1/models`, so the map is the only way models reach it — and it is
+  regenerated on every fetch, so `opencode reload` picks up a new model.
+- A workspace with no provider returns 503; a provider that refuses the list
+  returns 502. Both are the OpenAI error shape, and both fail closed: an empty
+  provider block would show up in opencode as usable.
+- `{origin}` is reconstructed from the request; `X-Forwarded-Proto: https` is
+  honoured because the document holds no secret and a TLS-terminating proxy
+  would otherwise hand back `http`.
 
 ## 6. Failure Modes
 

@@ -112,34 +112,17 @@ The provider key stays in the workspace. The agent never holds it.
 
 ## Use opencode
 
-opencode uses the OpenAI chat format. It keeps its own model list in its config file. Copy the names from the model list.
+opencode finds the workspace itself. It reads `/.well-known/opencode`, runs the command that document names, then loads the provider block. The block lists every model the provider serves. You do not type a model name.
 
-Add a provider to `~/.config/opencode/opencode.json`:
+1. Mint a workspace token on the tokens page.
+2. Run `opencode auth login <workspace address>`.
+3. Enter the token when opencode asks for it.
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "octarq": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Octarq",
-      "env": ["OCTARQ_TOKEN"],
-      "options": { "baseURL": "<workspace address>/v1" },
-      "models": {
-        "<a model from the list>": { "name": "<the same name>" }
-      }
-    }
-  }
-}
-```
+Set `OCTARQ_TOKEN` before step 2 to skip the question. The command reads the variable and stores it as the credential.
 
-Set `OCTARQ_TOKEN` to a workspace token before you start opencode. The token stays in the environment, not in the file.
+Add a model in the console, then run `opencode reload`. The new model appears in the picker.
 
-Start opencode with a model from the list:
-
-```bash
-opencode run -m octarq/<model> "Explain this repository"
-```
+`curl <workspace address>/.well-known/opencode` shows the same document opencode reads.
 
 ## Access permissions
 

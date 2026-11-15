@@ -71,6 +71,11 @@ func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	mux.Handle("POST "+AgentResponsesPath, ctx.Guard(http.HandlerFunc(p.handleAgentResponses)))
 	mux.Handle("POST "+AgentMessagesPath, ctx.Guard(http.HandlerFunc(p.handleAgentMessages)))
 	mux.Handle("POST "+AgentCountTokensPath, ctx.Guard(http.HandlerFunc(p.handleAgentCountTokens)))
+	// opencode discovers the workspace itself: the manifest is public by
+	// design (it names no workspace data), and the config it points at is
+	// behind the same token guard as the routes above.
+	mux.Handle("GET "+AgentWellKnownPath, http.HandlerFunc(p.handleOpencodeManifest))
+	mux.Handle("GET "+AgentOpencodeConfigPath, ctx.Guard(http.HandlerFunc(p.handleOpencodeConfig)))
 }
 
 // agentProvider is one workspace provider resolved for an outbound call: the
