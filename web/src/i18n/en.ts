@@ -19,6 +19,9 @@ export const en = {
     replay: "Replay",
     replaying: "Replaying…",
   },
+  nsgo: {
+    failed: "The workbench did not load.",
+  },
   app: {
     forgotPasswordTitle: "Reset your password",
     forgotPasswordDesc: "Enter your email to get a reset link.",
