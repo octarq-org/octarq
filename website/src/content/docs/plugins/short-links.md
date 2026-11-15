@@ -7,11 +7,11 @@ sidebar:
     label: "Plugins"
 ---
 
-:::note
-Short links ship as the `links` plugin in
-[octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add it at build
-time. A core-only build has no redirect route.
-:::
+> **Note**
+>
+> Short links ship as the `links` plugin in
+> [octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add it at build
+> time. A core-only build has no redirect route.
 
 Short links are Octarq's root namespace: every path outside the reserved prefixes
 (`/admin`, `/api`, `/assets`, `/portal`) is a potential slug, so `https://go.example.com/abc` redirects without ever colliding

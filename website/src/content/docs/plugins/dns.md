@@ -7,11 +7,11 @@ sidebar:
     label: "Plugins"
 ---
 
-:::note
-DNS ships as the `dns` plugin in
-[octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add it at build
-time.
-:::
+> **Note**
+>
+> DNS ships as the `dns` plugin in
+> [octarq-plugins](https://github.com/octarq-org/octarq-plugins). Add it at build
+> time.
 
 Octarq manages DNS behind a **provider abstraction** — Cloudflare and DNSPod today,
 with Aliyun and Route53 slotting into the same interface.
@@ -29,7 +29,7 @@ you manage them from one dashboard instead of juggling provider tabs.
 - Record notes map to the provider's native **comment / remark** field, so they
   stay visible in the provider console too.
 
-:::note
-The provider interface is the extension point: adding a registrar means
-implementing one interface, not touching the rest of octarq.
-:::
+> **Note**
+>
+> The provider interface is the extension point: adding a registrar means
+> implementing one interface, not touching the rest of octarq.
