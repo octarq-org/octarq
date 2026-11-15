@@ -286,6 +286,14 @@ export function GatewaySettings() {
           <dd className="min-w-0">
             <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`POST /v1/messages`}</code>
           </dd>
+          <dt className="text-muted-foreground">{t("gateway.agentsGeminiModels", "Gemini model list")}</dt>
+          <dd className="min-w-0">
+            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`GET /v1beta/models`}</code>
+          </dd>
+          <dt className="text-muted-foreground">{t("gateway.agentsGemini", "Gemini format")}</dt>
+          <dd className="min-w-0">
+            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`POST /v1beta/models/{model}:generateContent`}</code>
+          </dd>
         </dl>
       </Panel>
 
