@@ -247,6 +247,7 @@ func TestTierFor(t *testing.T) {
 		{"GET", "/api/links", tierAPI},
 		{"GET", "/v1/models", tierAPI},
 		{"POST", "/v1/chat/completions", tierAPI},
+		{"POST", "/v1/responses", tierAPI},
 		{"GET", "/admin/", tierAPI},
 		{"GET", "/portal/", tierAPI},
 		{"GET", "/", tierAPI},

@@ -65,7 +65,30 @@ The agent needs three settings:
 
 The agent asks `GET /v1/models` and shows the models that the provider serves. It then sends each turn to `POST /v1/chat/completions`.
 
-The gateway forwards each request to the provider unchanged. Tools, streaming, and structured output keep working.
+The gateway forwards a chat completion to the provider unchanged. Tools, streaming, and structured output keep working.
+
+## Use Codex
+
+Codex uses the OpenAI Responses format. The workspace serves that format at `/v1/responses`.
+
+Codex 0.167 no longer loads the chat format. It needs this route.
+
+Edit `~/.codex/config.toml`:
+
+```toml
+model = "<a model from the list>"
+model_provider = "octarq"
+
+[model_providers.octarq]
+name = "octarq"
+base_url = "<workspace address>/v1"
+env_key = "OCTARQ_TOKEN"
+wire_api = "responses"
+```
+
+Set `OCTARQ_TOKEN` to a workspace token before you start Codex.
+
+The gateway converts each turn to the provider format and converts the answer back. Tools and streaming keep working.
 
 ## Use Claude Code
 
