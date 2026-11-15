@@ -9,7 +9,8 @@ costs. No feature holds a provider key or a price table of its own.
 - **Module identifier**: `llmgateway`
 - **Plugin kind**: Core (always mounted, never gated, not listed as toggleable)
 - **Routes**: `/api/llm-gateway/providers`, `/api/llm-gateway/prices`,
-  plus the OpenAI-compatible agent surface `/v1/models`, `/v1/chat/completions`
+  plus the OpenAI-compatible agent surface `/v1/models`,
+  `/v1/chat/completions`, `/v1/responses`
 - **Services provided**: `plugin.ServiceModelPricing` (`llmgateway.pricing`)
 - **Host seam used**: `ctx.SetLLMResolverForOrg`
 
@@ -145,6 +146,57 @@ Rules:
   four characters per token): no provider on this path exposes a tokenizer, and
   the client uses the figure only for its context meter. Nothing bills on it.
 - `count_tokens` answers with the same estimate.
+
+## 5.3 OpenAI Responses API (Codex)
+
+Codex CLI speaks the Responses API. Since 0.167 it refuses `wire_api = "chat"`,
+so a gateway without this route cannot serve Codex at all. The provider speaks
+Chat Completions, so this is a translation, not a relay.
+
+| Method | Path | Effect |
+|---|---|---|
+| POST | `/v1/responses` | One Responses turn, streamed or not |
+
+Translation, both directions:
+
+| Responses | Chat Completions |
+|---|---|
+| `instructions` (string or parts) | a `system` message |
+| item `message` role `developer`/`system` | a `system` message, position kept |
+| item `message` role `user`, `input_text` / `output_text` | a `user` message with `text` parts |
+| item `message` role `user`, `input_image` | an `image_url` part |
+| item `function_call` (consecutive) | one `assistant` message with `tool_calls[]` |
+| item `function_call_output` | a `tool` message keyed by `call_id` |
+| item `reasoning` | dropped: provider-private, never produced here |
+| `tools[]` type `function` | `tools[].function` |
+| `tools[]` type `namespace` | its nested functions, flattened |
+| `tools[]` type `web_search` and other hosted tools | dropped: no Chat Completions form |
+| `tool_choice` auto/none/required/named | the same value in the OpenAI shape |
+| `max_output_tokens` | `max_tokens` |
+| `finish_reason` / `tool_calls` | output items: `message` / `function_call` |
+| `prompt_tokens` / `completion_tokens` | `input_tokens` / `output_tokens` |
+
+Rules:
+
+- `previous_response_id` is refused with 400. The gateway stores no responses;
+  answering without the stored turn would lose the conversation.
+- An input item type with no counterpart (`item_reference`) is refused with 400,
+  naming the type. A hosted tool has no such hole: it is dropped, so the model
+  simply never calls it, and the agent's own loop is unaffected.
+- A `message` item always carries `content`, empty included, in
+  `response.output_item.added` and in `response.completed`. Codex 0.167 opens
+  its active item from this field: without it, every `output_text.delta` is
+  logged as "OutputTextDelta without active item" and dropped.
+- Streaming emits `response.created`, `response.output_item.added`,
+  `response.content_part.added`, `response.output_text.delta` / `.done`,
+  `response.content_part.done`, `response.output_item.done`, and closes with
+  `response.completed`. Tool calls emit `response.function_call_arguments.delta`
+  / `.done`. Each frame carries the event name in `event:`, in `data.type`, and a
+  `sequence_number`. Codex treats a stream without `response.completed` as a
+  broken turn and retries it.
+- The provider is asked for `stream_options.include_usage`, so the closing
+  `usage` is the provider's own count when it reports one. Otherwise
+  `input_tokens` is an estimate, as in 5.2.
 
 ## 6. Failure Modes
 

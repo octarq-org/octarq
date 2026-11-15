@@ -65,7 +65,30 @@ Codex、Cline 和 aider 使用 OpenAI API 格式。工作区在 `/v1` 提供该�
 
 代理请求 `GET /v1/models`，并显示提供商提供的模型。然后代理把每一轮请求发送到 `POST /v1/chat/completions`。
 
-网关把每个请求原样转发给提供商。工具调用、流式输出和结构化输出都能继续工作。
+网关把聊天补全请求原样转发给提供商。工具调用、流式输出和结构化输出都能继续工作。
+
+## 使用 Codex
+
+Codex 使用 OpenAI Responses 格式。工作区在 `/v1/responses` 提供该格式。
+
+Codex 0.167 不再加载聊天格式。它需要这条路由。
+
+编辑 `~/.codex/config.toml`：
+
+```toml
+model = "<列表中的模型>"
+model_provider = "octarq"
+
+[model_providers.octarq]
+name = "octarq"
+base_url = "<工作区地址>/v1"
+env_key = "OCTARQ_TOKEN"
+wire_api = "responses"
+```
+
+启动 Codex 前，把 `OCTARQ_TOKEN` 设为工作区令牌。
+
+网关把每一轮请求转换为提供商格式，再把答案转换回来。工具调用和流式输出都能继续工作。
 
 ## 使用 Claude Code
 

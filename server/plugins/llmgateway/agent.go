@@ -17,12 +17,13 @@ import (
 
 // The agent API is the workspace's model, served to coding agents.
 //
-// A coding agent (Claude Code, Codex, Cline, aider) speaks the OpenAI wire
-// format. It asks GET /v1/models what the workspace offers and then posts to
-// POST /v1/chat/completions. The gateway answers both by calling the provider
-// the workspace configured, so an agent never holds the provider's key and
-// never needs a model name typed into it: the list comes from the provider's
-// own /models endpoint.
+// A coding agent (Claude Code, Codex, Cline, aider) speaks one of three wire
+// formats. It asks GET /v1/models what the workspace offers, then posts its
+// turns to POST /v1/chat/completions, POST /v1/responses, or POST /v1/messages.
+// The gateway answers all of them by calling the provider the workspace
+// configured, so an agent never holds the provider's key and never needs a
+// model name typed into it: the list comes from the provider's own /models
+// endpoint.
 //
 // The two routes sit behind the ordinary token guard. A coding agent sends the
 // same bearer token the console mints, and the workspace it names is the
@@ -67,6 +68,7 @@ func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	mux.Handle("GET "+AgentModelsPath, ctx.Guard(http.HandlerFunc(p.handleAgentModels)))
 	mux.Handle("POST "+AgentChatPath, ctx.Guard(http.HandlerFunc(p.handleAgentChat)))
+	mux.Handle("POST "+AgentResponsesPath, ctx.Guard(http.HandlerFunc(p.handleAgentResponses)))
 	mux.Handle("POST "+AgentMessagesPath, ctx.Guard(http.HandlerFunc(p.handleAgentMessages)))
 	mux.Handle("POST "+AgentCountTokensPath, ctx.Guard(http.HandlerFunc(p.handleAgentCountTokens)))
 }

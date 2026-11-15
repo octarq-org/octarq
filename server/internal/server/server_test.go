@@ -412,7 +412,7 @@ func TestAgentAPIPathReachesTheAPIMux(t *testing.T) {
 		t.Fatalf("build server: %v", err)
 	}
 
-	for _, path := range []string{"/v1/models", "/v1/chat/completions"} {
+	for _, path := range []string{"/v1/models", "/v1/chat/completions", "/v1/responses"} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, path, nil))
 		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "api response") {
