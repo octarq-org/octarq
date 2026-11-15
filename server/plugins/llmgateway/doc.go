@@ -13,4 +13,9 @@
 // wire formats they speak: /v1/models, /v1/chat/completions, /v1/responses, and
 // /v1/messages. The agent asks for the model list, so nobody types a model
 // name, and the provider key stays here.
+//
+// opencode configures itself from /.well-known/opencode: the discovery document
+// points it at /v1/opencode/config, which builds the provider block from that
+// same model list. A model added in the console reaches the agent on reload,
+// with no config edit.
 package llmgateway

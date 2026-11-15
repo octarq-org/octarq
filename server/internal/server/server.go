@@ -204,6 +204,15 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1.65 Well-known documents. A coding agent discovers the workspace model
+	// provider at /.well-known/opencode before it holds a credential, so those
+	// paths reach the plugin mux instead of the short-link router. RFC 8615
+	// reserves the namespace: no link may claim a slug under it.
+	if strings.HasPrefix(path, "/.well-known/") {
+		s.api.ServeHTTP(w, r)
+		return
+	}
+
 	// 1.75 Robots.txt: disallow all crawlers and robots across all hosts.
 	if path == "/robots.txt" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

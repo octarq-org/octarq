@@ -112,34 +112,17 @@ Claude Code 把工具调用和流式输出发到同一组路由。网关把它�
 
 ## 使用 opencode
 
-opencode 使用 OpenAI 聊天格式。它把模型列表保存在自己的配置文件里。从模型列表复制名称。
+opencode 自己找到工作区。它读取 `/.well-known/opencode`，运行该文档指定的命令，然后加载提供商配置。配置里列出提供商提供的全部模型。你不需要输入模型名。
 
-在 `~/.config/opencode/opencode.json` 添加提供商：
+1. 在令牌页面创建一个工作区令牌。
+2. 运行 `opencode auth login <工作区地址>`。
+3. opencode 询问时填入令牌。
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "octarq": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Octarq",
-      "env": ["OCTARQ_TOKEN"],
-      "options": { "baseURL": "<workspace address>/v1" },
-      "models": {
-        "<a model from the list>": { "name": "<the same name>" }
-      }
-    }
-  }
-}
-```
+在第 2 步之前设置 `OCTARQ_TOKEN`，就可以跳过这一步询问。命令读取该变量，并把它存为凭据。
 
-启动 opencode 之前，把 `OCTARQ_TOKEN` 设为工作区令牌。令牌留在环境变量里，不写进配置文件。
+在控制台添加模型后，运行 `opencode reload`。新模型随即出现在选择列表中。
 
-用列表中的模型启动 opencode：
-
-```bash
-opencode run -m octarq/<model> "Explain this repository"
-```
+`curl <工作区地址>/.well-known/opencode` 显示 opencode 读取的同一份文档。
 
 ## 访问权限
 
