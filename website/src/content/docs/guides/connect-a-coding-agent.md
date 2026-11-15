@@ -9,17 +9,17 @@ sidebar:
 
 A coding agent can spend the workspace's model provider. The provider key stays in the workspace. The agent holds only a workspace token.
 
-The agent reads the model list from the workspace. Do not type a model name into the agent.
+The model list comes from the workspace. Copy a name from that list; never invent one.
 
 ## What the workspace serves
 
 | Format | Who uses it | Route |
 | --- | --- | --- |
-| OpenAI Chat Completions | Cline, aider, most agents | `POST /v1/chat/completions` |
+| OpenAI Chat Completions | Cline, aider, opencode, most agents | `POST /v1/chat/completions` |
 | OpenAI Responses | Codex 0.167 and later | `POST /v1/responses` |
 | Anthropic Messages | Claude Code | `POST /v1/messages` |
 
-All three read the same list from `GET /v1/models`. The list comes from the provider, so a new model appears without a change here.
+All three formats share one list at `GET /v1/models`. The provider supplies the list, so a new model appears without a change here.
 
 ## What the agent needs
 
@@ -56,6 +56,37 @@ Claude Code uses the Anthropic Messages format. Set three environment variables:
 export ANTHROPIC_BASE_URL="https://<your-workspace>"
 export ANTHROPIC_AUTH_TOKEN="<workspace token>"
 export ANTHROPIC_MODEL="<a model from the list>"
+```
+
+## opencode
+
+opencode uses the OpenAI chat format. It keeps its own model list in its config file. Copy the names that the endpoint returns.
+
+Add a provider to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "octarq": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Octarq",
+      "env": ["OCTARQ_TOKEN"],
+      "options": { "baseURL": "https://<your-workspace>/v1" },
+      "models": {
+        "<a model from the list>": { "name": "<the same name>" }
+      }
+    }
+  }
+}
+```
+
+Set `OCTARQ_TOKEN` to a workspace token before you start opencode. The token stays in the environment, not in the file.
+
+Start opencode with a model from the list:
+
+```bash
+opencode run -m octarq/<model> "Explain this repository"
 ```
 
 ## Cline, aider, and other agents
