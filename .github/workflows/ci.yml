@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       go: ${{ steps.filter.outputs.go }}
+      helpdocs: ${{ steps.filter.outputs.helpdocs }}
       web: ${{ steps.filter.outputs.web }}
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
@@ -38,6 +39,14 @@ jobs:
               - 'Dockerfile'
               - 'docker-compose.yml'
               - '.github/workflows/ci.yml'
+            # Help docs are embedded in the binary and read by Go tests, so a
+            # .mdx edit can break the build. The go filter above drops markdown;
+            # this one picks the pages that tests actually parse.
+            helpdocs:
+              - 'server/**/*.md'
+              - 'server/**/*.mdx'
+              - 'server/plugins/help/**'
+              - 'server/internal/archtest/**'
             web:
               - 'web/**'
               - '!web/**/*.md'
@@ -139,6 +148,28 @@ jobs:
             echo "Coverage ${total}% is below required threshold ${THRESHOLD}%!"
             exit 1
           fi
+
+  helpdocs:
+    name: Help docs
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || needs.changes.outputs.helpdocs == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache: true
+          cache-dependency-path: server/go.sum
+
+      # Tests that read the embedded pages: bilingual pairing, translated
+      # titles, aside syntax, in-app link resolution, embed boundaries.
+      - name: help doc guards
+        run: go test ./plugins/help/... ./internal/archtest/...
 
   web:
     name: Frontend build
@@ -427,12 +458,12 @@ jobs:
   CI:
     name: CI
     if: always()
-    needs: [changes, lint, go, web, e2e, dist]
+    needs: [changes, lint, go, helpdocs, web, e2e, dist]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs
         run: |
-          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}" "${{ needs.dist.result }}"; do
+          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.helpdocs.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}" "${{ needs.dist.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "Required job failed: $result"
               exit 1

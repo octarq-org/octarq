@@ -6,22 +6,33 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugins/help"
+	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
+// coreDocsProviders reads the same list the binary mounts, so a plugin that
+// ships docs is checked the day it is added. A hand-written list here would go
+// stale the moment a plugin joins builtin.Default(), and the docs of an unlisted
+// plugin ship unchecked — which is how llmgateway's pages escaped the
+// translation guard until this test derived the list instead.
 func coreDocsProviders() map[string]plugin.HelpDocsFS {
-	return map[string]plugin.HelpDocsFS{
-		"help": help.New(),
+	out := map[string]plugin.HelpDocsFS{}
+	for _, p := range builtin.Default() {
+		if docs, ok := p.(plugin.HelpDocsFS); ok {
+			out[p.Name()] = docs
+		}
 	}
+	return out
 }
 
 func TestCoreHelpDocsHaveTranslationsAndExcludeSpecMd(t *testing.T) {
+	checked := 0
 	for name, p := range coreDocsProviders() {
 		fsys := p.HelpDocsFS()
 		docs := plugin.LoadHelpDocs(fsys)
 		if len(docs) == 0 {
-			t.Errorf("%s: expected at least one help doc", name)
+			continue
 		}
+		checked++
 		for _, d := range docs {
 			zh, ok := d.Translations["zh"]
 			if !ok || strings.TrimSpace(zh.Markdown) == "" {
@@ -40,6 +51,24 @@ func TestCoreHelpDocsHaveTranslationsAndExcludeSpecMd(t *testing.T) {
 		})
 		if err != nil {
 			t.Fatalf("%s: walk docs: %v", name, err)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no builtin plugin ships help docs; the guard checked nothing")
+	}
+}
+
+// TestCoreHelpDocSlugsAreUniqueAcrossPlugins guards the union, not each plugin:
+// /help/<slug> resolves one page, so a second plugin claiming the same slug
+// makes its page unreachable. The per-plugin tests cannot see the collision.
+func TestCoreHelpDocSlugsAreUniqueAcrossPlugins(t *testing.T) {
+	seen := make(map[string]string)
+	for name, p := range coreDocsProviders() {
+		for _, d := range plugin.LoadHelpDocs(p.HelpDocsFS()) {
+			if prev, dup := seen[d.Slug]; dup {
+				t.Errorf("slug %q is claimed by both %s and %s", d.Slug, prev, name)
+			}
+			seen[d.Slug] = name
 		}
 	}
 }
