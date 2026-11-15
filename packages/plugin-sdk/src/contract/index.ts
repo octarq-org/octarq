@@ -24,7 +24,7 @@ export {
   resetRegistry,
 } from "./registry";
 
-export { ExtensionSlot, useExtensionCount } from "./ExtensionSlot";
+export { ExtensionSlot, useExtensionCount, useExtensionSlotContext } from "./ExtensionSlot";
 export {
   NotificationChannelFormContext,
   useNotificationChannelForm,

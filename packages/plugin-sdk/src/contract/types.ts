@@ -39,11 +39,17 @@ export interface UIRoute {
 // the app renders with <ExtensionSlot name="..."/> (e.g. "home-overview");
 // widgets registered for that slot render there in ascending `order`. Like
 // routes, the component is lazy so an unvisited slot costs nothing.
+//
+// `requires` names the plugins this widget needs. The slot drops the widget
+// when any of them is disabled, so a widget never renders against a feature
+// that is off. Declare the dependency; the slot does not infer it from the
+// plugin name.
 export interface UIWidget {
   slot: string;
   Component: LazyPage;
   order?: number;
   pluginName?: string;
+  requires?: string[];
 }
 
 // A NEW top-level sidebar area contributed by a plugin. `icon` is a string key

@@ -92,8 +92,10 @@ export function PluginsSettings() {
       setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
       if (e instanceof ApiError && e.status === 409) {
         let msg = e.message;
-        if (e.body && e.body.dependents) {
-           msg = t("settings.pluginInUse", { plugin: key, dependents: e.body.dependents.join(", ") });
+        // The refusal names the plugins that still depend on this one.
+        const dependents = (e.body as { dependents?: string[] } | undefined)?.dependents;
+        if (dependents) {
+          msg = t("settings.pluginInUse", { plugin: key, dependents: dependents.join(", ") });
         }
         setErr(msg);
       } else {

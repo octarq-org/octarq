@@ -24,7 +24,7 @@ export const LANGS: { code: Lang; label: string }[] = [
 // Partial allows plugins/hosts to supply translations for a subset of supported languages.
 export type Resources = Partial<Record<Lang, Record<string, unknown>>>;
 
-function detectLang(): Lang {
+export function detectLang(): Lang {
   try {
     const saved = localStorage.getItem("lang");
     if (saved === "en" || saved === "zh" || saved === "es" || saved === "pt" || saved === "ja") return saved as Lang;

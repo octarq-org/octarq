@@ -1,4 +1,10 @@
 // Thin fetch wrapper and endpoint methods for the octarq JSON API.
+//
+// The wrapper itself, its error type and the language helper live in
+// @octarq/plugin-sdk — the same implementation every plugin uses. This module
+// re-exports them so `../api/client` stays the host's single API surface, and
+// adds the endpoint methods below.
+import { ApiError, getAppLang, req } from "@octarq/plugin-sdk";
 import { parseWithFallback } from "../lib/parseWithFallback";
 import {
   NotificationsListSchema,
@@ -49,91 +55,7 @@ import type {
   WebhookEventGroup,
 } from "./types";
 
-export class ApiError extends Error {
-  status: number;
-  body?: any;
-  /** Server-side correlation id (X-Request-Id), when the response carried one. */
-  requestId?: string;
-  constructor(status: number, message: string, body?: any, requestId?: string) {
-    super(message);
-    this.status = status;
-    this.body = body;
-    this.requestId = requestId;
-  }
-}
-
-export function getAppLang(): string {
-  try {
-    const saved = localStorage.getItem("lang");
-    if (saved) return saved;
-  } catch {
-    /* ignore */
-  }
-  return navigator.language || "en";
-}
-
-interface ErrorDetail {
-  location?: string;
-  message?: string;
-}
-
-interface ErrorEnvelope {
-  message?: string;
-  error?: string;
-  detail?: string;
-  details?: Array<string | ErrorDetail>;
-}
-
-export async function req<T>(method: string, path: string, body?: unknown, lang?: string): Promise<T> {
-  const currentLang = lang || getAppLang();
-  const headers: Record<string, string> = {
-    "Accept-Language": currentLang,
-  };
-  if (body) {
-    headers["Content-Type"] = "application/json";
-  }
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    let msg = res.statusText;
-    let parsed: ErrorEnvelope | null = null;
-    try {
-      parsed = (await res.json()) as ErrorEnvelope;
-      if (parsed?.message) {
-        msg = parsed.message;
-        if (parsed.details && Array.isArray(parsed.details) && parsed.details.length > 0) {
-          const detailMsgs = parsed.details
-            .map((d) => {
-              if (typeof d === "string") return d;
-              if (d?.message) {
-                const loc = d.location ? `${d.location.replace(/^body\./, "")}: ` : "";
-                return `${loc}${d.message}`;
-              }
-              return "";
-            })
-            .filter(Boolean);
-          if (detailMsgs.length > 0) {
-            msg = `${parsed.message}: ${detailMsgs.join(", ")}`;
-          }
-        }
-      } else if (parsed?.error) {
-        msg = parsed.error;
-      } else if (parsed?.detail) {
-        msg = parsed.detail;
-      }
-    } catch {
-      /* not JSON — keep statusText */
-    }
-    throw new ApiError(res.status, msg, parsed, res.headers.get("x-request-id") ?? undefined);
-  }
-  if (res.status === 204) return undefined as T;
-  const ct = res.headers.get("content-type") || "";
-  if (!ct.includes("application/json")) return undefined as T;
-  return res.json();
-}
+export { ApiError, getAppLang, req } from "@octarq/plugin-sdk";
 
 export const api = {
   // subsystem status (public)
