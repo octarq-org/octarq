@@ -133,11 +133,13 @@ func tierFor(r *http.Request) tier {
 		return tierAuth
 	case r.Method == http.MethodPost && p == "/abuse":
 		return tierAuth
-	case strings.HasPrefix(p, "/api/"), strings.HasPrefix(p, "/v1/"), strings.HasPrefix(p, "/.well-known/"):
-		// /v1 is the OpenAI-compatible agent surface. It is an API, not a
-		// short-link redirect, so it gets the API budget rather than the loose
-		// redirect one. /.well-known is the discovery document an agent reads
-		// before it has a credential — one fetch per login, not a redirect.
+	case strings.HasPrefix(p, "/api/"), strings.HasPrefix(p, "/v1/"), strings.HasPrefix(p, "/v1beta/"),
+		strings.HasPrefix(p, "/.well-known/"):
+		// /v1 is the OpenAI-compatible agent surface and /v1beta the Gemini one.
+		// Both are APIs, not short-link redirects, so they get the API budget
+		// rather than the loose redirect one. /.well-known is the discovery
+		// document an agent reads before it has a credential — one fetch per
+		// login, not a redirect.
 		return tierAPI
 	case p == "/admin" || strings.HasPrefix(p, "/admin/"),
 		p == "/portal" || strings.HasPrefix(p, "/portal/"),

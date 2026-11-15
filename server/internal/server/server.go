@@ -204,6 +204,16 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1.7 The Gemini surface. Gemini CLI addresses the gateway at
+	// <instance>/v1beta/models/…:generateContent, which is neither /v1 nor /api,
+	// so it needs its own branch for the same reason: without it every Gemini
+	// turn fell through to the short-link router and 404ed. Authorisation is the
+	// token guard on the routes themselves.
+	if strings.HasPrefix(path, "/v1beta/") {
+		s.api.ServeHTTP(w, r)
+		return
+	}
+
 	// 1.65 Well-known documents. A coding agent discovers the workspace model
 	// provider at /.well-known/opencode before it holds a credential, so those
 	// paths reach the plugin mux instead of the short-link router. RFC 8615

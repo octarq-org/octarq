@@ -76,6 +76,11 @@ func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	// behind the same token guard as the routes above.
 	mux.Handle("GET "+AgentWellKnownPath, http.HandlerFunc(p.handleOpencodeManifest))
 	mux.Handle("GET "+AgentOpencodeConfigPath, ctx.Guard(http.HandlerFunc(p.handleOpencodeConfig)))
+	// Gemini CLI speaks its own protocol, so its model list and its per-model
+	// actions are separate routes rather than another shape on the ones above.
+	mux.Handle("GET "+AgentGeminiModelsPath, ctx.Guard(http.HandlerFunc(p.handleGeminiModels)))
+	mux.Handle("GET "+agentGeminiPrefix+"{model}", ctx.Guard(http.HandlerFunc(p.handleGeminiModel)))
+	mux.Handle("POST "+agentGeminiPrefix+"{model}", ctx.Guard(http.HandlerFunc(p.handleGeminiAction)))
 }
 
 // agentProvider is one workspace provider resolved for an outbound call: the
@@ -84,6 +89,10 @@ type agentProvider struct {
 	BaseURL string
 	APIKey  string
 	Backend string
+	// Model is the model the workspace configured. A protocol that names its
+	// own models (Gemini) sends the turn to this one, because the provider
+	// serves exactly the model it was configured with.
+	Model string
 	// Anthropic means the base URL is Anthropic's own API rather than an
 	// OpenAI-compatible endpoint. Only discovery sets it: the relay cannot
 	// serve that wire format, but the model list can be read from it.
@@ -142,7 +151,12 @@ func (p *Plugin) agentProviderFromRow(row *Provider, keyOverride string) (agentP
 	if err != nil {
 		return agentProvider{}, err
 	}
-	return agentProvider{BaseURL: base, APIKey: key, Backend: strings.ToLower(strings.TrimSpace(row.Backend))}, nil
+	return agentProvider{
+		BaseURL: base,
+		APIKey:  key,
+		Backend: strings.ToLower(strings.TrimSpace(row.Backend)),
+		Model:   strings.TrimSpace(row.Model),
+	}, nil
 }
 
 // discoveryProviderFromRow builds the call that reads a provider's model list.
@@ -172,6 +186,7 @@ func (p *Plugin) discoveryProviderFromRow(row *Provider, keyOverride string) (ag
 		BaseURL:   base,
 		APIKey:    key,
 		Backend:   strings.ToLower(strings.TrimSpace(row.Backend)),
+		Model:     strings.TrimSpace(row.Model),
 		Anthropic: anthropic,
 	}, nil
 }

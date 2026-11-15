@@ -58,14 +58,17 @@ func (m *Manager) TokenByRequest(r *http.Request) (models.Token, bool) {
 	return tok, true
 }
 
-// bearerToken extracts a "oct_" token from the Authorization header.
+// bearerToken extracts a "oct_" token from the Authorization header, or from
+// the header Gemini clients send it in. Google's clients use x-goog-api-key, so
+// a Gemini client reaches the gateway without a bespoke configuration step. The
+// value is checked exactly as a bearer token is: it must start with "oct_" and
+// it must hash to a stored row.
 func bearerToken(r *http.Request) string {
-	h := r.Header.Get("Authorization")
 	const pfx = "Bearer "
-	if !strings.HasPrefix(h, pfx) {
-		return ""
+	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, pfx) {
+		return strings.TrimSpace(h[len(pfx):])
 	}
-	return strings.TrimSpace(h[len(pfx):])
+	return strings.TrimSpace(r.Header.Get("X-Goog-Api-Key"))
 }
 
 // tokenAuthed reports whether the request carries a valid API bearer token.
