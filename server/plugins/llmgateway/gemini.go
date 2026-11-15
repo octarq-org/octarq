@@ -515,9 +515,6 @@ func (p *Plugin) handleGeminiAction(w http.ResponseWriter, r *http.Request) {
 // without an action names a model.
 func geminiPathModel(r *http.Request) (string, string) {
 	raw := strings.TrimPrefix(r.PathValue("model"), "models/")
-	if raw == "" {
-		return "", ""
-	}
 	if i := strings.LastIndex(raw, ":"); i >= 0 {
 		return raw[:i], raw[i+1:]
 	}
