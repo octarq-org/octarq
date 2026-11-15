@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/server/config"
@@ -181,8 +183,25 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.Ti
 	// the network. One line at the entry point removes the need for all of them.
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
 	srv := NewServerInstance(gdb, stdioOrgID, plugins, gate)
-	return srv.Run(ctx, &mcp.StdioTransport{})
+	return srv.Run(ctx, stdioTransport())
 }
+
+// stdioTransport frames the process streams the way the SDK's StdioTransport
+// does, with one difference: closing it leaves stdin open. The CLI exits right
+// after serving, but a test process boots the server more than once, and the
+// SDK closes os.Stdin — the second boot then dies with "read /dev/stdin: file
+// already closed" instead of running the code under test.
+func stdioTransport() mcp.Transport {
+	return &mcp.IOTransport{Reader: openReader{os.Stdin}, Writer: openWriter{os.Stdout}}
+}
+
+type openReader struct{ io.Reader }
+
+func (openReader) Close() error { return nil }
+
+type openWriter struct{ io.Writer }
+
+func (openWriter) Close() error { return nil }
 
 // registerTools wires every tool onto the server. Every tool registered here
 // must be scoped to a single tenant. Do not add a tool that takes caller-supplied
