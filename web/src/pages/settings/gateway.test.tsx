@@ -42,9 +42,11 @@ describe("GatewaySettings", () => {
     expect(await screen.findByText("Production")).toBeTruthy();
     expect(screen.getByText("Coding agents")).toBeTruthy();
     expect(screen.getByText(`${window.location.origin}/v1`)).toBeTruthy();
-    // Both wire formats are stated: OpenAI clients and Claude Code.
+    // Every wire format is stated: OpenAI, Codex, Claude Code and Gemini CLI.
     expect(screen.getByText("GET /v1/models")).toBeTruthy();
     expect(screen.getByText("POST /v1/messages")).toBeTruthy();
+    expect(screen.getByText("GET /v1beta/models")).toBeTruthy();
+    expect(screen.getByText("POST /v1beta/models/{model}:generateContent")).toBeTruthy();
   });
 
   it("reads the model list from the provider when the form opens", async () => {
