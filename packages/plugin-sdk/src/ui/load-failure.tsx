@@ -1,7 +1,6 @@
 import { forwardRef, type ReactNode } from "react";
 import { cn } from "./cn";
 import { useTranslation } from "../i18n";
-import { GlassCard } from "./primitives/glass-card";
 import { TableError, errorStatus } from "./primitives/table-error";
 import { LockedFeature } from "./locked";
 
@@ -29,11 +28,14 @@ export const AccessDenied = forwardRef<HTMLDivElement, AccessDeniedProps>(
     const { t } = useTranslation();
 
     return (
-      <GlassCard ref={ref} className={cn("mx-auto mt-8 max-w-md rounded-2xl p-10 text-center", className)}>
+      <div
+        ref={ref}
+        className={cn("mx-auto mt-8 max-w-md rounded-lg border border-border bg-card p-10 text-center", className)}
+      >
         {icon ?? <ShieldGlyph className="mx-auto mb-4 h-8 w-8 text-danger-fg" />}
         <h3 className="mb-1.5 font-display text-[1.125rem] font-semibold tracking-[-0.01em]">{title ?? t("uiCommon.accessDeniedTitle")}</h3>
         <p className="text-[13px] leading-relaxed text-muted-foreground">{body ?? t("uiCommon.accessDeniedBody")}</p>
-      </GlassCard>
+      </div>
     );
   },
 );

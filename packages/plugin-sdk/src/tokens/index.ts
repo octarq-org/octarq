@@ -89,6 +89,9 @@ export const TOKENS: TokenDef[] = [
   { name: "--danger-fg", group: "status", root: true, dark: true, themed: true },
   { name: "--danger-solid", group: "status", root: true, dark: true, themed: true },
   { name: "--danger-solid-fg", group: "status", root: true, dark: true, themed: true },
+  { name: "--review-bg", group: "status", root: true, dark: true, themed: true },
+  { name: "--review-border", group: "status", root: true, dark: true, themed: true },
+  { name: "--review-fg", group: "status", root: true, dark: true, themed: true },
 
   { name: "--border", group: "line", root: true, dark: true, themed: true },
   { name: "--border-strong", group: "line", root: true, dark: true, themed: true },

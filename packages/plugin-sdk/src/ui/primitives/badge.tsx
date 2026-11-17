@@ -16,10 +16,11 @@ export const badgeVariants = cva(
         success: "border-success-border bg-success-bg text-success-fg",
         warning: "border-warning-border bg-warning-bg text-warning-fg",
         danger: "border-danger-border bg-danger-bg text-danger-fg",
+        review: "border-review-border bg-review-bg text-review-fg",
         secondary: "border-transparent bg-muted text-foreground",
         outline: "border-border bg-transparent text-foreground",
         indigo: "border-info-border bg-info-bg text-info-fg",
-        violet: "border-info-border bg-info-bg text-info-fg",
+        violet: "border-review-border bg-review-bg text-review-fg",
         green: "border-success-border bg-success-bg text-success-fg",
         amber: "border-warning-border bg-warning-bg text-warning-fg",
         red: "border-danger-border bg-danger-bg text-danger-fg",
@@ -89,16 +90,16 @@ const STATUS_TO_BADGE_TONE: Record<StatusTone, BadgeTone> = {
   paused: "warning",
   error: "danger",
   blocked: "danger",
-  review: "violet",
+  review: "review",
 };
 
 export interface StatusBadgeProps extends Omit<BadgeProps, "tone" | "variant"> {
-  status: StatusTone;
+  tone: StatusTone;
 }
 
 export const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
-  ({ status, shape = "dot", ...rest }, ref) => (
-    <Badge ref={ref} tone={STATUS_TO_BADGE_TONE[status]} shape={shape} {...rest} />
+  ({ tone, shape = "dot", ...rest }, ref) => (
+    <Badge ref={ref} tone={STATUS_TO_BADGE_TONE[tone]} shape={shape} {...rest} />
   ),
 );
 StatusBadge.displayName = "StatusBadge";

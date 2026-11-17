@@ -432,11 +432,12 @@ export const CATALOG: CatalogEntry[] = [
     name: "StatusBadge",
     group: "feedback",
     covers: ["StatusBadge"],
-    copy: ["Running", "Blocked"],
+    copy: ["Running", "Review", "Blocked"],
     Component: () => (
       <div className="flex items-center gap-2">
-        <StatusBadge status="running">Running</StatusBadge>
-        <StatusBadge status="blocked">Blocked</StatusBadge>
+        <StatusBadge tone="running">Running</StatusBadge>
+        <StatusBadge tone="review">Review</StatusBadge>
+        <StatusBadge tone="blocked">Blocked</StatusBadge>
       </div>
     ),
   },

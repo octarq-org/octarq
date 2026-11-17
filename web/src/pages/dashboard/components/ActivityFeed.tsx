@@ -1,4 +1,4 @@
-import { Skeleton, timeAgo, Panel } from "@octarq/plugin-sdk";
+import { PageEmpty, PageRows, PageSection, Skeleton, timeAgo } from "@octarq/plugin-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Bell, Inbox, ScrollText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -67,7 +67,7 @@ export function ActivityFeed() {
   });
 
   return (
-    <Panel
+    <PageSection
       className="mb-8"
       title={t("overview.activityFeedTitle")}
       description={t("overview.activityFeedDesc")}
@@ -81,55 +81,58 @@ export function ActivityFeed() {
         </button>
       }
     >
-
       {isLoading ? (
-        <div className="space-y-3" aria-busy="true" aria-label={t("overview.loading")}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="h-9 w-9 rounded-xl" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-3.5 w-2/3" />
-                <Skeleton className="h-3 w-1/3" />
+        <PageRows>
+          <div className="space-y-3 p-4" aria-busy="true" aria-label={t("overview.loading")}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-9 w-9 rounded-lg" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </PageRows>
       ) : !cards || cards.length === 0 ? (
-        <div className="flex flex-col items-center py-8 text-center">
-          <Inbox size={28} className="text-foreground/25" />
-          <p className="mt-2 text-sm font-medium text-muted-foreground">{t("overview.activityFeedEmpty")}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("overview.activityFeedEmptyDesc")}</p>
-        </div>
+        <PageEmpty
+          icon={<Inbox size={28} />}
+          title={t("overview.activityFeedEmpty")}
+          detail={t("overview.activityFeedEmptyDesc")}
+        />
       ) : (
-        <ul className="divide-y divide-border">
-          {cards.map((card) => (
-            <li key={card.key}>
-              <button
-                onClick={() => nav(card.target)}
-                className="flex w-full items-center gap-3 py-2.5 text-left rounded-lg px-2 -mx-2 hover:bg-well transition-colors"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-well">
-                  {card.kind === "notification" ? (
-                    <Bell size={16} className="text-accent-fg" />
-                  ) : (
-                    <ScrollText size={16} className="text-muted-foreground" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-foreground">{card.title}</span>
-                    {card.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-fg" />}
+        <PageRows>
+          <ul className="divide-y divide-border">
+            {cards.map((card) => (
+              <li key={card.key}>
+                <button
+                  onClick={() => nav(card.target)}
+                  className="flex min-h-[var(--row-height,3.5rem)] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 hover:bg-surface-hover"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-well">
+                    {card.kind === "notification" ? (
+                      <Bell size={15} className="text-accent-fg" />
+                    ) : (
+                      <ScrollText size={15} className="text-muted-foreground" />
+                    )}
                   </span>
-                  {card.detail && (
-                    <span className="block truncate text-xs text-muted-foreground">{card.detail}</span>
-                  )}
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(card.at)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">{card.title}</span>
+                      {card.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-fg" />}
+                    </span>
+                    {card.detail && (
+                      <span className="block truncate text-xs text-muted-foreground">{card.detail}</span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(card.at)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </PageRows>
       )}
-    </Panel>
+    </PageSection>
   );
 }

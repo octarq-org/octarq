@@ -1,4 +1,4 @@
-import { ScreenWrap, RouteFallback, uiPlugins } from "@octarq/plugin-sdk";
+import { RouteFallback, uiPlugins } from "@octarq/plugin-sdk";
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { InstanceExitRedirect } from "./instance/redirect";
@@ -36,8 +36,7 @@ function IntegrationsSlot() {
 
 export default function SettingsPage() {
   return (
-    <ScreenWrap>
-      <Suspense fallback={<RouteFallback />}>
+    <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
@@ -60,7 +59,6 @@ export default function SettingsPage() {
         <Route path="/tokens" element={<ApiTokens />} />
         <Route path="/appearance" element={<AppearanceSettings />} />
       </Routes>
-      </Suspense>
-    </ScreenWrap>
+    </Suspense>
   );
 }

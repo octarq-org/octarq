@@ -1,7 +1,7 @@
 import { forwardRef, type ReactNode } from "react";
 import { cn } from "./cn";
 import { useTranslation } from "../i18n";
-import { GlassCard, ProPill, Button, TIER_LABEL } from "./primitives";
+import { ProPill, Button, TIER_LABEL } from "./primitives";
 
 // The gated-state UI: LockedFeature (the upsell mask for 402 unlicensed / 404
 // plugin-not-in-this-build) and LockedFallback (a one-liner convenience with a
@@ -31,14 +31,13 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
     const { t } = useTranslation();
 
     return (
-      <GlassCard
+      <div
         ref={ref}
-        strong
-        className={cn("mx-auto mt-12 flex max-w-md flex-col items-center gap-5 rounded-2xl px-6 py-12 text-center", className)}
+        className={cn("mx-auto mt-12 flex max-w-md flex-col items-center gap-5 rounded-lg border border-border-strong bg-card px-6 py-12 text-center", className)}
       >
         <div
           className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-2xl",
+            "flex h-14 w-14 items-center justify-center rounded-lg",
             locked
               ? "bg-info-bg text-accent-fg ring-1 ring-inset ring-info-border"
               : "bg-danger-bg text-danger-fg"
@@ -101,7 +100,7 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
             )}
           </div>
         )}
-      </GlassCard>
+      </div>
     );
   },
 );

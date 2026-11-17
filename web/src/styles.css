@@ -135,6 +135,10 @@ body,
   --danger-solid: #b42318;
   --danger-solid-fg: #ffffff;
 
+  --review-bg: #f5f3ff;
+  --review-border: #ddd6fe;
+  --review-fg: #6d28d9;
+
   /* Lines & focus */
   --border: oklch(0.905 0.005 260);
   --border-strong: oklch(0.84 0.007 260);
@@ -209,6 +213,10 @@ body,
   --danger-solid: #dc2626;
   --danger-solid-fg: #ffffff;
 
+  --review-bg: rgba(139, 92, 246, 0.14);
+  --review-border: rgba(139, 92, 246, 0.34);
+  --review-fg: #c4b5fd;
+
   --border: oklch(0.28 0.01 265);
   --border-strong: oklch(0.35 0.012 265);
   --input: oklch(0.31 0.01 265);
@@ -264,6 +272,10 @@ body,
   --color-danger-fg: var(--danger-fg);
   --color-danger-solid: var(--danger-solid);
   --color-danger-solid-fg: var(--danger-solid-fg);
+
+  --color-review-bg: var(--review-bg);
+  --color-review-border: var(--review-border);
+  --color-review-fg: var(--review-fg);
 
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
@@ -493,17 +505,6 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
-}
-
-/* ─── Entrance motion ──────────────────────────────────────────────────────
-   One rise curve for page content. Components that animate a list pass an
-   inline delay, so a grid of tiles arrives as a cascade instead of a flash. */
-@keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-rise {
-  animation: rise var(--dur-slow) var(--ease-out) both;
 }
 
 /* Skeleton — a slow sheen, not a pulse. The placeholder keeps its own light
@@ -742,9 +743,8 @@ h1, h2, h3, h4, h5, h6 {
 .markdown-body img {
   max-width: 100%;
   height: auto;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
   margin: 1.5rem auto;
   display: block;
 }
@@ -754,9 +754,8 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   overflow-x: auto;
   margin: 1.5rem 0;
-  border-radius: 0.875rem;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .markdown-body table {
