@@ -2,10 +2,9 @@ import {
   Button,
   Field,
   PageCard,
+  PageShell,
   Input,
   Modal,
-  PageHeader,
-  ScreenWrap,
   Switch,
   Table,
   THead,
@@ -270,16 +269,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
   const mainContent = (
     <div className="space-y-6">
-      {!embedded ? (
-        <PageHeader
-          title={t("personal.notificationsTitle", "Personal Notifications")}
-          description={t(
-            "personal.notificationsDesc",
-            "Manage event subscriptions, mute channels, and configure personal notification routing.",
-          )}
-          action={actionButtons}
-        />
-      ) : (
+      {embedded && (
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <p className="text-xs text-muted-foreground">
             {t(
@@ -468,5 +458,16 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
   );
 
   if (embedded) return mainContent;
-  return <ScreenWrap>{mainContent}</ScreenWrap>;
+  return (
+    <PageShell
+      title={t("personal.notificationsTitle", "Personal Notifications")}
+      description={t(
+        "personal.notificationsDesc",
+        "Manage event subscriptions, mute channels, and configure personal notification routing.",
+      )}
+      action={actionButtons}
+    >
+      <div className="mt-6">{mainContent}</div>
+    </PageShell>
+  );
 }

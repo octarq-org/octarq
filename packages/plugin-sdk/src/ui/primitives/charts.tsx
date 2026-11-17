@@ -34,14 +34,14 @@ export function AreaChart({
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" style={{ height }}>
       <defs>
         <linearGradient id="octarq-area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgb(99 102 241)" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="rgb(99 102 241)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#octarq-area)" />
-      <path d={line} fill="none" stroke="rgb(129 140 248)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path d={line} fill="none" stroke="var(--accent-fg)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
       {series.map((s, i) => (
-        <circle key={i} cx={x(i)} cy={y(s.count)} r="2.5" fill="rgb(129 140 248)">
+        <circle key={i} cx={x(i)} cy={y(s.count)} r="2.5" fill="var(--accent-fg)">
           <title>{`${s.key}: ${s.count}`}</title>
         </circle>
       ))}

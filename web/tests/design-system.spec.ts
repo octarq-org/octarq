@@ -64,12 +64,30 @@ test.describe("Design System UI Stories", () => {
           expect(surfaces.sidebar).not.toBe("");
           expect(surfaces.background).not.toBe("");
           expect(surfaces.card).not.toBe("");
+          expect(surfaces.sidebar).not.toBe(surfaces.background);
+          expect(surfaces.background).not.toBe(surfaces.card);
 
-          // 3. Verify PageShell prose width constraint on desktop settings pages.
+          // 3. Verify PageShell prose width constraint and 3 distinct computed surface colors.
           if (vp.name === "desktop" && story.expectedWidth === "prose") {
             const columnBox = await page.locator('[data-slot="page-column"]').first().boundingBox();
             expect(columnBox, `${story.name} should render [data-slot="page-column"]`).not.toBeNull();
             expect(columnBox!.width).toBeLessThanOrEqual(770);
+
+            const renderedSurfaces = await page.evaluate(() => {
+              const frame = document.querySelector("aside > div");
+              const panel = document.querySelector("aside + div");
+              const card = document.querySelector('[data-slot="page-rows"]');
+              return {
+                frameBg: frame ? getComputedStyle(frame).backgroundColor : "",
+                panelBg: panel ? getComputedStyle(panel).backgroundColor : "",
+                cardBg: card ? getComputedStyle(card).backgroundColor : "",
+              };
+            });
+            expect(renderedSurfaces.frameBg).not.toBe("");
+            expect(renderedSurfaces.panelBg).not.toBe("");
+            expect(renderedSurfaces.cardBg).not.toBe("");
+            expect(renderedSurfaces.frameBg).not.toBe(renderedSurfaces.panelBg);
+            expect(renderedSurfaces.panelBg).not.toBe(renderedSurfaces.cardBg);
           }
 
           // 4. Capture UI story screenshot artifact for light/dark + desktop/mobile regression review.

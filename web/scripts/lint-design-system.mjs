@@ -59,6 +59,11 @@ const RULES = [
     message: "hover vertical bounce is forbidden; transition color/border instead",
   },
   {
+    name: "no-animate-rise",
+    regex: /\banimate-rise\b/,
+    message: "vertical entrance animation (.animate-rise) is forbidden; use flat opacity or instant transition",
+  },
+  {
     name: "no-native-dialog",
     regex: /\bwindow\.(alert|confirm|prompt)\s*\(|(?<!\.)\b(alert|confirm|prompt)\s*\(/,
     message: "native browser dialogs are forbidden; use toast or confirmDialog from @octarq/plugin-sdk",
@@ -86,6 +91,21 @@ for (const full of files) {
     if (/\bbackdrop-blur\b/.test(line) && !OVERLAY_BLUR_ALLOWLIST.has(rel)) {
       console.error(
         `${rel}:${i + 1}: [no-surface-blur] backdrop-blur is restricted to modal/drawer overlays`,
+      );
+      errors++;
+    }
+
+    if (
+      rel.endsWith(".tsx") &&
+      !line.includes("ui-not-brand") &&
+      !line.includes("ui-color-ok") &&
+      !/<path\b[^>]*\bfill="#[0-9a-fA-F]{3,8}"/.test(line) &&
+      !/shadow-\[[^\]]*rgb\(0_0_0\//.test(line) &&
+      !/placeholder=|type="color"/.test(line) &&
+      /(?:color|background|backgroundColor|fill|stroke|stopColor)\s*[:=]\s*["'`](?:#[0-9a-fA-F]{3,8}\b|rgba?\()/.test(line)
+    ) {
+      console.error(
+        `${rel}:${i + 1}: [no-hardcoded-color] hardcoded hex/rgb color in component; use semantic CSS tokens`,
       );
       errors++;
     }

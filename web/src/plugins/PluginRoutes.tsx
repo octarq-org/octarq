@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { Route, Link } from "react-router-dom";
 import { PackageX, PowerOff, ShieldX } from "lucide-react";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
-import { ScreenWrap, buttonVariants, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
+import { PageColumn, buttonVariants, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
 import { uiPlugins } from "@octarq/plugin-sdk";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
@@ -35,8 +35,8 @@ interface FallbackCardProps {
 // an icon, one reason, one path forward.
 function FallbackCard({ icon, title, body, plugin, state, action }: FallbackCardProps) {
   return (
-    <div className="mx-auto mt-10 flex max-w-xl flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-14 text-center shadow-[var(--shadow-card)]">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-well text-muted-foreground ring-1 ring-border [&_svg]:h-5 [&_svg]:w-5">
+    <div className="mx-auto mt-10 flex max-w-xl flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-well text-muted-foreground [&_svg]:h-5 [&_svg]:w-5">
         {icon}
       </div>
       <h1 className="font-display text-[17px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
@@ -55,7 +55,7 @@ function FallbackCard({ icon, title, body, plugin, state, action }: FallbackCard
 export function PluginUnavailable({ plugin }: { plugin?: UIPlugin }) {
   const { t } = useTranslation();
   return (
-    <ScreenWrap>
+    <PageColumn>
       <FallbackCard
         icon={<PackageX />}
         title={t("uiCommon.routeUnavailableTitle")}
@@ -63,7 +63,7 @@ export function PluginUnavailable({ plugin }: { plugin?: UIPlugin }) {
         plugin={plugin}
         state={plugin ? t("uiCommon.routeUnavailableState") : undefined}
       />
-    </ScreenWrap>
+    </PageColumn>
   );
 }
 
@@ -73,7 +73,7 @@ export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
   const roleCtx = useCurrentRole();
   const canEnable = roleSatisfies("admin", roleCtx.role, roleCtx.isInstanceAdmin);
   return (
-    <ScreenWrap>
+    <PageColumn>
       <FallbackCard
         icon={<PowerOff />}
         title={t("uiCommon.pluginDisabledTitle")}
@@ -88,7 +88,7 @@ export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
           ) : undefined
         }
       />
-    </ScreenWrap>
+    </PageColumn>
   );
 }
 
@@ -96,7 +96,7 @@ export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
 export function AccessDenied({ plugin }: { plugin: UIPlugin }) {
   const { t } = useTranslation();
   return (
-    <ScreenWrap>
+    <PageColumn>
       <FallbackCard
         icon={<ShieldX />}
         title={t("uiCommon.accessDeniedTitle")}
@@ -109,7 +109,7 @@ export function AccessDenied({ plugin }: { plugin: UIPlugin }) {
           </Link>
         }
       />
-    </ScreenWrap>
+    </PageColumn>
   );
 }
 

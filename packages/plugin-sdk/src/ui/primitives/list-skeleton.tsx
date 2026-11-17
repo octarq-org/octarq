@@ -1,4 +1,3 @@
-import { GlassCard } from "./glass-card";
 import { Skeleton } from "./skeleton";
 
 export interface ListSkeletonProps {
@@ -9,7 +8,7 @@ export interface ListSkeletonProps {
 export function ListSkeleton({ rows = 6, ariaLabel }: ListSkeletonProps) {
   return (
     <div aria-busy="true" role="status" aria-label={ariaLabel} className="w-full">
-      <GlassCard className="overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="divide-y divide-border">
           {Array.from({ length: rows }).map((_, i) => (
             <div key={i} className="p-4">
@@ -18,7 +17,7 @@ export function ListSkeleton({ rows = 6, ariaLabel }: ListSkeletonProps) {
             </div>
           ))}
         </div>
-      </GlassCard>
+      </div>
     </div>
   );
 }
