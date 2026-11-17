@@ -3,15 +3,17 @@ import {
   Input,
   Modal,
   Switch,
-  PageHeader,
-  Panel,
+  PageShell,
+  PageSection,
+  PageCard,
+  PageRows,
+  PageEmpty,
+  Separator,
   Button,
   toast,
   confirmDialog,
   Alert,
-  Empty,
   Tabs,
-  type TabItem,
   cn,
 } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
@@ -197,17 +199,15 @@ export function WebhooksSettings() {
   });
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("settings.webhooksRelaysTitle", "Webhooks & Relays")}
-        description={t(
-          "settings.webhooksRelaysDesc",
-          "Manage outbound event subscriptions, inbound webhook relays, and dead-letter queues.",
-        )}
-      />
-
+    <PageShell
+      title={t("settings.webhooksRelaysTitle", "Webhooks & Relays")}
+      description={t(
+        "settings.webhooksRelaysDesc",
+        "Manage outbound event subscriptions, inbound webhook relays, and dead-letter queues.",
+      )}
+    >
       {/* Tab Switcher */}
-      <div className="max-w-md">
+      <div className="mt-6 max-w-md">
         <Tabs
           value={activeTab}
           onValueChange={(val) => setActiveTab(val as "outbound" | "inbound")}
@@ -243,19 +243,20 @@ export function WebhooksSettings() {
       </div>
 
       {activeTab === "outbound" && (
-        <Panel
+        <PageSection
           title={
-            <>
-              {t("settings.outboundEventWebhooks")}
-              <span className="rounded-full bg-accent-soft text-accent-fg px-2 py-0.5 text-[10px] font-semibold">
+            <span className="inline-flex flex-wrap items-center gap-2">
+              <span>{t("settings.outboundEventWebhooks")}</span>
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-fg">
                 HMAC-SHA256 Signatures
               </span>
-            </>
+            </span>
           }
           action={
             canManage && (
               <Button
-                variant="ghost"
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setName("");
                   setUrl("");
@@ -264,15 +265,17 @@ export function WebhooksSettings() {
                   setSelected(new Set());
                   setShow(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1 text-xs"
+                className="flex items-center gap-1.5"
               >
-                <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
+                <Plus className="h-3.5 w-3.5" /> {t("settings.addWebhook")}
               </Button>
             )
           }
         >
           {loading ? (
-            <ListSkeleton rows={4} ariaLabel={t("settings.loadingWebhooks")} />
+            <PageCard className="mt-0 p-5">
+              <ListSkeleton rows={4} ariaLabel={t("settings.loadingWebhooks")} />
+            </PageCard>
           ) : error ? (
             <Alert
               variant="danger"
@@ -306,95 +309,100 @@ export function WebhooksSettings() {
               </div>
             </Alert>
           ) : webhooks.length === 0 ? (
-            <Empty reason={t("settings.noWebhooks")} className="select-none" />
+            <PageEmpty
+              className="mt-0 select-none"
+              title={t("settings.noWebhooks")}
+            />
           ) : (
-            <div className="space-y-3.5">
-              {webhooks.map((w) => (
-                <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-well p-3 text-sm sm:flex-row sm:items-center">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-foreground">{w.name}</span>
-                      {w.events === "*" ? (
-                        <span className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">{t("settings.allEvents")}</span>
-                      ) : (
-                        String(w.events).split(",").filter(Boolean).map((key: string) => {
-                          const def = defByKey.get(key.trim());
-                          return (
-                            <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                              {key.trim()}
-                            </span>
-                          );
-                        })
-                      )}
+            <PageRows className="mt-0">
+              {webhooks.map((w, idx) => (
+                <div key={w.id}>
+                  {idx > 0 && <Separator />}
+                  <div className="flex flex-col justify-between gap-3 px-4 py-3.5 text-sm sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-foreground">{w.name}</span>
+                        {w.events === "*" ? (
+                          <span className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">{t("settings.allEvents")}</span>
+                        ) : (
+                          String(w.events).split(",").filter(Boolean).map((key: string) => {
+                            const def = defByKey.get(key.trim());
+                            return (
+                              <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-border bg-well px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                                {key.trim()}
+                              </span>
+                            );
+                          })
+                        )}
+                      </div>
+                      <div className="select-all truncate font-mono text-xs text-muted-foreground">{w.url}</div>
+                      <div className="select-all font-mono text-[10px] text-muted-foreground">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
                     </div>
-                    <div className="select-all truncate font-mono text-xs text-muted-foreground">{w.url}</div>
-                    <div className="select-all font-mono text-[10px] text-muted-foreground">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
+                    {canManage && (
+                      <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
+                        <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} aria-label={`${t("settings.enabled")} — ${w.name || w.url}`} />
+                        <Button
+                          variant="ghost"
+                          onClick={() => test(w)}
+                          disabled={testingId === w.id}
+                          className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"
+                        >
+                          <Send className="h-3 w-3" /> {testingId === w.id ? t("settings.testing") : t("settings.test")}
+                        </Button>
+                        <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
+                      </div>
+                    )}
                   </div>
-                  {canManage && (
-                    <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
-                      <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} aria-label={`${t("settings.enabled")} — ${w.name || w.url}`} />
-                      <Button
-                        variant="ghost"
-                        onClick={() => test(w)}
-                        disabled={testingId === w.id}
-                        className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"
-                      >
-                        <Send className="h-3 w-3" /> {testingId === w.id ? t("settings.testing") : t("settings.test")}
-                      </Button>
-                      <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
-                    </div>
-                  )}
                 </div>
               ))}
-            </div>
+            </PageRows>
           )}
-        </Panel>
+        </PageSection>
       )}
 
       {activeTab === "inbound" && (
-        <div className="space-y-6" data-testid="inbound-relays-panel">
+        <div data-testid="inbound-relays-panel">
           {/* Section 1: Inbound Webhook Relays */}
-          <Panel
+          <PageSection
             title={t("settings.inboundRelaysHeading", "Inbound Webhook Relays")}
             description={t("settings.inboundRelaysDesc", "Receive and verify webhooks from third-party services with cryptographic signatures.")}
           >
-
-            <div className="space-y-3">
-              {inboundEndpoints.length === 0 ? (
-                <Empty
-                  reason={t("settings.noInboundEndpoints", "No inbound webhook relays configured")}
-                  detail={t("settings.noInboundEndpointsDesc", "Inbound relays allow external services (like Stripe or GitHub) to securely trigger automation rules.")}
-                  className="py-8"
-                />
-              ) : (
-                inboundEndpoints.map((relay) => (
-                  <div
-                    key={relay.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
-                  >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground">{relay.name}</span>
-                        <span className="rounded-full bg-success-fg/10 text-success-fg px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3" />
-                          <span>{relay.algorithm || relay.provider || "HMAC-SHA256"}</span>
-                        </span>
+            {inboundEndpoints.length === 0 ? (
+              <PageEmpty
+                className="mt-0"
+                title={t("settings.noInboundEndpoints", "No inbound webhook relays configured")}
+                detail={t("settings.noInboundEndpointsDesc", "Inbound relays allow external services (like Stripe or GitHub) to securely trigger automation rules.")}
+              />
+            ) : (
+              <PageRows className="mt-0">
+                {inboundEndpoints.map((relay, idx) => (
+                  <div key={relay.id}>
+                    {idx > 0 && <Separator />}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-foreground">{relay.name}</span>
+                          <span className="rounded-full bg-success-fg/10 text-success-fg px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>{relay.algorithm || relay.provider || "HMAC-SHA256"}</span>
+                          </span>
+                        </div>
+                        <div className="font-mono text-xs text-muted-foreground select-all">{relay.path || `/api/webhook/relay/${relay.id}`}</div>
+                        {relay.description && <div className="text-xs text-muted-foreground">{relay.description}</div>}
                       </div>
-                      <div className="font-mono text-xs text-muted-foreground select-all">{relay.path || `/api/webhook/relay/${relay.id}`}</div>
-                      {relay.description && <div className="text-xs text-muted-foreground">{relay.description}</div>}
-                    </div>
 
-                    <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-foreground self-start sm:self-center">
-                      {relay.status || (relay.enabled !== false ? "Active" : "Disabled")}
-                    </span>
+                      <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-foreground self-start sm:self-center">
+                        {relay.status || (relay.enabled !== false ? "Active" : "Disabled")}
+                      </span>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
-          </Panel>
+                ))}
+              </PageRows>
+            )}
+          </PageSection>
 
           {/* Section 2: Dead-Letter Queue (DLQ) Audit */}
-          <Panel
+          <PageSection
             title={t("settings.dlqHeading", "Dead-Letter Queue (DLQ) Audit")}
             description={t("settings.dlqDesc", "Deliveries that exhausted all retry attempts. Inspect errors and replay when ready.")}
             action={
@@ -408,64 +416,63 @@ export function WebhooksSettings() {
               </div>
             }
           >
-
             {filteredDeadLetters.length === 0 ? (
-              <Empty
+              <PageEmpty
                 data-testid="dlq-empty-state"
-                reason={t("settings.dlqEmptyTitle", "Dead-letter queue is clear")}
+                title={t("settings.dlqEmptyTitle", "Dead-letter queue is clear")}
                 detail={t("settings.dlqEmptyDesc", "All outbound deliveries succeeded or were manually resolved.")}
-                className="select-none py-8"
+                className="mt-0 select-none"
               />
             ) : (
-              <div className="space-y-3" data-testid="dlq-list">
-                {filteredDeadLetters.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
-                  >
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded bg-danger-fg/10 text-danger-fg px-1.5 py-0.5 font-mono text-[10px] font-bold">
-                          HTTP {entry.responseCode}
-                        </span>
-                        <span className="font-mono text-xs font-semibold text-foreground">{entry.event}</span>
-                        <span className="text-[11px] text-muted-foreground font-mono">#{entry.deliveryId}</span>
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{entry.createdAt}</span>
-                        </span>
+              <PageRows className="mt-0" data-testid="dlq-list">
+                {filteredDeadLetters.map((entry, idx) => (
+                  <div key={entry.id}>
+                    {idx > 0 && <Separator />}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 px-4 py-3.5">
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded bg-danger-fg/10 text-danger-fg px-1.5 py-0.5 font-mono text-[10px] font-bold">
+                            HTTP {entry.responseCode}
+                          </span>
+                          <span className="font-mono text-xs font-semibold text-foreground">{entry.event}</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">#{entry.deliveryId}</span>
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{entry.createdAt}</span>
+                          </span>
+                        </div>
+
+                        <div className="font-mono text-xs text-muted-foreground truncate select-all">
+                          {entry.url}
+                        </div>
+
+                        <div className="rounded-md bg-well p-2 text-xs text-danger-fg/90 font-mono">
+                          {entry.lastError}
+                        </div>
+
+                        <div className="text-[11px] text-muted-foreground">
+                          {entry.attempts} / 5
+                        </div>
                       </div>
 
-                      <div className="font-mono text-xs text-muted-foreground truncate select-all">
-                        {entry.url}
+                      <div className="shrink-0 self-end sm:self-start">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={entry.replaying}
+                          onClick={() => handleReplay(entry)}
+                          className="flex items-center gap-1.5 text-xs"
+                        >
+                          <RotateCcw className={cn("h-3.5 w-3.5", entry.replaying && "animate-spin")} />
+                          <span>{entry.replaying ? t("common.replaying", "Replaying…") : t("common.replay", "Replay")}</span>
+                        </Button>
                       </div>
-
-                      <div className="rounded-lg bg-well p-2 text-xs text-danger-fg/90 font-mono">
-                        {entry.lastError}
-                      </div>
-
-                      <div className="text-[11px] text-muted-foreground">
-                        {entry.attempts} / 5
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 self-end sm:self-start">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={entry.replaying}
-                        onClick={() => handleReplay(entry)}
-                        className="flex items-center gap-1.5 text-xs"
-                      >
-                        <RotateCcw className={cn("h-3.5 w-3.5", entry.replaying && "animate-spin")} />
-                        <span>{entry.replaying ? t("common.replaying", "Replaying…") : t("common.replay", "Replay")}</span>
-                      </Button>
                     </div>
                   </div>
                 ))}
-              </div>
+              </PageRows>
             )}
-          </Panel>
+          </PageSection>
         </div>
       )}
 
@@ -532,6 +539,6 @@ export function WebhooksSettings() {
           </form>
         </Modal>
       )}
-    </div>
+    </PageShell>
   );
 }

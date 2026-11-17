@@ -101,7 +101,7 @@ export default function App() {
     content = <ResetPasswordPage />;
   } else if (authed === null) {
     content = (
-      <div className="octarq-aurora grid h-full place-items-center text-muted-foreground">
+      <div className="grid h-full place-items-center bg-sidebar text-muted-foreground">
         <div className="flex flex-col items-center gap-3">
           <BrandMark size="md" />
           <span className="text-sm">loading…</span>
@@ -347,84 +347,96 @@ function Shell({
 
   return (
     <RoleProvider value={roleCtx}>
-      <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
+      <div className="flex h-dvh w-full overflow-hidden bg-sidebar text-foreground">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-[var(--radius)] focus:bg-primary-solid focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
         >
           {t("app.skipToContent")}
         </a>
-        <TopBar
-          areas={areas}
-          activeArea={activeArea}
-          settingsActive={settingsActive}
-          user={user}
-          panelCollapsed={panelCollapsed}
-          onTogglePanel={togglePanel}
-          onSelectArea={selectArea}
-          onOpenSettings={() => navigate("/settings")}
-          onOpenCommand={() => setCmdOpen(true)}
-          onLogout={onLogout}
-          actions={filteredActions}
-        />
 
-        <EmailVerifyBanner
-          user={user}
-          emailVerified={emailVerified}
-          dismissed={dismissedVerifyBanner}
-          onDismiss={() => setDismissedVerifyBanner(true)}
-        />
+        {!panelCollapsed && (
+          <button
+            aria-label={t("app.collapseMenu")}
+            onClick={togglePanel}
+            className="fixed inset-0 z-20 bg-black/45 md:hidden"
+          />
+        )}
 
-        <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          {!panelCollapsed && (
-            <button
-              aria-label={t("app.collapseMenu")}
-              onClick={togglePanel}
-              className="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm md:hidden"
-            />
+        <aside
+          className={cn(
+            "z-30 shrink-0 overflow-hidden transition-[width,transform] duration-200 ease-out",
+            "fixed inset-y-0 left-0 w-60 md:relative md:inset-auto md:translate-x-0",
+            panelCollapsed ? "max-md:-translate-x-full md:w-14" : "md:w-60",
           )}
-          <aside
-            className={cn(
-              "z-30 shrink-0 overflow-hidden transition-[width,transform] duration-300 ease-out",
-              "absolute inset-y-0 left-0 w-64 md:relative md:inset-auto md:translate-x-0",
-              panelCollapsed ? "max-md:-translate-x-full md:w-16" : "md:w-64",
-            )}
-            {...(panelCollapsed && isMobile ? { inert: "" } : {})}
-          >
-            <AreaPanel
-              area={currentArea}
-              currentPath={location.pathname + location.search}
-              collapsed={panelCollapsed}
-              onToggle={togglePanel}
-              onNavigate={() => {
-                if (window.innerWidth < 768) setPanelCollapsed(true);
-              }}
-              footerItems={footerItems}
-              showWorkspaceSwitcher={isProBuild}
-              orgs={orgs}
-              activeOrgId={activeOrgId}
-              activeOrgName={activeOrgName}
-              onSwitchOrg={(id) =>
-                api
-                  .switchOrg(id)
-                  .then(() => switchToOrg(id))
-                  .catch((err: unknown) => {
-                    const msg = err instanceof Error ? err.message : t("app.switchWorkspaceFailed");
-                    toast.error(msg);
-                  })
-              }
-              onCreateOrg={() => setCreatingOrg(true)}
-            />
-          </aside>
+          {...(panelCollapsed && isMobile ? { inert: "" } : {})}
+        >
+          <AreaPanel
+            areas={areas}
+            settingsArea={currentSettingsArea}
+            helpArea={helpArea}
+            settingsActive={settingsActive}
+            helpActive={helpActive}
+            user={user}
+            currentPath={location.pathname + location.search}
+            collapsed={panelCollapsed}
+            onToggle={togglePanel}
+            onNavigate={() => {
+              if (window.innerWidth < 768) setPanelCollapsed(true);
+            }}
+            onOpenSettings={() => navigate("/settings")}
+            onLogout={onLogout}
+            footerItems={footerItems}
+            showWorkspaceSwitcher={isProBuild}
+            orgs={orgs}
+            activeOrgId={activeOrgId}
+            activeOrgName={activeOrgName}
+            onSwitchOrg={(id) =>
+              api
+                .switchOrg(id)
+                .then(() => switchToOrg(id))
+                .catch((err: unknown) => {
+                  const msg = err instanceof Error ? err.message : t("app.switchWorkspaceFailed");
+                  toast.error(msg);
+                })
+            }
+            onCreateOrg={() => setCreatingOrg(true)}
+          />
+        </aside>
 
-          <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
+        {/* Inset Workspace Panel (Surface 2) */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-xl md:border md:border-sidebar-border">
+          <TopBar
+            areas={areas}
+            activeArea={activeArea}
+            settingsActive={settingsActive}
+            settingsArea={currentSettingsArea}
+            helpArea={helpArea}
+            user={user}
+            panelCollapsed={panelCollapsed}
+            onTogglePanel={togglePanel}
+            onSelectArea={selectArea}
+            onOpenSettings={() => navigate("/settings")}
+            onOpenCommand={() => setCmdOpen(true)}
+            onLogout={onLogout}
+            actions={filteredActions}
+          />
+
+          <EmailVerifyBanner
+            user={user}
+            emailVerified={emailVerified}
+            dismissed={dismissedVerifyBanner}
+            onDismiss={() => setDismissedVerifyBanner(true)}
+          />
+
+          <main ref={mainRef} id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden outline-none">
             {helpActive ? (
               <div key={orgEpoch} className="h-full w-full overflow-hidden">
                 <AppRoutes pluginGateCtxValue={pluginGateCtxValue} />
               </div>
             ) : (
               <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-                <div key={orgEpoch} className="mx-auto w-full max-w-[1200px] px-5 py-7 sm:px-9 sm:py-9 lg:px-12">
+                <div key={orgEpoch} className="px-4 py-6 sm:px-8 sm:py-8">
                   <AppRoutes pluginGateCtxValue={pluginGateCtxValue} />
                   <ShellFooter />
                 </div>

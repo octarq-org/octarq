@@ -1,4 +1,4 @@
-import { PageHeader, GlassCard, Badge, Alert, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
+import { PageShell, PageCard, PageEmpty, Badge, Alert, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 // Instance console → Plugins: what this *binary* has loaded.
 //
 // This is the counterpart to Settings → Workspace → Features, and the two
@@ -31,24 +31,24 @@ export function InstancePluginsSettings() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("settings.instancePluginsTitle")}
-        description={t("settings.instancePluginsDescription")}
-      />
-
+    <PageShell
+      width="full"
+      className="max-w-5xl"
+      title={t("settings.instancePluginsTitle")}
+      description={t("settings.instancePluginsDescription")}
+    >
       {err && (
-        <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+        <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="mt-6 text-xs p-3 rounded-lg">
           {err}
         </Alert>
       )}
 
       {plugins === null ? (
-        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.loadingPlugins")}</GlassCard>
+        <PageCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.loadingPlugins")}</PageCard>
       ) : plugins.length === 0 ? (
-        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.noPlugins")}</GlassCard>
+        <PageEmpty title={t("settings.noPlugins")} />
       ) : (
-        <GlassCard className="overflow-hidden p-0">
+        <PageCard className="overflow-hidden p-0">
           <Table>
             <THead className="border-b border-border">
               <TR>
@@ -112,10 +112,10 @@ export function InstancePluginsSettings() {
               ))}
             </TBody>
           </Table>
-        </GlassCard>
+        </PageCard>
       )}
 
-      <p className="text-xs text-muted-foreground leading-relaxed">{t("settings.instancePluginsFootnote")}</p>
-    </div>
+      <p className="mt-4 text-xs text-muted-foreground leading-relaxed">{t("settings.instancePluginsFootnote")}</p>
+    </PageShell>
   );
 }

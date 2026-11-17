@@ -43,7 +43,7 @@ function InboxDrawerContent() {
         role="dialog"
         aria-modal="true"
         aria-label={t("notifications.inboxTitle", "站内信收件箱")}
-        className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-2xl transition-all duration-200 animate-in slide-in-from-right"
+        className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-lg transition-opacity duration-150"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3.5">

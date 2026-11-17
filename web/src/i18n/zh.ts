@@ -98,6 +98,8 @@ export const zh: Resources = {
     account: "账户菜单",
     personalSettings: "个人设置",
     settings: "设置",
+    backToWorkspace: "返回工作区",
+    breadcrumb: "面包屑导航",
   },
   command: {
     create: "创建",

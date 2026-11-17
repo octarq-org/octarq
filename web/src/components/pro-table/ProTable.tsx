@@ -6,7 +6,7 @@ import {
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
-  GlassCard,
+  PageCard,
   Table,
   THead,
   TBody,
@@ -103,7 +103,7 @@ function ProTableInner<
   };
 
   return (
-    <GlassCard className={`overflow-hidden p-0 ${cardClassName} ${className}`.trim()}>
+    <PageCard className={`mt-0 overflow-hidden p-0 ${cardClassName} ${className}`.trim()}>
       {/* Toolbar / Search form */}
       {showToolbar && (
         <TableToolbar
@@ -235,7 +235,7 @@ function ProTableInner<
           />
         )}
       </TableDensityProvider>
-    </GlassCard>
+    </PageCard>
   );
 }
 

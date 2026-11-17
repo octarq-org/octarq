@@ -1,5 +1,19 @@
-import { Badge, Button, Field, Input, Modal, PageHeader, Panel, Select, toast } from "@octarq/plugin-sdk";
-import { useCallback, useEffect, useState } from "react";
+import {
+  Badge,
+  Button,
+  Field,
+  Input,
+  Modal,
+  PageCard,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
+  Select,
+  Separator,
+  toast,
+} from "@octarq/plugin-sdk";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import type { LLMProviderDTO, LLMProviderInput, ModelPriceDTO } from "../../api/types";
 import { useTranslation } from "../../i18n";
@@ -142,16 +156,17 @@ export function GatewaySettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t("gateway.title", "Model Gateway")} description={t("gateway.subtitle", "Connect the models this workspace uses. Add one provider and its prices.")} />
-
+    <PageShell
+      title={t("gateway.title", "Model Gateway")}
+      description={t("gateway.subtitle", "Connect the models this workspace uses. Add one provider and its prices.")}
+    >
       {loadFailed && loaded && (
-        <p role="alert" className="rounded-xl border border-danger-border bg-danger-bg p-3 text-xs text-danger-fg">
+        <p role="alert" className="mt-4 rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger-fg">
           {t("gateway.loadFailed", "The gateway settings did not load. Reload the page.")}
         </p>
       )}
 
-      <Panel
+      <PageSection
         title={t("gateway.providersTitle", "Providers")}
         description={t("gateway.providersDesc", "A provider holds the backend, the endpoint and the API key.")}
         action={
@@ -160,75 +175,81 @@ export function GatewaySettings() {
           </Button>
         }
       >
-        {loaded && providers.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("gateway.noProviders", "No provider yet. Add one to start.")}</p>
-        )}
-        <div className="space-y-2">
-          {providers.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
-                  {p.name}
-                  {p.isDefault && <Badge>{t("gateway.badgeDefault", "Default")}</Badge>}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {p.backend}
-                  {p.model ? ` · ${p.model}` : ""}
-                  {p.baseUrl ? ` · ${p.baseUrl}` : ""}
-                </p>
-              </div>
-              {!p.isDefault && (
-                <Button size="sm" variant="outline" onClick={() => void api.setDefaultLLMProvider(p.id).then(load)}>
-                  {t("gateway.actionDefault", "Make default")}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  void api
-                    .testLLMProvider(p.id)
-                    .then((r) => toast(t("gateway.testOk", "The provider answered with {{model}}.").replace("{{model}}", r.model)))
-                    .catch((err) => toast.error(err instanceof Error ? err.message : t("gateway.testFailed", "The test call failed.")))
-                }
-              >
-                {t("gateway.actionTest", "Test")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  openDraft({
-                    id: p.id,
-                    name: p.name,
-                    backend: p.backend,
-                    baseUrl: p.baseUrl,
-                    model: p.model,
-                    cheapModel: p.cheapModel,
-                    apiKey: "",
-                  })
-                }
-              >
-                {t("gateway.actionEdit", "Edit")}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  void api
-                    .deleteLLMProvider(p.id)
-                    .then(load)
-                    .catch((err) => toast.error(err instanceof Error ? err.message : t("gateway.deleteFailed", "The delete failed.")));
-                }}
-              >
-                {t("gateway.actionDelete", "Delete")}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Panel>
+        {loaded && providers.length === 0 ? (
+          <PageCard>
+            <p className="text-sm text-muted-foreground">{t("gateway.noProviders", "No provider yet. Add one to start.")}</p>
+          </PageCard>
+        ) : providers.length > 0 ? (
+          <PageRows>
+            {providers.map((p, idx) => (
+              <Fragment key={p.id}>
+                {idx > 0 && <Separator />}
+                <PageRow
+                  title={
+                    <span className="flex items-center gap-2">
+                      <span>{p.name}</span>
+                      {p.isDefault && <Badge>{t("gateway.badgeDefault", "Default")}</Badge>}
+                    </span>
+                  }
+                  description={`${p.backend}${p.model ? ` · ${p.model}` : ""}${p.baseUrl ? ` · ${p.baseUrl}` : ""}`}
+                  control={
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {!p.isDefault && (
+                        <Button size="sm" variant="outline" onClick={() => void api.setDefaultLLMProvider(p.id).then(load)}>
+                          {t("gateway.actionDefault", "Make default")}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void api
+                            .testLLMProvider(p.id)
+                            .then((r) => toast(t("gateway.testOk", "The provider answered with {{model}}.").replace("{{model}}", r.model)))
+                            .catch((err) => toast.error(err instanceof Error ? err.message : t("gateway.testFailed", "The test call failed.")))
+                        }
+                      >
+                        {t("gateway.actionTest", "Test")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          openDraft({
+                            id: p.id,
+                            name: p.name,
+                            backend: p.backend,
+                            baseUrl: p.baseUrl,
+                            model: p.model,
+                            cheapModel: p.cheapModel,
+                            apiKey: "",
+                          })
+                        }
+                      >
+                        {t("gateway.actionEdit", "Edit")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          void api
+                            .deleteLLMProvider(p.id)
+                            .then(load)
+                            .catch((err) => toast.error(err instanceof Error ? err.message : t("gateway.deleteFailed", "The delete failed.")));
+                        }}
+                      >
+                        {t("gateway.actionDelete", "Delete")}
+                      </Button>
+                    </div>
+                  }
+                />
+              </Fragment>
+            ))}
+          </PageRows>
+        ) : null}
+      </PageSection>
 
-      <Panel
+      <PageSection
         title={t("gateway.pricesTitle", "Model prices")}
         description={t("gateway.pricesDesc", "Enter the price of one million tokens in US dollars. A model without a price cannot bill an agent.")}
         action={
@@ -237,65 +258,77 @@ export function GatewaySettings() {
           </Button>
         }
       >
-        {loaded && prices.length === 0 && <p className="text-sm text-muted-foreground">{t("gateway.noPrices", "No price yet.")}</p>}
-        <div className="space-y-2">
-          {prices.map((row) => (
-            <div key={row.model} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-3 py-2">
-              <p className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{row.model}</p>
-              <p className="text-xs text-muted-foreground">
-                {t("gateway.priceSummary", "In {{input}} · Out {{output}} · Reason {{reasoning}}")
-                  .replace("{{input}}", String(row.input))
-                  .replace("{{output}}", String(row.output))
-                  .replace("{{reasoning}}", String(row.reasoning))}
-              </p>
-              <Button size="sm" variant="outline" onClick={() => setPriceDraft(row)}>
-                {t("gateway.actionEdit", "Edit")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => void removePrice(row.model)}>
-                {t("gateway.actionDelete", "Delete")}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Panel>
+        {loaded && prices.length === 0 ? (
+          <PageCard>
+            <p className="text-sm text-muted-foreground">{t("gateway.noPrices", "No price yet.")}</p>
+          </PageCard>
+        ) : prices.length > 0 ? (
+          <PageRows>
+            {prices.map((row, idx) => (
+              <Fragment key={row.model}>
+                {idx > 0 && <Separator />}
+                <PageRow
+                  title={<span className="font-mono text-xs">{row.model}</span>}
+                  description={t("gateway.priceSummary", "In {{input}} · Out {{output}} · Reason {{reasoning}}")
+                    .replace("{{input}}", String(row.input))
+                    .replace("{{output}}", String(row.output))
+                    .replace("{{reasoning}}", String(row.reasoning))}
+                  control={
+                    <div className="flex items-center gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setPriceDraft(row)}>
+                        {t("gateway.actionEdit", "Edit")}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => void removePrice(row.model)}>
+                        {t("gateway.actionDelete", "Delete")}
+                      </Button>
+                    </div>
+                  }
+                />
+              </Fragment>
+            ))}
+          </PageRows>
+        ) : null}
+      </PageSection>
 
-      <Panel
+      <PageSection
         title={t("gateway.agentsTitle", "Coding agents")}
         description={t("gateway.agentsDesc", "Point a coding agent at this endpoint. The agent reads the model list from the gateway and never holds the provider key.")}
       >
-        <dl className="grid gap-2 text-xs sm:grid-cols-[9rem_1fr]">
-          <dt className="text-muted-foreground">{t("gateway.agentsBaseUrl", "Base URL")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`${window.location.origin}/v1`}</code>
-          </dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsKey", "API key")}</dt>
-          <dd className="text-foreground">{t("gateway.agentsKeyValue", "A workspace token. Mint one on the tokens page.")}</dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsModels", "Model list")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`GET /v1/models`}</code>
-          </dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsChat", "Chat format")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`POST /v1/chat/completions`}</code>
-          </dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsResponses", "Responses format")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`POST /v1/responses`}</code>
-          </dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsMessages", "Anthropic format")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`POST /v1/messages`}</code>
-          </dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsGeminiModels", "Gemini model list")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`GET /v1beta/models`}</code>
-          </dd>
-          <dt className="text-muted-foreground">{t("gateway.agentsGemini", "Gemini format")}</dt>
-          <dd className="min-w-0">
-            <code className="block truncate rounded-lg border border-border bg-muted px-2 py-1 font-mono text-foreground">{`POST /v1beta/models/{model}:generateContent`}</code>
-          </dd>
-        </dl>
-      </Panel>
+        <PageCard>
+          <dl className="grid gap-2.5 text-xs sm:grid-cols-[9rem_1fr]">
+            <dt className="text-muted-foreground">{t("gateway.agentsBaseUrl", "Base URL")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`${window.location.origin}/v1`}</code>
+            </dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsKey", "API key")}</dt>
+            <dd className="text-foreground">{t("gateway.agentsKeyValue", "A workspace token. Mint one on the tokens page.")}</dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsModels", "Model list")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`GET /v1/models`}</code>
+            </dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsChat", "Chat format")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`POST /v1/chat/completions`}</code>
+            </dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsResponses", "Responses format")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`POST /v1/responses`}</code>
+            </dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsMessages", "Anthropic format")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`POST /v1/messages`}</code>
+            </dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsGeminiModels", "Gemini model list")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`GET /v1beta/models`}</code>
+            </dd>
+            <dt className="text-muted-foreground">{t("gateway.agentsGemini", "Gemini format")}</dt>
+            <dd className="min-w-0">
+              <code className="block truncate rounded-md border border-border bg-well px-2 py-1 font-mono text-foreground">{`POST /v1beta/models/{model}:generateContent`}</code>
+            </dd>
+          </dl>
+        </PageCard>
+      </PageSection>
 
       {draft && (
         <Modal title={draft.id ? t("gateway.editProvider", "Edit provider") : t("gateway.addProvider", "Add provider")} onClose={() => setDraft(null)}>
@@ -398,6 +431,6 @@ export function GatewaySettings() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   );
 }

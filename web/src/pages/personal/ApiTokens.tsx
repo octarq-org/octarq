@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Key, ClipboardCopy } from "lucide-react";
 import {
   Badge,
   Button,
   confirmDialog,
-  Empty,
   Field,
-  GlassCard,
   Input,
   Modal,
-  PageHeader,
+  PageCard,
+  PageEmpty,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
   Select,
+  Separator,
   timeAgo,
   toast,
 } from "@octarq/plugin-sdk";
@@ -67,71 +71,78 @@ export function ApiTokens() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("personal.tokensTitle")}
-        description={t("personal.tokensDesc")}
-        action={
-          <Button variant="primary" onClick={() => setCreating(true)} className="text-xs">
-            {t("personal.newToken")}
-          </Button>
-        }
-      />
-
-      <GlassCard className="p-6">
+    <PageShell
+      title={t("personal.tokensTitle")}
+      description={t("personal.tokensDesc")}
+      action={
+        <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+          {t("personal.newToken")}
+        </Button>
+      }
+    >
+      <PageSection>
         {loading ? (
-          <div className="text-muted-foreground text-sm py-6 text-center">{t("personal.loading")}</div>
+          <PageCard>
+            <div className="text-muted-foreground text-sm py-6 text-center">{t("personal.loading")}</div>
+          </PageCard>
         ) : tokens.length === 0 ? (
-          <Empty reason={t("personal.noTokens")}>
-            <Key />
-          </Empty>
+          <PageEmpty title={t("personal.noTokens")} icon={<Key />} />
         ) : (
-          <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
-            {tokens.map((tokenItem) => (
-              <div key={tokenItem.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 sm:gap-4 group">
-                <div>
-                  <div className="font-semibold text-sm text-foreground">{tokenItem.name}</div>
-                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
-                    <code className="rounded bg-well px-1.5 py-0.5 border border-border">{tokenItem.prefix}…</code>
-                    <Badge>{t(SCOPE_LABEL[tokenItem.role || "member"])}</Badge>
-                    {tokenItem.note && <span className="text-muted-foreground">{tokenItem.note}</span>}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
-                  <div className="text-[11px] text-muted-foreground flex flex-col sm:items-end">
-                    <span>{tokenItem.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(tokenItem.lastUsedAt) }) : t("personal.neverUsed")}</span>
-                    {tokenItem.expiresAt && (
-                      <span className={new Date(tokenItem.expiresAt).getTime() < Date.now() ? "text-danger-fg font-medium" : "text-muted-foreground"}>
-                        {new Date(tokenItem.expiresAt).getTime() < Date.now()
-                          ? t("personal.expired")
-                          : t("personal.expiresAt", { time: timeAgo(tokenItem.expiresAt) })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setEditingToken(tokenItem)}
-                      className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
-                    >
-                      {t("personal.edit")}
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => remove(tokenItem.id)}
-                      className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
-                    >
-                      {t("personal.revoke")}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+          <PageRows>
+            {tokens.map((tokenItem, idx) => (
+              <Fragment key={tokenItem.id}>
+                {idx > 0 && <Separator />}
+                <PageRow
+                  title={
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span>{tokenItem.name}</span>
+                      <code className="rounded bg-well px-1.5 py-0.5 border border-border font-mono text-[11px] font-normal text-muted-foreground">
+                        {tokenItem.prefix}…
+                      </code>
+                      <Badge>{t(SCOPE_LABEL[tokenItem.role || "member"])}</Badge>
+                    </span>
+                  }
+                  description={
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {tokenItem.note && <span>{tokenItem.note}</span>}
+                      <span>{tokenItem.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(tokenItem.lastUsedAt) }) : t("personal.neverUsed")}</span>
+                      {tokenItem.expiresAt && (
+                        <span className={new Date(tokenItem.expiresAt).getTime() < Date.now() ? "text-danger-fg font-medium" : "text-muted-foreground"}>
+                          {new Date(tokenItem.expiresAt).getTime() < Date.now()
+                            ? t("personal.expired")
+                            : t("personal.expiresAt", { time: timeAgo(tokenItem.expiresAt) })}
+                        </span>
+                      )}
+                    </span>
+                  }
+                  control={
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setEditingToken(tokenItem)}
+                      >
+                        {t("personal.edit")}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => remove(tokenItem.id)}
+                      >
+                        {t("personal.revoke")}
+                      </Button>
+                    </div>
+                  }
+                />
+              </Fragment>
             ))}
-          </div>
+          </PageRows>
         )}
-      </GlassCard>
+      </PageSection>
 
-      <McpConnectCard tokens={tokens} />
+      <PageSection>
+        <McpConnectCard tokens={tokens} />
+      </PageSection>
 
       {created && (
         <Modal title={t("personal.tokenGeneratedTitle")} onClose={() => setCreated(null)}>
@@ -178,7 +189,7 @@ export function ApiTokens() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

@@ -1,7 +1,7 @@
 import {
   Button,
   Field,
-  GlassCard,
+  PageCard,
   Input,
   Modal,
   PageHeader,
@@ -292,7 +292,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
       )}
 
       {/* Matrix Card */}
-      <GlassCard className="overflow-hidden !p-0">
+      <PageCard className="mt-0 overflow-hidden p-0">
         <div className="border-b border-border bg-well px-4 py-3 sm:px-6">
           <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
@@ -428,7 +428,7 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
             </div>
           </>
         )}
-      </GlassCard>
+      </PageCard>
 
       {showAddModal && (
         <Modal title={t("notifications.addRuleTitle", "Add Custom Event Rule")} onClose={() => setShowAddModal(false)}>

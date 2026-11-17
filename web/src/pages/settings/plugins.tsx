@@ -1,4 +1,4 @@
-import { Switch, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog, Input, TabBar } from "@octarq/plugin-sdk";
+import { Switch, PageShell, PageCard, PageEmpty, Badge, Alert, Tooltip, confirmDialog, Input, TabBar } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
@@ -130,14 +130,17 @@ export function PluginsSettings() {
   const enabledCount = (plugins ?? []).filter((p) => p.enabled).length;
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
-
+    <PageShell
+      width="full"
+      className="max-w-5xl"
+      title={t("settings.pluginsTitle")}
+      description={t("settings.pluginsDescription")}
+    >
       {/* The card grid reads like an app store, so say plainly what a toggle
           does: it scopes to this workspace and installs nothing. The wording
           stays in workspace terms — deployment-level concepts belong in the
           console, behind the link only instance admins see. */}
-      <Alert variant="info" icon={<Info className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+      <Alert variant="info" icon={<Info className="h-4 w-4 shrink-0" />} className="mt-6 text-xs p-3 rounded-lg">
         <span>{t("settings.pluginsScopeNote")}</span>
         {settings?.isInstanceAdmin && (
           <>
@@ -150,13 +153,13 @@ export function PluginsSettings() {
       </Alert>
 
       {err && (
-        <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+        <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="mt-4 text-xs p-3 rounded-lg">
           {err}
         </Alert>
       )}
 
       {plugins !== null && plugins.length > 0 && (
-        <div className="space-y-3">
+        <div className="mt-6 space-y-3">
           {/* Top Category Tag Bar */}
           <div className="overflow-x-auto pb-1">
             <TabBar
@@ -211,38 +214,36 @@ export function PluginsSettings() {
       )}
 
       {plugins === null ? (
-        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.loadingPlugins")}</GlassCard>
+        <PageCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.loadingPlugins")}</PageCard>
       ) : plugins.length === 0 ? (
-        <GlassCard className="p-8 text-sm text-center text-muted-foreground">{t("settings.noPlugins")}</GlassCard>
+        <PageEmpty title={t("settings.noPlugins")} />
       ) : filteredPlugins.length === 0 ? (
-        <GlassCard className="p-8 text-sm text-center text-muted-foreground">
-          {t("settings.noMatchingPlugins")}
-        </GlassCard>
+        <PageEmpty title={t("settings.noMatchingPlugins")} />
       ) : (
         /* Card Grid Layout */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPlugins.map((p) => {
             const description = t("settings.pluginDesc." + p.key, p.description || "");
             const firstMenuIcon = p.menus?.[0]?.icon;
             const categoryMeta = CATEGORIES[p.category || "utilities"] || { labelKey: "settings.pluginCategory." + (p.category || "utilities"), tone: "neutral" };
 
             return (
-              <GlassCard
+              <PageCard
                 key={p.key}
-                className={`p-5 flex flex-col justify-between transition-all duration-200 hover:border-accent-fg/40 ${
-                  p.enabled ? "ring-1 ring-accent-fg/20 bg-card" : "opacity-80"
+                className={`mt-0 p-5 flex flex-col justify-between transition-colors duration-150 hover:border-accent-fg/40 ${
+                  p.enabled ? "border-border bg-card" : "opacity-80"
                 }`}
               >
                 <div>
                   {/* Card Top Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-well border border-border shadow-xs">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-well border border-border">
                         <PluginIcon iconStr={p.icon} firstMenuIcon={firstMenuIcon} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-bold text-foreground truncate">{p.title}</h3>
+                          <h3 className="text-sm font-semibold text-foreground truncate">{p.title}</h3>
                           {/* Named on the card, not just implied by a dead
                               switch: a disabled control with no label reads as
                               broken, and the tooltip explaining it is invisible
@@ -352,11 +353,11 @@ export function PluginsSettings() {
                     </Badge>
                   )}
                 </div>
-              </GlassCard>
+              </PageCard>
             );
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

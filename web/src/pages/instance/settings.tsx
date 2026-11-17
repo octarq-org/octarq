@@ -1,4 +1,4 @@
-import { Field, PageHeader, Panel, Button, Select, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
+import { Field, PageShell, PageSection, PageCard, Button, Select, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type SMTPSender } from "../../api";
 import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
@@ -105,207 +105,202 @@ export function InstanceSettings() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("settings.instanceTitle")}
-        description={t("settings.instanceDesc")}
-      />
-
+    <PageShell
+      title={t("settings.instanceTitle")}
+      description={t("settings.instanceDesc")}
+    >
       {/* App configuration */}
-      <Panel
-        title={t("settings.generalInfo")}
-        icon={<Server className="h-5 w-5 text-accent-fg" />}
-        className="space-y-6"
-      >
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Field label={t("settings.instanceAppName")} hint={t("settings.instanceAppNameHint")}>
-            <Input
-              className="text-sm"
-              value={appName}
-              onChange={(e) => setAppName(e.target.value)}
-              placeholder="octarq"
-            />
-          </Field>
-          <Field label={t("settings.instanceBaseDomain")} hint={t("settings.instanceBaseDomainHint")}>
-            <Input
-              className="font-mono text-sm"
-              value={baseDomain}
-              onChange={(e) => setBaseDomain(e.target.value)}
-              placeholder="e.g. app.example.com"
-            />
-          </Field>
-          <Field label={t("settings.instanceSharedHosts")} hint={t("settings.instanceSharedHostsHint")}>
-            <Input
-              className="font-mono text-sm"
-              value={sharedHosts}
-              onChange={(e) => setSharedHosts(e.target.value)}
-              placeholder={t("settings.instanceSharedHostsPlaceholder")}
-            />
-          </Field>
-          <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
-            <Input
-              type="number"
-              min={0}
-              className="font-mono text-sm"
-              value={retention}
-              onChange={(e) => setRetention(Number(e.target.value))}
-            />
-          </Field>
-          <Field label={t("settings.instancePublicCorsOrigins")} hint={t("settings.instancePublicCorsOriginsHint")}>
-            <Input
-              className="font-mono text-sm"
-              value={publicCorsOrigins}
-              onChange={(e) => setPublicCorsOrigins(e.target.value)}
-              placeholder={t("settings.instancePublicCorsOriginsPlaceholder")}
-            />
-          </Field>
-          <Field label={t("settings.instanceSystemSender")} hint={t("settings.instanceSystemSenderHint")}>
-            <div className="flex gap-2">
-              <Select
+      <PageSection title={t("settings.generalInfo")}>
+        <PageCard className="mt-0 space-y-6 p-5">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Field label={t("settings.instanceAppName")} hint={t("settings.instanceAppNameHint")}>
+              <Input
                 className="text-sm"
-                value={String(systemSenderId)}
-                onValueChange={(v) => setSystemSenderId(Number(v))}
-                options={[
-                  { value: "0", label: t("settings.instanceSystemSenderDefault") },
-                  ...senders.map((s) => ({
-                    value: String(s.id),
-                    label: `${s.name} (${s.fromEmail || s.user || s.host})`,
-                  })),
-                ]}
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                placeholder="octarq"
               />
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0 text-xs gap-1.5"
-                onClick={() => setTestingMail(true)}
-              >
-                <Send className="h-3.5 w-3.5" />
-                {t("settings.instanceTestMailBtn")}
-              </Button>
-            </div>
-          </Field>
-          <div className="md:col-span-2">
-            <Field
-              label={t("settings.reservedSlugsLabel")}
-              hint={t("settings.reservedSlugsHint", { list: (settings.builtinReserved || []).join(", ") })}
-            >
+            </Field>
+            <Field label={t("settings.instanceBaseDomain")} hint={t("settings.instanceBaseDomainHint")}>
               <Input
                 className="font-mono text-sm"
-                value={reservedSlugs}
-                onChange={(e) => setReservedSlugs(e.target.value)}
-                placeholder={t("settings.instanceReservedSlugsPlaceholder")}
+                value={baseDomain}
+                onChange={(e) => setBaseDomain(e.target.value)}
+                placeholder="e.g. app.example.com"
+              />
+            </Field>
+            <Field label={t("settings.instanceSharedHosts")} hint={t("settings.instanceSharedHostsHint")}>
+              <Input
+                className="font-mono text-sm"
+                value={sharedHosts}
+                onChange={(e) => setSharedHosts(e.target.value)}
+                placeholder={t("settings.instanceSharedHostsPlaceholder")}
+              />
+            </Field>
+            <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
+              <Input
+                type="number"
+                min={0}
+                className="font-mono text-sm"
+                value={retention}
+                onChange={(e) => setRetention(Number(e.target.value))}
+              />
+            </Field>
+            <Field label={t("settings.instancePublicCorsOrigins")} hint={t("settings.instancePublicCorsOriginsHint")}>
+              <Input
+                className="font-mono text-sm"
+                value={publicCorsOrigins}
+                onChange={(e) => setPublicCorsOrigins(e.target.value)}
+                placeholder={t("settings.instancePublicCorsOriginsPlaceholder")}
+              />
+            </Field>
+            <Field label={t("settings.instanceSystemSender")} hint={t("settings.instanceSystemSenderHint")}>
+              <div className="flex gap-2">
+                <Select
+                  className="text-sm"
+                  value={String(systemSenderId)}
+                  onValueChange={(v) => setSystemSenderId(Number(v))}
+                  options={[
+                    { value: "0", label: t("settings.instanceSystemSenderDefault") },
+                    ...senders.map((s) => ({
+                      value: String(s.id),
+                      label: `${s.name} (${s.fromEmail || s.user || s.host})`,
+                    })),
+                  ]}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 text-xs gap-1.5"
+                  onClick={() => setTestingMail(true)}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {t("settings.instanceTestMailBtn")}
+                </Button>
+              </div>
+            </Field>
+            <div className="md:col-span-2">
+              <Field
+                label={t("settings.reservedSlugsLabel")}
+                hint={t("settings.reservedSlugsHint", { list: (settings.builtinReserved || []).join(", ") })}
+              >
+                <Input
+                  className="font-mono text-sm"
+                  value={reservedSlugs}
+                  onChange={(e) => setReservedSlugs(e.target.value)}
+                  placeholder={t("settings.instanceReservedSlugsPlaceholder")}
+                />
+              </Field>
+            </div>
+          </div>
+
+          <Field
+            label={t("settings.instanceMetricsToken")}
+            hint={metricsTokenSet ? t("settings.instanceMetricsTokenSetHint") : t("settings.instanceMetricsTokenHint")}
+          >
+            <div className="flex gap-2 max-w-md">
+              <Input
+                className="font-mono text-sm"
+                type="password"
+                value={metricsToken}
+                onChange={(e) => setMetricsToken(e.target.value)}
+                placeholder={metricsTokenSet ? "••••••••" : ""}
+              />
+              {metricsTokenSet && (
+                <Button
+                  variant="ghost"
+                  className="shrink-0 text-xs text-danger-fg hover:text-danger-fg"
+                  onClick={async () => {
+                    if (await confirmDialog(t("settings.clearMetricsToken"))) {
+                      try {
+                        await api.updateInstanceSettings({ metricsToken: "" });
+                        toast.success(t("settings.saved"));
+                        reload();
+                      } catch (err: any) {
+                        toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
+                      }
+                    }
+                  }}
+                  disabled={busy}
+                >
+                  {t("settings.instanceMetricsClear")}
+                </Button>
+              )}
+            </div>
+          </Field>
+
+          <div className="border-t border-border pt-5">
+            <Button variant="primary" onClick={saveGeneral} disabled={busy}>
+              {busy ? t("settings.saving") : t("settings.save")}
+            </Button>
+          </div>
+        </PageCard>
+      </PageSection>
+
+      {/* Rate limits */}
+      <PageSection
+        title={t("settings.rateLimiting")}
+        description={t("settings.instanceRlHint")}
+      >
+        <PageCard className="mt-0 space-y-6 p-5">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <Field label={t("settings.instanceRlAuth")}>
+              <Input
+                type="number"
+                min={0}
+                className="font-mono text-sm"
+                value={rlAuth}
+                onChange={(e) => setRlAuth(Number(e.target.value))}
+              />
+            </Field>
+            <Field label={t("settings.instanceRlApi")}>
+              <Input
+                type="number"
+                min={0}
+                className="font-mono text-sm"
+                value={rlApi}
+                onChange={(e) => setRlApi(Number(e.target.value))}
+              />
+            </Field>
+            <Field label={t("settings.instanceRlRedirect")}>
+              <Input
+                type="number"
+                min={0}
+                className="font-mono text-sm"
+                value={rlRedirect}
+                onChange={(e) => setRlRedirect(Number(e.target.value))}
               />
             </Field>
           </div>
-        </div>
-
-        <Field
-          label={t("settings.instanceMetricsToken")}
-          hint={metricsTokenSet ? t("settings.instanceMetricsTokenSetHint") : t("settings.instanceMetricsTokenHint")}
-        >
-          <div className="flex gap-2 max-w-md">
-            <Input
-              className="font-mono text-sm"
-              type="password"
-              value={metricsToken}
-              onChange={(e) => setMetricsToken(e.target.value)}
-              placeholder={metricsTokenSet ? "••••••••" : ""}
-            />
-            {metricsTokenSet && (
-              <Button
-                variant="ghost"
-                className="shrink-0 text-xs text-danger-fg hover:text-danger-fg"
-                onClick={async () => {
-                  if (await confirmDialog(t("settings.clearMetricsToken"))) {
-                    try {
-                      await api.updateInstanceSettings({ metricsToken: "" });
-                      toast.success(t("settings.saved"));
-                      reload();
-                    } catch (err: any) {
-                      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
-                    }
-                  }
-                }}
-                disabled={busy}
-              >
-                {t("settings.instanceMetricsClear")}
-              </Button>
-            )}
+          <div className="border-t border-border pt-5">
+            <Button variant="primary" onClick={saveGeneral} disabled={busy}>
+              {busy ? t("settings.saving") : t("settings.save")}
+            </Button>
           </div>
-        </Field>
-
-        <div className="border-t border-border pt-6">
-          <Button variant="primary" onClick={saveGeneral} disabled={busy}>
-            {busy ? t("settings.saving") : t("settings.save")}
-          </Button>
-        </div>
-      </Panel>
-
-      {/* Rate limits */}
-      <Panel
-        title={t("settings.rateLimiting")}
-        icon={<Sliders className="h-5 w-5 text-accent-fg" />}
-        description={t("settings.instanceRlHint")}
-        className="space-y-6"
-      >
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          <Field label={t("settings.instanceRlAuth")}>
-            <Input
-              type="number"
-              min={0}
-              className="font-mono text-sm"
-              value={rlAuth}
-              onChange={(e) => setRlAuth(Number(e.target.value))}
-            />
-          </Field>
-          <Field label={t("settings.instanceRlApi")}>
-            <Input
-              type="number"
-              min={0}
-              className="font-mono text-sm"
-              value={rlApi}
-              onChange={(e) => setRlApi(Number(e.target.value))}
-            />
-          </Field>
-          <Field label={t("settings.instanceRlRedirect")}>
-            <Input
-              type="number"
-              min={0}
-              className="font-mono text-sm"
-              value={rlRedirect}
-              onChange={(e) => setRlRedirect(Number(e.target.value))}
-            />
-          </Field>
-        </div>
-        <div className="border-t border-border pt-6">
-          <Button variant="primary" onClick={saveGeneral} disabled={busy}>
-            {busy ? t("settings.saving") : t("settings.save")}
-          </Button>
-        </div>
-      </Panel>
+        </PageCard>
+      </PageSection>
 
       {/* Build stamp. Authenticated endpoint, values from the binary via
           ldflags; dev/unknown are legit values for a non-git build, so they
           render as-is. builtAt is the raw UTC string — no local-time masquerade. */}
       {build && (
-        <Panel
-          title={t("settings.buildTitle")}
-          icon={<Cpu className="h-5 w-5 text-accent-fg" />}
-        >
-          <div className="grid grid-cols-1 gap-4 max-w-2xl sm:grid-cols-3">
-            <Field label={t("settings.buildVersion")}>
-              <div className="font-mono text-sm text-foreground">{build.version}</div>
-            </Field>
-            <Field label={t("settings.buildCommit")}>
-              <div className="font-mono text-sm text-foreground">
-                {build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown"}
-              </div>
-            </Field>
-            <Field label={t("settings.buildBuiltAt")}>
-              <div className="font-mono tnum text-sm text-foreground">{build.builtAt}</div>
-            </Field>
-          </div>
-        </Panel>
+        <PageSection title={t("settings.buildTitle")}>
+          <PageCard className="mt-0 p-5">
+            <div className="grid grid-cols-1 gap-4 max-w-2xl sm:grid-cols-3">
+              <Field label={t("settings.buildVersion")}>
+                <div className="font-mono text-sm text-foreground">{build.version}</div>
+              </Field>
+              <Field label={t("settings.buildCommit")}>
+                <div className="font-mono text-sm text-foreground">
+                  {build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown"}
+                </div>
+              </Field>
+              <Field label={t("settings.buildBuiltAt")}>
+                <div className="font-mono tnum text-sm text-foreground">{build.builtAt}</div>
+              </Field>
+            </div>
+          </PageCard>
+        </PageSection>
       )}
 
       {/* Database backup. The endpoint has shipped since the backup work but had
@@ -313,34 +308,32 @@ export function InstanceSettings() {
           or a hand-written curl. Instance-admin only, and deliberately blunt
           about what the file is: a full dump of every workspace on this
           instance, encrypted secrets included. */}
-      <Panel
+      <PageSection
         title={t("settings.backupTitle")}
-        icon={<DatabaseBackup className="h-5 w-5 text-accent-fg" />}
         description={t("settings.backupDesc")}
       >
-        <div className="border-t border-border pt-4">
+        <PageCard className="mt-0 p-5">
           <Button variant="outline" onClick={handleBackup} disabled={backingUp}>
             {backingUp ? t("settings.backupPreparing") : t("settings.backupDownload")}
           </Button>
-        </div>
-      </Panel>
+        </PageCard>
+      </PageSection>
 
       {/* Operator-level extension slot. Named "System Settings", NOT
           "Infrastructure": that word already labels the plugin CATEGORY
           (plugin.CategoryInfrastructure, workspace-scoped assets like domains
           and DNS), and the same word for two different scopes read as one
           feature split across two pages. */}
-      <div className="space-y-3 pt-2">
-        <h3 className="eyebrow px-1">
-          {t("settings.systemSettings", "System Settings")}
-        </h3>
-        <ExtensionSlot name="settings-infra" />
-      </div>
+      <PageSection title={t("settings.systemSettings", "System Settings")}>
+        <div className="mt-3">
+          <ExtensionSlot name="settings-infra" />
+        </div>
+      </PageSection>
 
       {testingMail && (
         <TestInstanceMailModal onClose={() => setTestingMail(false)} />
       )}
-    </div>
+    </PageShell>
   );
 }
 

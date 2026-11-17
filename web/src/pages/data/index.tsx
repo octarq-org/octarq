@@ -6,8 +6,7 @@ import {
   Field,
   Input,
   Modal,
-  PageHeader,
-  ScreenWrap,
+  PageShell,
   Switch,
   TableError,
   TableSkeleton,
@@ -53,9 +52,9 @@ export default function DataPage() {
   }
   if (!entity) {
     return (
-      <ScreenWrap>
-        <PageHeader title={t("data.notFoundTitle")} description={t("data.notFoundDesc")} />
-      </ScreenWrap>
+      <PageShell title={t("data.notFoundTitle")} description={t("data.notFoundDesc")}>
+        {null}
+      </PageShell>
     );
   }
 
@@ -98,12 +97,12 @@ export default function DataPage() {
   }
 
   return (
-    <ScreenWrap>
-      <PageHeader
-        title={entity.pluralLabel}
-        eyebrow={entity.label}
-        description={t("data.pageDesc")}
-      />
+    <PageShell
+      width="full"
+      title={entity.pluralLabel}
+      eyebrow={entity.label}
+      description={t("data.pageDesc")}
+    >
       <ProTable<DataRow>
         columns={columns}
         rowKey="id"
@@ -157,7 +156,7 @@ export default function DataPage() {
           }}
         />
       )}
-    </ScreenWrap>
+    </PageShell>
   );
 }
 

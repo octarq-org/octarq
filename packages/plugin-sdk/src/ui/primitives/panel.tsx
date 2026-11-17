@@ -25,18 +25,15 @@ export interface PanelProps {
 
 export const Panel = forwardRef<HTMLDivElement, PanelProps>(
   ({ title, description, action, icon, children, className, headingClassName }, ref) => (
-    // The heading row and the content are siblings, so one `space-y-*` on the
-    // card spaces both. cn() runs tailwind-merge, so a caller's own spacing
-    // replaces the default instead of stacking a second utility.
-    <GlassCard ref={ref} className={cn("p-6 space-y-4", className)}>
+    <GlassCard ref={ref} className={cn("p-5 space-y-4", className)}>
       <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-2", headingClassName)}>
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2 font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">
+          <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
             {icon && <span className="flex shrink-0 items-center text-accent-fg">{icon}</span>}
             {title}
           </h2>
           {description && (
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
           )}
         </div>
         {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}

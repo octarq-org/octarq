@@ -66,3 +66,39 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
   },
 );
 Badge.displayName = "Badge";
+
+export type StatusTone =
+  | "idle"
+  | "running"
+  | "info"
+  | "success"
+  | "done"
+  | "warning"
+  | "paused"
+  | "error"
+  | "blocked"
+  | "review";
+
+const STATUS_TO_BADGE_TONE: Record<StatusTone, BadgeTone> = {
+  idle: "neutral",
+  running: "info",
+  info: "info",
+  success: "success",
+  done: "success",
+  warning: "warning",
+  paused: "warning",
+  error: "danger",
+  blocked: "danger",
+  review: "violet",
+};
+
+export interface StatusBadgeProps extends Omit<BadgeProps, "tone" | "variant"> {
+  status: StatusTone;
+}
+
+export const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
+  ({ status, shape = "dot", ...rest }, ref) => (
+    <Badge ref={ref} tone={STATUS_TO_BADGE_TONE[status]} shape={shape} {...rest} />
+  ),
+);
+StatusBadge.displayName = "StatusBadge";

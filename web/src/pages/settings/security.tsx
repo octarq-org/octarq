@@ -1,7 +1,22 @@
-import { Field, Input, timeAgo, PageHeader, Panel, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
-import { useEffect, useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Field,
+  Input,
+  PageCard,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
+  Separator,
+  confirmDialog,
+  confirmPassword,
+  timeAgo,
+  toast,
+} from "@octarq/plugin-sdk";
+import { Fragment, useEffect, useState } from "react";
 import { api, ApiError, type LinkedIdentity } from "../../api";
-import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
 // First-match tables, in priority order. Mobile UAs embed desktop tokens
@@ -69,18 +84,13 @@ function SessionsList() {
     }
   }
 
-  if (loading) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.loadingSessions")}</div>;
-  if (sessions.length === 0) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.noSessions")}</div>;
+  if (loading) return <PageCard><div className="text-xs text-muted-foreground py-4 text-center">{t("settings.loadingSessions")}</div></PageCard>;
+  if (sessions.length === 0) return <PageCard><div className="text-xs text-muted-foreground py-4 text-center">{t("settings.noSessions")}</div></PageCard>;
 
   return (
-    <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
-      {sessions.map((s) => {
+    <PageRows>
+      {sessions.map((s, idx) => {
         const ua = parseUA(s.userAgent);
-        // Spelled out rather than t(`settings.${ua.browserKey}`): an
-        // interpolated key is invisible to the audit's key-resolution check,
-        // and worse, it registers "settings." as a dynamic prefix, which
-        // exempts every settings.* key from the unreferenced-key report. Same
-        // reason SCOPE_LABEL in PersonalSettings.tsx is an explicit map.
         const browserName =
           ua.browserKey === "uaUnknown"
             ? t("settings.uaUnknown")
@@ -88,31 +98,38 @@ function SessionsList() {
               ? t("settings.uaBrowser")
               : ua.browser;
         return (
-          <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-foreground">{browserName}</span>
-                {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
-                <span className="text-xs text-muted-foreground">{ua.os}</span>
-              </div>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="font-mono text-xs text-muted-foreground">{s.location || s.ip}</span>
-                <span className="font-mono tnum text-xs text-muted-foreground">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
-                <span className="font-mono tnum text-xs text-muted-foreground">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
-              </div>
-            </div>
-            <Button
-              variant="danger"
-              onClick={() => revoke(s.id, s.isCurrent)}
-              disabled={revoking === s.id}
-              className="text-xs py-1 px-2.5 shrink-0"
-            >
-              {revoking === s.id ? "…" : s.isCurrent ? t("settings.logOut") : t("settings.revoke")}
-            </Button>
-          </div>
+          <Fragment key={s.id}>
+            {idx > 0 && <Separator />}
+            <PageRow
+              title={
+                <span className="flex items-center gap-2 flex-wrap">
+                  <span>{browserName}</span>
+                  {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
+                  {ua.os && <span className="text-xs font-normal text-muted-foreground">{ua.os}</span>}
+                </span>
+              }
+              description={
+                <span className="flex flex-wrap items-center gap-3 font-mono tnum">
+                  <span>{s.location || s.ip}</span>
+                  <span>{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
+                  <span>{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
+                </span>
+              }
+              control={
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => revoke(s.id, s.isCurrent)}
+                  disabled={revoking === s.id}
+                >
+                  {revoking === s.id ? "…" : s.isCurrent ? t("settings.logOut") : t("settings.revoke")}
+                </Button>
+              }
+            />
+          </Fragment>
         );
       })}
-    </div>
+    </PageRows>
   );
 }
 
@@ -147,31 +164,36 @@ function LinkedIdentities() {
     }
   }
 
-  if (items === null) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.loadingIdentities")}</div>;
-  if (items.length === 0) return <div className="text-xs text-muted-foreground py-4 text-center">{t("settings.noLinkedIdentities")}</div>;
+  if (items === null) return <PageCard><div className="text-xs text-muted-foreground py-4 text-center">{t("settings.loadingIdentities")}</div></PageCard>;
+  if (items.length === 0) return <PageCard><div className="text-xs text-muted-foreground py-4 text-center">{t("settings.noLinkedIdentities")}</div></PageCard>;
 
   return (
-    <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
-      {items.map((id) => (
-        <div key={id.id} className="flex items-center gap-3 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-foreground truncate">{id.issuer}</div>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="font-mono text-xs text-muted-foreground truncate">{id.email}</span>
-              <span className="font-mono tnum text-xs text-muted-foreground">{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
-            </div>
-          </div>
-          <Button
-            variant="danger"
-            onClick={() => unlink(id)}
-            disabled={busy === id.id}
-            className="text-xs py-1 px-2.5 shrink-0"
-          >
-            {busy === id.id ? "…" : t("settings.unlink")}
-          </Button>
-        </div>
+    <PageRows>
+      {items.map((id, idx) => (
+        <Fragment key={id.id}>
+          {idx > 0 && <Separator />}
+          <PageRow
+            title={id.issuer}
+            description={
+              <span className="flex flex-wrap items-center gap-3 font-mono tnum">
+                <span>{id.email}</span>
+                <span>{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
+              </span>
+            }
+            control={
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => unlink(id)}
+                disabled={busy === id.id}
+              >
+                {busy === id.id ? "…" : t("settings.unlink")}
+              </Button>
+            }
+          />
+        </Fragment>
       ))}
-    </div>
+    </PageRows>
   );
 }
 
@@ -292,92 +314,89 @@ export function SecuritySettings() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t("settings.securityTitle")} description={t("settings.securityDescription")} />
-
-      <Panel
+    <PageShell title={t("settings.securityTitle")} description={t("settings.securityDescription")}>
+      <PageSection
         title={t("settings.twoFATitle")}
-        icon={<Shield className="h-4 w-4" />}
         description={t("settings.twoFADesc")}
         action={<Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>}
       >
-        {enabled && (
-          <div className="space-y-1">
-            <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageBase")}</p>
-            {hasOauth && <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageOauth")}</p>}
-            {hasSso && <p className="text-[11px] text-muted-foreground">{t("settings.twoFACoverageSso")}</p>}
-          </div>
-        )}
-
-        {err && <p className="text-sm text-danger-fg">{err}</p>}
-        {msg && <p className="text-sm text-success-fg">{msg}</p>}
-
-        {recoveryCodes && (
-          <Alert variant="warning" className="p-4">
-            <p className="text-xs font-bold text-warning-fg mb-2">{t("settings.saveRecoveryCodes")}</p>
-            <p className="text-[11px] text-muted-foreground mb-3">{t("settings.recoveryCodesDesc")}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-xs text-foreground">
-              {recoveryCodes.map((c) => <span key={c} className="select-all whitespace-nowrap">{c}</span>)}
+        <PageCard className="space-y-4">
+          {enabled && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">{t("settings.twoFACoverageBase")}</p>
+              {hasOauth && <p className="text-xs text-muted-foreground">{t("settings.twoFACoverageOauth")}</p>}
+              {hasSso && <p className="text-xs text-muted-foreground">{t("settings.twoFACoverageSso")}</p>}
             </div>
-          </Alert>
-        )}
+          )}
 
-        {!enabled && !setup && (
-          <Button variant="primary" onClick={beginSetup} disabled={busy}>{busy ? "…" : t("settings.enable2FA")}</Button>
-        )}
+          {err && <p className="text-sm text-danger-fg">{err}</p>}
+          {msg && <p className="text-sm text-success-fg">{msg}</p>}
 
-        {!enabled && setup && (
-          <div className="space-y-3 rounded-xl border border-border bg-well p-4">
-            <p className="text-xs text-muted-foreground">{t("settings.scanInstructions")}</p>
-            <img
-              alt={t("settings.qrAlt")}
-              className="rounded-lg bg-white p-2"
-              width={160}
-              height={160}
-              src={setup.qrDataUri}
-            />
-            <Field label={t("settings.setupKeyLabel")}>
-              <Input className="font-mono text-xs" readOnly value={setup.secret} />
-            </Field>
-            <a className="block break-all text-[10px] text-accent-fg/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
-            <Field label={t("settings.verificationCode")}>
-              <Input className="text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
-            </Field>
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={confirmEnable} disabled={busy || !enrollCode.trim()}>{busy ? "…" : t("settings.confirmEnable")}</Button>
-              <Button variant="ghost" onClick={() => { setSetup(null); setEnrollCode(""); }}>{t("settings.cancel")}</Button>
+          {recoveryCodes && (
+            <Alert variant="warning" className="p-4">
+              <p className="text-xs font-bold text-warning-fg mb-2">{t("settings.saveRecoveryCodes")}</p>
+              <p className="text-[11px] text-muted-foreground mb-3">{t("settings.recoveryCodesDesc")}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-xs text-foreground">
+                {recoveryCodes.map((c) => <span key={c} className="select-all whitespace-nowrap">{c}</span>)}
+              </div>
+            </Alert>
+          )}
+
+          {!enabled && !setup && (
+            <Button variant="primary" size="sm" onClick={beginSetup} disabled={busy}>{busy ? "…" : t("settings.enable2FA")}</Button>
+          )}
+
+          {!enabled && setup && (
+            <div className="space-y-3 rounded-lg border border-border bg-well p-4">
+              <p className="text-xs text-muted-foreground">{t("settings.scanInstructions")}</p>
+              <img
+                alt={t("settings.qrAlt")}
+                className="rounded-lg bg-white p-2"
+                width={160}
+                height={160}
+                src={setup.qrDataUri}
+              />
+              <Field label={t("settings.setupKeyLabel")}>
+                <Input className="font-mono text-xs" readOnly value={setup.secret} />
+              </Field>
+              <a className="block break-all text-[10px] text-accent-fg/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
+              <Field label={t("settings.verificationCode")}>
+                <Input className="text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
+              </Field>
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" onClick={confirmEnable} disabled={busy || !enrollCode.trim()}>{busy ? "…" : t("settings.confirmEnable")}</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setSetup(null); setEnrollCode(""); }}>{t("settings.cancel")}</Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {enabled && (
-          <div className="space-y-3 rounded-xl border border-border bg-well p-4">
-            <p className="text-xs text-muted-foreground">{t("settings.disableInstructions")}</p>
-            <Field label={t("settings.verificationCode")}>
-              <Input className="text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
-            </Field>
-            <Button variant="danger" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : t("settings.disable2FA")}</Button>
-          </div>
-        )}
-      </Panel>
+          {enabled && (
+            <div className="space-y-3 rounded-lg border border-border bg-well p-4">
+              <p className="text-xs text-muted-foreground">{t("settings.disableInstructions")}</p>
+              <Field label={t("settings.verificationCode")}>
+                <Input className="text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
+              </Field>
+              <Button variant="danger" size="sm" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : t("settings.disable2FA")}</Button>
+            </div>
+          )}
+        </PageCard>
+      </PageSection>
 
-      <Panel
+      <PageSection
         title={t("settings.activeSessions")}
         description={t("settings.activeSessionsDesc")}
         action={
-          <Button variant="danger" onClick={logoutAll} disabled={busy} className="text-xs py-1 px-3">
+          <Button variant="danger" size="sm" onClick={logoutAll} disabled={busy}>
             {t("settings.signOutOfAll")}
           </Button>
         }
       >
         <SessionsList />
-      </Panel>
+      </PageSection>
 
-      <Panel title={t("settings.linkedIdentities")} description={t("settings.linkedIdentitiesDesc")}>
+      <PageSection title={t("settings.linkedIdentities")} description={t("settings.linkedIdentitiesDesc")}>
         <LinkedIdentities />
-      </Panel>
-
-
-    </div>
+      </PageSection>
+    </PageShell>
   );
 }

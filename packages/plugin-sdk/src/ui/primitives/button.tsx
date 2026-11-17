@@ -20,27 +20,22 @@ import { cn } from "../cn";
 // host), so the button matches every field and chip next to it, and still works
 // for a consumer that ships its own theme (the Pro portal).
 export const buttonVariants = cva(
-  "inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-[var(--radius)] border-0 font-medium tracking-[-0.01em] outline-none transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) active:scale-[0.985] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-[var(--radius)] border-0 font-medium tracking-[-0.01em] outline-none transition-colors duration-100 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         primary:
-          "bg-primary-solid text-primary-foreground shadow-[var(--shadow-accent)] hover:-translate-y-px hover:bg-primary-solid-hover",
+          "bg-primary-solid text-primary-foreground hover:bg-primary-solid-hover",
         secondary:
-          "border border-border bg-card text-foreground shadow-[0_1px_1px_rgb(0_0_0/0.03)] hover:border-border-strong hover:bg-surface-hover",
+          "border border-border bg-card text-foreground hover:border-border-strong hover:bg-surface-hover",
         subtle: "bg-muted text-foreground hover:bg-surface-hover",
         ghost:
           "bg-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground",
         outline:
           "border border-border bg-transparent text-foreground hover:border-border-strong hover:bg-surface-hover",
-        // Token-driven, not a literal rose: --danger-* already carries the hue
-        // in both themes, so no `ui-color-ok` exemption is needed.
         danger: "bg-transparent text-danger-fg hover:bg-danger-bg",
-        // The filled destructive action for confirm dialogs. Its pair of
-        // *-solid tokens keeps the foreground readable in both themes, so this
-        // variant needs no per-call-site override.
         "danger-solid":
-          "bg-danger-solid text-danger-solid-fg shadow-[0_8px_20px_-12px_var(--danger-solid)] hover:brightness-110",
+          "bg-danger-solid text-danger-solid-fg hover:brightness-110",
       },
       size: {
         sm: "h-8 gap-1.5 px-3 text-xs",
