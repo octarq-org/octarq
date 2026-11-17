@@ -1,5 +1,11 @@
 # @octarq-org/plugin-sdk
 
+## 0.24.0
+
+### Minor Changes
+
+- 248a034: Refactor SDK primitives and admin shell around the 3-Surface Design System (`PageShell`, `PageSection`, `PageRows`, `PageRow`, `PageCard`, `PageEmpty`, `Separator`, `StatusBadge`) and single `--radius`/`--row-height` knobs.
+
 ## 0.23.0
 
 ### Minor Changes
