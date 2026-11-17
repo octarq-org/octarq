@@ -14,7 +14,7 @@ export function ShellFooter() {
   }, []);
   if (!build) return null;
   return (
-    <footer className="mt-10 border-t border-border pb-1 pt-3">
+    <footer className="mx-auto mt-10 max-w-3xl border-t border-border pb-1 pt-3">
       <p className="font-mono tnum text-[11px] text-muted-foreground">
         {t("app.shellBuildFooter", {
           version: build.version,

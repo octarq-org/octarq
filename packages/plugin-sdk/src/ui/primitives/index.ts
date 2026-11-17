@@ -1,11 +1,31 @@
 // The primitives sub-barrel: the pure, app-independent shared components.
 export { GlassCard } from "./glass-card";
 export { Panel } from "./panel";
-export { Badge, badgeVariants, type BadgeTone, type BadgeShape, type BadgeProps } from "./badge";
+export {
+  Badge,
+  StatusBadge,
+  badgeVariants,
+  type BadgeTone,
+  type BadgeShape,
+  type BadgeProps,
+  type StatusTone,
+  type StatusBadgeProps,
+} from "./badge";
 export { Button, buttonVariants, type ButtonVariant } from "./button";
 export { ProPill, TIER_LABEL } from "./pro-pill";
 export { StatCard } from "./stat-card";
 export { PageHeader } from "./page-header";
+export {
+  PageShell,
+  PageColumn,
+  PageSection,
+  PageRows,
+  PageRow,
+  PageCard,
+  PageEmpty,
+  type ShellWidth,
+} from "./page-shell";
+export { Separator } from "./separator";
 export { ScreenWrap } from "./screen-wrap";
 export { Modal } from "./modal";
 export { Field } from "./field";

@@ -1,4 +1,4 @@
-import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, TabBar, toast } from "@octarq/plugin-sdk";
+import { Badge, Button, PageCard, PageEmpty, PageShell, TabBar, timeAgo, toast } from "@octarq/plugin-sdk";
 import { ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
@@ -44,16 +44,11 @@ export default function AbusePage() {
   };
 
   return (
-    <ScreenWrap>
-      <PageHeader
-        title={t("abuse.pageTitle")}
-        description={t("abuse.pageDesc")}
-      />
-
-      {/* Same segmented strip as every other list page, so the status filter
-          does not read as a separate pill control on one page only. */}
+    <PageShell
+      title={t("abuse.pageTitle")}
+      description={t("abuse.pageDesc")}
+    >
       <TabBar
-        className="mb-6"
         size="sm"
         value={statusFilter}
         onValueChange={setStatusFilter}
@@ -66,18 +61,15 @@ export default function AbusePage() {
       {loading ? (
         <ListSkeleton rows={5} ariaLabel={t("abuse.loading")} />
       ) : reports.length === 0 ? (
-        <Empty reason={t("abuse.emptyState")}>
-          <ShieldAlert />
-        </Empty>
+        <PageEmpty title={t("abuse.emptyState")} icon={<ShieldAlert />} />
       ) : (
         <div className="space-y-4">
           {reports.map((r) => (
-            <GlassCard key={r.id} className="p-5">
+            <PageCard key={r.id} className="mt-0">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* AbuseReport model has no title/tags in backend; retain slug display */}
-                    <h3 className="font-display text-[17px] font-semibold tracking-[-0.01em] text-danger-fg">/{r.slug}</h3>
+                    <h3 className="text-base font-semibold text-danger-fg">/{r.slug}</h3>
                     <Badge tone={getReasonTone(r.reason)} className="uppercase tracking-wider">
                       {t("abuse.reason" + r.reason.charAt(0).toUpperCase() + r.reason.slice(1)) || r.reason}
                     </Badge>
@@ -103,7 +95,7 @@ export default function AbusePage() {
                 </div>
               </div>
 
-              <div className="mt-4 text-sm text-foreground bg-well p-4 rounded-xl border border-border font-normal leading-relaxed">
+              <div className="mt-4 text-sm text-foreground bg-well p-4 rounded-lg border border-border font-normal leading-relaxed">
                 {r.description || <span className="text-muted-foreground italic">{t("abuse.noDescription")}</span>}
               </div>
 
@@ -125,10 +117,10 @@ export default function AbusePage() {
                   </Button>
                 </div>
               )}
-            </GlassCard>
+            </PageCard>
           ))}
         </div>
       )}
-    </ScreenWrap>
+    </PageShell>
   );
 }

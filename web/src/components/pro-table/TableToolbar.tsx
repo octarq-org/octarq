@@ -287,7 +287,7 @@ export function TableToolbar<TData>({
             </Button>
 
             {showDensityDropdown && (
-              <div className="absolute right-0 top-9 z-50 w-32 rounded-xl border border-border bg-card p-1 shadow-lg backdrop-blur-md">
+              <div className="absolute right-0 top-9 z-50 w-32 rounded-lg border border-border bg-card p-1 shadow-md">
                 <button
                   type="button"
                   onClick={() => {
@@ -334,7 +334,7 @@ export function TableToolbar<TData>({
             </Button>
 
             {showColumnDropdown && (
-              <div className="absolute right-0 top-9 z-50 w-48 rounded-xl border border-border bg-card p-2 shadow-lg backdrop-blur-md">
+              <div className="absolute right-0 top-9 z-50 w-48 rounded-lg border border-border bg-card p-2 shadow-md">
                 <div className="mb-2 flex items-center justify-between border-b border-border pb-1.5 px-1">
                   <span className="text-xs font-semibold text-foreground">
                     {t("proTable.columns")}

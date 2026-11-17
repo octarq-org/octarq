@@ -1,4 +1,4 @@
-import { Badge, GlassCard } from "@octarq/plugin-sdk";
+import { Badge, PageCard } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, Settings as SettingsData } from "../../api";
 import { Lock } from "lucide-react";
@@ -33,11 +33,11 @@ export function useInstanceSettingsData() {
 export function InstanceAdminOnly() {
   const { t } = useTranslation();
   return (
-    <GlassCard className="p-8 text-center">
+    <PageCard className="mt-0 p-8 text-center">
       <Lock className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
       <p className="text-sm font-medium text-foreground">{t("settings.instanceAdminOnly")}</p>
       <p className="mt-1 text-xs text-muted-foreground">{t("settings.instanceAdminOnlyDesc")}</p>
-    </GlassCard>
+    </PageCard>
   );
 }
 

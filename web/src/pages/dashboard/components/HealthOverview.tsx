@@ -1,4 +1,4 @@
-import { GlassCard, Button, Alert, Skeleton } from "@octarq/plugin-sdk";
+import { PageCard, Button, Alert, Skeleton } from "@octarq/plugin-sdk";
 import { useMemo } from "react";
 import {
   AlertCircle,
@@ -66,7 +66,7 @@ export function HealthOverview() {
   if (isError && !data) {
     return (
       <div data-testid="health-overview-error" className="mb-6">
-        <GlassCard className="p-6">
+        <PageCard className="mt-0 p-6">
           <Alert variant="danger" icon={<AlertCircle className="h-5 w-5" />}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -86,7 +86,7 @@ export function HealthOverview() {
               </Button>
             </div>
           </Alert>
-        </GlassCard>
+        </PageCard>
       </div>
     );
   }
@@ -181,9 +181,9 @@ export function HealthOverview() {
 
       {/* Provider cards grid */}
       {providers.length === 0 ? (
-        <GlassCard className="p-6 text-center text-sm text-muted-foreground">
+        <PageCard className="mt-0 p-6 text-center text-sm text-muted-foreground">
           {t("overview.healthNoProviders")}
-        </GlassCard>
+        </PageCard>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {runtimeProvider && <RuntimeCard provider={runtimeProvider} />}

@@ -104,6 +104,8 @@ export const en = {
     account: "Account menu",
     personalSettings: "Personal settings",
     settings: "Settings",
+    backToWorkspace: "Back to workspace",
+    breadcrumb: "Breadcrumb",
   },
   command: {
     create: "Create",

@@ -1,4 +1,4 @@
-import { GlassCard, Badge, Button, toast } from "@octarq/plugin-sdk";
+import { PageCard, Badge, Button, toast } from "@octarq/plugin-sdk";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Token } from "../api";
@@ -93,11 +93,11 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
   ];
 
   return (
-    <GlassCard className={`p-6 space-y-6 ${className}`}>
+    <PageCard className={`mt-0 p-6 space-y-6 ${className}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-accent-soft text-accent-fg">
+          <div className="p-2 rounded-lg bg-accent-soft text-accent-fg">
             <Bot className="h-5 w-5" />
           </div>
           <div>
@@ -141,7 +141,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
                 onClick={() => setSelectedClient(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   active
-                    ? "bg-surface text-foreground shadow-xs"
+                    ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-well"
                 }`}
               >
@@ -215,6 +215,6 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
           ))}
         </div>
       </div>
-    </GlassCard>
+    </PageCard>
   );
 }

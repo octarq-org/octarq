@@ -1,4 +1,4 @@
-import { TabBar, Alert, Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
+import { TabBar, Alert, Button, PageCard, PageShell, cn, timeAgo } from "@octarq/plugin-sdk";
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, CheckCheck, RefreshCw, Settings2, Trash2, MailOpen } from "lucide-react";
@@ -58,68 +58,65 @@ export function InboxPage() {
   }, [notifications, filter]);
 
   return (
-    <ScreenWrap>
-      <div className="space-y-6">
-        <PageHeader
-          title={t("notifications.inboxPageTitle", "站内信收件箱")}
-          description={t(
-            "notifications.inboxPageDescription",
-            "查看与管理工作区内的系统事件、任务状态及安全警告。",
-          )}
-          action={
-            <div className="flex flex-wrap items-center gap-2.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
-                <span>{t("notifications.refresh", "刷新")}</span>
-              </Button>
-
-              <Button
-                variant="subtle"
-                size="sm"
-                disabled={unreadCount === 0 || markAllRead.isPending}
-                onClick={() => markAllRead.mutate()}
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <CheckCheck className="h-3.5 w-3.5" />
-                <span>{t("notifications.markAllRead", "全部已读")}</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/settings/notifications?tab=preferences")}
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <Settings2 className="h-3.5 w-3.5" />
-                <span>{t("notifications.preferencesTitle", "路由偏好设置")}</span>
-              </Button>
-            </div>
-          }
-        />
-
-        {/* 4 Horizontal Filter Tabs: [Unread | All | Mentions | System Alerts] */}
-        <div className="flex items-center justify-between">
-          <TabBar
+    <PageShell
+      title={t("notifications.inboxPageTitle", "站内信收件箱")}
+      description={t(
+        "notifications.inboxPageDescription",
+        "查看与管理工作区内的系统事件、任务状态及安全警告。",
+      )}
+      action={
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="outline"
             size="sm"
-            value={filter}
-            onValueChange={(v) => setFilter(v as typeof filter)}
-            items={[
-              { value: "unread", label: t("notifications.filterUnread", "未读"), testId: "tab-unread", count: unreadCount > 0 ? unreadCount : undefined },
-              { value: "all", label: t("notifications.filterAll", "全部"), testId: "tab-all" },
-              { value: "mentions", label: t("notifications.filterMentions", "提及"), testId: "tab-mentions" },
-              { value: "system", label: t("notifications.filterSystem", "系统告警"), testId: "tab-system" },
-            ]}
-          />
-        </div>
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+            <span>{t("notifications.refresh", "刷新")}</span>
+          </Button>
 
-        {/* Notification Cards */}
-        <GlassCard className="overflow-hidden !p-0">
+          <Button
+            variant="subtle"
+            size="sm"
+            disabled={unreadCount === 0 || markAllRead.isPending}
+            onClick={() => markAllRead.mutate()}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            <span>{t("notifications.markAllRead", "全部已读")}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/settings/notifications?tab=preferences")}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            <span>{t("notifications.preferencesTitle", "路由偏好设置")}</span>
+          </Button>
+        </div>
+      }
+    >
+      {/* 4 Horizontal Filter Tabs: [Unread | All | Mentions | System Alerts] */}
+      <div className="mt-6 flex items-center justify-between">
+        <TabBar
+          size="sm"
+          value={filter}
+          onValueChange={(v) => setFilter(v as typeof filter)}
+          items={[
+            { value: "unread", label: t("notifications.filterUnread", "未读"), testId: "tab-unread", count: unreadCount > 0 ? unreadCount : undefined },
+            { value: "all", label: t("notifications.filterAll", "全部"), testId: "tab-all" },
+            { value: "mentions", label: t("notifications.filterMentions", "提及"), testId: "tab-mentions" },
+            { value: "system", label: t("notifications.filterSystem", "系统告警"), testId: "tab-system" },
+          ]}
+        />
+      </div>
+
+      {/* Notification Cards */}
+      <PageCard className="mt-4 overflow-hidden p-0">
           {isLoading ? (
             <div className="divide-y divide-border p-6 space-y-4">
               {[1, 2, 3, 4].map((i) => (
@@ -248,8 +245,7 @@ export function InboxPage() {
               })}
             </div>
           )}
-        </GlassCard>
-      </div>
-    </ScreenWrap>
+      </PageCard>
+    </PageShell>
   );
 }

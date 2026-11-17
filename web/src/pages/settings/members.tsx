@@ -1,5 +1,20 @@
-import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, Input } from "@octarq/plugin-sdk";
-import { useEffect, useState } from "react";
+import {
+  Badge,
+  Button,
+  Field,
+  Input,
+  PageCard,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
+  Select,
+  Separator,
+  confirmDialog,
+  timeAgo,
+  toast,
+} from "@octarq/plugin-sdk";
+import { Fragment, useEffect, useState } from "react";
 import { api, OrgMember } from "../../api";
 import { Users } from "lucide-react";
 import { useTranslation } from "../../i18n";
@@ -114,112 +129,122 @@ export function OrgMembersManager() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("settings.workspaceMembers")}
-        description={t("settings.workspaceMembersDesc")}
-      />
-      <GlassCard className="p-6 space-y-6">
-
+    <PageShell
+      title={t("settings.workspaceMembers")}
+      description={t("settings.workspaceMembersDesc")}
+    >
       {canManage && (
-      <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end p-4 rounded-xl border border-border bg-well">
-        <div className="flex-1">
-          <Field label={t("settings.inviteByEmail")}>
-            <Input
-              type="email"
-              className="text-xs"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="colleague@example.com"
-              required
-            />
-          </Field>
-        </div>
-        <div className="sm:w-32">
-          <span className="label text-xs">{t("settings.accessRole")}</span>
-          <Select
-            className="mt-1 text-xs"
-            aria-label={t("settings.accessRole")}
-            value={role}
-            onValueChange={setRole}
-            options={[
-              { value: "member", label: t("settings.roleMember") },
-              { value: "admin", label: t("settings.roleAdmin") },
-              { value: "owner", label: t("settings.roleOwner") },
-            ]}
-          />
-        </div>
-        <Button variant="primary" className="sm:w-auto py-2 text-xs shrink-0" disabled={busy || !email}>
-          {busy ? t("settings.inviting") : t("settings.inviteMember")}
-        </Button>
-      </form>
+        <PageSection>
+          <PageCard>
+            <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+              <div className="flex-1">
+                <Field label={t("settings.inviteByEmail")}>
+                  <Input
+                    type="email"
+                    className="text-xs"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="colleague@example.com"
+                    required
+                  />
+                </Field>
+              </div>
+              <div className="sm:w-32">
+                <span className="label text-xs">{t("settings.accessRole")}</span>
+                <Select
+                  className="mt-1 text-xs"
+                  aria-label={t("settings.accessRole")}
+                  value={role}
+                  onValueChange={setRole}
+                  options={[
+                    { value: "member", label: t("settings.roleMember") },
+                    { value: "admin", label: t("settings.roleAdmin") },
+                    { value: "owner", label: t("settings.roleOwner") },
+                  ]}
+                />
+              </div>
+              <Button variant="primary" className="sm:w-auto py-2 text-xs shrink-0" disabled={busy || !email}>
+                {busy ? t("settings.inviting") : t("settings.inviteMember")}
+              </Button>
+            </form>
+          </PageCard>
+        </PageSection>
       )}
 
-      {loading ? (
-        <div className="text-muted-foreground text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
-      ) : (
-        <div className="divide-y divide-border border border-border rounded-xl bg-well overflow-hidden">
-          {(members || []).map((m) => {
-            const myEmail = (me?.email || me?.username || "").toLowerCase();
-            const isSelf = myEmail ? m.email.toLowerCase() === myEmail : false;
-            // Your own row stays read-only: the one demotion nobody can undo for
-            // you is your own. Handing the role over means promoting someone
-            // else first, which is a deliberate second step.
-            const canEditRole = canManage && !isSelf && (canGrantOwner || m.role !== "owner");
-            return (
-              <div key={m.userId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 sm:gap-4">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="font-mono font-semibold text-sm text-foreground truncate">{m.email}</span>
-                  {canEditRole ? (
-                    <Select
-                      className="text-xs py-1"
-                      value={m.role}
-                      onValueChange={(role) => handleRoleChange(m, role)}
-                      options={[
-                        { value: "member", label: t("settings.roleMember") },
-                        { value: "admin", label: t("settings.roleAdmin") },
-                        ...(canGrantOwner ? [{ value: "owner", label: t("settings.roleOwner") }] : []),
-                      ]}
-                    />
-                  ) : (
-                    <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
-                      {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
-                    </Badge>
-                  )}
-                  {m.pending ? (
-                    <Badge tone="amber" className="text-[10px] px-2">{t("settings.statusPending")}</Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
-                  )}
-                </div>
-                {canManage && !isSelf && (
-                  <div className="flex items-center gap-2 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
-                    {m.pending && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => handleResend(m.userId)}
-                        disabled={resendingId === m.userId}
-                        className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5"
-                      >
-                        {resendingId === m.userId ? t("settings.resending") : t("settings.resendInvite")}
-                      </Button>
-                    )}
-                    <Button
-                      variant="danger"
-                      onClick={() => handleRemove(m.userId)}
-                      className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
-                    >
-                      {t("settings.remove")}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </GlassCard>
-    </div>
+      <PageSection>
+        {loading ? (
+          <PageCard>
+            <div className="text-muted-foreground text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
+          </PageCard>
+        ) : (
+          <PageRows>
+            {(members || []).map((m, idx) => {
+              const myEmail = (me?.email || me?.username || "").toLowerCase();
+              const isSelf = myEmail ? m.email.toLowerCase() === myEmail : false;
+              const canEditRole = canManage && !isSelf && (canGrantOwner || m.role !== "owner");
+              return (
+                <Fragment key={m.userId}>
+                  {idx > 0 && <Separator />}
+                  <PageRow
+                    title={<span className="font-mono">{m.email}</span>}
+                    description={
+                      <span className="flex flex-wrap items-center gap-2 mt-0.5">
+                        {m.pending ? (
+                          <Badge tone="amber" className="text-[10px] px-2">{t("settings.statusPending")}</Badge>
+                        ) : (
+                          <span>{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
+                        )}
+                      </span>
+                    }
+                    control={
+                      <div className="flex flex-wrap items-center gap-2">
+                        {canEditRole ? (
+                          <Select
+                            className="text-xs py-1"
+                            value={m.role}
+                            onValueChange={(role) => handleRoleChange(m, role)}
+                            options={[
+                              { value: "member", label: t("settings.roleMember") },
+                              { value: "admin", label: t("settings.roleAdmin") },
+                              ...(canGrantOwner ? [{ value: "owner", label: t("settings.roleOwner") }] : []),
+                            ]}
+                          />
+                        ) : (
+                          <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
+                            {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
+                          </Badge>
+                        )}
+                        {canManage && !isSelf && (
+                          <>
+                            {m.pending && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleResend(m.userId)}
+                                disabled={resendingId === m.userId}
+                              >
+                                {resendingId === m.userId ? t("settings.resending") : t("settings.resendInvite")}
+                              </Button>
+                            )}
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleRemove(m.userId)}
+                            >
+                              {t("settings.remove")}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    }
+                  />
+                </Fragment>
+              );
+            })}
+          </PageRows>
+        )}
+      </PageSection>
+    </PageShell>
   );
 }
 

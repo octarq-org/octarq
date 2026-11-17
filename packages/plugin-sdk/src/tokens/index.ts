@@ -44,6 +44,7 @@ export interface TokenDef {
 
 export const TOKENS: TokenDef[] = [
   { name: "--radius", group: "radius", root: true, dark: false, themed: false },
+  { name: "--row-height", group: "line", root: true, dark: false, themed: false },
 
   { name: "--background", group: "surface", root: true, dark: true, themed: true },
   { name: "--foreground", group: "surface", root: true, dark: true, themed: true },
@@ -55,6 +56,12 @@ export const TOKENS: TokenDef[] = [
   { name: "--muted-foreground", group: "surface", root: true, dark: true, themed: true },
   { name: "--surface-hover", group: "surface", root: true, dark: true, themed: true },
   { name: "--well", group: "surface", root: true, dark: true, themed: true },
+  { name: "--sidebar", group: "surface", root: true, dark: true, themed: true },
+  { name: "--sidebar-foreground", group: "surface", root: true, dark: true, themed: true },
+  { name: "--sidebar-accent", group: "surface", root: true, dark: true, themed: true },
+  { name: "--sidebar-accent-foreground", group: "surface", root: true, dark: true, themed: true },
+  { name: "--sidebar-border", group: "line", root: true, dark: true, themed: true },
+  { name: "--sidebar-ring", group: "line", root: true, dark: true, themed: true },
 
   { name: "--primary", group: "accent", root: true, dark: true, themed: true, seed: true },
   { name: "--accent-violet", group: "accent", root: true, dark: false, themed: true, seed: true },

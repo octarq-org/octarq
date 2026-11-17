@@ -1,4 +1,4 @@
-import { Field, Input, Switch, PageHeader, GlassCard, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
+import { Field, Input, Switch, PageShell, PageSection, PageRows, PageRow, PageCard, Separator, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
 import { Mail, ChevronDown, Check } from "lucide-react";
@@ -173,36 +173,32 @@ export function AuthenticationSettings() {
   );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("settings.authTitle")}
-        description={t("settings.authDesc")}
-      />
-
-      {/* Account creation policy */}
-      <GlassCard className="flex items-center justify-between gap-4 p-5">
-        <div>
-          <p className="text-sm font-medium text-foreground">{t("settings.allowPublicSignup")}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.allowPublicSignupDesc")}</p>
-        </div>
-        <Switch checked={allowReg} onCheckedChange={toggleRegistration} aria-label={t("settings.allowPublicSignup")} />
-      </GlassCard>
-
-      {/* Email verification gate */}
-      <GlassCard className="flex items-center justify-between gap-4 p-5">
-        <div>
-          <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification")}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc")}</p>
-        </div>
-        <Switch checked={requireVerify} onCheckedChange={toggleRequireVerification} aria-label={t("settings.requireEmailVerification")} />
-      </GlassCard>
+    <PageShell
+      title={t("settings.authTitle")}
+      description={t("settings.authDesc")}
+    >
+      {/* Account creation policy & email verification gate */}
+      <PageSection>
+        <PageRows className="mt-0">
+          <PageRow
+            title={t("settings.allowPublicSignup")}
+            description={t("settings.allowPublicSignupDesc")}
+          >
+            <Switch checked={allowReg} onCheckedChange={toggleRegistration} aria-label={t("settings.allowPublicSignup")} />
+          </PageRow>
+          <Separator />
+          <PageRow
+            title={t("settings.requireEmailVerification")}
+            description={t("settings.requireEmailVerificationDesc")}
+          >
+            <Switch checked={requireVerify} onCheckedChange={toggleRequireVerification} aria-label={t("settings.requireEmailVerification")} />
+          </PageRow>
+        </PageRows>
+      </PageSection>
 
       {/* Provider list (Supabase-style accordion) */}
-      <div>
-        <h3 className="eyebrow mb-2 px-1">
-          {t("settings.authProviders")}
-        </h3>
-        <GlassCard className="overflow-hidden !p-0">
+      <PageSection title={t("settings.authProviders")}>
+        <PageCard className="mt-0 overflow-hidden p-0">
           <ProviderRow
             icon={<Mail className="h-4 w-4 text-accent-fg" strokeWidth={1.75} />}
             name={t("settings.providerEmail")}
@@ -296,8 +292,8 @@ export function AuthenticationSettings() {
           {/* Pro providers (Enterprise OIDC, …) inject their own rows here so they
               sit in the same list. Empty in the OSS build. */}
           <ExtensionSlot name="settings-auth" />
-        </GlassCard>
-      </div>
-    </div>
+        </PageCard>
+      </PageSection>
+    </PageShell>
   );
 }

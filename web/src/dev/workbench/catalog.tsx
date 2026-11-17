@@ -8,13 +8,22 @@ import {
   Guide,
   Input,
   ListSkeleton,
+  PageCard,
+  PageColumn,
+  PageEmpty,
   PageHeader,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
   Panel,
   ProPill,
   RouteFallback,
   ScreenWrap,
+  Separator,
   Skeleton,
   StatCard,
+  StatusBadge,
   TableEmpty,
   TableError,
   TableSkeleton,
@@ -394,5 +403,41 @@ export const CATALOG: CatalogEntry[] = [
       "Set up default email address and forwarders.",
     ],
     Component: () => <SetupChecklistProviderPreview />,
+  },
+  {
+    name: "PageShell",
+    group: "layout",
+    covers: ["PageShell", "PageColumn", "PageSection", "PageRows", "PageRow", "PageCard", "PageEmpty", "Separator"],
+    copy: ["Appearance", "General", "Theme", "System", "Reset", "No items yet"],
+    Component: () => (
+      <PageShell title="Appearance">
+        <PageColumn>
+          <PageSection title="General">
+            <PageRows>
+              <PageRow title="Theme" description="System">
+                <Button size="sm" variant="outline">Reset</Button>
+              </PageRow>
+              <Separator />
+              <PageEmpty title="No items yet" />
+            </PageRows>
+          </PageSection>
+          <PageCard>
+            <p className="text-sm text-muted-foreground">Card content</p>
+          </PageCard>
+        </PageColumn>
+      </PageShell>
+    ),
+  },
+  {
+    name: "StatusBadge",
+    group: "feedback",
+    covers: ["StatusBadge"],
+    copy: ["Running", "Blocked"],
+    Component: () => (
+      <div className="flex items-center gap-2">
+        <StatusBadge status="running">Running</StatusBadge>
+        <StatusBadge status="blocked">Blocked</StatusBadge>
+      </div>
+    ),
   },
 ];

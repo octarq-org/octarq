@@ -1,4 +1,4 @@
-import { Alert, Button, ExtensionSlot, ScreenWrap, PageHeader, GlassCard, Skeleton } from "@octarq/plugin-sdk";
+import { Alert, Button, ExtensionSlot, PageCard, PageHeader, PageShell, Skeleton } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, fetchOverview, Overview } from "../api";
@@ -54,35 +54,34 @@ function OverviewChecklistSection({
   ];
 
   return (
-    <GlassCard className={`relative mb-8 overflow-hidden p-6 sm:p-8 ${totalCount === 0 ? "hidden" : ""}`}>
-      <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-accent-soft blur-3xl" />
-      <button 
-        onClick={dismiss} 
-        className="absolute top-4 right-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-well transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-border"
+    <PageCard className={`relative mb-6 overflow-hidden p-5 sm:p-6 ${totalCount === 0 ? "hidden" : ""}`}>
+      <button
+        onClick={dismiss}
+        className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={t("overview.dismissChecklist")}
         title={t("overview.dismissChecklist")}
       >
         <X size={16} aria-hidden="true" />
       </button>
 
-      <div className="relative mb-7 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <div className={`flex items-center gap-2 ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
-            <Sparkles size={15} aria-hidden="true" />
-            <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em]">{t("overview.gettingStarted")}</span>
+          <div className={`flex items-center gap-1.5 text-xs font-medium ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
+            <Sparkles size={14} aria-hidden="true" />
+            <span>{t("overview.gettingStarted")}</span>
           </div>
-          <h2 className="mt-2 font-display text-[1.375rem] font-semibold tracking-[-0.02em] text-foreground">
+          <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-foreground">
             {allCompleted ? t("overview.allSetTitle") : t("overview.setupTitle")}
           </h2>
-          <p className="mt-1.5 max-w-xl text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
             {allCompleted ? t("overview.allSetDesc") : t("overview.gettingStartedDesc")}
           </p>
         </div>
 
-        <div className="w-full shrink-0 sm:w-60">
+        <div className="w-full shrink-0 sm:w-56">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{t("overview.setupProgress")}</span>
-            <span className={`font-display text-[1.375rem] font-semibold leading-none tracking-[-0.02em] ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
+            <span className="text-xs text-muted-foreground">{t("overview.setupProgress")}</span>
+            <span className={`tnum text-base font-semibold leading-none ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
             <div
@@ -95,7 +94,7 @@ function OverviewChecklistSection({
         </div>
       </div>
 
-      <div className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {steps.map((step) => (
           <SetupStep
             key={step.id}
@@ -107,7 +106,7 @@ function OverviewChecklistSection({
         ))}
         <ExtensionSlot name="home-setup-steps" />
       </div>
-    </GlassCard>
+    </PageCard>
   );
 }
 
@@ -150,8 +149,7 @@ export default function OverviewPage() {
 
   if (loadFailed) {
     return (
-      <ScreenWrap>
-        <PageHeader title={t("overview.title")} description={t("overview.description")} />
+      <PageShell width="full" title={t("overview.title")} description={t("overview.description")}>
         <Alert
           variant="danger"
           icon={<AlertCircle className="h-4 w-4" />}
@@ -163,26 +161,26 @@ export default function OverviewPage() {
         >
           {t("overview.loadFailed")}
         </Alert>
-      </ScreenWrap>
+      </PageShell>
     );
   }
 
   if (!o) return (
     // Skeleton mirrors the real layout (title + 4 stat tiles + chart) so the page doesn't jump when data arrives.
-    <div className="animate-in fade-in duration-200" aria-busy="true" aria-label={t("overview.loading")}>
+    <div className="animate-in fade-in duration-150" aria-busy="true" aria-label={t("overview.loading")}>
       <div className="mb-6 space-y-2">
         <Skeleton className="h-7 w-48" />
         <Skeleton className="h-4 w-72" />
       </div>
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="glass rounded-xl p-5">
+          <div key={i} className="rounded-lg border border-border bg-card p-5">
             <Skeleton className="mb-3 h-3 w-20" />
             <Skeleton className="h-7 w-16" />
           </div>
         ))}
       </div>
-      <div className="glass rounded-xl p-6">
+      <div className="rounded-lg border border-border bg-card p-6">
         <Skeleton className="mb-4 h-4 w-32" />
         <Skeleton className="h-48 w-full" />
       </div>
@@ -190,12 +188,7 @@ export default function OverviewPage() {
   );
 
   return (
-    <ScreenWrap>
-      <PageHeader
-        title={t("overview.title")}
-        description={t("overview.description")}
-      />
-
+    <PageShell width="full" title={t("overview.title")} description={t("overview.description")}>
       <SetupChecklistProvider>
         <OverviewChecklistSection
           dismissed={dismissed}
@@ -227,6 +220,6 @@ export default function OverviewPage() {
         name="home-rows"
         wrapper={(children) => <div className="mt-6 space-y-6">{children}</div>}
       />
-    </ScreenWrap>
+    </PageShell>
   );
 }

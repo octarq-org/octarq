@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { Badge } from "./badge";
+import { Badge, StatusBadge } from "./badge";
 
 describe("Badge", () => {
   it("renders its text children (regression: children must not be dropped)", () => {
@@ -26,5 +26,16 @@ describe("Badge", () => {
     expect((container.firstChild as HTMLElement).className).toContain("bg-success-bg");
     const { container: toneContainer } = render(<Badge tone="green">B</Badge>);
     expect((toneContainer.firstChild as HTMLElement).className).toContain("bg-success-bg");
+  });
+
+  it("maps semantic StatusBadge states to consistent status tokens", () => {
+    const { container: running } = render(<StatusBadge status="running">Running</StatusBadge>);
+    expect((running.firstChild as HTMLElement).className).toContain("bg-info-bg");
+
+    const { container: done } = render(<StatusBadge status="done">Done</StatusBadge>);
+    expect((done.firstChild as HTMLElement).className).toContain("bg-success-bg");
+
+    const { container: blocked } = render(<StatusBadge status="blocked">Blocked</StatusBadge>);
+    expect((blocked.firstChild as HTMLElement).className).toContain("bg-danger-bg");
   });
 });

@@ -1,13 +1,16 @@
-import { PageHeader, Panel, cn, useTableDensity, useSetTableDensity } from "@octarq/plugin-sdk";
+import {
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
+  Separator,
+  cn,
+  useTableDensity,
+  useSetTableDensity,
+} from "@octarq/plugin-sdk";
 import { LANGS, useTranslation, type Lang } from "../../i18n";
 import { setTheme, useTheme, type Theme } from "../../theme";
 
-// Every per-user display preference on one page. Theme and language also have
-// shortcuts in the top bar — those are for flipping mid-task; this is where the
-// choice is presented with its label and explanation.
-
-// A segmented control: one row of options, the active one lifted. Used three
-// times here, so it is a component rather than three copies of the class list.
 function Segmented<T extends string>({
   value,
   options,
@@ -23,7 +26,7 @@ function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex flex-wrap rounded-xl bg-well p-1 border border-border"
+      className="inline-flex flex-wrap rounded-lg border border-border bg-well p-0.5"
     >
       {options.map((o) => (
         <button
@@ -33,9 +36,9 @@ function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-100 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
             value === o.value
-              ? "bg-background text-foreground shadow-sm"
+              ? "bg-card text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -46,14 +49,6 @@ function Segmented<T extends string>({
   );
 }
 
-function Setting({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
-  return (
-    <Panel title={title} description={desc} className="max-w-xl space-y-3">
-      {children}
-    </Panel>
-  );
-}
-
 export function AppearanceSettings() {
   const { t, lang, setLang } = useTranslation();
   const theme = useTheme();
@@ -61,41 +56,55 @@ export function AppearanceSettings() {
   const setDensity = useSetTableDensity();
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t("appearance.title")} description={t("appearance.subtitle")} />
-
-      <Setting title={t("appearance.themeTitle")} desc={t("appearance.themeDesc")}>
-        <Segmented<Theme>
-          value={theme}
-          ariaLabel={t("appearance.themeTitle")}
-          onChange={setTheme}
-          options={[
-            { value: "light", label: t("appearance.themeLight") },
-            { value: "dark", label: t("appearance.themeDark") },
-          ]}
-        />
-      </Setting>
-
-      <Setting title={t("appearance.languageTitle")} desc={t("appearance.languageDesc")}>
-        <Segmented<Lang>
-          value={lang}
-          ariaLabel={t("appearance.languageTitle")}
-          onChange={setLang}
-          options={LANGS.map((l) => ({ value: l.code, label: l.label }))}
-        />
-      </Setting>
-
-      <Setting title={t("appearance.densityTitle")} desc={t("appearance.densityDesc")}>
-        <Segmented
-          value={density}
-          ariaLabel={t("appearance.densityTitle")}
-          onChange={setDensity}
-          options={[
-            { value: "comfortable" as const, label: t("appearance.densityComfortable") },
-            { value: "compact" as const, label: t("appearance.densityCompact") },
-          ]}
-        />
-      </Setting>
-    </div>
+    <PageShell title={t("appearance.title")} description={t("appearance.subtitle")}>
+      <PageSection>
+        <PageRows>
+          <PageRow
+            title={t("appearance.themeTitle")}
+            description={t("appearance.themeDesc")}
+            control={
+              <Segmented<Theme>
+                value={theme}
+                ariaLabel={t("appearance.themeTitle")}
+                onChange={setTheme}
+                options={[
+                  { value: "light", label: t("appearance.themeLight") },
+                  { value: "dark", label: t("appearance.themeDark") },
+                ]}
+              />
+            }
+          />
+          <Separator />
+          <PageRow
+            title={t("appearance.languageTitle")}
+            description={t("appearance.languageDesc")}
+            control={
+              <Segmented<Lang>
+                value={lang}
+                ariaLabel={t("appearance.languageTitle")}
+                onChange={setLang}
+                options={LANGS.map((l) => ({ value: l.code, label: l.label }))}
+              />
+            }
+          />
+          <Separator />
+          <PageRow
+            title={t("appearance.densityTitle")}
+            description={t("appearance.densityDesc")}
+            control={
+              <Segmented
+                value={density}
+                ariaLabel={t("appearance.densityTitle")}
+                onChange={setDensity}
+                options={[
+                  { value: "comfortable" as const, label: t("appearance.densityComfortable") },
+                  { value: "compact" as const, label: t("appearance.densityCompact") },
+                ]}
+              />
+            }
+          />
+        </PageRows>
+      </PageSection>
+    </PageShell>
   );
 }

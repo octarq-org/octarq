@@ -389,7 +389,7 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         aria-label={t("copilot.title", "AI Copilot")}
         data-layout={effectiveLayout}
         className={cn(
-          "relative z-50 flex h-full flex-col border-l border-border bg-background shadow-2xl transition-[width,max-width,transform] duration-200 animate-in slide-in-from-right",
+          "relative z-50 flex h-full flex-col border-l border-border bg-background shadow-lg transition-[width,max-width] duration-150",
           effectiveLayout === "maximized" && "w-full max-w-full",
           effectiveLayout === "split" && "w-[94vw] max-w-7xl",
           effectiveLayout === "drawer" && "w-full max-w-lg",

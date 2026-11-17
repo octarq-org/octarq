@@ -54,3 +54,17 @@ Run these and make sure they pass — don't claim a change works on inspection a
 ## Sandbox Note
 
 If a Vite build fails with "service was stopped", point `ESBUILD_BINARY_PATH` at the real Mach-O binary under `node_modules/.pnpm/@esbuild+darwin-arm64@*/.../bin/esbuild` (not the JS shim).
+
+## Design System Contract
+
+All UI in `web/` and `@octarq/plugin-sdk` must satisfy the 3-Surface Design System (verified by `pnpm lint:ui`, `pnpm lint:colors`, `tokensParity.test.ts`, and Playwright `design-system.spec.ts`):
+
+1. **Three-Surface Luminance Law**: Every surface belongs strictly to Frame (`--sidebar`), Panel (`--background`), or Card/Row (`--card` / `--well`), defined in `oklch` neutral steps in `web/src/styles.css`. Never invent a 4th background surface or substitute drop shadows for `1px` borders.
+2. **Closed SDK Layout Primitives**: Pages compose `@octarq/plugin-sdk` primitives (`PageShell`, `PageColumn`, `PageSection`, `PageRows`, `PageRow`, `PageCard`, `PageEmpty`, `Separator`, `StatusBadge`, `Field`, `DataTable`). Default page width is prose (`max-w-3xl`); use `width="full"` only for dense data tables or overview grids.
+3. **Single Control Knobs & Spatial Scale**: Use `--radius: 0.5rem` derivations and `--row-height: 3.5rem`. Navigation chrome is locked to a single-depth `240px` (`w-60`) sidebar on the Frame and a `56px` (`h-14`) utility TopBar inside `SidebarInset`.
+4. **Semantic Status Vocabulary**: Use `StatusBadge` with semantic tones (`idle`, `running`, `info`, `success`, `done`, `warning`, `paused`, `error`, `blocked`, `review`) instead of raw color names.
+5. **Anti-Patterns (CI Enforced)**:
+   - No decorative background gradients or ambient glows (`.octarq-aurora`, `blur-3xl`).
+   - No `backdrop-blur` outside modal/drawer/palette backdrop overlays.
+   - No heavy shadows (`shadow-xl`, `shadow-2xl`) or bouncy translate hover/entrance effects (`hover:-translate-y-px`).
+   - No native `alert()`, `confirm()`, or `prompt()`; use `toast` and `confirmDialog`.

@@ -8,9 +8,8 @@
 // Both are covered by the SDK's <LockedFallback status={…} />.
 import { useEffect, useState } from "react";
 import {
-  ScreenWrap,
-  PageHeader,
-  GlassCard,
+  PageShell,
+  PageCard,
   LockedFallback,
   useTranslation,
 } from "@octarq/plugin-sdk";
@@ -42,23 +41,22 @@ export default function HelloPage() {
   // neutral loading/empty state below (never a raw error).
   if (status === 402 || status === 404) {
     return (
-      <ScreenWrap>
+      <PageShell>
         <LockedFallback
           status={status}
           feature={t("hello.feature", "Hello Plugin")}
           description={t("hello.description", "A minimal example plugin.")}
         />
-      </ScreenWrap>
+      </PageShell>
     );
   }
 
   return (
-    <ScreenWrap>
-      <PageHeader
-        title={t("hello.pageTitle", "Hello Plugin")}
-        description={t("hello.pageDesc", "A minimal full-stack example plugin.")}
-      />
-      <GlassCard className="p-5">
+    <PageShell
+      title={t("hello.pageTitle", "Hello Plugin")}
+      description={t("hello.pageDesc", "A minimal full-stack example plugin.")}
+    >
+      <PageCard className="mt-6 p-5">
         {ping ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -72,7 +70,7 @@ export default function HelloPage() {
         ) : (
           <p className="text-[13px] text-muted-foreground">{t("hello.loading", "Loading…")}</p>
         )}
-      </GlassCard>
-    </ScreenWrap>
+      </PageCard>
+    </PageShell>
   );
 }

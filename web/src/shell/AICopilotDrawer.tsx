@@ -310,7 +310,7 @@ export function AICopilotDrawer() {
         role="dialog"
         aria-modal="true"
         aria-label={t("copilot.drawerTitle", "AI Copilot")}
-        className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-2xl transition-all duration-200 animate-in slide-in-from-right"
+        className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-lg transition-opacity duration-150"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
@@ -398,7 +398,7 @@ export function AICopilotDrawer() {
                     key={item.id}
                     type="button"
                     onClick={() => handleSend(item.text)}
-                    className="group flex w-full cursor-pointer items-start gap-2.5 rounded-xl border border-border bg-card p-2.5 text-left text-xs text-foreground transition-[background-color,border-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:-translate-y-px hover:border-border-strong hover:bg-surface-hover"
+                    className="group flex w-full cursor-pointer items-start gap-2.5 rounded-xl border border-border bg-card p-2.5 text-left text-xs text-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-border-strong hover:bg-surface-hover"
                   >
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-fg">
                       {item.icon}

@@ -4,11 +4,13 @@ import {
   Button,
   confirmPassword,
   Field,
-  GlassCard,
   Input,
   Modal,
-  PageHeader,
-  Panel,
+  PageCard,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
   toast,
 } from "@octarq/plugin-sdk";
 import { api, ApiError } from "../../api";
@@ -128,120 +130,125 @@ export function ProfileSettings() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("personal.profileTitle")}
-        description={t("personal.profileDesc")}
-      />
-
-      <GlassCard className="p-6 max-w-xl space-y-4">
-        <div className="flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <div className="label">{t("personal.emailLabel")}</div>
-            <div className="mt-1 truncate text-sm font-medium text-foreground">{email || "—"}</div>
+    <PageShell
+      title={t("personal.profileTitle")}
+      description={t("personal.profileDesc")}
+    >
+      <PageSection title={t("personal.emailLabel")}>
+        <PageCard className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-foreground">{email || "—"}</div>
+            </div>
+            {!changingEmail && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setChangingEmail(true);
+                }}
+              >
+                {t("personal.changeEmail")}
+              </Button>
+            )}
           </div>
-          {!changingEmail && (
-            <Button
-              variant="secondary"
-              className="shrink-0 text-xs"
-              onClick={() => {
-                setChangingEmail(true);
-              }}
-            >
-              {t("personal.changeEmail")}
-            </Button>
-          )}
-        </div>
 
-        {changingEmail && (
-          <form onSubmit={handleEmailUpdate} className="space-y-4 border-t border-border pt-4">
-            <Field label={t("personal.newEmailLabel")} hint={t("personal.newEmailHint")}>
+          {changingEmail && (
+            <form onSubmit={handleEmailUpdate} className="space-y-4 border-t border-border pt-4">
+              <Field label={t("personal.newEmailLabel")} hint={t("personal.newEmailHint")}>
+                <Input
+                  type="email"
+                  spellCheck={false}
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder={t("personal.newEmailPlaceholder")}
+                  autoComplete="email"
+                  autoFocus
+                  required
+                />
+              </Field>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setChangingEmail(false);
+                    setNewEmail("");
+                  }}
+                >
+                  {t("personal.cancel")}
+                </Button>
+                <Button type="submit" variant="primary" disabled={emailBusy || !newEmail}>
+                  {emailBusy ? t("personal.updating") : t("personal.continue")}
+                </Button>
+              </div>
+            </form>
+          )}
+        </PageCard>
+      </PageSection>
+
+      <PageSection title={t("personal.updatePassword")}>
+        <PageCard>
+          <form onSubmit={updatePassword} className="space-y-5">
+            <Field label={t("personal.currentPasswordLabel")}>
               <Input
-                type="email"
-                spellCheck={false}
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder={t("personal.newEmailPlaceholder")}
-                autoComplete="email"
-                autoFocus
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
                 required
               />
             </Field>
 
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setChangingEmail(false);
-                  setNewEmail("");
-                }}
-              >
-                {t("personal.cancel")}
-              </Button>
-              <Button type="submit" variant="primary" disabled={emailBusy || !newEmail}>
-                {emailBusy ? t("personal.updating") : t("personal.continue")}
+            <Field label={t("personal.newPasswordLabel")} hint={t("personal.newPasswordHint")}>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </Field>
+
+            <Field label={t("personal.confirmPasswordLabel")}>
+              <Input
+                type="password"
+                value={repeatPassword}
+                onChange={(e) => setRepeatPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </Field>
+
+            <div className="pt-2 border-t border-border flex justify-end">
+              <Button type="submit" variant="primary" disabled={busy || !password || !currentPassword}>
+                {busy ? t("personal.updating") : t("personal.updatePassword")}
               </Button>
             </div>
           </form>
-        )}
-      </GlassCard>
+        </PageCard>
+      </PageSection>
 
-      <GlassCard className="p-6 max-w-xl">
-        <form onSubmit={updatePassword} className="space-y-5">
-          <Field label={t("personal.currentPasswordLabel")}>
-            <Input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              required
-            />
-          </Field>
-
-          <Field label={t("personal.newPasswordLabel")} hint={t("personal.newPasswordHint")}>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              required
-            />
-          </Field>
-
-          <Field label={t("personal.confirmPasswordLabel")}>
-            <Input
-              type="password"
-              value={repeatPassword}
-              onChange={(e) => setRepeatPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              required
-            />
-          </Field>
-
-          <div className="pt-2 border-t border-border flex justify-end">
-            <Button type="submit" variant="primary" disabled={busy || !password || !currentPassword}>
-              {busy ? t("personal.updating") : t("personal.updatePassword")}
-            </Button>
-          </div>
-        </form>
-      </GlassCard>
-
-      <Panel
-        title={<span className="text-danger-fg">{t("personal.dangerZone")}</span>}
-        icon={<Trash2 size={20} className="text-danger-fg" />}
-        description={t("personal.deleteAccountDesc")}
-        className="border-danger-border bg-danger-bg/50 space-y-6"
-      >
-        <div className="pt-2">
-          <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-            {t("personal.deleteAccountButton")}
-          </Button>
-        </div>
-      </Panel>
+      <PageSection title={<span className="text-danger-fg">{t("personal.dangerZone")}</span>}>
+        <PageRows className="border-danger-border">
+          <PageRow
+            danger
+            icon={<Trash2 className="text-danger-fg" />}
+            title={t("personal.deleteAccountButton")}
+            description={t("personal.deleteAccountDesc")}
+            control={
+              <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
+                {t("personal.deleteAccountButton")}
+              </Button>
+            }
+          />
+        </PageRows>
+      </PageSection>
 
       {showDeleteModal && (
         <Modal
@@ -288,6 +295,6 @@ export function ProfileSettings() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   );
 }

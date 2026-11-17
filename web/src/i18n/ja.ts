@@ -97,6 +97,8 @@ export const ja = {
     account: "アカウントメニュー",
     personalSettings: "個人設定",
     settings: "設定",
+    backToWorkspace: "ワークスペースに戻る",
+    breadcrumb: "パンくずリスト",
   },
   command: {
     create: "作成",

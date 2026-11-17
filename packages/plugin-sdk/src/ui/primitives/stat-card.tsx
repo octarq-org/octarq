@@ -16,15 +16,13 @@ export interface StatCardProps {
 }
 
 export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
-  ({ label, value, delta, positive, icon, index = 0, onClick, className }, ref) => (
+  ({ label, value, delta, positive, icon, onClick, className }, ref) => (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
       onClick={onClick}
-      // When clickable, expose button semantics so it's keyboard-operable
-      // (Enter/Space) and focus-visible — not just mouse-clickable.
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={
@@ -38,20 +36,20 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
           : undefined
       }
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-[transform,border-color,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)]",
+        "group relative overflow-hidden rounded-lg border border-border bg-card p-5 transition-colors duration-100 ease-out",
         onClick
-          ? "cursor-pointer hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[var(--shadow-float)] focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) active:scale-[0.99]"
+          ? "cursor-pointer hover:border-border-strong hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           : "",
         className,
       )}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-[0.09em] text-muted-foreground">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
         {icon && (
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-fg transition-transform duration-[var(--dur-base)] ease-[var(--ease-out)] group-hover:scale-105"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-well text-muted-foreground"
             aria-hidden="true"
           >
             {icon}
@@ -59,7 +57,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
         )}
       </div>
       <div className="flex items-end gap-2.5">
-        <span className="tnum font-display text-[1.75rem] font-semibold leading-none tracking-[-0.03em] text-foreground">
+        <span className="tnum text-2xl font-semibold leading-none tracking-tight text-foreground">
           {value}
         </span>
         {delta && (

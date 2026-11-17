@@ -97,6 +97,8 @@ export const es = {
     account: "Menú de cuenta",
     personalSettings: "Ajustes personales",
     settings: "Configuración",
+    backToWorkspace: "Volver al espacio de trabajo",
+    breadcrumb: "Ruta de navegación",
   },
   command: {
     create: "Crear",

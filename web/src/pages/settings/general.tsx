@@ -1,4 +1,17 @@
-import { Field, Input, Modal, PageHeader, Panel, Badge, Button, toast, Code, ExtensionSlot } from "@octarq/plugin-sdk";
+import {
+  Button,
+  Code,
+  ExtensionSlot,
+  Field,
+  Input,
+  Modal,
+  PageCard,
+  PageRow,
+  PageRows,
+  PageSection,
+  PageShell,
+  toast,
+} from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type OrgSlug, type Settings } from "../../api";
 import { ShieldAlert } from "lucide-react";
@@ -41,51 +54,53 @@ function WorkspaceAddress() {
   const changed = slug.trim() !== "" && slug.trim() !== current.slug;
 
   return (
-    <Panel title={t("settings.workspaceAddress")}>
-      <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
-        <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
-          <div className="flex gap-2">
-            <Input
-              className="flex-1 text-sm font-mono"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="acme"
-              required
-            />
-            <Button type="submit" variant="primary" disabled={!changed} className="shrink-0">
-              {t("settings.update")}
-            </Button>
-          </div>
-        </Field>
-      </form>
-
-      {confirming && (
-        <Modal title={t("settings.workspaceAddressConfirmTitle")} onClose={() => setConfirming(false)}>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t("settings.workspaceAddressConfirmDesc", { from: current.slug, to: slug.trim() })}
-            </p>
-            <ul className="space-y-2 rounded-xl border border-border bg-well p-4 text-xs text-muted-foreground">
-              <li>
-                <div>{t("settings.workspaceAddressBreaksBilling")}</div>
-                <code className="mt-1 block break-all text-[11px] text-muted-foreground">/api/webhook/{slug.trim()}/billing/…</code>
-              </li>
-              <li>
-                <div>{t("settings.workspaceAddressBreaksSso")}</div>
-                <code className="mt-1 block break-all text-[11px] text-muted-foreground">/api/sso/{slug.trim()}/callback</code>
-              </li>
-            </ul>
-            <p className="text-xs text-muted-foreground">{t("settings.workspaceAddressNoAlias")}</p>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="ghost" onClick={() => setConfirming(false)}>{t("settings.cancel")}</Button>
-              <Button variant="primary" onClick={save} disabled={busy}>
-                {busy ? t("settings.updating") : t("settings.workspaceAddressConfirm")}
+    <PageSection title={t("settings.workspaceAddress")}>
+      <PageCard>
+        <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
+          <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
+            <div className="flex gap-2">
+              <Input
+                className="flex-1 text-sm font-mono"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="acme"
+                required
+              />
+              <Button type="submit" variant="primary" disabled={!changed} className="shrink-0">
+                {t("settings.update")}
               </Button>
             </div>
-          </div>
-        </Modal>
-      )}
-    </Panel>
+          </Field>
+        </form>
+
+        {confirming && (
+          <Modal title={t("settings.workspaceAddressConfirmTitle")} onClose={() => setConfirming(false)}>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {t("settings.workspaceAddressConfirmDesc", { from: current.slug, to: slug.trim() })}
+              </p>
+              <ul className="space-y-2 rounded-lg border border-border bg-well p-4 text-xs text-muted-foreground">
+                <li>
+                  <div>{t("settings.workspaceAddressBreaksBilling")}</div>
+                  <code className="mt-1 block break-all text-[11px] text-muted-foreground">/api/webhook/{slug.trim()}/billing/…</code>
+                </li>
+                <li>
+                  <div>{t("settings.workspaceAddressBreaksSso")}</div>
+                  <code className="mt-1 block break-all text-[11px] text-muted-foreground">/api/sso/{slug.trim()}/callback</code>
+                </li>
+              </ul>
+              <p className="text-xs text-muted-foreground">{t("settings.workspaceAddressNoAlias")}</p>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="ghost" onClick={() => setConfirming(false)}>{t("settings.cancel")}</Button>
+                <Button variant="primary" onClick={save} disabled={busy}>
+                  {busy ? t("settings.updating") : t("settings.workspaceAddressConfirm")}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </PageCard>
+    </PageSection>
   );
 }
 
@@ -106,9 +121,11 @@ function TenantAddress() {
   if (!subdomain) return null;
 
   return (
-    <Panel title={t("settings.tenantSubdomain")} description={t("settings.tenantSubdomainHint")}>
-      <Code>{subdomain}</Code>
-    </Panel>
+    <PageSection title={t("settings.tenantSubdomain")} description={t("settings.tenantSubdomainHint")}>
+      <PageCard>
+        <Code>{subdomain}</Code>
+      </PageCard>
+    </PageSection>
   );
 }
 
@@ -190,21 +207,21 @@ export function GeneralSettings() {
   const isAdminOrOwner = role === "admin" || role === "owner";
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t("settings.generalTitle")} description={t("settings.generalDescription")} />
-
-      <Panel title={t("settings.workspaceProfile")}>
-        <form onSubmit={renameWorkspace} className="max-w-md">
-          <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>
-            <div className="flex gap-2">
-              <Input className="flex-1 text-sm" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme Production" required />
-              <Button type="submit" variant="primary" disabled={workspaceBusy || !workspaceName.trim()} className="shrink-0">
-                {workspaceBusy ? t("settings.updating") : t("settings.update")}
-              </Button>
-            </div>
-          </Field>
-        </form>
-      </Panel>
+    <PageShell title={t("settings.generalTitle")} description={t("settings.generalDescription")}>
+      <PageSection title={t("settings.workspaceProfile")}>
+        <PageCard>
+          <form onSubmit={renameWorkspace} className="max-w-md">
+            <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>
+              <div className="flex gap-2">
+                <Input className="flex-1 text-sm" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme Production" required />
+                <Button type="submit" variant="primary" disabled={workspaceBusy || !workspaceName.trim()} className="shrink-0">
+                  {workspaceBusy ? t("settings.updating") : t("settings.update")}
+                </Button>
+              </div>
+            </Field>
+          </form>
+        </PageCard>
+      </PageSection>
 
       {role === "owner" && <WorkspaceAddress />}
 
@@ -213,30 +230,37 @@ export function GeneralSettings() {
       <ExtensionSlot name="settings-workspace" />
 
       {isAdminOrOwner && (
-        <Panel title={t("export.title")} description={t("export.desc")}>
-          <div className="pt-2">
-            <Button variant="outline" onClick={handleExport} disabled={exporting}>
-              {exporting ? t("export.downloading") : t("export.button")}
-            </Button>
-          </div>
-        </Panel>
+        <PageSection title={t("export.title")}>
+          <PageRows>
+            <PageRow
+              title={t("export.title")}
+              description={t("export.desc")}
+              control={
+                <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+                  {exporting ? t("export.downloading") : t("export.button")}
+                </Button>
+              }
+            />
+          </PageRows>
+        </PageSection>
       )}
 
       {isAdminOrOwner && (
-        <>
-          <Panel
-            title={<span className="text-danger-fg">{t("settings.dangerZone")}</span>}
-            icon={<ShieldAlert size={20} className="text-danger-fg" />}
-            description={t("settings.dangerZoneDesc")}
-            className="border-danger-border bg-danger-bg/50 space-y-6"
-          >
-            <div className="pt-2">
-              <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-                {t("settings.deleteWorkspace")}
-              </Button>
-            </div>
-          </Panel>
-        </>
+        <PageSection title={<span className="text-danger-fg">{t("settings.dangerZone")}</span>}>
+          <PageRows className="border-danger-border">
+            <PageRow
+              danger
+              icon={<ShieldAlert className="text-danger-fg" />}
+              title={t("settings.deleteWorkspace")}
+              description={t("settings.dangerZoneDesc")}
+              control={
+                <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
+                  {t("settings.deleteWorkspace")}
+                </Button>
+              }
+            />
+          </PageRows>
+        </PageSection>
       )}
 
       {showDeleteModal && (
@@ -270,6 +294,6 @@ export function GeneralSettings() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   );
 }

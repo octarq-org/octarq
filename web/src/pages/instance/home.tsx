@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, GlassCard, PageHeader, cn } from "@octarq/plugin-sdk";
+import { Alert, Badge, Button, PageShell, PageSection, PageCard, cn } from "@octarq/plugin-sdk";
 // The instance console home: a flat overview of the deployment. Top keeps the
 // health summary (every readiness check, including non-actionable ones like
 // database); when fixable checks need work, a blocked banner and progress bar
@@ -17,123 +17,123 @@ export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; o
   const allOperational = !issues && checks.every((c) => c.status === "ok");
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            {t("instance.healthTitle")}
-            {issues && <Badge tone="warning">{t("instance.needsAttention")}</Badge>}
-          </span>
-        }
-        description={t("instance.healthDesc")}
-        action={
-          <Button variant="outline" onClick={onRefresh}>
-            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
-            {t("instance.wizardRefresh")}
-          </Button>
-        }
-      />
-
+    <PageShell
+      title={
+        <span className="inline-flex items-center gap-2">
+          {t("instance.healthTitle")}
+          {issues && <Badge tone="warning">{t("instance.needsAttention")}</Badge>}
+        </span>
+      }
+      description={t("instance.healthDesc")}
+      action={
+        <Button variant="outline" onClick={onRefresh}>
+          <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+          {t("instance.wizardRefresh")}
+        </Button>
+      }
+    >
       {issues && (
-        <>
+        <div className="mt-6 space-y-4">
           {blockedCount > 0 && (
-            <Alert variant="danger" icon={<XCircle className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+            <Alert variant="danger" icon={<XCircle className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-lg">
               {t("instance.blockedBanner", { count: blockedCount })}
             </Alert>
           )}
 
-          <GlassCard className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <PageCard className="mt-0 flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <span className="block text-xs text-muted-foreground">{t("instance.wizardProgress", { done, total: steps.length })}</span>
               </div>
               <div className="w-32 bg-border h-2 rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  className="h-full rounded-full bg-primary transition-all duration-300"
                   style={{ width: `${steps.length ? Math.round((done / steps.length) * 100) : 0}%` }}
                 />
               </div>
             </div>
-          </GlassCard>
-        </>
+          </PageCard>
+        </div>
       )}
 
       {allOperational && (
-        <GlassCard className="flex items-center gap-3 border-success-border/60 bg-success-bg/30 p-5">
+        <PageCard className="mt-6 flex items-center gap-3 border-success-border/60 bg-success-bg/30 p-5">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-success-fg" strokeWidth={1.75} />
           <p className="text-sm font-medium text-success-fg">{t("instance.allOperational")}</p>
-        </GlassCard>
+        </PageCard>
       )}
 
-      <GlassCard className="overflow-hidden !p-0">
-        <div className="divide-y divide-border/40">
-          {checks.map((check) => {
-            const state = stepState(check.status);
-            const badge = stepBadge(check.status);
-            return (
-              <div
-                key={check.id}
-                data-state={state}
-                className="flex items-start gap-3 px-5 py-4"
-              >
-                {state === "blocked" ? (
-                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-fg" strokeWidth={1.75} />
-                ) : state === "degraded" ? (
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-fg" strokeWidth={1.75} />
-                ) : (
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success-fg" strokeWidth={1.75} />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-foreground">
-                      {t(`instance.check.${check.id}`, check.title)}
-                    </span>
-                    <Badge tone={badge.tone}>{t(badge.key)}</Badge>
+      <PageSection>
+        <PageCard className="mt-0 overflow-hidden p-0">
+          <div className="divide-y divide-border/40">
+            {checks.map((check) => {
+              const state = stepState(check.status);
+              const badge = stepBadge(check.status);
+              return (
+                <div
+                  key={check.id}
+                  data-state={state}
+                  className="flex items-start gap-3 px-5 py-4"
+                >
+                  {state === "blocked" ? (
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-fg" strokeWidth={1.75} />
+                  ) : state === "degraded" ? (
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-fg" strokeWidth={1.75} />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success-fg" strokeWidth={1.75} />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {t(`instance.check.${check.id}`, check.title)}
+                      </span>
+                      <Badge tone={badge.tone}>{t(badge.key)}</Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      {(() => {
+                        if (check.id === "registration" && check.status === "ok") {
+                          if (check.detail.includes("disabled")) {
+                            return t("instance.checkDetail.registration.disabled", check.detail);
+                          }
+                          return t("instance.checkDetail.registration.ok", check.detail);
+                        }
+                        if (check.id === "secret-key") {
+                          if (check.detail === "configured") {
+                            return t("instance.checkDetail.secret-key.configured", check.detail);
+                          }
+                          if (check.detail.includes("refuse to boot") || check.status === "degraded") {
+                            return t("instance.checkDetail.secret-key.degraded", check.detail);
+                          }
+                          if (check.detail.includes("shorter than")) {
+                            return t("instance.checkDetail.secret-key.dev", check.detail);
+                          }
+                        }
+                        if (check.id === "hardening") {
+                          return t("instance.checkDetail.hardening.ok", t("instance.checkDetail.hardening.dev", check.detail));
+                        }
+                        return t(`instance.checkDetail.${check.id}.${check.status}`, check.detail);
+                      })()}
+                    </p>
                   </div>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    {(() => {
-                      if (check.id === "registration" && check.status === "ok") {
-                        if (check.detail.includes("disabled")) {
-                          return t("instance.checkDetail.registration.disabled", check.detail);
-                        }
-                        return t("instance.checkDetail.registration.ok", check.detail);
-                      }
-                      if (check.id === "secret-key") {
-                        if (check.detail === "configured") {
-                          return t("instance.checkDetail.secret-key.configured", check.detail);
-                        }
-                        if (check.detail.includes("refuse to boot") || check.status === "degraded") {
-                          return t("instance.checkDetail.secret-key.degraded", check.detail);
-                        }
-                        if (check.detail.includes("shorter than")) {
-                          return t("instance.checkDetail.secret-key.dev", check.detail);
-                        }
-                      }
-                      if (check.id === "hardening") {
-                        return t("instance.checkDetail.hardening.ok", t("instance.checkDetail.hardening.dev", check.detail));
-                      }
-                      return t(`instance.checkDetail.${check.id}.${check.status}`, check.detail);
-                    })()}
-                  </p>
+                  {state !== "ok" && check.fixPath && (
+                    <a
+                      href={`/admin${check.fixPath}`}
+                      className={cn(
+                        "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                        state === "blocked"
+                          ? "border-danger-border bg-danger-bg text-danger-fg hover:bg-danger-fg/10"
+                          : "border-warning-border bg-warning-bg text-warning-fg hover:bg-warning-fg/10",
+                      )}
+                    >
+                      {t("instance.stepFix")}
+                    </a>
+                  )}
                 </div>
-                {state !== "ok" && check.fixPath && (
-                  <a
-                    href={`/admin${check.fixPath}`}
-                    className={cn(
-                      "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-                      state === "blocked"
-                        ? "border-danger-border bg-danger-bg text-danger-fg hover:bg-danger-fg/10"
-                        : "border-warning-border bg-warning-bg text-warning-fg hover:bg-warning-fg/10",
-                    )}
-                  >
-                    {t("instance.stepFix")}
-                  </a>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </GlassCard>
-    </div>
+              );
+            })}
+          </div>
+        </PageCard>
+      </PageSection>
+    </PageShell>
   );
 }

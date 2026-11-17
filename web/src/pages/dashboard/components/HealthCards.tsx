@@ -1,4 +1,4 @@
-import { GlassCard, Badge } from "@octarq/plugin-sdk";
+import { PageCard, Badge } from "@octarq/plugin-sdk";
 import {
   Activity,
   AlertCircle,
@@ -76,7 +76,7 @@ export function RuntimeCard({ provider }: { provider: ProviderHealthReport }) {
 
   return (
     <div data-testid="health-card-runtime" className="h-full">
-      <GlassCard className="p-5 flex flex-col justify-between h-full">
+      <PageCard className="mt-0 p-5 flex flex-col justify-between h-full">
         <div>
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2.5">
@@ -124,7 +124,7 @@ export function RuntimeCard({ provider }: { provider: ProviderHealthReport }) {
           </div>
         </div>
       </div>
-    </GlassCard>
+    </PageCard>
     </div>
   );
 }
@@ -147,7 +147,7 @@ export function DatabaseCard({ provider }: { provider: ProviderHealthReport }) {
 
   return (
     <div data-testid="health-card-database" className="h-full">
-      <GlassCard className="p-5 flex flex-col justify-between h-full">
+      <PageCard className="mt-0 p-5 flex flex-col justify-between h-full">
         <div>
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2.5">
@@ -199,7 +199,7 @@ export function DatabaseCard({ provider }: { provider: ProviderHealthReport }) {
             </span>
           </div>
         </div>
-      </GlassCard>
+      </PageCard>
     </div>
   );
 }
@@ -227,7 +227,7 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
 
   return (
     <div data-testid="health-card-disk" className="h-full">
-      <GlassCard className="p-5 flex flex-col justify-between h-full">
+      <PageCard className="mt-0 p-5 flex flex-col justify-between h-full">
         <div>
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2.5">
@@ -288,7 +288,7 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
             </div>
           </div>
         </div>
-      </GlassCard>
+      </PageCard>
     </div>
   );
 }
@@ -296,7 +296,7 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
 export function GenericProviderCard({ provider }: { provider: ProviderHealthReport }) {
   return (
     <div data-testid={`health-card-${provider.name}`} className="h-full">
-      <GlassCard className="p-5 flex flex-col justify-between h-full">
+      <PageCard className="mt-0 p-5 flex flex-col justify-between h-full">
         <div>
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ export function GenericProviderCard({ provider }: { provider: ProviderHealthRepo
             ))}
           </div>
         </div>
-      </GlassCard>
+      </PageCard>
     </div>
   );
 }

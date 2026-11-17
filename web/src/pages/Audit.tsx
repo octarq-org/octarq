@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import { z } from "zod";
 import { api, AuditLog } from "../api";
-import { timeAgo, ScreenWrap, PageHeader, Badge } from "@octarq/plugin-sdk";
-import { useTranslation } from "@octarq/plugin-sdk";
+import { Badge, PageShell, timeAgo, useTranslation } from "@octarq/plugin-sdk";
 import { ProTable, ProColumn } from "../components/pro-table";
 
 // Runtime type boundary safety using Zod schema
@@ -140,12 +139,11 @@ export default function AuditLogPage() {
   };
 
   return (
-    <ScreenWrap>
-      <PageHeader
-        title={t("audit.pageTitle")}
-        description={t("audit.pageDesc")}
-      />
-
+    <PageShell
+      width="full"
+      title={t("audit.pageTitle")}
+      description={t("audit.pageDesc")}
+    >
       <ProTable<AuditLog>
         columns={columns}
         request={request}
@@ -159,6 +157,6 @@ export default function AuditLogPage() {
         emptyText={t("audit.emptyState")}
         ariaLabel={t("audit.loading")}
       />
-    </ScreenWrap>
+    </PageShell>
   );
 }

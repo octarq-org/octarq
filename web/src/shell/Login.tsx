@@ -189,24 +189,11 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
   const isMailUnavailableErr = err.toLowerCase().includes("cannot send email");
 
   return (
-    <div className="octarq-aurora relative grid h-full place-items-center overflow-hidden p-4 sm:p-8">
-      {/* A single centred halo behind the card. It is decorative only: the card
-          itself stays the highest-contrast object on the page, which is what a
-          sign-in form should be. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(620px 360px at 50% 18%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%)",
-        }}
-      />
-      <div className="glass-strong relative w-full max-w-[26rem] overflow-hidden rounded-3xl p-7 shadow-[var(--shadow-float)] sm:p-9">
-        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-border to-transparent" />
-
+    <div className="relative grid h-full place-items-center overflow-y-auto bg-sidebar p-4 sm:p-8">
+      <div className="relative w-full max-w-[25rem] overflow-hidden rounded-xl border border-border bg-card p-7 shadow-[var(--shadow-float)] sm:p-8">
         <div className="mb-6 text-center">
-          <BrandMark size="lg" className="mx-auto mb-5" />
-          <h1 className="font-display text-[1.625rem] font-semibold leading-tight tracking-[-0.03em] text-foreground">
+          <BrandMark size="lg" className="mx-auto mb-4" />
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
             {pendingVerifyEmail
               ? t("app.registerVerifyTitle")
               : mode === "register"

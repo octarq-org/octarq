@@ -1,4 +1,4 @@
-import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input, Tabs } from "@octarq/plugin-sdk";
+import { PageShell, PageSection, PageCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input, Tabs } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
@@ -333,13 +333,11 @@ export function NotificationChannels() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("settings.alertsTitle")}
-        description={t("settings.alertsDescription")}
-      />
-
-      <div className="max-w-md">
+    <PageShell
+      title={t("settings.alertsTitle")}
+      description={t("settings.alertsDescription")}
+    >
+      <div className="mt-6 max-w-md">
         <Tabs
           value={activeTab}
           onValueChange={(val) => setTab(val)}
@@ -370,7 +368,7 @@ export function NotificationChannels() {
 
       {activeTab === "channels" ? (
         <>
-          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-accent-soft text-xs text-foreground">
+          <div className="mt-6 flex items-center justify-between p-3 rounded-lg border border-border bg-card text-xs text-foreground">
             <div className="flex items-center gap-2">
               <Blocks className="h-4 w-4 text-accent-fg shrink-0" />
               <span>{t("settings.commIntegrationsBanner")}</span>
@@ -383,11 +381,8 @@ export function NotificationChannels() {
             </NavLink>
           </div>
 
-          <div>
-            <h3 className="eyebrow mb-2 px-1">
-              {t("settings.notifyProvidersHeading", "Notification providers")}
-            </h3>
-            <GlassCard className="overflow-hidden !p-0">
+          <PageSection title={t("settings.notifyProvidersHeading", "Notification providers")}>
+            <PageCard className="mt-0 overflow-hidden p-0">
               {loading ? (
                 <div className="py-10 text-center text-sm text-muted-foreground">
                   {t("settings.loadingLower")}
@@ -413,11 +408,13 @@ export function NotificationChannels() {
                   />
                 ))
               )}
-            </GlassCard>
-          </div>
+            </PageCard>
+          </PageSection>
         </>
       ) : (
-        <PreferencesPage embedded />
+        <div className="mt-6">
+          <PreferencesPage embedded />
+        </div>
       )}
 
       {editing && (
@@ -431,6 +428,6 @@ export function NotificationChannels() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
