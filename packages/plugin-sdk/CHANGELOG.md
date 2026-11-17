@@ -1,5 +1,11 @@
 # @octarq-org/plugin-sdk
 
+## 0.24.1
+
+### Patch Changes
+
+- b7d9cfe: Add distinct `--review-*` status tokens, bind `StatusBadge` to semantic `tone` prop, replace hardcoded SVG chart RGB colors with CSS variables, and flatten remaining `GlassCard` error/locked/skeleton surfaces.
+
 ## 0.24.0
 
 ### Minor Changes
