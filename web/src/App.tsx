@@ -17,6 +17,7 @@ import { Login } from "./shell/Login";
 import { performPostLoginNavigation } from "./shell/loginRedirect";
 import { uiOnboarding } from "./plugin-sdk";
 import { AppRoutes } from "./shell/AppRoutes";
+import { pluginRouteLayout } from "./plugins/PluginRoutes";
 import { EmailVerifyBanner } from "./shell/EmailVerifyBanner";
 import { CreateOrgModal } from "./shell/CreateOrgModal";
 import { useShellEvents } from "./shell/useShellEvents";
@@ -259,8 +260,13 @@ function Shell({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  const fullLayout = pluginRouteLayout(location.pathname) === "full";
   const [cmdOpen, setCmdOpen] = useState(false);
   useEffect(() => {
+    if (fullLayout) {
+      setCmdOpen(false);
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -269,7 +275,7 @@ function Shell({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [fullLayout]);
 
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
 
@@ -345,15 +351,33 @@ function Shell({
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
 
+  const skipLink = (
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-primary-solid focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+    >
+      {t("app.skipToContent")}
+    </a>
+  );
+
+  // Full-bleed plugin routes own the viewport without host chrome.
+  if (fullLayout) {
+    return (
+      <RoleProvider value={roleCtx}>
+        <div key={orgEpoch} className="h-dvh w-full overflow-hidden bg-background text-foreground">
+          {skipLink}
+          <main ref={mainRef} id="main-content" tabIndex={-1} className="h-full w-full overflow-y-auto outline-none">
+            <AppRoutes pluginGateCtxValue={pluginGateCtxValue} />
+          </main>
+        </div>
+      </RoleProvider>
+    );
+  }
+
   return (
     <RoleProvider value={roleCtx}>
       <div className="flex h-dvh w-full overflow-hidden bg-sidebar text-foreground">
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-[var(--radius)] focus:bg-primary-solid focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
-        >
-          {t("app.skipToContent")}
-        </a>
+        {skipLink}
 
         {!panelCollapsed && (
           <button
