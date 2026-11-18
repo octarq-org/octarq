@@ -10,11 +10,8 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// cryptoMCPPlugin refuses to start without a crypto vault, the shape
-// octarq-plugins/twofa uses. It is the reason the MCP path must validate
-// against the host the stdio mount builds: that mount hands every plugin a
-// no-op host whose Crypto() is nil, so a validator run there refuses a plugin
-// whose tools could never encrypt.
+// cryptoMCPPlugin requires a CryptoVault at validation time, the shape Core's
+// Vault plugin uses so MCP credential tools can encrypt/decrypt secrets.
 type cryptoMCPPlugin struct {
 	refuse     error
 	validated  bool
@@ -38,25 +35,26 @@ func (p *cryptoMCPPlugin) Validate(_ context.Context, host plugin.Host) error {
 	return nil
 }
 
-// TestRunMCPValidatesAgainstTheHostTheMountBuilds pins the host choice. The
-// stdio mount re-mounts every plugin through buildServerInstance with a no-op
-// host, and a plugin caches the host it is handed at Mount, so the no-op host is
-// the one its tools read from. Validating the host RunMCP built would pass this
-// plugin and expose tools that fail on every call.
+// TestRunMCPValidatesAgainstTheHostTheMountBuilds pins that RunMCP wires the
+// stdio mount with CryptoVault so Vault and crypto-dependent MCP plugins pass
+// validation and expose their tools, while Validate still receives the stdio
+// host surface.
 func TestRunMCPValidatesAgainstTheHostTheMountBuilds(t *testing.T) {
 	a := bootApp(t)
 	p := &cryptoMCPPlugin{}
 	a.Use(p)
 
-	err := a.RunMCP(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := a.RunMCP(ctx)
 	if !p.validated {
 		t.Fatal("RunMCP did not validate the plugin")
 	}
-	if err == nil || !strings.Contains(err.Error(), "encryption unavailable") {
-		t.Fatalf("RunMCP = %v, want the plugin refused: the stdio mount gives it no vault", err)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("RunMCP = %v, want nil or context.Canceled when stdio host provides CryptoVault", err)
 	}
-	if p.registered {
-		t.Fatal("tools were registered for a plugin the stdio mount cannot serve")
+	if !p.registered {
+		t.Fatal("crypto-dependent MCP plugin tools were not registered")
 	}
 }
 

@@ -39,10 +39,28 @@ func (p *Plugin) MigrateLegacyCoreSecrets(ctx context.Context) error {
 	return nil
 }
 
+func (p *Plugin) tableHasColumns(table string, cols ...string) bool {
+	if p.db == nil || !p.db.Migrator().HasTable(table) {
+		return false
+	}
+	colTypes, err := p.db.Migrator().ColumnTypes(table)
+	if err != nil {
+		return false
+	}
+	present := make(map[string]bool, len(colTypes))
+	for _, ct := range colTypes {
+		present[strings.ToLower(ct.Name())] = true
+	}
+	for _, c := range cols {
+		if !present[strings.ToLower(c)] {
+			return false
+		}
+	}
+	return true
+}
+
 func (p *Plugin) migrateLegacyLLMProviders(ctx context.Context, c plugin.CryptoVault) error {
-	if !p.db.Migrator().HasTable("llm_gateway_providers") ||
-		!p.db.Migrator().HasColumn("llm_gateway_providers", "api_key_encr") ||
-		!p.db.Migrator().HasColumn("llm_gateway_providers", "vault_item_id") {
+	if !p.tableHasColumns("llm_gateway_providers", "api_key_encr", "vault_item_id") {
 		return nil
 	}
 	type legacyLLMRow struct {
@@ -98,9 +116,7 @@ func (p *Plugin) migrateLegacyLLMProviders(ctx context.Context, c plugin.CryptoV
 }
 
 func (p *Plugin) migrateLegacyWebhooks(ctx context.Context, c plugin.CryptoVault) error {
-	if !p.db.Migrator().HasTable("webhooks") ||
-		!p.db.Migrator().HasColumn("webhooks", "secret") ||
-		!p.db.Migrator().HasColumn("webhooks", "vault_item_id") {
+	if !p.tableHasColumns("webhooks", "secret", "vault_item_id") {
 		return nil
 	}
 	type legacyWebhookRow struct {
@@ -143,8 +159,7 @@ func (p *Plugin) migrateLegacyWebhooks(ctx context.Context, c plugin.CryptoVault
 }
 
 func (p *Plugin) migrateLegacyNotifyChannels(ctx context.Context, c plugin.CryptoVault) error {
-	if !p.db.Migrator().HasTable("notification_channels") ||
-		!p.db.Migrator().HasColumn("notification_channels", "vault_item_id") {
+	if !p.tableHasColumns("notification_channels", "config", "vault_item_id") {
 		return nil
 	}
 	type legacyChanRow struct {

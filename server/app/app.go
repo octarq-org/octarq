@@ -196,8 +196,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 	// it is given at Mount, so the second mount is the one its tools read from.
 	// A plugin that needs a runtime service has to refuse here, where the boot
 	// stops, instead of exposing tools that fail on every call.
+	// Validate against the exact Host surface the stdio MCP mount gives plugins
+	// in RunStdio (which includes CryptoVault when configured, while keeping HTTP
+	// session hooks absent).
 	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-	err := plugin.ValidateAll(valCtx, a.plugins, plugin.EnsureHost(nil))
+	err := plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
 	valCancel()
 	if err != nil {
 		return err
@@ -212,7 +215,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		}
 	}
 
-	return mcp.RunWithPlugins(ctx, a.plugins, a.mcpTierGate)
+	return mcp.RunStdio(ctx, a.gdb, a.plugins, pctx.Host, a.mcpTierGate)
 }
 
 // Run migrates the schema (core + plugin models), builds the HTTP server, and
@@ -381,8 +384,11 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
+	// Validate against the exact Host surface the stdio MCP mount gives plugins
+	// in RunStdio (which includes CryptoVault when configured, while keeping HTTP
+	// session hooks absent).
 	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-	err := plugin.ValidateAll(valCtx, a.plugins, pctx.Host)
+	err := plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
 	valCancel()
 	if err != nil {
 		return err
