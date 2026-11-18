@@ -1,5 +1,12 @@
 # @octarq-org/plugin-sdk
 
+## 0.25.0
+
+### Minor Changes
+
+- c82ceb4: Add optional `layout?: "default" | "full"` on `UIRoute` so plugins with their own full-viewport navigation can opt out of the host shell chrome.
+- 4315ce8: Unify `PageShell` to always render full content width and remove `PageColumn` / `ShellWidth` / `width` prop so dashboard and plugin routes share consistent layout geometry.
+
 ## 0.24.1
 
 ### Patch Changes
