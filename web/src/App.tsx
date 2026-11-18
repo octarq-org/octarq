@@ -390,13 +390,15 @@ function Shell({
         <aside
           className={cn(
             "z-30 shrink-0 overflow-hidden transition-[width,transform] duration-200 ease-out",
-            "fixed inset-y-0 left-0 w-60 md:relative md:inset-auto md:translate-x-0",
-            panelCollapsed ? "max-md:-translate-x-full md:w-14" : "md:w-60",
+            "fixed inset-y-0 left-0 w-[252px] md:relative md:inset-auto md:translate-x-0",
+            panelCollapsed ? "max-md:-translate-x-full md:w-[52px]" : "md:w-[252px]",
           )}
           {...(panelCollapsed && isMobile ? { inert: "" } : {})}
         >
           <AreaPanel
             areas={areas}
+            activeArea={activeArea}
+            currentArea={currentArea}
             settingsArea={currentSettingsArea}
             helpArea={helpArea}
             settingsActive={settingsActive}
@@ -405,6 +407,7 @@ function Shell({
             currentPath={location.pathname + location.search}
             collapsed={panelCollapsed}
             onToggle={togglePanel}
+            onSelectArea={selectArea}
             onNavigate={() => {
               if (window.innerWidth < 768) setPanelCollapsed(true);
             }}

@@ -78,17 +78,14 @@ export function TopBar({
 
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3 sm:px-4 md:gap-3">
-      {/* Sidebar toggle — mobile always, desktop when collapsed */}
+      {/* Sidebar drawer toggle — mobile only (desktop collapse lives on AreaRail) */}
       <button
         type="button"
         onClick={onTogglePanel}
         aria-label={t("app.collapseMenu")}
         aria-pressed={!panelCollapsed}
         title={t("app.collapseMenu")}
-        className={cn(
-          "tap-expand flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          !panelCollapsed && "md:hidden",
-        )}
+        className="tap-expand flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
       >
         <PanelLeft className="h-4 w-4" strokeWidth={1.75} />
       </button>
