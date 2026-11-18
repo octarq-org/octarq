@@ -10,17 +10,7 @@ import (
 	"time"
 )
 
-// setPassthroughDecryptor registers a decryptor that returns the stored config
-// unchanged, so delivery-focused tests can hand plaintext JSON to Send without
-// also testing the decrypt seam. Reset happens via t.Cleanup.
-func setPassthroughDecryptor(t *testing.T) {
-	t.Helper()
-	SetConfigDecryptor(func(stored string) (string, bool) { return stored, true })
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
-}
-
 func TestSendUnknownType(t *testing.T) {
-	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "carrierpigeon", "{}", "x"); err == nil {
 		t.Fatal("expected error for unknown channel type")
 		return
@@ -28,7 +18,6 @@ func TestSendUnknownType(t *testing.T) {
 }
 
 func TestRegisterProvider(t *testing.T) {
-	setPassthroughDecryptor(t)
 	var gotCfg, gotText string
 	Register("Pigeon", func(_ context.Context, cfgJSON, text string) error {
 		gotCfg, gotText = cfgJSON, text
@@ -49,7 +38,6 @@ func TestRegisterProvider(t *testing.T) {
 }
 
 func TestSendTelegramMissingCreds(t *testing.T) {
-	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "telegram", `{}`, "x"); err == nil {
 		t.Fatal("expected error when telegram credentials are missing")
 		return
@@ -57,7 +45,6 @@ func TestSendTelegramMissingCreds(t *testing.T) {
 }
 
 func TestSendWebhookDeliversText(t *testing.T) {
-	setPassthroughDecryptor(t)
 	var gotText string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -80,7 +67,6 @@ func TestSendWebhookDeliversText(t *testing.T) {
 }
 
 func TestSendWebhookMissingURL(t *testing.T) {
-	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "webhook", `{}`, "x"); err == nil {
 		t.Fatal("expected error when webhook url is missing")
 		return
@@ -88,7 +74,6 @@ func TestSendWebhookMissingURL(t *testing.T) {
 }
 
 func TestSendWebhookErrorsOnBadStatus(t *testing.T) {
-	setPassthroughDecryptor(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -102,7 +87,6 @@ func TestSendWebhookErrorsOnBadStatus(t *testing.T) {
 }
 
 func TestSendTelegramAPIErrors(t *testing.T) {
-	setPassthroughDecryptor(t)
 	// Invalid token format triggers telegram.New error
 	cfgJSON := `{"botToken":"invalid-token","chatId":"123456"}`
 	err := Send(context.Background(), "telegram", cfgJSON, "hello")
@@ -121,7 +105,6 @@ func TestSendTelegramAPIErrors(t *testing.T) {
 }
 
 func TestSendInvalidJSON(t *testing.T) {
-	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "telegram", `invalid-json`, "x"); err == nil {
 		t.Fatal("expected error for malformed telegram config JSON")
 	}
@@ -131,7 +114,6 @@ func TestSendInvalidJSON(t *testing.T) {
 }
 
 func TestSendTelegram_InvalidChatIDAndMissing(t *testing.T) {
-	setPassthroughDecryptor(t)
 	// Invalid chatId (not an int)
 	cfgJSON := `{"botToken":"tok","chatId":"not-a-number"}`
 	if err := Send(context.Background(), "telegram", cfgJSON, "hello"); err == nil {
@@ -150,7 +132,6 @@ func TestSendTelegram_InvalidChatIDAndMissing(t *testing.T) {
 }
 
 func TestSendWebhook_InvalidScheme(t *testing.T) {
-	setPassthroughDecryptor(t)
 	cfgJSON := `{"url":"ftp://example.com/webhook"}`
 	if err := Send(context.Background(), "webhook", cfgJSON, "hello"); err == nil {
 		t.Error("expected error for ftp scheme")

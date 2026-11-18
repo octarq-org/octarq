@@ -34,6 +34,7 @@ type Router struct {
 	chMu        sync.RWMutex
 	dispatcher  *Dispatcher
 	host        plugin.Host
+	vault       plugin.VaultService
 }
 
 // RouterOption configures a Router instance.
@@ -139,6 +140,11 @@ func (r *Router) RegisterChannelWithDescriptor(ch plugin.NotificationChannel, de
 			setter.SetHost(r.host)
 		}
 	}
+	if r.vault != nil {
+		if setter, ok := ch.(interface{ SetVaultService(plugin.VaultService) }); ok {
+			setter.SetVaultService(r.vault)
+		}
+	}
 	r.channels[name] = ch
 	r.descriptors[name] = desc
 	return nil
@@ -155,6 +161,21 @@ func (r *Router) SetHost(h plugin.Host) {
 	for _, ch := range r.channels {
 		if setter, ok := ch.(interface{ SetHost(plugin.Host) }); ok {
 			setter.SetHost(h)
+		}
+	}
+}
+
+// SetVaultService injects VaultService into the router and propagates it to all registered channels.
+func (r *Router) SetVaultService(vs plugin.VaultService) {
+	if r == nil {
+		return
+	}
+	r.chMu.Lock()
+	defer r.chMu.Unlock()
+	r.vault = vs
+	for _, ch := range r.channels {
+		if setter, ok := ch.(interface{ SetVaultService(plugin.VaultService) }); ok {
+			setter.SetVaultService(vs)
 		}
 	}
 }

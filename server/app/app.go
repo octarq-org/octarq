@@ -182,6 +182,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
+	if vs, ok := plugin.LookupServiceAs[plugin.VaultService](services.Lookup, plugin.ServiceVault); ok {
+		eventbus.SetVaultService(vs)
+		notifRouter.SetVaultService(vs)
+		apiHandler.SetVaultService(vs)
+	}
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
@@ -191,7 +196,10 @@ func (a *App) RunMCP(ctx context.Context) error {
 	// it is given at Mount, so the second mount is the one its tools read from.
 	// A plugin that needs a runtime service has to refuse here, where the boot
 	// stops, instead of exposing tools that fail on every call.
-	if err := plugin.ValidateAll(ctx, a.plugins, plugin.EnsureHost(nil)); err != nil {
+	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	err := plugin.ValidateAll(valCtx, a.plugins, plugin.EnsureHost(nil))
+	valCancel()
+	if err != nil {
 		return err
 	}
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
@@ -349,6 +357,11 @@ func (a *App) Run(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
+	if vs, ok := plugin.LookupServiceAs[plugin.VaultService](services.Lookup, plugin.ServiceVault); ok {
+		eventbus.SetVaultService(vs)
+		notifRouter.SetVaultService(vs)
+		apiHandler.SetVaultService(vs)
+	}
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
@@ -368,7 +381,10 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	if err := plugin.ValidateAll(ctx, a.plugins, pctx.Host); err != nil {
+	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	err := plugin.ValidateAll(valCtx, a.plugins, pctx.Host)
+	valCancel()
+	if err != nil {
 		return err
 	}
 

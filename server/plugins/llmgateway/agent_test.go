@@ -86,7 +86,7 @@ func withUpstream(t *testing.T, f *httpFixture, u *upstream, providerID uint) *h
 	if _, err := p.store.UpdateProvider(context.Background(), 1, providerID, ProviderInput{
 		Name: "stub", Backend: "openai", APIKey: "k-test", BaseURL: srv.URL,
 		Model: "stub-model", CheapModel: "stub-model",
-	}, p.seal); err != nil {
+	}, p.vaultService()); err != nil {
 		t.Fatalf("update provider: %v", err)
 	}
 	return srv
@@ -95,7 +95,7 @@ func withUpstream(t *testing.T, f *httpFixture, u *upstream, providerID uint) *h
 // createProvider writes one provider row through the same path the API uses.
 func createProvider(t *testing.T, f *httpFixture, in ProviderInput) uint {
 	t.Helper()
-	row, err := f.plugin.store.CreateProvider(context.Background(), 1, in, f.plugin.seal)
+	row, err := f.plugin.store.CreateProvider(context.Background(), 1, in, f.plugin.vaultService())
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
 	}
@@ -301,7 +301,7 @@ func TestAgentProviderSelector(t *testing.T) {
 	t.Cleanup(srv.Close)
 	if _, err := f.plugin.store.UpdateProvider(context.Background(), 1, second, ProviderInput{
 		Name: "two", Backend: "openai", APIKey: "k-two", BaseURL: srv.URL,
-	}, f.plugin.seal); err != nil {
+	}, f.plugin.vaultService()); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 
@@ -514,7 +514,7 @@ func TestAgentProviderResolutionFailures(t *testing.T) {
 	t.Run("no secret storage", func(t *testing.T) {
 		f := newHTTPFixture(t, 1, 1, "member")
 		createProvider(t, f, ProviderInput{Name: "s", Backend: "openai", APIKey: "k"})
-		f.plugin.pctx.Host = &plugin.TestHost{SessionMock: f.plugin.pctx.Host.Session()}
+		delete(f.provided, plugin.ServiceVault)
 		if _, err := f.plugin.agentProviderFor(context.Background(), 1, 0); err == nil ||
 			!strings.Contains(err.Error(), "secret storage") {
 			t.Fatalf("err = %v", err)
@@ -523,10 +523,9 @@ func TestAgentProviderResolutionFailures(t *testing.T) {
 	t.Run("unopenable key", func(t *testing.T) {
 		f := newHTTPFixture(t, 1, 1, "member")
 		createProvider(t, f, ProviderInput{Name: "s", Backend: "openai", APIKey: "k"})
-		f.plugin.pctx.Host = &plugin.TestHost{
-			SessionMock: f.plugin.pctx.Host.Session(),
-			CryptoMock: &plugin.TestCrypto{
-				DecryptFn: func(string) ([]byte, error) { return nil, errTestUnseal },
+		f.provided[plugin.ServiceVault] = &stubVaultService{
+			getSecretFn: func(context.Context, uint, uint) (*plugin.VaultSecret, error) {
+				return nil, errTestUnseal
 			},
 		}
 		if _, err := f.plugin.agentProviderFor(context.Background(), 1, 0); err == nil ||
@@ -572,7 +571,7 @@ func TestAgentModelsReportsATruncatedAnswer(t *testing.T) {
 	t.Cleanup(srv.Close)
 	if _, err := f.plugin.store.UpdateProvider(context.Background(), 1, id, ProviderInput{
 		Name: "s", Backend: "openai", APIKey: "k", BaseURL: srv.URL,
-	}, f.plugin.seal); err != nil {
+	}, f.plugin.vaultService()); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	if status, _ := f.do(t, http.MethodGet, AgentModelsPath, ""); status != http.StatusBadGateway {

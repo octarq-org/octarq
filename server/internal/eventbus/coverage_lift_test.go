@@ -24,7 +24,7 @@ func TestCoverageLift_EventBus_TestSend(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := TestSend(ctx, 1, 101, ts.URL, "secret_key"); err != nil {
+	if err := TestSend(ctx, 1, 101, ts.URL, 4); err != nil {
 		t.Fatalf("TestSend expected success, got: %v", err)
 	}
 
@@ -34,7 +34,7 @@ func TestCoverageLift_EventBus_TestSend(t *testing.T) {
 	}))
 	defer tsErr.Close()
 
-	if err := TestSend(ctx, 1, 102, tsErr.URL, "secret_key"); err == nil {
+	if err := TestSend(ctx, 1, 102, tsErr.URL, 4); err == nil {
 		t.Fatalf("TestSend expected error for 500 response")
 	}
 }
@@ -93,9 +93,9 @@ func TestCoverageLift_EventBus_NilDB(t *testing.T) {
 	// Publish
 	Publish(1, "test.event", nil)
 
-	// webhookSecret
-	if _, err := webhookSecret(context.Background(), 1); err == nil {
-		t.Fatalf("expected error from webhookSecret when db is nil")
+	// webhookVaultItemID
+	if _, err := webhookVaultItemID(context.Background(), 1, 1); err == nil {
+		t.Fatalf("expected error from webhookVaultItemID when db is nil")
 	}
 }
 
@@ -135,11 +135,11 @@ func TestCoverageLift_EventBus_Replay_Edges(t *testing.T) {
 	defer ts.Close()
 
 	hook := models.Webhook{
-		OrgID:   1,
-		URL:     ts.URL,
-		Secret:  "test-secret",
-		Events:  "*",
-		Enabled: true,
+		OrgID:       1,
+		URL:         ts.URL,
+		VaultItemID: 5,
+		Events:      "*",
+		Enabled:     true,
 	}
 	if err := gdb.Create(&hook).Error; err != nil {
 		t.Fatalf("create hook: %v", err)

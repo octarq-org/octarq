@@ -51,14 +51,11 @@ func (c *mockSlackChannel) Send(ctx context.Context, recipient plugin.Notificati
 		if targetOrg != "" {
 			if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 				var row models.NotificationChannel
-				if err := c.router.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "slack", true).First(&row).Error; err == nil && row.Config != "" {
-					plain, decErr := ConfigPlaintext(row.Config)
+				if err := c.router.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "slack", true).First(&row).Error; err == nil && (row.Config != "" || row.VaultItemID > 0) {
+					cfgMap, decErr := ResolveChannelConfig(ctx, c.router.vault, row)
 					if decErr == nil {
-						var m struct {
-							WebhookURL string `json:"webhookUrl"`
-						}
-						if json.Unmarshal([]byte(plain), &m) == nil && m.WebhookURL != "" {
-							webhookURL = strings.TrimSpace(m.WebhookURL)
+						if v, ok := cfgMap["webhookUrl"].(string); ok && strings.TrimSpace(v) != "" {
+							webhookURL = strings.TrimSpace(v)
 						}
 					}
 				}
@@ -90,9 +87,6 @@ func (c *mockSlackChannel) Send(ctx context.Context, recipient plugin.Notificati
 // TestMultiTenant_WebhookIsolation verifies that SendDirect and WebhookChannel strictly
 // isolate tenant webhook configurations and fail-closed when unconfigured or cross-tenant.
 func TestMultiTenant_WebhookIsolation(t *testing.T) {
-	SetConfigDecryptor(func(s string) (string, bool) { return s, true })
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
-
 	db := setupTestDB(t)
 	r := NewRouter(db)
 
@@ -182,9 +176,6 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 // TestMultiTenant_SlackChannelFailClosed verifies that custom SPI channels like Slack
 // never borrow Org 1 configuration when invoked by other tenants or without explicit org context.
 func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
-	SetConfigDecryptor(func(s string) (string, bool) { return s, true })
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
-
 	db := setupTestDB(t)
 	r := NewRouter(db)
 

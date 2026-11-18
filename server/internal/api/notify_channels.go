@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -151,12 +152,9 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 
 	var channels []models.NotificationChannel
 	h.orgDB(r).Order("created_at DESC").Find(&channels)
+	vs := h.vault()
 	for i := range channels {
-		plain, err := h.channelConfigPlaintext(channels[i].Config)
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Could not decrypt channel configuration; retry the request")
-		}
-		channels[i].Config = redactConfigSecrets(plain)
+		channels[i].Config = buildChannelConfigView(ctx, vs, channels[i])
 		for _, sp := range spiChannels {
 			if sp.Name() == channels[i].Type {
 				channels[i].ConfigSchema = sp.ConfigSchema()
@@ -217,23 +215,50 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	if input.Body.Config != nil {
 		config = *input.Body.Config
 	}
-	encConfig, err := h.encryptChannelConfig(config)
+	metaMap, secretMap, _, err := splitChannelConfig(config)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("Could not encrypt channel configuration; retry the request")
+		return nil, huma.Error400BadRequest("Channel configuration must be valid JSON")
+	}
+	var vaultItemID uint
+	var vs plugin.VaultService
+	if len(secretMap) > 0 {
+		vs = h.vault()
+		if vs == nil {
+			return nil, huma.Error500InternalServerError("Vault service is unavailable; retry the request")
+		}
+		meta, err := vs.PutSecret(ctx, plugin.PutSecretRequest{
+			OrgID:          orgID,
+			Scope:          plugin.VaultScopeOrg,
+			CollectionSlug: "default",
+			ItemType:       "notification_channel",
+			ProviderType:   "notification",
+			Provider:       typ,
+			Name:           "Channel: " + name,
+			Payload:        secretMap,
+			ActorUserID:    h.auth.UserID(r),
+		})
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Could not secure channel configuration; retry the request")
+		}
+		vaultItemID = meta.ID
 	}
 	d := models.NotificationChannel{
-		OrgID:   orgID,
-		Name:    name,
-		Type:    typ,
-		Config:  encConfig,
-		Enabled: enabled,
+		OrgID:       orgID,
+		Name:        name,
+		Type:        typ,
+		VaultItemID: vaultItemID,
+		Config:      marshalChannelConfigMap(metaMap),
+		Enabled:     enabled,
 	}
 	if err := h.db.Create(&d).Error; err != nil {
+		if vaultItemID > 0 && vs != nil {
+			_ = vs.DeleteSecret(ctx, orgID, vaultItemID)
+		}
 		return nil, huma.Error500InternalServerError("Could not create notification channel; retry the request")
 	}
 	h.audit(r, "notification.create", "notification_channel", d.ID, map[string]any{"name": d.Name, "type": d.Type})
 	out := d
-	out.Config = redactConfigSecrets(config)
+	out.Config = buildChannelConfigView(ctx, vs, d)
 	return &CreateNotificationChannelOutput{Body: out}, nil
 }
 
@@ -287,22 +312,60 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 		ch.Type = strings.ToLower(strings.TrimSpace(*d.Type))
 	}
 	if d.Config != nil {
-		newCfgStr := *d.Config
-		oldPlaintext, err := h.channelConfigPlaintext(ch.Config)
+		metaMap, secretMap, redactedKeys, err := splitChannelConfig(*d.Config)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("Could not decrypt channel configuration; retry the request")
+			return nil, huma.Error400BadRequest("Channel configuration must be valid JSON")
 		}
-		var targetPlaintext string
-		if oldPlaintext != "" && strings.Contains(newCfgStr, "[REDACTED]") {
-			targetPlaintext = mergeConfigPreservingSecrets(oldPlaintext, newCfgStr)
-		} else {
-			targetPlaintext = newCfgStr
+		ch.Config = marshalChannelConfigMap(metaMap)
+		if len(secretMap) > 0 {
+			vs := h.vault()
+			if vs == nil {
+				return nil, huma.Error500InternalServerError("Vault service is unavailable; retry the request")
+			}
+			if ch.VaultItemID > 0 {
+				_, updErr := vs.UpdateSecret(ctx, orgID, ch.VaultItemID, nil, nil, secretMap, nil, "notification channel updated", h.auth.UserID(r))
+				if errors.Is(updErr, plugin.ErrSecretNotFound) {
+					meta, putErr := vs.PutSecret(ctx, plugin.PutSecretRequest{
+						OrgID:          orgID,
+						Scope:          plugin.VaultScopeOrg,
+						CollectionSlug: "default",
+						ItemType:       "notification_channel",
+						ProviderType:   "notification",
+						Provider:       ch.Type,
+						Name:           "Channel: " + ch.Name,
+						Payload:        secretMap,
+						ActorUserID:    h.auth.UserID(r),
+					})
+					if putErr != nil {
+						return nil, huma.Error500InternalServerError("Could not secure channel configuration; retry the request")
+					}
+					ch.VaultItemID = meta.ID
+				} else if updErr != nil {
+					return nil, huma.Error500InternalServerError("Could not secure channel configuration; retry the request")
+				}
+			} else {
+				meta, putErr := vs.PutSecret(ctx, plugin.PutSecretRequest{
+					OrgID:          orgID,
+					Scope:          plugin.VaultScopeOrg,
+					CollectionSlug: "default",
+					ItemType:       "notification_channel",
+					ProviderType:   "notification",
+					Provider:       ch.Type,
+					Name:           "Channel: " + ch.Name,
+					Payload:        secretMap,
+					ActorUserID:    h.auth.UserID(r),
+				})
+				if putErr != nil {
+					return nil, huma.Error500InternalServerError("Could not secure channel configuration; retry the request")
+				}
+				ch.VaultItemID = meta.ID
+			}
+		} else if len(redactedKeys) == 0 && ch.VaultItemID > 0 {
+			if vs := h.vault(); vs != nil {
+				_ = vs.DeleteSecret(ctx, orgID, ch.VaultItemID)
+			}
+			ch.VaultItemID = 0
 		}
-		enc, err := h.encryptChannelConfig(targetPlaintext)
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Could not encrypt channel configuration; retry the request")
-		}
-		ch.Config = enc
 	}
 	if d.Enabled != nil {
 		ch.Enabled = *d.Enabled
@@ -323,11 +386,7 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	h.audit(r, "notification.update", "notification_channel", ch.ID, meta)
 	out := ch
-	plain, err := h.channelConfigPlaintext(ch.Config)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Could not decrypt channel configuration; retry the request")
-	}
-	out.Config = redactConfigSecrets(plain)
+	out.Config = buildChannelConfigView(ctx, h.vault(), ch)
 	return &UpdateNotificationChannelOutput{Body: out}, nil
 }
 
@@ -365,8 +424,17 @@ func (h *Handler) deleteNotificationChannel(ctx context.Context, input *DeleteNo
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
+	var ch models.NotificationChannel
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&ch).Error != nil {
+		return nil, huma.Error404NotFound("Notification channel not found; verify the channel identifier and try again")
+	}
 	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.NotificationChannel{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("Notification channel not found; verify the channel identifier and try again")
+	}
+	if ch.VaultItemID > 0 {
+		if vs := h.vault(); vs != nil {
+			_ = vs.DeleteSecret(ctx, orgID, ch.VaultItemID)
+		}
 	}
 	h.audit(r, "notification.delete", "notification_channel", input.ID, nil)
 	out := &DeleteNotificationChannelOutput{}
@@ -416,18 +484,9 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	defer cancel()
 
 	if sp, ok := notification.DefaultRouter().GetChannel(ch.Type); ok {
-		var cfgMap map[string]any
-		plain, err := h.channelConfigPlaintext(ch.Config)
+		cfgMap, err := notification.ResolveChannelConfig(ctxTimeout, h.vault(), ch)
 		if err != nil {
-			return nil, huma.Error400BadRequest("Could not decrypt stored channel configuration; re-enter the configuration")
-		}
-		if plain != "" {
-			if err := json.Unmarshal([]byte(plain), &cfgMap); err != nil {
-				return nil, huma.Error400BadRequest("Stored channel configuration is not valid JSON; re-enter the configuration")
-			}
-		}
-		if cfgMap == nil {
-			cfgMap = make(map[string]any)
+			return nil, huma.Error400BadRequest("Could not resolve stored channel configuration; re-enter the configuration")
 		}
 		if ch.Type == "email" {
 			if emailVal, _ := cfgMap["email"].(string); strings.TrimSpace(emailVal) == "" {

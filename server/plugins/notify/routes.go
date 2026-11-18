@@ -76,15 +76,16 @@ func (p *Plugin) notify(ctx context.Context, in NotifyInput) (*NotifyOutput, err
 		text = t + " — " + msg
 	}
 
+	vs, _ := plugin.LookupAs[plugin.VaultService](p.pctx, plugin.ServiceVault)
 	out := &NotifyOutput{Channels: make([]string, 0, len(channels))}
 	var failures []string
 	for _, ch := range channels {
-		plaintext, err := notification.ConfigPlaintext(ch.Config)
+		cfgJSON, err := notification.ResolveChannelConfigJSON(ctx, vs, ch)
 		if err != nil {
 			failures = append(failures, fmt.Sprintf("%s: %v", ch.Type, err))
 			continue
 		}
-		if err := notification.SendDirectWithTenant(ctx, orgID, ch.Type, plaintext, text); err != nil {
+		if err := notification.SendDirectWithTenant(ctx, orgID, ch.Type, cfgJSON, text); err != nil {
 			failures = append(failures, fmt.Sprintf("%s: %v", ch.Type, err))
 			continue
 		}

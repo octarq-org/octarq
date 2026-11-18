@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/origin"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 
@@ -91,17 +93,36 @@ func (s requestSecureStore) markSecure(r *http.Request, sess *sessions.Session) 
 }
 
 // OAuthHandler handles OAuth begin and callback for a given provider.
-// It reads provider credentials from the Settings table on each request
-// so they can be changed from the dashboard without restarting.
+// It reads client IDs from Settings and client secrets from VaultService on each
+// request so they can be changed from the dashboard without restarting.
 type OAuthHandler struct {
-	db      *gorm.DB
-	origins *origin.Resolver
-	auth    *Manager
-	cipher  *crypto.Cipher
+	db          *gorm.DB
+	origins     *origin.Resolver
+	auth        *Manager
+	vault       plugin.VaultService
+	vaultLookup func() plugin.VaultService
 }
 
-func NewOAuthHandler(db *gorm.DB, auth *Manager, cipher *crypto.Cipher) *OAuthHandler {
-	return &OAuthHandler{db: db, origins: origin.NewResolver(db), auth: auth, cipher: cipher}
+func NewOAuthHandler(db *gorm.DB, auth *Manager, vs plugin.VaultService) *OAuthHandler {
+	return &OAuthHandler{db: db, origins: origin.NewResolver(db), auth: auth, vault: vs}
+}
+
+func (h *OAuthHandler) SetVaultService(vs plugin.VaultService) {
+	h.vault = vs
+}
+
+func (h *OAuthHandler) SetVaultLookup(fn func() plugin.VaultService) {
+	h.vaultLookup = fn
+}
+
+func (h *OAuthHandler) resolveVault() plugin.VaultService {
+	if h.vault != nil {
+		return h.vault
+	}
+	if h.vaultLookup != nil {
+		return h.vaultLookup()
+	}
+	return nil
 }
 
 // prepare resolves the origin this login round-trip must run on and registers
@@ -126,18 +147,18 @@ func (h *OAuthHandler) prepare(r *http.Request, provider string) (string, bool) 
 		return "", false
 	}
 	name := provider + "@" + base
-	if !h.loadProvider(provider, name, base) {
+	if !h.loadProvider(r.Context(), provider, name, base) {
 		return "", false
 	}
 	return name, true
 }
 
 // loadProvider registers the named provider, under goth name, with credentials
-// from Settings and a callback URL rooted at base. Returns false if the
+// from Settings + VaultService and a callback URL rooted at base. Returns false if the
 // provider is not configured.
-func (h *OAuthHandler) loadProvider(provider, name, base string) bool {
+func (h *OAuthHandler) loadProvider(ctx context.Context, provider, name, base string) bool {
 	cid := h.setting("oauth." + provider + ".client_id")
-	csec := h.decryptedSetting("oauth." + provider + ".client_secret")
+	csec := h.instanceSecret(ctx, "instance.oauth."+provider)
 	if cid == "" || csec == "" {
 		return false
 	}
@@ -194,16 +215,22 @@ func (h *OAuthHandler) setting(key string) string {
 	return s.Value
 }
 
-func (h *OAuthHandler) decryptedSetting(key string) string {
-	enc := h.setting(key)
-	if enc == "" {
+func (h *OAuthHandler) instanceSecret(ctx context.Context, keyName string) string {
+	vs := h.resolveVault()
+	if vs == nil {
 		return ""
 	}
-	b, err := h.cipher.Decrypt(enc)
-	if err != nil {
+	sec, err := vs.ResolveInstanceSecret(ctx, keyName)
+	if err != nil || sec == nil {
 		return ""
 	}
-	return string(b)
+	if s, ok := sec.Payload["clientSecret"].(string); ok && strings.TrimSpace(s) != "" {
+		return strings.TrimSpace(s)
+	}
+	if s, ok := sec.Payload["value"].(string); ok && strings.TrimSpace(s) != "" {
+		return strings.TrimSpace(s)
+	}
+	return ""
 }
 
 // Begin starts the OAuth flow. Route: GET /auth/begin/{provider}

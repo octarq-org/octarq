@@ -1,36 +1,53 @@
 package notification
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
-	"sync"
+	"fmt"
+	"strings"
+
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
-var (
-	decryptConfigMu sync.RWMutex
-	decryptConfig   func(string) (string, bool)
-)
-
-// SetConfigDecryptor registers how a stored (encrypted) notification channel config
-// is unwrapped before it is used for notification delivery.
-func SetConfigDecryptor(fn func(string) (string, bool)) {
-	decryptConfigMu.Lock()
-	defer decryptConfigMu.Unlock()
-	decryptConfig = fn
+// ResolveChannelConfig merges non-secret routing metadata from ch.Config with
+// any secret payload stored in VaultService under ch.VaultItemID.
+// When ch.VaultItemID > 0, a missing or failing VaultService fails closed.
+func ResolveChannelConfig(ctx context.Context, vs plugin.VaultService, ch models.NotificationChannel) (map[string]any, error) {
+	cfg := make(map[string]any)
+	if raw := strings.TrimSpace(ch.Config); raw != "" && raw != "{}" {
+		if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+			return nil, fmt.Errorf("invalid notification channel config JSON: %w", err)
+		}
+	}
+	if ch.VaultItemID > 0 {
+		if vs == nil {
+			return nil, errors.New("no vault service registered")
+		}
+		sec, err := vs.GetSecret(ctx, ch.OrgID, ch.VaultItemID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve notification channel secret: %w", err)
+		}
+		for k, v := range sec.Payload {
+			cfg[k] = v
+		}
+	}
+	return cfg, nil
 }
 
-// ConfigPlaintext resolves the plaintext config for a stored value. A stored
-// config that cannot be decrypted, or a build with no decryptor registered, is
-// an error rather than a silent passthrough of whatever was stored.
-func ConfigPlaintext(stored string) (string, error) {
-	decryptConfigMu.RLock()
-	fn := decryptConfig
-	decryptConfigMu.RUnlock()
-	if fn == nil {
-		return "", errors.New("no config decryptor registered")
+// ResolveChannelConfigJSON resolves ch's merged config and serializes it as JSON.
+func ResolveChannelConfigJSON(ctx context.Context, vs plugin.VaultService, ch models.NotificationChannel) (string, error) {
+	cfg, err := ResolveChannelConfig(ctx, vs, ch)
+	if err != nil {
+		return "", err
 	}
-	pt, ok := fn(stored)
-	if !ok {
-		return "", errors.New("stored notification channel config could not be decrypted")
+	if len(cfg) == 0 {
+		return "{}", nil
 	}
-	return pt, nil
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"time"
 
@@ -12,26 +13,8 @@ import (
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
-
-// webhookSecretPlaintext returns the usable signing secret for a stored webhook.
-// Secrets are AES-GCM encrypted at rest; a stored value that cannot be decrypted
-// is an error rather than a passthrough of whatever was stored.
-func (h *Handler) webhookSecretPlaintext(stored string) (string, error) {
-	if stored == "" {
-		return "", nil
-	}
-	b, err := h.cipher.Decrypt(stored)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-// encryptWebhookSecret seals a plaintext signing secret for storage.
-func (h *Handler) encryptWebhookSecret(plaintext string) (string, error) {
-	return h.cipher.Encrypt([]byte(plaintext))
-}
 
 // WebhookView is returned on list and update endpoints. Secret is never returned,
 // but SecretSet indicates whether a signing secret has been configured.
@@ -79,7 +62,7 @@ func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*
 	for i, hook := range hooks {
 		views[i] = WebhookView{
 			Webhook:   hook,
-			SecretSet: hook.Secret != "",
+			SecretSet: hook.VaultItemID > 0,
 		}
 	}
 	return &ListWebhooksOutput{Body: views}, nil
@@ -142,11 +125,6 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 		enabled = *input.Body.Enabled
 	}
 
-	encSecret, err := h.encryptWebhookSecret(secret)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Could not encrypt webhook secret; retry the request")
-	}
-
 	orgID, err := h.requireOrg(r)
 	if err != nil {
 		return nil, err
@@ -155,16 +133,37 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 		return nil, err
 	}
 
+	vs := h.vault()
+	if vs == nil {
+		return nil, huma.Error500InternalServerError("Vault service is unavailable; retry the request")
+	}
+	meta, err := vs.PutSecret(ctx, plugin.PutSecretRequest{
+		OrgID:          orgID,
+		Scope:          plugin.VaultScopeOrg,
+		CollectionSlug: "default",
+		ItemType:       "webhook",
+		Name:           "Webhook: " + name,
+		Payload: map[string]any{
+			"signingSecret": secret,
+			"targetUrl":     url,
+		},
+		ActorUserID: h.auth.UserID(r),
+	})
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Could not secure webhook secret; retry the request")
+	}
+
 	hook := models.Webhook{
-		OrgID:   orgID,
-		Name:    name,
-		URL:     url,
-		Secret:  encSecret,
-		Events:  events,
-		Enabled: enabled,
+		OrgID:       orgID,
+		Name:        name,
+		URL:         url,
+		VaultItemID: meta.ID,
+		Events:      events,
+		Enabled:     enabled,
 	}
 
 	if err := h.db.Create(&hook).Error; err != nil {
+		_ = vs.DeleteSecret(ctx, orgID, meta.ID)
 		return nil, huma.Error500InternalServerError("Could not save webhook; retry the request")
 	}
 
@@ -232,12 +231,49 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 
 	hook.Name = name
 	hook.URL = url
-	if input.Body.Secret != "" {
-		enc, err := h.encryptWebhookSecret(strings.TrimSpace(input.Body.Secret))
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Could not encrypt webhook secret; retry the request")
+	if sec := strings.TrimSpace(input.Body.Secret); sec != "" {
+		vs := h.vault()
+		if vs == nil {
+			return nil, huma.Error500InternalServerError("Vault service is unavailable; retry the request")
 		}
-		hook.Secret = enc
+		payload := map[string]any{
+			"signingSecret": sec,
+			"targetUrl":     url,
+		}
+		if hook.VaultItemID > 0 {
+			_, err := vs.UpdateSecret(ctx, orgID, hook.VaultItemID, nil, nil, payload, nil, "webhook secret rotated", h.auth.UserID(r))
+			if errors.Is(err, plugin.ErrSecretNotFound) {
+				meta, putErr := vs.PutSecret(ctx, plugin.PutSecretRequest{
+					OrgID:          orgID,
+					Scope:          plugin.VaultScopeOrg,
+					CollectionSlug: "default",
+					ItemType:       "webhook",
+					Name:           "Webhook: " + name,
+					Payload:        payload,
+					ActorUserID:    h.auth.UserID(r),
+				})
+				if putErr != nil {
+					return nil, huma.Error500InternalServerError("Could not secure webhook secret; retry the request")
+				}
+				hook.VaultItemID = meta.ID
+			} else if err != nil {
+				return nil, huma.Error500InternalServerError("Could not secure webhook secret; retry the request")
+			}
+		} else {
+			meta, err := vs.PutSecret(ctx, plugin.PutSecretRequest{
+				OrgID:          orgID,
+				Scope:          plugin.VaultScopeOrg,
+				CollectionSlug: "default",
+				ItemType:       "webhook",
+				Name:           "Webhook: " + name,
+				Payload:        payload,
+				ActorUserID:    h.auth.UserID(r),
+			})
+			if err != nil {
+				return nil, huma.Error500InternalServerError("Could not secure webhook secret; retry the request")
+			}
+			hook.VaultItemID = meta.ID
+		}
 	}
 	if input.Body.Events != "" {
 		hook.Events = strings.TrimSpace(input.Body.Events)
@@ -260,7 +296,7 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 	return &UpdateWebhookOutput{
 		Body: WebhookView{
 			Webhook:   hook,
-			SecretSet: hook.Secret != "",
+			SecretSet: hook.VaultItemID > 0,
 		},
 	}, nil
 }
@@ -297,8 +333,17 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 		return nil, err
 	}
 
+	var hook models.Webhook
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&hook).Error != nil {
+		return nil, huma.Error404NotFound("Webhook not found; verify the webhook identifier and try again")
+	}
 	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.Webhook{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("Webhook not found; verify the webhook identifier and try again")
+	}
+	if hook.VaultItemID > 0 {
+		if vs := h.vault(); vs != nil {
+			_ = vs.DeleteSecret(ctx, orgID, hook.VaultItemID)
+		}
 	}
 
 	h.audit(r, "webhook.delete", "webhook", input.ID, nil)
@@ -351,7 +396,7 @@ func (h *Handler) testWebhook(ctx context.Context, input *TestWebhookInput) (*Te
 
 	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if err := eventbus.TestSend(testCtx, orgID, hook.ID, hook.URL, hook.Secret); err != nil {
+	if err := eventbus.TestSend(testCtx, orgID, hook.ID, hook.URL, hook.VaultItemID); err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 

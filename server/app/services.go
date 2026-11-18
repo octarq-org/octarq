@@ -59,11 +59,7 @@ func (a *App) loginByIdentity(w http.ResponseWriter, r *http.Request, id plugin.
 
 // Notify delivers a notification via a configured channel type ("telegram", "webhook").
 func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
-	pt, err := notification.ConfigPlaintext(cfgJSON)
-	if err != nil {
-		return err
-	}
-	return notification.DefaultRouter().SendDirect(ctx, typ, pt, text)
+	return notification.DefaultRouter().SendDirect(ctx, typ, cfgJSON, text)
 }
 
 // sendMail is the implementation behind plugin.Context.SendMail. It delegates

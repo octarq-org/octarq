@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/gorilla/sessions"
-	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/plugin"
@@ -195,8 +194,7 @@ func TestCoverageLift_Auth_ProvisionAndIdentity_Edges(t *testing.T) {
 func TestCoverageLift_Auth_OAuth_Edges(t *testing.T) {
 	db := testDB(t)
 	m := testManager(t)
-	cip := crypto.New("secret")
-	h := NewOAuthHandler(db, m, cip)
+	h := NewOAuthHandler(db, m, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/auth/login/test", nil)
 
@@ -212,12 +210,12 @@ func TestCoverageLift_Auth_OAuth_Edges(t *testing.T) {
 	}
 
 	// loadProvider: unsupported provider returns false
-	if h.loadProvider("unsupported_oauth", "name", "http://example.com") {
+	if h.loadProvider(context.Background(), "unsupported_oauth", "name", "http://example.com") {
 		t.Fatalf("expected false for unsupported provider")
 	}
 
 	// loadProvider: missing client_id/secret returns false
-	if h.loadProvider("google", "google@example.com", "http://example.com") {
+	if h.loadProvider(context.Background(), "google", "google@example.com", "http://example.com") {
 		t.Fatalf("expected false when credentials missing from settings")
 	}
 

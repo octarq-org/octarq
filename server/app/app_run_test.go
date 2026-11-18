@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -162,14 +163,16 @@ func TestRunEnableEnvelopeFailure(t *testing.T) {
 // would make every saved value unreadable without a word.
 func TestRunRefusesANewDEKWhenCiphertextExists(t *testing.T) {
 	a := bootApp(t)
-	if err := a.gdb.AutoMigrate(&models.NotificationChannel{}); err != nil {
-		t.Fatalf("migrate channels: %v", err)
+	if err := a.gdb.AutoMigrate(&models.User{}); err != nil {
+		t.Fatalf("migrate users: %v", err)
 	}
-	if err := a.gdb.Create(&models.NotificationChannel{Name: "Ops", Type: "webhook", Config: "ciphertext"}).Error; err != nil {
-		t.Fatalf("seed channel: %v", err)
+	if err := a.gdb.Create(&models.User{Email: "ops@example.com", PasswordHash: "hash", TOTPSecret: "ciphertext"}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
 	}
 
-	err := a.Run(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := a.Run(ctx)
 	if !errors.Is(err, crypto.ErrDEKMissing) {
 		t.Fatalf("Run = %v, want crypto.ErrDEKMissing", err)
 	}

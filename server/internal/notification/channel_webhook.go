@@ -20,9 +20,15 @@ import (
 type WebhookChannel struct {
 	db      *gorm.DB
 	timeout time.Duration
+	vault   plugin.VaultService
 }
 
 var _ plugin.NotificationChannel = (*WebhookChannel)(nil)
+
+// SetVaultService injects VaultService for resolving local channel secrets.
+func (c *WebhookChannel) SetVaultService(vs plugin.VaultService) {
+	c.vault = vs
+}
 
 // NewWebhookChannel constructs a Webhook notification channel driver.
 func NewWebhookChannel(db ...*gorm.DB) *WebhookChannel {
@@ -101,15 +107,13 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 	if webhookURL == "" && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
-			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "webhook", true).First(&ch).Error; err == nil && ch.Config != "" {
-				plain, decErr := ConfigPlaintext(ch.Config)
-				if decErr == nil {
-					var m struct {
-						URL string `json:"url"`
-					}
-					if json.Unmarshal([]byte(plain), &m) == nil {
-						webhookURL = strings.TrimSpace(m.URL)
-					}
+			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "webhook", true).First(&ch).Error; err == nil && (ch.Config != "" || ch.VaultItemID > 0) {
+				cfgMap, decErr := ResolveChannelConfig(ctx, c.vault, ch)
+				if decErr != nil {
+					return fmt.Errorf("webhook: resolve channel config: %w", decErr)
+				}
+				if u, ok := cfgMap["url"].(string); ok {
+					webhookURL = strings.TrimSpace(u)
 				}
 			}
 		}
@@ -119,15 +123,13 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 	// and webhookURL is still empty, fall back to instance default channel (org 1)
 	if webhookURL == "" && c.db != nil && (targetOrg == "0" || payload.EventType == "system" || strings.HasPrefix(payload.EventType, "system.")) {
 		var ch models.NotificationChannel
-		if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", 1, "webhook", true).First(&ch).Error; err == nil && ch.Config != "" {
-			plain, decErr := ConfigPlaintext(ch.Config)
-			if decErr == nil {
-				var m struct {
-					URL string `json:"url"`
-				}
-				if json.Unmarshal([]byte(plain), &m) == nil {
-					webhookURL = strings.TrimSpace(m.URL)
-				}
+		if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", 1, "webhook", true).First(&ch).Error; err == nil && (ch.Config != "" || ch.VaultItemID > 0) {
+			cfgMap, decErr := ResolveChannelConfig(ctx, c.vault, ch)
+			if decErr != nil {
+				return fmt.Errorf("webhook: resolve channel config: %w", decErr)
+			}
+			if u, ok := cfgMap["url"].(string); ok {
+				webhookURL = strings.TrimSpace(u)
 			}
 		}
 	}

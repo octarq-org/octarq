@@ -216,26 +216,22 @@ func TestCoverageLift_GatedAdapter_AbortHandlerPanic(t *testing.T) {
 }
 
 func TestCoverageLift_NotificationConfigDecryptor(t *testing.T) {
-	a := bootApp(t)
-	_ = a.gdb.AutoMigrate(&models.Setting{}, &models.NotificationChannel{}, &models.Webhook{}, &models.User{})
-	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}); err != nil {
-		t.Fatalf("EnableEnvelope failed: %v", err)
-	}
-
-	// Decrypt invalid ciphertext -> fails
-	_, err := notification.ConfigPlaintext("invalid-encrypted-blob")
+	// Missing VaultService when VaultItemID > 0 fails closed
+	_, err := notification.ResolveChannelConfigJSON(context.Background(), nil, models.NotificationChannel{
+		OrgID:       1,
+		VaultItemID: 1,
+	})
 	if err == nil {
-		t.Fatal("expected error decrypting invalid ciphertext")
+		t.Fatal("expected error when vault service is nil for VaultItemID > 0")
 	}
 
-	// Decrypt valid ciphertext -> succeeds
-	enc, err := a.cipher.Encrypt([]byte("plaintext-cfg"))
-	if err != nil {
-		t.Fatalf("Encrypt failed: %v", err)
-	}
-	pt, err := notification.ConfigPlaintext(enc)
-	if err != nil || pt != "plaintext-cfg" {
-		t.Fatalf("expected plaintext-cfg, got %q, err=%v", pt, err)
+	// Metadata-only channel resolves cleanly
+	pt, err := notification.ResolveChannelConfigJSON(context.Background(), nil, models.NotificationChannel{
+		OrgID:  1,
+		Config: `{"chatId":"42"}`,
+	})
+	if err != nil || !strings.Contains(pt, "42") {
+		t.Fatalf("expected metadata JSON, got %q, err=%v", pt, err)
 	}
 }
 

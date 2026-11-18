@@ -87,7 +87,7 @@ func (s *Store) GetProvider(ctx context.Context, orgID, id uint) (*Provider, err
 
 // CreateProvider inserts a provider. The first provider of a workspace becomes
 // the default, so a workspace with one provider needs no second step.
-func (s *Store) CreateProvider(ctx context.Context, orgID uint, in ProviderInput, seal func(string) (string, error)) (*Provider, error) {
+func (s *Store) CreateProvider(ctx context.Context, orgID uint, in ProviderInput, vs plugin.VaultService) (*Provider, error) {
 	if err := validateInput(in); err != nil {
 		return nil, err
 	}
@@ -95,25 +95,38 @@ func (s *Store) CreateProvider(ctx context.Context, orgID uint, in ProviderInput
 	if err != nil {
 		return nil, err
 	}
-	sealed, err := sealKey(in.APIKey, seal)
-	if err != nil {
-		return nil, err
+	var vaultItemID uint
+	if key := strings.TrimSpace(in.APIKey); key != "" {
+		if vs == nil {
+			return nil, fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
+		}
+		meta, err := vs.PutSecret(ctx, llmVaultPutRequest(orgID, in, key))
+		if err != nil {
+			return nil, fmt.Errorf("%w: seal API key: %v", ErrInvalidProvider, err)
+		}
+		vaultItemID = meta.ID
 	}
 	count, err := s.count(ctx, orgID)
 	if err != nil {
+		if vaultItemID > 0 && vs != nil {
+			_ = vs.DeleteSecret(ctx, orgID, vaultItemID)
+		}
 		return nil, err
 	}
 	row := Provider{
-		OrgID:      orgID,
-		Name:       strings.TrimSpace(in.Name),
-		Backend:    strings.TrimSpace(in.Backend),
-		APIKeyEncr: sealed,
-		BaseURL:    strings.TrimSpace(in.BaseURL),
-		Model:      strings.TrimSpace(in.Model),
-		CheapModel: strings.TrimSpace(in.CheapModel),
-		IsDefault:  count == 0,
+		OrgID:       orgID,
+		Name:        strings.TrimSpace(in.Name),
+		Backend:     strings.TrimSpace(in.Backend),
+		VaultItemID: vaultItemID,
+		BaseURL:     strings.TrimSpace(in.BaseURL),
+		Model:       strings.TrimSpace(in.Model),
+		CheapModel:  strings.TrimSpace(in.CheapModel),
+		IsDefault:   count == 0,
 	}
 	if err := tdb.Scoped(&Provider{}).WithContext(ctx).Create(&row).Error; err != nil {
+		if vaultItemID > 0 && vs != nil {
+			_ = vs.DeleteSecret(ctx, orgID, vaultItemID)
+		}
 		return nil, fmt.Errorf("llm gateway: create provider: %w", err)
 	}
 	if count == 0 {
@@ -125,7 +138,7 @@ func (s *Store) CreateProvider(ctx context.Context, orgID uint, in ProviderInput
 }
 
 // UpdateProvider replaces the writable fields. An empty APIKey keeps the key.
-func (s *Store) UpdateProvider(ctx context.Context, orgID, id uint, in ProviderInput, seal func(string) (string, error)) (*Provider, error) {
+func (s *Store) UpdateProvider(ctx context.Context, orgID, id uint, in ProviderInput, vs plugin.VaultService) (*Provider, error) {
 	if err := validateInput(in); err != nil {
 		return nil, err
 	}
@@ -137,19 +150,37 @@ func (s *Store) UpdateProvider(ctx context.Context, orgID, id uint, in ProviderI
 	if err != nil {
 		return nil, err
 	}
+	name := strings.TrimSpace(in.Name)
 	updates := map[string]any{
-		"name":        strings.TrimSpace(in.Name),
+		"name":        name,
 		"backend":     strings.TrimSpace(in.Backend),
 		"base_url":    strings.TrimSpace(in.BaseURL),
 		"model":       strings.TrimSpace(in.Model),
 		"cheap_model": strings.TrimSpace(in.CheapModel),
 	}
 	if key := strings.TrimSpace(in.APIKey); key != "" {
-		sealed, err := sealKey(key, seal)
-		if err != nil {
-			return nil, err
+		if vs == nil {
+			return nil, fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
 		}
-		updates["api_key_encr"] = sealed
+		payload := llmVaultPayload(in, key)
+		if row.VaultItemID > 0 {
+			_, err := vs.UpdateSecret(ctx, orgID, row.VaultItemID, &name, nil, payload, nil, "llmgateway provider updated", 0)
+			if errors.Is(err, plugin.ErrSecretNotFound) {
+				meta, putErr := vs.PutSecret(ctx, llmVaultPutRequest(orgID, in, key))
+				if putErr != nil {
+					return nil, fmt.Errorf("%w: seal API key: %v", ErrInvalidProvider, putErr)
+				}
+				updates["vault_item_id"] = meta.ID
+			} else if err != nil {
+				return nil, fmt.Errorf("%w: seal API key: %v", ErrInvalidProvider, err)
+			}
+		} else {
+			meta, err := vs.PutSecret(ctx, llmVaultPutRequest(orgID, in, key))
+			if err != nil {
+				return nil, fmt.Errorf("%w: seal API key: %v", ErrInvalidProvider, err)
+			}
+			updates["vault_item_id"] = meta.ID
+		}
 	}
 	if err := tdb.Scoped(&Provider{}).WithContext(ctx).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("llm gateway: update provider: %w", err)
@@ -159,7 +190,7 @@ func (s *Store) UpdateProvider(ctx context.Context, orgID, id uint, in ProviderI
 
 // DeleteProvider removes a provider. Deleting the default leaves the workspace
 // without a default; ActiveProvider then fails closed until one is chosen.
-func (s *Store) DeleteProvider(ctx context.Context, orgID, id uint) error {
+func (s *Store) DeleteProvider(ctx context.Context, orgID, id uint, vs plugin.VaultService) error {
 	row, err := s.GetProvider(ctx, orgID, id)
 	if err != nil {
 		return err
@@ -170,6 +201,11 @@ func (s *Store) DeleteProvider(ctx context.Context, orgID, id uint) error {
 	}
 	if err := tdb.Scoped(&Provider{}).WithContext(ctx).Where("id = ?", row.ID).Delete(&Provider{}).Error; err != nil {
 		return fmt.Errorf("llm gateway: delete provider: %w", err)
+	}
+	if row.VaultItemID > 0 && vs != nil {
+		if err := vs.DeleteSecret(ctx, orgID, row.VaultItemID); err != nil && !errors.Is(err, plugin.ErrSecretNotFound) {
+			return fmt.Errorf("llm gateway: delete provider secret: %w", err)
+		}
 	}
 	return nil
 }
@@ -314,17 +350,31 @@ func validateInput(in ProviderInput) error {
 	return nil
 }
 
-func sealKey(key string, seal func(string) (string, error)) (string, error) {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return "", nil
+func llmVaultPayload(in ProviderInput, key string) map[string]any {
+	payload := map[string]any{
+		"apiKey": strings.TrimSpace(key),
 	}
-	if seal == nil {
-		return "", fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
+	if b := strings.TrimSpace(in.BaseURL); b != "" {
+		payload["baseUrl"] = b
 	}
-	sealed, err := seal(key)
-	if err != nil {
-		return "", fmt.Errorf("%w: seal API key: %v", ErrInvalidProvider, err)
+	if m := strings.TrimSpace(in.Model); m != "" {
+		payload["model"] = m
 	}
-	return sealed, nil
+	if cm := strings.TrimSpace(in.CheapModel); cm != "" {
+		payload["cheapModel"] = cm
+	}
+	return payload
+}
+
+func llmVaultPutRequest(orgID uint, in ProviderInput, key string) plugin.PutSecretRequest {
+	return plugin.PutSecretRequest{
+		OrgID:          orgID,
+		Scope:          plugin.VaultScopeOrg,
+		CollectionSlug: "integrations",
+		ItemType:       "integration",
+		ProviderType:   "llm",
+		Provider:       strings.ToLower(strings.TrimSpace(in.Backend)),
+		Name:           strings.TrimSpace(in.Name),
+		Payload:        llmVaultPayload(in, key),
+	}
 }

@@ -209,8 +209,8 @@ func TestAllModelsAndOrgDataIsolation(t *testing.T) {
 	db.Create(&t1)
 	db.Create(&t2)
 
-	w1 := Webhook{OrgID: org1.ID, Name: "Org1 Webhook", URL: "http://org1.example.com", Secret: "s1"}
-	w2 := Webhook{OrgID: org2.ID, Name: "Org2 Webhook", URL: "http://org2.example.com", Secret: "s2"}
+	w1 := Webhook{OrgID: org1.ID, Name: "Org1 Webhook", URL: "http://org1.example.com", VaultItemID: 1}
+	w2 := Webhook{OrgID: org2.ID, Name: "Org2 Webhook", URL: "http://org2.example.com", VaultItemID: 2}
 	db.Create(&w1)
 	db.Create(&w2)
 

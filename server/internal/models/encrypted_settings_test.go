@@ -33,78 +33,25 @@ func TestHasEncryptedValues(t *testing.T) {
 		t.Fatalf("empty database: found=%v err=%v", found, err)
 	}
 
-	// A plain setting is not ciphertext.
+	// Plain settings and vault-backed metadata rows do not depend on the instance DEK.
 	if err := db.Create(&Setting{Key: "app_name", Value: "Octarq"}).Error; err != nil {
 		t.Fatalf("create setting: %v", err)
 	}
+	if err := db.Create(&NotificationChannel{Name: "Ops", Type: "webhook", Config: `{"url":"https://example.com"}`}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&Webhook{Name: "Ops", URL: "https://example.com/hook", VaultItemID: 1}).Error; err != nil {
+		t.Fatalf("create webhook: %v", err)
+	}
 	if found, err = HasEncryptedValues(db); err != nil || found {
-		t.Fatalf("plain setting: found=%v err=%v", found, err)
+		t.Fatalf("non-DEK rows: found=%v err=%v", found, err)
 	}
 
-	// An encrypted setting is.
-	if err := db.Create(&Setting{Key: SettingGoogleClientSecret, Value: "ciphertext"}).Error; err != nil {
-		t.Fatalf("create encrypted setting: %v", err)
+	// User TOTP secret is still sealed under the instance envelope DEK.
+	if err := db.Create(&User{Email: "ops@example.com", PasswordHash: "hash", TOTPSecret: "ciphertext"}).Error; err != nil {
+		t.Fatalf("create user: %v", err)
 	}
 	if found, err = HasEncryptedValues(db); err != nil || !found {
-		t.Fatalf("encrypted setting: found=%v err=%v", found, err)
-	}
-}
-
-func TestHasEncryptedValuesChecksTheDataTables(t *testing.T) {
-	cases := []struct {
-		name  string
-		seed  func(t *testing.T, db *gorm.DB)
-		found bool
-	}{
-		{
-			name: "notification channel config",
-			seed: func(t *testing.T, db *gorm.DB) {
-				if err := db.Create(&NotificationChannel{Name: "Ops", Type: "webhook", Config: "ciphertext"}).Error; err != nil {
-					t.Fatalf("create channel: %v", err)
-				}
-			},
-			found: true,
-		},
-		{
-			name: "webhook secret",
-			seed: func(t *testing.T, db *gorm.DB) {
-				if err := db.Create(&Webhook{Name: "Ops", URL: "https://example.com/hook", Secret: "ciphertext"}).Error; err != nil {
-					t.Fatalf("create webhook: %v", err)
-				}
-			},
-			found: true,
-		},
-		{
-			name: "totp secret",
-			seed: func(t *testing.T, db *gorm.DB) {
-				if err := db.Create(&User{Email: "ops@example.com", PasswordHash: "hash", TOTPSecret: "ciphertext"}).Error; err != nil {
-					t.Fatalf("create user: %v", err)
-				}
-			},
-			found: true,
-		},
-		{
-			name: "channel without a config",
-			seed: func(t *testing.T, db *gorm.DB) {
-				if err := db.Create(&NotificationChannel{Name: "Ops", Type: "webhook"}).Error; err != nil {
-					t.Fatalf("create channel: %v", err)
-				}
-			},
-			found: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			db := encryptedValueDB(t)
-			tc.seed(t, db)
-			found, err := HasEncryptedValues(db)
-			if err != nil {
-				t.Fatalf("HasEncryptedValues: %v", err)
-			}
-			if found != tc.found {
-				t.Errorf("HasEncryptedValues = %v, want %v", found, tc.found)
-			}
-		})
+		t.Fatalf("totp secret: found=%v err=%v", found, err)
 	}
 }

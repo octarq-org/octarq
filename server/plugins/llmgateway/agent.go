@@ -136,18 +136,18 @@ func (p *Plugin) agentProviderFor(ctx context.Context, orgID uint, id uint) (age
 	if err != nil {
 		return agentProvider{}, err
 	}
-	return p.agentProviderFromRow(row, "")
+	return p.agentProviderFromRow(ctx, row, "")
 }
 
 // agentProviderFromRow builds the outbound call from one row. A non-empty
 // keyOverride is a key the caller typed and has not saved yet; the stored
 // sealed key serves every other case.
-func (p *Plugin) agentProviderFromRow(row *Provider, keyOverride string) (agentProvider, error) {
+func (p *Plugin) agentProviderFromRow(ctx context.Context, row *Provider, keyOverride string) (agentProvider, error) {
 	base, err := openAIBase(row)
 	if err != nil {
 		return agentProvider{}, fmt.Errorf("%w: %v", ErrInvalidProvider, err)
 	}
-	key, err := p.unsealKey(row, keyOverride)
+	key, err := p.unsealKey(ctx, row, keyOverride)
 	if err != nil {
 		return agentProvider{}, err
 	}
@@ -165,7 +165,7 @@ func (p *Plugin) agentProviderFromRow(row *Provider, keyOverride string) (agentP
 // endpoint, so the relay refuses it, yet the operator still has to know which
 // models the key offers. Anthropic answers that in its own list shape, so
 // discovery reads it instead of asking the operator to type model names.
-func (p *Plugin) discoveryProviderFromRow(row *Provider, keyOverride string) (agentProvider, error) {
+func (p *Plugin) discoveryProviderFromRow(ctx context.Context, row *Provider, keyOverride string) (agentProvider, error) {
 	base, err := openAIBase(row)
 	anthropic := false
 	switch {
@@ -178,7 +178,7 @@ func (p *Plugin) discoveryProviderFromRow(row *Provider, keyOverride string) (ag
 		// list shape, and the /v1 the list request adds must not double up.
 		base, anthropic = strings.TrimSuffix(strings.TrimRight(base, "/"), "/v1"), true
 	}
-	key, err := p.unsealKey(row, keyOverride)
+	key, err := p.unsealKey(ctx, row, keyOverride)
 	if err != nil {
 		return agentProvider{}, err
 	}
@@ -202,20 +202,11 @@ func isAnthropicHost(base string) bool {
 
 // unsealKey returns the key a call spends. A typed key wins over the stored
 // one, and a build without secret storage refuses rather than call unsigned.
-func (p *Plugin) unsealKey(row *Provider, keyOverride string) (string, error) {
-	key := strings.TrimSpace(keyOverride)
-	if key != "" || row.APIKeyEncr == "" {
+func (p *Plugin) unsealKey(ctx context.Context, row *Provider, keyOverride string) (string, error) {
+	if key := strings.TrimSpace(keyOverride); key != "" {
 		return key, nil
 	}
-	vault := p.vault()
-	if vault == nil {
-		return "", fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
-	}
-	plain, err := vault.Decrypt(row.APIKeyEncr)
-	if err != nil {
-		return "", fmt.Errorf("%w: unseal API key: %v", ErrInvalidProvider, err)
-	}
-	return string(plain), nil
+	return p.resolveAPIKey(ctx, row)
 }
 
 // sign adds the credential as a bearer token. Every backend that reaches this
