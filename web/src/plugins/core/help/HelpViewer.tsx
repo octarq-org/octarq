@@ -219,7 +219,7 @@ export default function HelpViewer() {
       <div className="flex-1 flex overflow-hidden">
         {/* Document Scroll Area */}
         <div className="flex-1 overflow-y-auto bg-surface-hover/20 scrollbar-thin p-4 sm:p-8 lg:p-12">
-          <div className="max-w-3xl mx-auto space-y-8">
+          <div className="space-y-8">
             {notFound ? (
               <div className="bg-card rounded-2xl border border-border p-8 shadow-xs space-y-4">
                 <div className="flex items-center gap-3 text-foreground">

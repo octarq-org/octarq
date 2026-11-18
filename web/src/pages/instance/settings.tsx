@@ -286,7 +286,7 @@ export function InstanceSettings() {
       {build && (
         <PageSection title={t("settings.buildTitle")}>
           <PageCard className="mt-0 p-5">
-            <div className="grid grid-cols-1 gap-4 max-w-2xl sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label={t("settings.buildVersion")}>
                 <div className="font-mono text-sm text-foreground">{build.version}</div>
               </Field>

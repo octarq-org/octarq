@@ -22,35 +22,11 @@ function BackChevron() {
   );
 }
 
-export type ShellWidth = "prose" | "full";
-
-export function PageColumn({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      data-slot="page-column"
-      className={cn(
-        "mx-auto flex w-full max-w-3xl flex-col pb-12",
-        "[&>header+*]:mt-8 [&>header+nav]:mt-6 [&>header+nav+*]:mt-8",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function PageShell({
   title,
   description,
   eyebrow,
   action,
-  width = "prose",
   backButton,
   className,
   children,
@@ -59,7 +35,6 @@ export function PageShell({
   description?: React.ReactNode;
   eyebrow?: string;
   action?: React.ReactNode;
-  width?: ShellWidth;
   backButton?: {
     label: string;
     onClick: () => void;
@@ -93,26 +68,14 @@ export function PageShell({
     />
   );
 
-  if (width === "full") {
-    return (
-      <ScreenWrap className={cn("flex min-h-0 min-w-0 flex-1 flex-col pb-12", className)}>
-        <div data-slot="page-shell" data-width="full" className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {backBar}
-          {header}
-          <div className="mt-6 flex min-h-0 flex-1 flex-col">{children}</div>
-        </div>
-      </ScreenWrap>
-    );
-  }
-
   return (
-    <ScreenWrap>
-      <div data-slot="page-shell" data-width="prose">
-        <PageColumn className={className}>
-          {backBar}
-          {header}
+    <ScreenWrap className={cn("flex min-h-0 min-w-0 flex-1 flex-col pb-12", className)}>
+      <div data-slot="page-shell" data-width="full" className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {backBar}
+        {header}
+        <div className="mt-6 flex min-h-0 flex-1 flex-col [&>*:first-child]:mt-0 [&>section:first-child]:mt-2 [&>nav:first-child+*]:mt-6">
           {children}
-        </PageColumn>
+        </div>
       </div>
     </ScreenWrap>
   );

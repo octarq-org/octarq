@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { Route, Link, matchPath } from "react-router-dom";
 import { PackageX, PowerOff, ShieldX } from "lucide-react";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
-import { PageColumn, buttonVariants, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
+import { buttonVariants, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
 import { uiPlugins, uiRoutes } from "@octarq/plugin-sdk";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
@@ -55,15 +55,13 @@ function FallbackCard({ icon, title, body, plugin, state, action }: FallbackCard
 export function PluginUnavailable({ plugin }: { plugin?: UIPlugin }) {
   const { t } = useTranslation();
   return (
-    <PageColumn>
-      <FallbackCard
-        icon={<PackageX />}
-        title={t("uiCommon.routeUnavailableTitle")}
-        body={t("uiCommon.routeUnavailableBody")}
-        plugin={plugin}
-        state={plugin ? t("uiCommon.routeUnavailableState") : undefined}
-      />
-    </PageColumn>
+    <FallbackCard
+      icon={<PackageX />}
+      title={t("uiCommon.routeUnavailableTitle")}
+      body={t("uiCommon.routeUnavailableBody")}
+      plugin={plugin}
+      state={plugin ? t("uiCommon.routeUnavailableState") : undefined}
+    />
   );
 }
 
@@ -73,22 +71,20 @@ export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
   const roleCtx = useCurrentRole();
   const canEnable = roleSatisfies("admin", roleCtx.role, roleCtx.isInstanceAdmin);
   return (
-    <PageColumn>
-      <FallbackCard
-        icon={<PowerOff />}
-        title={t("uiCommon.pluginDisabledTitle")}
-        body={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
-        plugin={plugin}
-        state={t("uiCommon.pluginDisabledState")}
-        action={
-          canEnable ? (
-            <Link to="/settings/plugins" className={buttonVariants({ variant: "secondary", size: "sm" })}>
-              {t("uiCommon.pluginDisabledAdminLink")}
-            </Link>
-          ) : undefined
-        }
-      />
-    </PageColumn>
+    <FallbackCard
+      icon={<PowerOff />}
+      title={t("uiCommon.pluginDisabledTitle")}
+      body={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
+      plugin={plugin}
+      state={t("uiCommon.pluginDisabledState")}
+      action={
+        canEnable ? (
+          <Link to="/settings/plugins" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+            {t("uiCommon.pluginDisabledAdminLink")}
+          </Link>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -96,20 +92,18 @@ export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
 export function AccessDenied({ plugin }: { plugin: UIPlugin }) {
   const { t } = useTranslation();
   return (
-    <PageColumn>
-      <FallbackCard
-        icon={<ShieldX />}
-        title={t("uiCommon.accessDeniedTitle")}
-        body={t("uiCommon.accessDeniedBody")}
-        plugin={plugin}
-        state={t("uiCommon.accessDeniedState")}
-        action={
-          <Link to="/settings/members" className={buttonVariants({ variant: "secondary", size: "sm" })}>
-            {t("uiCommon.accessDeniedLink")}
-          </Link>
-        }
-      />
-    </PageColumn>
+    <FallbackCard
+      icon={<ShieldX />}
+      title={t("uiCommon.accessDeniedTitle")}
+      body={t("uiCommon.accessDeniedBody")}
+      plugin={plugin}
+      state={t("uiCommon.accessDeniedState")}
+      action={
+        <Link to="/settings/members" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+          {t("uiCommon.accessDeniedLink")}
+        </Link>
+      }
+    />
   );
 }
 

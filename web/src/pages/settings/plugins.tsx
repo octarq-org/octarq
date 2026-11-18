@@ -131,8 +131,6 @@ export function PluginsSettings() {
 
   return (
     <PageShell
-      width="full"
-      className="max-w-5xl"
       title={t("settings.pluginsTitle")}
       description={t("settings.pluginsDescription")}
     >

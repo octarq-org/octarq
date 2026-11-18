@@ -140,7 +140,6 @@ export default function AuditLogPage() {
 
   return (
     <PageShell
-      width="full"
       title={t("audit.pageTitle")}
       description={t("audit.pageDesc")}
     >

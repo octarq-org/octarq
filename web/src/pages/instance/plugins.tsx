@@ -32,8 +32,6 @@ export function InstancePluginsSettings() {
 
   return (
     <PageShell
-      width="full"
-      className="max-w-5xl"
       title={t("settings.instancePluginsTitle")}
       description={t("settings.instancePluginsDescription")}
     >

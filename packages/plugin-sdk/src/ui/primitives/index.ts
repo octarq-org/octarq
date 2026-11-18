@@ -17,13 +17,11 @@ export { StatCard } from "./stat-card";
 export { PageHeader } from "./page-header";
 export {
   PageShell,
-  PageColumn,
   PageSection,
   PageRows,
   PageRow,
   PageCard,
   PageEmpty,
-  type ShellWidth,
 } from "./page-shell";
 export { Separator } from "./separator";
 export { ScreenWrap } from "./screen-wrap";
