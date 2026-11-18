@@ -33,6 +33,8 @@ export interface UIRoute {
   Component: LazyPage;
   requiredTier?: string;
   requiredRole?: string;
+  // "full" gives the page the entire authenticated viewport without host chrome.
+  layout?: "default" | "full";
 }
 
 // A dashboard widget contributed by a plugin. `slot` names an extension point

@@ -1,10 +1,10 @@
 // Maps composed UIPlugins into <Route> elements wrapped in PluginGate, with fallback components for unserved routes.
 import { Suspense, type ReactNode } from "react";
-import { Route, Link } from "react-router-dom";
+import { Route, Link, matchPath } from "react-router-dom";
 import { PackageX, PowerOff, ShieldX } from "lucide-react";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
 import { PageColumn, buttonVariants, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
-import { uiPlugins } from "@octarq/plugin-sdk";
+import { uiPlugins, uiRoutes } from "@octarq/plugin-sdk";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
 
@@ -111,6 +111,22 @@ export function AccessDenied({ plugin }: { plugin: UIPlugin }) {
       />
     </PageColumn>
   );
+}
+
+// Exact-match frame selector so full-bleed routes don't leak into sub-paths.
+export function routeLayoutFor(
+  routes: { path: string; layout?: "default" | "full" }[],
+  pathname: string,
+): "default" | "full" {
+  for (const route of routes) {
+    if (route.layout !== "full") continue;
+    if (matchPath({ path: route.path, end: true }, pathname)) return "full";
+  }
+  return "default";
+}
+
+export function pluginRouteLayout(pathname: string): "default" | "full" {
+  return routeLayoutFor(uiRoutes(), pathname);
 }
 
 // Returns <Route> elements for all registered plugin routes.
