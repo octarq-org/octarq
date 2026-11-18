@@ -20,7 +20,7 @@ const GO_SOURCES = import.meta.glob(
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
 
-const SHELL_SOURCES = import.meta.glob("./{App,AreaPanel,TopBar,CommandPalette}.tsx", {
+const SHELL_SOURCES = import.meta.glob("./{App,AreaPanel,AreaRail,AccountMenu,SidebarNav,TopBar,CommandPalette}.tsx", {
   query: "?raw",
   import: "default",
   eager: true,

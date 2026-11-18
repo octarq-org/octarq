@@ -101,4 +101,50 @@ test.describe("Design System UI Stories", () => {
 
     guard.assertClean();
   });
+
+  test("dual-rail sidebar collapses to 52px area rail with hover flyout", async ({ page }, testInfo) => {
+    mkdirSync(ARTIFACT_DIR, { recursive: true });
+    const guard = attachPageGuards(page);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
+    await page.goto("/admin/overview");
+    await page.waitForLoadState("networkidle");
+
+    const asideBox = await page.locator("aside").first().boundingBox();
+    const railBox = await page.locator('[data-slot="area-rail"]').first().boundingBox();
+    const subpanelBox = await page.locator('[data-slot="area-subpanel"]').first().boundingBox();
+    expect(asideBox?.width).toBe(252);
+    expect(railBox?.width).toBe(52);
+    expect(subpanelBox?.width).toBe(200);
+
+    await page.getByRole("button", { name: "Collapse menu" }).click();
+    await expect(page.locator('[data-slot="area-subpanel"]')).toHaveCount(0);
+    await expect
+      .poll(async () => (await page.locator("aside").first().boundingBox())?.width ?? 0)
+      .toBe(52);
+
+    await page.getByRole("button", { name: "Settings" }).hover();
+    const flyout = page.locator('[data-slot="area-rail-flyout"]');
+    await expect(flyout).toBeVisible();
+    await expect(flyout.getByRole("link", { name: "Appearance" })).toBeVisible();
+    const flyoutBox = await flyout.boundingBox();
+    expect(flyoutBox).not.toBeNull();
+    expect(flyoutBox!.y).toBeGreaterThanOrEqual(0);
+    expect(flyoutBox!.y + flyoutBox!.height).toBeLessThanOrEqual(900);
+
+    const flyoutBuf = await page.screenshot({
+      path: path.join(ARTIFACT_DIR, "dual-rail-collapsed-flyout.png"),
+      fullPage: false,
+    });
+    await testInfo.attach("dual-rail-collapsed-flyout.png", { body: flyoutBuf, contentType: "image/png" });
+
+    await page.keyboard.press("Escape");
+    await expect(flyout).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Collapse menu" }).click();
+    await expect(page.locator('[data-slot="area-subpanel"]')).toBeVisible();
+
+    guard.assertClean();
+  });
 });
