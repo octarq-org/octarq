@@ -14,7 +14,7 @@ import { Separator } from "./separator";
 afterEach(cleanup);
 
 describe("PageShell layout system", () => {
-  it("renders prose width (max-w-3xl) by default with header, section, rows and inset separator", () => {
+  it("renders full width by default with header, section, rows and inset separator", () => {
     const { container } = render(
       <PageShell title="Appearance" description="Theme and display preferences.">
         <PageSection title="Interface">
@@ -33,8 +33,10 @@ describe("PageShell layout system", () => {
     expect(screen.getByText("Theme")).toBeDefined();
     expect(screen.getByText("Language")).toBeDefined();
 
-    const column = container.querySelector(".max-w-3xl");
-    expect(column).not.toBeNull();
+    const shell = container.querySelector('[data-slot="page-shell"]');
+    expect(shell?.getAttribute("data-width")).toBe("full");
+    expect(container.querySelector(".max-w-3xl")).toBeNull();
+    expect(container.querySelector('[data-slot="page-column"]')).toBeNull();
 
     const rowsCard = container.querySelector('[data-slot="page-rows"]');
     expect(rowsCard?.className).toContain("bg-card");
@@ -44,16 +46,6 @@ describe("PageShell layout system", () => {
 
     const sep = container.querySelector('[data-slot="separator"]');
     expect(sep?.getAttribute("data-orientation")).toBe("horizontal");
-  });
-
-  it("supports full width without max-w-3xl constraint", () => {
-    const { container } = render(
-      <PageShell title="Audit Log" width="full">
-        <div>Table content</div>
-      </PageShell>,
-    );
-    expect(container.querySelector(".max-w-3xl")).toBeNull();
-    expect(screen.getByText("Table content")).toBeDefined();
   });
 
   it("renders interactive PageRow as a button when onClick is provided", () => {

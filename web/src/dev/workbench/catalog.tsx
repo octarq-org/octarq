@@ -9,7 +9,6 @@ import {
   Input,
   ListSkeleton,
   PageCard,
-  PageColumn,
   PageEmpty,
   PageHeader,
   PageRow,
@@ -407,24 +406,22 @@ export const CATALOG: CatalogEntry[] = [
   {
     name: "PageShell",
     group: "layout",
-    covers: ["PageShell", "PageColumn", "PageSection", "PageRows", "PageRow", "PageCard", "PageEmpty", "Separator"],
+    covers: ["PageShell", "PageSection", "PageRows", "PageRow", "PageCard", "PageEmpty", "Separator"],
     copy: ["Appearance", "General", "Theme", "System", "Reset", "No items yet"],
     Component: () => (
       <PageShell title="Appearance">
-        <PageColumn>
-          <PageSection title="General">
-            <PageRows>
-              <PageRow title="Theme" description="System">
-                <Button size="sm" variant="outline">Reset</Button>
-              </PageRow>
-              <Separator />
-              <PageEmpty title="No items yet" />
-            </PageRows>
-          </PageSection>
-          <PageCard>
-            <p className="text-sm text-muted-foreground">Card content</p>
-          </PageCard>
-        </PageColumn>
+        <PageSection title="General">
+          <PageRows>
+            <PageRow title="Theme" description="System">
+              <Button size="sm" variant="outline">Reset</Button>
+            </PageRow>
+            <Separator />
+            <PageEmpty title="No items yet" />
+          </PageRows>
+        </PageSection>
+        <PageCard>
+          <p className="text-sm text-muted-foreground">Card content</p>
+        </PageCard>
       </PageShell>
     ),
   },

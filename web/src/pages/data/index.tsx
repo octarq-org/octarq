@@ -98,7 +98,6 @@ export default function DataPage() {
 
   return (
     <PageShell
-      width="full"
       title={entity.pluralLabel}
       eyebrow={entity.label}
       description={t("data.pageDesc")}

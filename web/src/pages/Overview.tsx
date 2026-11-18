@@ -149,7 +149,7 @@ export default function OverviewPage() {
 
   if (loadFailed) {
     return (
-      <PageShell width="full" title={t("overview.title")} description={t("overview.description")}>
+      <PageShell title={t("overview.title")} description={t("overview.description")}>
         <Alert
           variant="danger"
           icon={<AlertCircle className="h-4 w-4" />}
@@ -188,7 +188,7 @@ export default function OverviewPage() {
   );
 
   return (
-    <PageShell width="full" title={t("overview.title")} description={t("overview.description")}>
+    <PageShell title={t("overview.title")} description={t("overview.description")}>
       <SetupChecklistProvider>
         <OverviewChecklistSection
           dismissed={dismissed}

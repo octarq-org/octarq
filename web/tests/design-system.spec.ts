@@ -4,10 +4,11 @@ import { test, expect } from "@playwright/test";
 import { ADMIN_USER, ADMIN_PASSWORD, signIn, attachPageGuards, expectNoCommentLeak, expectNoI18nLeak } from "./helpers";
 
 const STORIES = [
-  { name: "overview", path: "/admin/overview", expectedWidth: "full" },
-  { name: "settings-appearance", path: "/admin/settings/appearance", expectedWidth: "prose" },
-  { name: "settings-general", path: "/admin/settings/general", expectedWidth: "prose" },
-  { name: "audit", path: "/admin/audit", expectedWidth: "full" },
+  { name: "overview", path: "/admin/overview" },
+  { name: "settings-appearance", path: "/admin/settings/appearance" },
+  { name: "settings-general", path: "/admin/settings/general" },
+  { name: "settings-plugins", path: "/admin/settings/plugins" },
+  { name: "audit", path: "/admin/audit" },
 ] as const;
 
 const VIEWPORTS = [
@@ -20,7 +21,7 @@ const THEMES = ["light", "dark"] as const;
 const ARTIFACT_DIR = path.resolve(process.cwd(), "test-results", "design-system");
 
 test.describe("Design System UI Stories", () => {
-  test("3-surface hierarchy, prose/full geometry, and light/dark screenshots across viewports", async ({ page }, testInfo) => {
+  test("3-surface hierarchy, full-width geometry, and light/dark screenshots across viewports", async ({ page }, testInfo) => {
     mkdirSync(ARTIFACT_DIR, { recursive: true });
     const guard = attachPageGuards(page);
 
@@ -35,6 +36,7 @@ test.describe("Design System UI Stories", () => {
 
       for (const vp of VIEWPORTS) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
+        let baselineShellWidth: number | null = null;
 
         for (const story of STORIES) {
           await page.goto(story.path);
@@ -67,12 +69,34 @@ test.describe("Design System UI Stories", () => {
           expect(surfaces.sidebar).not.toBe(surfaces.background);
           expect(surfaces.background).not.toBe(surfaces.card);
 
-          // 3. Verify PageShell prose width constraint and 3 distinct computed surface colors.
-          if (vp.name === "desktop" && story.expectedWidth === "prose") {
-            const columnBox = await page.locator('[data-slot="page-column"]').first().boundingBox();
-            expect(columnBox, `${story.name} should render [data-slot="page-column"]`).not.toBeNull();
-            expect(columnBox!.width).toBeLessThanOrEqual(770);
+          // 3. Verify PageShell full-width geometry and ShellFooter alignment across all routes.
+          const shell = page.locator('[data-slot="page-shell"]').first();
+          await expect(shell, `${story.name} should render [data-slot="page-shell"]`).toBeVisible();
+          await expect(shell).toHaveAttribute("data-width", "full");
+          await expect(page.locator('[data-slot="page-column"]')).toHaveCount(0);
 
+          if (vp.name === "desktop") {
+            const shellBox = await shell.boundingBox();
+            expect(shellBox, `${story.name} should have a bounding box`).not.toBeNull();
+            expect(shellBox!.width).toBeGreaterThan(900);
+            if (baselineShellWidth === null) {
+              baselineShellWidth = shellBox!.width;
+            } else {
+              expect(
+                Math.abs(shellBox!.width - baselineShellWidth),
+                `${story.name} width ${shellBox!.width} diverged from baseline ${baselineShellWidth}`,
+              ).toBeLessThanOrEqual(2);
+            }
+
+            const footer = page.locator("main footer").first();
+            if ((await footer.count()) > 0) {
+              const footerBox = await footer.boundingBox();
+              expect(footerBox).not.toBeNull();
+              expect(Math.abs(footerBox!.width - shellBox!.width)).toBeLessThanOrEqual(2);
+            }
+          }
+
+          if (vp.name === "desktop" && story.name === "settings-appearance") {
             const renderedSurfaces = await page.evaluate(() => {
               const frame = document.querySelector("aside > div");
               const panel = document.querySelector("aside + div");

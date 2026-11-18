@@ -41,7 +41,7 @@ export default function HelloPage() {
   // neutral loading/empty state below (never a raw error).
   if (status === 402 || status === 404) {
     return (
-      <PageShell>
+      <PageShell title={t("hello.pageTitle", "Hello Plugin")}>
         <LockedFallback
           status={status}
           feature={t("hello.feature", "Hello Plugin")}
