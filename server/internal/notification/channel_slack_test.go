@@ -84,22 +84,20 @@ func TestSlackChannel_DatabaseFallback(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	SetConfigDecryptor(func(stored string) (string, bool) {
-		return stored, true
-	})
-
-	cfgJSON, _ := json.Marshal(map[string]string{"webhookUrl": ts.URL})
 	_ = db.Create(&models.NotificationChannel{
-		OrgID:     1,
-		Type:      "slack",
-		Name:      "Slack Channel",
-		Config:    string(cfgJSON),
-		Enabled:   true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		OrgID:       1,
+		Type:        "slack",
+		Name:        "Slack Channel",
+		VaultItemID: 1,
+		Enabled:     true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	})
 
 	ch := NewSlackChannel(db)
+	ch.SetVaultService(&stubVaultService{secrets: map[uint]map[string]any{
+		1: {"webhookUrl": ts.URL},
+	}})
 	ch.client = ts.Client()
 
 	rec := plugin.NotificationRecipient{

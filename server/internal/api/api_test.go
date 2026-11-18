@@ -17,12 +17,14 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/notify"
+	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
+	"github.com/octarq-org/octarq/server/plugins/vault"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -86,6 +88,7 @@ func initTestDBTemplates() {
 			&testDomain{}, &testProviderAccount{},
 			&testMailbox{}, &testEmail{}, &testSMTPSender{},
 		)
+		fullModels = append(fullModels, vault.New().Models()...)
 		if err := fullDB.AutoMigrate(fullModels...); err != nil {
 			panic("initTestDBTemplates migrate fullDB: " + err.Error())
 		}
@@ -109,6 +112,7 @@ func initTestDBTemplates() {
 			&testLink{},
 			&testDomain{}, &testProviderAccount{},
 		)
+		noMailModels = append(noMailModels, vault.New().Models()...)
 		if err := noMailDB.AutoMigrate(noMailModels...); err != nil {
 			panic("initTestDBTemplates migrate noMailDB: " + err.Error())
 		}
@@ -161,13 +165,6 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	notify.SetConfigDecryptor(func(stored string) (string, bool) {
-		b, err := cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(b), true
-	})
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
@@ -242,12 +239,7 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 				OrgIDFn:       authMgr.OrgID,
 				RequirePermFn: h.RequirePerm,
 			},
-			CryptoMock: &plugin.TestCrypto{
-				EncryptFn:        cipher.Encrypt,
-				DecryptFn:        cipher.Decrypt,
-				EncryptWithAADFn: cipher.EncryptWithAAD,
-				DecryptWithAADFn: cipher.DecryptWithAAD,
-			},
+			CryptoMock: apiTestCrypto(cipher),
 			SettingsMock: &plugin.TestSettings{
 				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
 				GetGlobalSettingFn:    h.GetGlobalSetting,
@@ -257,8 +249,59 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	for _, p := range plugins {
 		p.Mount(nil, pctx)
 	}
+	if vs, ok := plugin.LookupServiceAs[plugin.VaultService](reg.Lookup, plugin.ServiceVault); ok {
+		eventbus.SetVaultService(vs)
+		notification.DefaultRouter().SetVaultService(vs)
+		h.SetVaultService(vs)
+		t.Cleanup(func() {
+			eventbus.SetVaultService(nil)
+			notification.DefaultRouter().SetVaultService(nil)
+		})
+	}
 
 	return h, srv, db
+}
+
+type apiSubjectVault struct{ sv *crypto.SubjectVault }
+
+func (v apiSubjectVault) Encrypt(p []byte) (string, error) { return v.sv.Encrypt(p) }
+func (v apiSubjectVault) Decrypt(s string) ([]byte, error) { return v.sv.Decrypt(s) }
+func (v apiSubjectVault) EncryptWithAAD(p, aad []byte) (string, error) {
+	return v.sv.EncryptWithAAD(p, aad)
+}
+func (v apiSubjectVault) DecryptWithAAD(s string, aad []byte) ([]byte, error) {
+	return v.sv.DecryptWithAAD(s, aad)
+}
+func (v apiSubjectVault) SubjectVault(ownerID uint, subject string) (plugin.CryptoVault, error) {
+	sv, err := v.sv.SubjectVault(ownerID, subject)
+	if err != nil {
+		return nil, err
+	}
+	return apiSubjectVault{sv: sv}, nil
+}
+func (v apiSubjectVault) ShredSubjectKey(ownerID uint, subject string) error {
+	return v.sv.ShredSubjectKey(ownerID, subject)
+}
+func (v apiSubjectVault) HasSubjectKey(ownerID uint, subject string) bool {
+	return v.sv.HasSubjectKey(ownerID, subject)
+}
+
+func apiTestCrypto(cipher *crypto.Cipher) *plugin.TestCrypto {
+	return &plugin.TestCrypto{
+		EncryptFn:        cipher.Encrypt,
+		DecryptFn:        cipher.Decrypt,
+		EncryptWithAADFn: cipher.EncryptWithAAD,
+		DecryptWithAADFn: cipher.DecryptWithAAD,
+		SubjectVaultFn: func(ownerID uint, subject string) (plugin.CryptoVault, error) {
+			sv, err := cipher.SubjectVault(ownerID, subject)
+			if err != nil {
+				return nil, err
+			}
+			return apiSubjectVault{sv: sv}, nil
+		},
+		ShredSubjectKeyFn: cipher.ShredSubjectKey,
+		HasSubjectKeyFn:   cipher.HasSubjectKey,
+	}
 }
 
 // newTestHandlerWithoutMail builds a test handler without mail plugin.

@@ -179,19 +179,16 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		gotText = text
 		return nil
 	})
-	cfg, err := ctx.Host.Crypto().Encrypt([]byte(`{}`))
-	if err != nil {
-		t.Fatalf("Encrypt notifier config: %v", err)
-	}
+	cfg := `{}`
 	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, cfg, "hello "+p.name); err != nil {
 		t.Fatalf("Notify: %v", err)
 	}
 	if gotText != "hello "+p.name {
 		t.Errorf("notifier received %q, want %q", gotText, "hello "+p.name)
 	}
-	// ctx.Notify error on undecryptable config
+	// ctx.Notify error on invalid config JSON
 	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, "undecryptable-garbage", "hello"); err == nil {
-		t.Errorf("expected ctx.Notify error on undecryptable config, got nil")
+		t.Errorf("expected ctx.Notify error on invalid config JSON, got nil")
 	}
 
 	// Cache round-trips through the real in-memory cache.

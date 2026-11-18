@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"os"
 	"strconv"
@@ -9,26 +11,27 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm/clause"
 )
 
-// Setting keys.
+// Setting keys and instance-scoped Vault key names.
 const (
 	keyReservedSlugs            = "reserved_slugs"
 	keyReservedMailboxes        = "reserved_mailboxes"
 	keyCatchAll                 = "catch_all"
 	keyGoogleClientID           = "oauth.google.client_id"
-	keyGoogleClientSecret       = models.SettingGoogleClientSecret // stored AES-GCM encrypted
+	vaultKeyGoogleClientSecret  = "instance.oauth.google"
 	keyGitHubClientID           = "oauth.github.client_id"
-	keyGitHubClientSecret       = models.SettingGitHubClientSecret // stored AES-GCM encrypted
-	keyDataRetentionDays        = "data_retention_days"            // 0 = disabled
+	vaultKeyGitHubClientSecret  = "instance.oauth.github"
+	keyDataRetentionDays        = "data_retention_days" // 0 = disabled
 	keyAutoWrapLinks            = "auto_wrap_links"
-	keyAllowRegistration        = "allow_registration"       // "false" disables public sign-up; default on
-	keyAppName                  = "app_name"                 // UI product name; empty = config.DefaultAppName
-	keyBrandLogo                = "brand_logo"               // white-label logo (URL or data URI); empty = gradient initial
-	keyBrandColor               = "brand_color"              // white-label primary accent hex; empty = default indigo
-	keyBrandColor2              = "brand_color_2"            // white-label secondary accent hex; empty = default violet
-	keyMetricsToken             = models.SettingMetricsToken // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
+	keyAllowRegistration        = "allow_registration"     // "false" disables public sign-up; default on
+	keyAppName                  = "app_name"               // UI product name; empty = config.DefaultAppName
+	keyBrandLogo                = "brand_logo"             // white-label logo (URL or data URI); empty = gradient initial
+	keyBrandColor               = "brand_color"            // white-label primary accent hex; empty = default indigo
+	keyBrandColor2              = "brand_color_2"          // white-label secondary accent hex; empty = default violet
+	vaultKeyMetricsToken        = "instance.metrics_token" // /metrics bearer in Vault; empty = loopback-only
 	keyRatelimitAuthRPM         = "ratelimit_auth_rpm"
 	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
@@ -99,24 +102,68 @@ func (h *Handler) BrandFor(orgID uint) (logo, color, color2 string) {
 		h.brandSetting(orgID, keyBrandColor2)
 }
 
-// MetricsToken returns the decrypted /metrics bearer token; empty means the
-// endpoint is loopback-only. Consumed by the edge middleware via a TTL cache.
+// MetricsToken returns the /metrics bearer token from VaultService; empty
+// means the endpoint is loopback-only. Consumed by the edge middleware via a TTL cache.
 func (h *Handler) MetricsToken() string {
-	enc := h.getSetting(keyMetricsToken)
-	if enc == "" {
-		if h.cfg != nil && h.cfg.MetricsToken != "" {
-			return strings.TrimSpace(h.cfg.MetricsToken)
-		}
-		return strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
+	if tok := h.resolveInstanceSecret(context.Background(), vaultKeyMetricsToken, "token", "value"); tok != "" {
+		return tok
 	}
-	b, err := h.cipher.Decrypt(enc)
-	if err != nil {
-		if h.cfg != nil && h.cfg.MetricsToken != "" {
-			return strings.TrimSpace(h.cfg.MetricsToken)
-		}
-		return strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
+	if h.cfg != nil && h.cfg.MetricsToken != "" {
+		return strings.TrimSpace(h.cfg.MetricsToken)
 	}
-	return strings.TrimSpace(string(b))
+	return strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
+}
+
+func (h *Handler) resolveInstanceSecret(ctx context.Context, keyName string, fieldKeys ...string) string {
+	vs := h.vault()
+	if vs == nil {
+		return ""
+	}
+	sec, err := vs.ResolveInstanceSecret(ctx, keyName)
+	if err != nil || sec == nil {
+		return ""
+	}
+	for _, fk := range fieldKeys {
+		if s, ok := sec.Payload[fk].(string); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
+		}
+	}
+	return ""
+}
+
+func (h *Handler) hasInstanceSecret(ctx context.Context, keyName string, fieldKeys ...string) bool {
+	return h.resolveInstanceSecret(ctx, keyName, fieldKeys...) != ""
+}
+
+func (h *Handler) setInstanceSecret(ctx context.Context, keyName, displayName, fieldKey, value string, actorUserID uint) error {
+	vs := h.vault()
+	if vs == nil {
+		return errors.New("vault service unavailable")
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if _, err := vs.ResolveInstanceSecret(ctx, keyName); errors.Is(err, plugin.ErrSecretNotFound) {
+			return nil
+		}
+		_, err := vs.PutInstanceSecret(ctx, plugin.PutSecretRequest{
+			ItemType:    "instance_secret",
+			KeyName:     keyName,
+			Name:        displayName,
+			Payload:     map[string]any{fieldKey: "", "configured": false},
+			ChangeNote:  "cleared via instance settings",
+			ActorUserID: actorUserID,
+		})
+		return err
+	}
+	_, err := vs.PutInstanceSecret(ctx, plugin.PutSecretRequest{
+		ItemType:    "instance_secret",
+		KeyName:     keyName,
+		Name:        displayName,
+		Payload:     map[string]any{fieldKey: value, "configured": true},
+		ChangeNote:  "updated via instance settings",
+		ActorUserID: actorUserID,
+	})
+	return err
 }
 
 // RateLimits returns the per-IP requests-per-minute budgets (auth, api,

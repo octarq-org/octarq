@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func seedOrgFullData(t *testing.T, h *Handler, orgID, userID uint, webhookSecret string) {
@@ -100,15 +102,29 @@ func seedOrgFullData(t *testing.T, h *Handler, orgID, userID uint, webhookSecret
 		t.Fatalf("seed audit log: %v", err)
 	}
 
+	var webhookVaultID uint
+	if vs := h.vault(); vs != nil && webhookSecret != "" {
+		meta, err := vs.PutSecret(context.Background(), plugin.PutSecretRequest{
+			OrgID:    orgID,
+			Scope:    plugin.VaultScopeOrg,
+			ItemType: "webhook",
+			Name:     "test-webhook",
+			Payload:  map[string]any{"signingSecret": webhookSecret},
+		})
+		if err != nil {
+			t.Fatalf("seed webhook vault secret: %v", err)
+		}
+		webhookVaultID = meta.ID
+	}
 	webhook := models.Webhook{
-		OrgID:     orgID,
-		Name:      "test-webhook",
-		URL:       "https://example.com/webhook",
-		Secret:    webhookSecret,
-		Events:    "*",
-		Enabled:   true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		OrgID:       orgID,
+		Name:        "test-webhook",
+		URL:         "https://example.com/webhook",
+		VaultItemID: webhookVaultID,
+		Events:      "*",
+		Enabled:     true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	if err := db.Create(&webhook).Error; err != nil {
 		t.Fatalf("seed webhook: %v", err)

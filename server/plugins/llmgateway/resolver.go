@@ -53,21 +53,13 @@ func (p *Plugin) Resolve(ctx context.Context, orgID uint) (llmprovider.Provider,
 	if err != nil {
 		return nil, err
 	}
-	return p.providerFrom(row)
+	return p.providerFrom(ctx, row)
 }
 
-func (p *Plugin) providerFrom(row *Provider) (llmprovider.Provider, error) {
-	key := ""
-	if row.APIKeyEncr != "" {
-		vault := p.vault()
-		if vault == nil {
-			return nil, fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
-		}
-		plain, err := vault.Decrypt(row.APIKeyEncr)
-		if err != nil {
-			return nil, fmt.Errorf("%w: unseal API key: %v", ErrInvalidProvider, err)
-		}
-		key = string(plain)
+func (p *Plugin) providerFrom(ctx context.Context, row *Provider) (llmprovider.Provider, error) {
+	key, err := p.resolveAPIKey(ctx, row)
+	if err != nil {
+		return nil, err
 	}
 	prov, err := llmprovider.New(llmprovider.Options{
 		Provider:   strings.ToLower(strings.TrimSpace(row.Backend)),
@@ -82,17 +74,31 @@ func (p *Plugin) providerFrom(row *Provider) (llmprovider.Provider, error) {
 	return prov, nil
 }
 
-func (p *Plugin) vault() plugin.CryptoVault {
-	if p.pctx == nil || p.pctx.Host == nil {
+func (p *Plugin) vaultService() plugin.VaultService {
+	if p == nil || p.pctx == nil {
 		return nil
 	}
-	return p.pctx.Host.Crypto()
+	vs, ok := plugin.LookupAs[plugin.VaultService](p.pctx, plugin.ServiceVault)
+	if !ok {
+		return nil
+	}
+	return vs
 }
 
-func (p *Plugin) seal(plain string) (string, error) {
-	vault := p.vault()
-	if vault == nil {
-		return "", fmt.Errorf("secret storage is unavailable")
+func (p *Plugin) resolveAPIKey(ctx context.Context, row *Provider) (string, error) {
+	if row == nil || row.VaultItemID == 0 {
+		return "", nil
 	}
-	return vault.Encrypt([]byte(plain))
+	vs := p.vaultService()
+	if vs == nil {
+		return "", fmt.Errorf("%w: secret storage is unavailable", ErrInvalidProvider)
+	}
+	sec, err := vs.GetSecret(ctx, row.OrgID, row.VaultItemID)
+	if err != nil {
+		return "", fmt.Errorf("%w: unseal API key: %v", ErrInvalidProvider, err)
+	}
+	if k, ok := sec.Payload["apiKey"].(string); ok {
+		return strings.TrimSpace(k), nil
+	}
+	return "", nil
 }

@@ -218,14 +218,13 @@ func TestTelegramChannel_NamedIntegrationNeverFallsBackToLocalRow(t *testing.T) 
 // local row is an error, not a silent "no credentials configured".
 func TestTelegramChannel_ConfigDecryptFailureIsReported(t *testing.T) {
 	db := openChannelDB(t, &models.NotificationChannel{
-		OrgID: 1, Type: "telegram", Enabled: true, Config: "corrupted",
+		OrgID: 1, Type: "telegram", Enabled: true, VaultItemID: 99, Config: `{"chatId":"12345"}`,
 	})
-	SetConfigDecryptor(func(string) (string, bool) { return "", false })
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
 
 	ch := NewTelegramChannel(db)
+	ch.SetVaultService(&stubVaultService{err: errors.New("vault decrypt failed")})
 	err := ch.Send(context.Background(), plugin.NotificationRecipient{OrgID: "1"}, plugin.NotificationPayload{Body: "alert"})
-	if err == nil || !strings.Contains(err.Error(), "decrypt channel config") {
-		t.Fatalf("expected a decrypt error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "resolve channel config") {
+		t.Fatalf("expected a resolve error, got %v", err)
 	}
 }

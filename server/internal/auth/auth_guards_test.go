@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -115,9 +117,8 @@ func TestUpsertUserByEmailEmpty(t *testing.T) {
 // TestDecryptedSettingGarbage refuses an undecryptable stored secret.
 func TestDecryptedSettingGarbage(t *testing.T) {
 	db := identityDB(t)
-	db.Create(&models.Setting{Key: "oauth.x.client_secret", Value: "not-encrypted"})
-	h := NewOAuthHandler(db, New(&config.Config{SecretKey: "s"}, crypto.New("s")).WithDB(db), crypto.New("s"))
-	if got := h.decryptedSetting("oauth.x.client_secret"); got != "" {
-		t.Errorf("decryptedSetting on garbage = %q, want empty", got)
+	h := NewOAuthHandler(db, New(&config.Config{SecretKey: "s"}, crypto.New("s")).WithDB(db), &testAuthVault{err: errors.New("vault error")})
+	if got := h.instanceSecret(context.Background(), "instance.oauth.x"); got != "" {
+		t.Errorf("instanceSecret on vault error = %q, want empty", got)
 	}
 }

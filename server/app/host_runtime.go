@@ -245,14 +245,10 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		DB:       db,
 		Guard:    authGuard,
 		Notify: func(ctx context.Context, typ, cfgJSON, text string) error {
-			pt, err := notification.ConfigPlaintext(cfgJSON)
-			if err != nil {
-				return err
-			}
 			if params.notifRouter != nil {
-				return params.notifRouter.SendDirect(ctx, typ, pt, text)
+				return params.notifRouter.SendDirect(ctx, typ, cfgJSON, text)
 			}
-			return notification.DefaultRouter().SendDirect(ctx, typ, pt, text)
+			return notification.DefaultRouter().SendDirect(ctx, typ, cfgJSON, text)
 		},
 		Emit: func(ctx context.Context, payload plugin.NotificationPayload) error {
 			if params.notifRouter != nil {

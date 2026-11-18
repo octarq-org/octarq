@@ -175,20 +175,22 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Errorf("webhook still exists after delete")
 	}
 
-	// 9. Secret helper functions
-	h, _, _ := newTestHandlerRaw(t)
-	plain, err := h.webhookSecretPlaintext("")
-	if err != nil || plain != "" {
-		t.Errorf("webhookSecretPlaintext(\"\") = (%q, %v)", plain, err)
+	// 9. Vault secret persistence check
+	h, srv2, _ := newTestHandlerRaw(t)
+	adminCookies2 := loginCookies(t, srv2)
+	rec = do(srv2, "POST", "/api/webhooks", adminCookies2, `{"name":"Vault Hook","url":"https://example.com/vh","secret":"test-secret"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create vault hook: got %d (%s)", rec.Code, rec.Body.String())
 	}
-
-	enc, err := h.encryptWebhookSecret("test-secret")
-	if err != nil {
-		t.Fatalf("encryptWebhookSecret: %v", err)
+	var vh WebhookCreateView
+	_ = json.Unmarshal(rec.Body.Bytes(), &vh)
+	var dbHook models.Webhook
+	if err := h.db.First(&dbHook, vh.ID).Error; err != nil || dbHook.VaultItemID == 0 {
+		t.Fatalf("expected VaultItemID > 0 on saved webhook, got %+v err=%v", dbHook, err)
 	}
-	dec, err := h.webhookSecretPlaintext(enc)
-	if err != nil || dec != "test-secret" {
-		t.Errorf("decrypt webhook secret roundtrip = (%q, %v)", dec, err)
+	sec, err := h.vault().GetSecret(context.Background(), 1, dbHook.VaultItemID)
+	if err != nil || sec.Payload["signingSecret"] != "test-secret" {
+		t.Errorf("vault GetSecret = (%+v, %v), want signingSecret=test-secret", sec, err)
 	}
 
 	// 10. Nil Ctx calls

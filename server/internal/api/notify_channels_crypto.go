@@ -1,88 +1,82 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
+
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// channelConfigPlaintext returns the usable config JSON for a notification
-// channel. Configs are AES-GCM encrypted at rest; a stored value that cannot be
-// decrypted is an error rather than a passthrough of whatever was stored.
-func (h *Handler) channelConfigPlaintext(stored string) (string, error) {
-	if stored == "" {
-		return "", nil
+func isSecretConfigKey(k string) bool {
+	lk := strings.ToLower(k)
+	for _, marker := range []string{"token", "secret", "password", "key", "auth", "credential", "bearer", "webhookurl", "webhook_url"} {
+		if strings.Contains(lk, marker) {
+			return true
+		}
 	}
-	b, err := h.cipher.Decrypt(stored)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
+	return false
 }
 
-// encryptChannelConfig seals a plaintext config JSON for storage.
-func (h *Handler) encryptChannelConfig(plaintext string) (string, error) {
-	return h.cipher.Encrypt([]byte(plaintext))
+// splitChannelConfig separates a channel JSON config into non-secret routing
+// metadata (stored in notification_channels.config) and secret fields (stored in
+// VaultService). Any secret key carrying "[REDACTED]" is tracked in
+// redactedKeys so updates can preserve the existing vault secret.
+func splitChannelConfig(cfgJSON string) (metaMap map[string]any, secretMap map[string]any, redactedKeys []string, err error) {
+	metaMap = make(map[string]any)
+	secretMap = make(map[string]any)
+	trimmed := strings.TrimSpace(cfgJSON)
+	if trimmed == "" || trimmed == "{}" {
+		return metaMap, secretMap, nil, nil
+	}
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(trimmed), &raw); err != nil {
+		return nil, nil, nil, err
+	}
+	for k, v := range raw {
+		if isSecretConfigKey(k) {
+			if s, ok := v.(string); ok {
+				if s == "[REDACTED]" {
+					redactedKeys = append(redactedKeys, k)
+					continue
+				}
+				if strings.TrimSpace(s) == "" {
+					continue
+				}
+			} else if v == nil {
+				continue
+			}
+			secretMap[k] = v
+		} else {
+			metaMap[k] = v
+		}
+	}
+	return metaMap, secretMap, redactedKeys, nil
 }
 
-func redactConfigSecrets(cfgJSON string) string {
-	if strings.TrimSpace(cfgJSON) == "" {
+func marshalChannelConfigMap(m map[string]any) string {
+	if len(m) == 0 {
 		return "{}"
 	}
-	var m map[string]any
-	if err := json.Unmarshal([]byte(cfgJSON), &m); err != nil {
-		return cfgJSON
-	}
-	redactMap(m)
 	b, err := json.Marshal(m)
 	if err != nil {
-		return cfgJSON
+		return "{}"
 	}
 	return string(b)
 }
 
-func redactMap(m map[string]any) {
-	for k, v := range m {
-		lk := strings.ToLower(k)
-		if strings.Contains(lk, "token") || strings.Contains(lk, "secret") || strings.Contains(lk, "password") ||
-			strings.Contains(lk, "key") || strings.Contains(lk, "auth") || strings.Contains(lk, "credential") ||
-			strings.Contains(lk, "bearer") {
-			if s, ok := v.(string); ok && s != "" {
-				m[k] = "[REDACTED]"
-			}
-		} else if child, ok := v.(map[string]any); ok {
-			redactMap(child)
-		}
+func buildChannelConfigView(ctx context.Context, vs plugin.VaultService, ch models.NotificationChannel) string {
+	viewMap := make(map[string]any)
+	if raw := strings.TrimSpace(ch.Config); raw != "" && raw != "{}" {
+		_ = json.Unmarshal([]byte(raw), &viewMap)
 	}
-}
-
-func mergeConfigPreservingSecrets(oldJSON, newJSON string) string {
-	var oldMap, newMap map[string]any
-	if json.Unmarshal([]byte(oldJSON), &oldMap) != nil {
-		return newJSON
-	}
-	if json.Unmarshal([]byte(newJSON), &newMap) != nil {
-		return newJSON
-	}
-	mergeMapsPreservingSecrets(oldMap, newMap)
-	b, err := json.Marshal(newMap)
-	if err != nil {
-		return newJSON
-	}
-	return string(b)
-}
-
-func mergeMapsPreservingSecrets(oldMap, newMap map[string]any) {
-	for k, v := range newMap {
-		if s, ok := v.(string); ok && s == "[REDACTED]" {
-			if oldVal, exists := oldMap[k]; exists {
-				if oldStr, isStr := oldVal.(string); isStr && oldStr != "" {
-					newMap[k] = oldStr
-				}
-			}
-		} else if newChild, ok := v.(map[string]any); ok {
-			if oldChild, exists := oldMap[k].(map[string]any); exists {
-				mergeMapsPreservingSecrets(oldChild, newChild)
+	if ch.VaultItemID > 0 && vs != nil {
+		if meta, err := vs.GetMeta(ctx, ch.OrgID, ch.VaultItemID); err == nil && meta != nil {
+			for _, fk := range meta.FieldKeys {
+				viewMap[fk] = "[REDACTED]"
 			}
 		}
 	}
+	return marshalChannelConfigMap(viewMap)
 }

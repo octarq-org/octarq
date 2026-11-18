@@ -9,15 +9,10 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/config"
-	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
-// wireEventbusForTest mirrors app.Run's eventbus wiring (db + secret
-// decryptor) against the harness cipher, and opts loopback receivers in for
-// the httptest endpoint. Cleanup restores the globals so one test's decryptor
-// can never leak another test's secrets.
 // Route-registration guards: these hit the composed mux, so deleting the
 // huma.Register line turns them into 404s — direct handler-call tests cannot
 // see that regression.
@@ -34,12 +29,10 @@ func TestProviderTestRoutesRegistered(t *testing.T) {
 	}
 }
 
-func wireEventbusForTest(t *testing.T, decrypt func(string) (string, bool)) {
+func wireEventbusForTest(t *testing.T) {
 	t.Helper()
-	eventbus.SetSecretDecryptor(decrypt)
 	safehttp.SetAllowPrivateWebhooks(true)
 	t.Cleanup(func() {
-		eventbus.SetSecretDecryptor(nil)
 		safehttp.SetAllowPrivateWebhooks(false)
 	})
 }
@@ -69,7 +62,7 @@ func TestWebhookTestEndpoint_AuthzAndScoping(t *testing.T) {
 	}
 
 	// A foreign org's webhook id must read as not-found, not as a probe oracle.
-	hook := models.Webhook{OrgID: 2, Name: "other-org", URL: "https://example.com/wh", Secret: "x", Events: "*", Enabled: true}
+	hook := models.Webhook{OrgID: 2, Name: "other-org", URL: "https://example.com/wh", VaultItemID: 1, Events: "*", Enabled: true}
 	db.Create(&hook)
 	rec = do(srv, "POST", fmt.Sprintf("/api/webhooks/%d/test", hook.ID), adminCookies, "")
 	if rec.Code != http.StatusNotFound {
@@ -77,7 +70,7 @@ func TestWebhookTestEndpoint_AuthzAndScoping(t *testing.T) {
 	}
 
 	// Disabled webhooks refuse the test instead of pretending to verify.
-	disabled := models.Webhook{OrgID: 1, Name: "disabled", URL: "https://example.com/wh", Secret: "x", Events: "*", Enabled: false}
+	disabled := models.Webhook{OrgID: 1, Name: "disabled", URL: "https://example.com/wh", VaultItemID: 1, Events: "*", Enabled: false}
 	db.Create(&disabled)
 	// gorm skips zero-value bools on Create, so pin enabled=false explicitly.
 	db.Model(&models.Webhook{}).Where("id = ?", disabled.ID).Update("enabled", false)
@@ -107,16 +100,8 @@ func TestWebhookTestEndpoint_DeliversSignedEvent(t *testing.T) {
 	defer receiver.Close()
 
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "test-webhook-secret"}
-	h, srv, _ := newTestHandlerRawCfg(t, cfg)
-	// Sign with the handler's own enveloped cipher — a fresh crypto.New over
-	// the same key would not unwrap values sealed through apiEnvStore.
-	wireEventbusForTest(t, func(stored string) (string, bool) {
-		pt, err := h.cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(pt), true
-	})
+	_, srv, _ := newTestHandlerRawCfg(t, cfg)
+	wireEventbusForTest(t)
 	adminCookies := loginCookies(t, srv)
 
 	rec := do(srv, "POST", "/api/webhooks", adminCookies, fmt.Sprintf(`{"name":"probe","url":%q}`, receiver.URL))

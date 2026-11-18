@@ -139,20 +139,19 @@ func TestTelegramChannel_DBLookup(t *testing.T) {
 	}
 	_ = db.AutoMigrate(&models.NotificationChannel{})
 
-	SetConfigDecryptor(func(stored string) (string, bool) {
-		return stored, true
-	})
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
-
 	// Insert active telegram channel for org 1
 	db.Create(&models.NotificationChannel{
-		OrgID:   1,
-		Type:    "telegram",
-		Config:  `{"botToken":"invalid-token","chatId":"12345"}`,
-		Enabled: true,
+		OrgID:       1,
+		Type:        "telegram",
+		VaultItemID: 1,
+		Config:      `{"chatId":"12345"}`,
+		Enabled:     true,
 	})
 
 	ch := NewTelegramChannel(db)
+	ch.SetVaultService(&stubVaultService{secrets: map[uint]map[string]any{
+		1: {"botToken": "invalid-token"},
+	}})
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{
 		OrgID: "1",
 	}, plugin.NotificationPayload{Body: "hello"})

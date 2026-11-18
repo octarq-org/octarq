@@ -42,13 +42,8 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	m := New(cfg, cipher).WithDB(db)
 	InitGothStore("secret")
 
-	enc, err := cipher.Encrypt([]byte("google-secret"))
-	if err != nil {
-		t.Fatalf("encrypt: %v", err)
-	}
 	db.Where("key LIKE ?", "oauth.%").Delete(&models.Setting{})
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
-	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: enc})
 
 	db.AutoMigrate(&testDomain{})
 	db.Where("1 = 1").Delete(&testDomain{})
@@ -64,7 +59,7 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	// provider and this test's whole point evaporates.
 	origin.ClearDomainCache("acme.example")
 
-	h := NewOAuthHandler(db, m, cipher)
+	h := NewOAuthHandler(db, m, &testAuthVault{secrets: map[string]string{"instance.oauth.google": "google-secret"}})
 
 	begin := func(host string, secure bool) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, "/auth/begin/google", nil)

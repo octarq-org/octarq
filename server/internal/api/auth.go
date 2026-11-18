@@ -240,8 +240,8 @@ type AuthConfigOutput struct {
 // instance default). Host is client-controlled, so it selects PRESENTATION only
 // — no data and no privilege hangs off it here.
 func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*AuthConfigOutput, error) {
-	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
-	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
+	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.hasInstanceSecret(ctx, vaultKeyGoogleClientSecret, "clientSecret", "value")
+	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.hasInstanceSecret(ctx, vaultKeyGitHubClientSecret, "clientSecret", "value")
 
 	orgID := uint(0)
 	if input.Ctx != nil {

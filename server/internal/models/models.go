@@ -302,8 +302,9 @@ type NotificationChannel struct {
 	ID           uint            `json:"id" gorm:"primaryKey"`
 	OrgID        uint            `gorm:"column:owner_id;index" json:"-"`
 	Name         string          `json:"name"`
-	Type         string          `json:"type"`                    // e.g. "telegram", "webhook"
-	Config       string          `json:"config" gorm:"type:text"` // AES-GCM encrypted JSON object at rest; a value that does not decrypt is an error, never a passthrough
+	Type         string          `json:"type"` // e.g. "telegram", "webhook"
+	VaultItemID  uint            `json:"vaultItemId,omitempty" gorm:"column:vault_item_id;default:0"`
+	Config       string          `json:"config" gorm:"type:text"` // non-secret routing metadata JSON (chatId, channel, to, integrationId, etc.); secrets live in VaultService
 	ConfigSchema json.RawMessage `json:"configSchema,omitempty" gorm:"-"`
 	Enabled      bool            `json:"enabled" gorm:"default:true"`
 	CreatedAt    time.Time       `json:"createdAt"`
@@ -360,15 +361,15 @@ type PluginSetting struct {
 
 // Webhook represents a registered HTTP webhook endpoint for event streaming.
 type Webhook struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID     uint      `gorm:"index;default:1;column:owner_id" json:"-"`
-	Name      string    `gorm:"size:255;not null" json:"name"`
-	URL       string    `gorm:"size:1024;not null;column:url" json:"url"`
-	Secret    string    `gorm:"size:255;not null" json:"-"`
-	Events    string    `gorm:"size:1024;not null;default:'*'" json:"events"` // comma-separated subscribed event codes, e.g. "link.click,email.receive"
-	Enabled   bool      `gorm:"default:true" json:"enabled"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	OrgID       uint      `gorm:"index;default:1;column:owner_id" json:"-"`
+	Name        string    `gorm:"size:255;not null" json:"name"`
+	URL         string    `gorm:"size:1024;not null;column:url" json:"url"`
+	VaultItemID uint      `gorm:"column:vault_item_id;default:0" json:"-"`
+	Events      string    `gorm:"size:1024;not null;default:'*'" json:"events"` // comma-separated subscribed event codes, e.g. "link.click,email.receive"
+	Enabled     bool      `gorm:"default:true" json:"enabled"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // Notification represents an in-app notification record.

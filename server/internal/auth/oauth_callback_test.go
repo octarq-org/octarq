@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -26,18 +27,12 @@ func oauthPreparedHandler(t *testing.T) (*OAuthHandler, *gorm.DB) {
 	if err := cipher.EnableEnvelope(testEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	encSecret, err := cipher.Encrypt([]byte("google-secret"))
-	if err != nil {
-		t.Fatalf("encrypt secret: %v", err)
-	}
 	if err := db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"}).Error; err != nil {
 		t.Fatalf("client_id: %v", err)
 	}
-	if err := db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: encSecret}).Error; err != nil {
-		t.Fatalf("client_secret: %v", err)
-	}
 	m := New(cfg, cipher).WithDB(db)
-	return NewOAuthHandler(db, m, cipher), db
+	vs := &testAuthVault{secrets: map[string]string{"instance.oauth.google": "google-secret"}}
+	return NewOAuthHandler(db, m, vs), db
 }
 
 // overrideCompleteUserAuth swaps gothic's package-level CompleteUserAuth so the
@@ -218,8 +213,9 @@ func TestLoadProviderEdgeCases(t *testing.T) {
 	if err := cipher.EnableEnvelope(testEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
+	vs := &testAuthVault{secrets: map[string]string{}}
 	m := New(cfg, cipher).WithDB(db)
-	h := NewOAuthHandler(db, m, cipher)
+	h := NewOAuthHandler(db, m, vs)
 	if err := db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "id"}).Error; err != nil {
 		t.Fatalf("client_id: %v", err)
 	}
@@ -228,34 +224,30 @@ func TestLoadProviderEdgeCases(t *testing.T) {
 	loadedCreds = map[string]string{}
 	t.Cleanup(func() { loadedCreds = loadedCredsBackup })
 
+	ctx := context.Background()
 	// No secret configured -> not loadable.
-	if loaded := h.loadProvider("google", "g@http://x", "http://x"); loaded {
+	if loaded := h.loadProvider(ctx, "google", "g@http://x", "http://x"); loaded {
 		t.Error("loadProvider succeeded without a client secret")
 	}
 
-	// Secret present but undecryptable -> not loadable.
-	if err := db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: "garbage"}).Error; err != nil {
-		t.Fatalf("client_secret: %v", err)
+	// Vault error -> not loadable.
+	vs.err = errors.New("vault unavailable")
+	if loaded := h.loadProvider(ctx, "google", "g@http://x", "http://x"); loaded {
+		t.Error("loadProvider succeeded on vault error")
 	}
-	if loaded := h.loadProvider("google", "g@http://x", "http://x"); loaded {
-		t.Error("loadProvider succeeded with an undecryptable secret")
-	}
+	vs.err = nil
 
 	// Unknown provider -> not loadable.
-	if loaded := h.loadProvider("twitter", "t@http://x", "http://x"); loaded {
+	if loaded := h.loadProvider(ctx, "twitter", "t@http://x", "http://x"); loaded {
 		t.Error("loadProvider accepted an unknown provider")
 	}
 
 	// A proper secret loads; the second identical call hits the cache.
-	encSecret, err := cipher.Encrypt([]byte("real-secret"))
-	if err != nil {
-		t.Fatalf("encrypt: %v", err)
-	}
-	db.Model(&models.Setting{}).Where("key = ?", "oauth.google.client_secret").Update("value", encSecret)
-	if !h.loadProvider("google", "g@http://x", "http://x") {
+	vs.secrets["instance.oauth.google"] = "real-secret"
+	if !h.loadProvider(ctx, "google", "g@http://x", "http://x") {
 		t.Fatal("loadProvider rejected a valid secret")
 	}
-	if !h.loadProvider("google", "g@http://x", "http://x") {
+	if !h.loadProvider(ctx, "google", "g@http://x", "http://x") {
 		t.Fatal("cached loadProvider rejected a valid secret")
 	}
 	// The >64-entry wholesale registry reset is deliberately NOT exercised here:

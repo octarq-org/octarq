@@ -73,9 +73,10 @@ func TestMetricsTokenAndRateLimits(t *testing.T) {
 		t.Errorf("MetricsToken() = %q, want empty", tok)
 	}
 
-	// 2. Encrypted metrics token
-	enc, _ := h.cipher.Encrypt([]byte("my-secret-metrics-token"))
-	db.Save(&models.Setting{Key: keyMetricsToken, Value: enc})
+	// 2. Vault-backed metrics token
+	if err := h.setInstanceSecret(context.Background(), vaultKeyMetricsToken, "Metrics Bearer Token", "token", "my-secret-metrics-token", 1); err != nil {
+		t.Fatalf("setInstanceSecret metrics token: %v", err)
+	}
 	if tok := h.MetricsToken(); tok != "my-secret-metrics-token" {
 		t.Errorf("MetricsToken() = %q, want my-secret-metrics-token", tok)
 	}
