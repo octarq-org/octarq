@@ -116,5 +116,5 @@ func (p *Plugin) Validate(ctx context.Context, host plugin.Host) error {
 			return fmt.Errorf("vault: subject DEK missing for item %d (%s); restore backup before booting", it.ID, it.SecretID)
 		}
 	}
-	return nil
+	return p.MigrateLegacyCoreSecrets(ctx)
 }
