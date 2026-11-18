@@ -33,6 +33,9 @@ type CryptoVault interface {
 	// ShredSubjectKey destroys the subject's DEK. Data under it becomes
 	// permanently unreadable. Other subjects keep working.
 	ShredSubjectKey(ownerID uint, subject string) error
+	// HasSubjectKey reports whether a wrapped DEK exists for (ownerID, subject)
+	// without creating one on miss.
+	HasSubjectKey(ownerID uint, subject string) bool
 }
 
 // SettingsStore 封装工作区及全局持久化配置读写

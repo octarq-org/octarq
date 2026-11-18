@@ -385,3 +385,29 @@ func TestSubjectDEKSettingKeyFormat(t *testing.T) {
 		t.Fatalf("key length for a long subject = %d, want %d", len(long), len(want))
 	}
 }
+
+func TestHasSubjectKey(t *testing.T) {
+	store := newMemStore()
+	c := New("test-secret")
+	if c.HasSubjectKey(1, "item-a") {
+		t.Fatal("HasSubjectKey returned true before EnableEnvelope")
+	}
+	if err := c.EnableEnvelope(store); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
+	if c.HasSubjectKey(1, "item-a") {
+		t.Fatal("HasSubjectKey returned true before SubjectVault created key")
+	}
+	if _, err := c.SubjectVault(1, "item-a"); err != nil {
+		t.Fatalf("SubjectVault: %v", err)
+	}
+	if !c.HasSubjectKey(1, "item-a") {
+		t.Fatal("HasSubjectKey returned false after SubjectVault")
+	}
+	if err := c.ShredSubjectKey(1, "item-a"); err != nil {
+		t.Fatalf("ShredSubjectKey: %v", err)
+	}
+	if c.HasSubjectKey(1, "item-a") {
+		t.Fatal("HasSubjectKey returned true after ShredSubjectKey")
+	}
+}

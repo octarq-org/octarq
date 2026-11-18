@@ -1,0 +1,32 @@
+---
+title: Integrations Hub & Vault
+description: Manage service credentials, environment secrets, SSH keys, and 2FA codes in one place.
+category: settings
+order: 65
+---
+
+Store and manage third-party integrations, environment variables, SSH keys, database passwords, and 2FA codes in **Settings › Integrations**.
+
+## Add a credential
+
+1. Open **Settings › Integrations**.
+2. Select a collection and environment.
+3. Click **Add Item**.
+4. Choose a service integration or secret template.
+5. Enter the item name and required fields, then click **Save**.
+
+## Reveal and rotate secrets
+
+- Secret values stay hidden in list views.
+- Click **Reveal** on an item to view or copy its current value. Every reveal creates an audit entry.
+- Edit an item to save a new version. Open **Versions** to inspect history or roll back to an earlier version.
+
+## Import and export `.env`
+
+1. Select a collection and environment.
+2. Click **Import .env** and paste `KEY=VALUE` lines to create or update secrets in bulk.
+3. Click **Export** to download `.env` or JSON output for that scope.
+
+## Service tokens
+
+Create a scoped service token under the **Service Tokens** tab to let CI pipelines or external apps fetch secrets for one collection and environment without a user session.

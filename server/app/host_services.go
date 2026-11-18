@@ -123,6 +123,13 @@ func (c *hostCryptoVault) ShredSubjectKey(ownerID uint, subject string) error {
 	return c.cipher.ShredSubjectKey(ownerID, subject)
 }
 
+func (c *hostCryptoVault) HasSubjectKey(ownerID uint, subject string) bool {
+	if c.cipher == nil {
+		return false
+	}
+	return c.cipher.HasSubjectKey(ownerID, subject)
+}
+
 var _ plugin.CryptoVault = (*hostCryptoVault)(nil)
 
 // hostSubjectVault adapts a per-subject crypto vault to plugin.CryptoVault.
@@ -156,6 +163,10 @@ func (v *hostSubjectVault) SubjectVault(ownerID uint, subject string) (plugin.Cr
 
 func (v *hostSubjectVault) ShredSubjectKey(ownerID uint, subject string) error {
 	return v.vault.ShredSubjectKey(ownerID, subject)
+}
+
+func (v *hostSubjectVault) HasSubjectKey(ownerID uint, subject string) bool {
+	return v.vault.HasSubjectKey(ownerID, subject)
 }
 
 var _ plugin.CryptoVault = (*hostSubjectVault)(nil)

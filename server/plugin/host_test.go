@@ -51,6 +51,7 @@ func (m *mockCryptoVault) SubjectVault(uint, string) (plugin.CryptoVault, error)
 	return m, nil
 }
 func (m *mockCryptoVault) ShredSubjectKey(uint, string) error { return nil }
+func (m *mockCryptoVault) HasSubjectKey(uint, string) bool    { return true }
 
 var _ plugin.CryptoVault = (*mockCryptoVault)(nil)
 
