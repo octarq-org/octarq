@@ -96,7 +96,11 @@ describe("Notify & Alerts Forms", () => {
       if (method === "GET" && path === "/api/notification-channels") {
         return jsonResponse(mockChannels);
       }
-      if (method === "GET" && path === "/api/integrations") {
+      if (
+        method === "GET" &&
+        path === "/api/vault/items" &&
+        urlObj.searchParams.get("provider_type") === "communication"
+      ) {
         return jsonResponse(integrationsResponse);
       }
       if (method === "POST" && path === "/api/notification-channels") {

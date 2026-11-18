@@ -51,6 +51,17 @@ import type {
   SetModelPriceInput,
   SubsystemStatusResponse,
   Token,
+  VaultCategorySchema,
+  VaultCollection,
+  VaultCreateItemInput,
+  VaultExportResult,
+  VaultItemMeta,
+  VaultSecretReveal,
+  VaultServiceToken,
+  VaultServiceTokenCreateResult,
+  VaultTOTPResult,
+  VaultUpdateItemInput,
+  VaultVersionDTO,
   Webhook,
   WebhookEventGroup,
 } from "./types";
@@ -365,4 +376,81 @@ export const api = {
     req<{ prices?: ModelPriceDTO[] }>("PUT", "/api/llm-gateway/prices", input).then((r) => r.prices ?? []),
   deleteModelPrice: (model: string): Promise<{ ok: boolean }> =>
     req<{ ok: boolean }>("DELETE", `/api/llm-gateway/prices?model=${encodeURIComponent(model)}`),
+
+  // Unified Vault & Integrations
+  vaultSchemas: () => req<VaultCategorySchema[]>("GET", "/api/vault/schemas"),
+  vaultCollections: () => req<VaultCollection[]>("GET", "/api/vault/collections"),
+  createVaultCollection: (d: { name: string; slug?: string; kind?: string; description?: string }) =>
+    req<VaultCollection>("POST", "/api/vault/collections", d),
+  deleteVaultCollection: (id: number) =>
+    req<{ ok: boolean; message: string }>("DELETE", `/api/vault/collections/${id}`),
+  vaultItems: (q?: {
+    collection?: string;
+    environment?: string;
+    folder_path?: string;
+    item_type?: string;
+    provider_type?: string;
+    provider?: string;
+    scope?: string;
+    q?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (q?.collection) params.set("collection", q.collection);
+    if (q?.environment) params.set("environment", q.environment);
+    if (q?.folder_path) params.set("folder_path", q.folder_path);
+    if (q?.item_type) params.set("item_type", q.item_type);
+    if (q?.provider_type) params.set("provider_type", q.provider_type);
+    if (q?.provider) params.set("provider", q.provider);
+    if (q?.scope) params.set("scope", q.scope);
+    if (q?.q) params.set("q", q.q);
+    const qs = params.toString();
+    return req<VaultItemMeta[]>("GET", `/api/vault/items${qs ? `?${qs}` : ""}`);
+  },
+  createVaultItem: (d: VaultCreateItemInput) => req<VaultItemMeta>("POST", "/api/vault/items", d),
+  updateVaultItem: (id: number, d: VaultUpdateItemInput) =>
+    req<VaultItemMeta>("PUT", `/api/vault/items/${id}`, d),
+  deleteVaultItem: (id: number) =>
+    req<{ ok: boolean; message: string }>("DELETE", `/api/vault/items/${id}`),
+  revealVaultItem: (id: number) => req<VaultSecretReveal>("POST", `/api/vault/items/${id}/reveal`),
+  vaultItemVersions: (id: number) => req<VaultVersionDTO[]>("GET", `/api/vault/items/${id}/versions`),
+  rollbackVaultItem: (id: number, version: number) =>
+    req<VaultItemMeta>("POST", `/api/vault/items/${id}/rollback/${version}`),
+  setDefaultVaultItem: (id: number) => req<VaultItemMeta>("POST", `/api/vault/items/${id}/default`),
+  testVaultItem: (id: number) => req<{ ok: boolean; message: string }>("POST", `/api/vault/items/${id}/test`),
+  vaultItemTOTP: (id: number) => req<VaultTOTPResult>("GET", `/api/vault/items/${id}/totp`),
+  importVaultSecrets: (d: {
+    collectionSlug?: string;
+    environment?: string;
+    folderPath?: string;
+    format: "env" | "json";
+    dotEnv?: string;
+    jsonItems?: Record<string, unknown>;
+  }) => req<{ imported: number }>("POST", "/api/vault/import", d),
+  exportVaultSecrets: (q: { collection?: string; environment?: string; format: "env" | "json" }) => {
+    const params = new URLSearchParams();
+    if (q.collection) params.set("collection", q.collection);
+    if (q.environment) params.set("environment", q.environment);
+    params.set("format", q.format);
+    return req<VaultExportResult>("GET", `/api/vault/export?${params.toString()}`);
+  },
+  vaultTokens: () => req<VaultServiceToken[]>("GET", "/api/vault/tokens"),
+  createVaultToken: (d: {
+    name: string;
+    collectionSlug?: string;
+    environment?: string;
+    folderPrefix?: string;
+    permissions?: string;
+    expiresAt?: string;
+  }) => req<VaultServiceTokenCreateResult>("POST", "/api/vault/tokens", d),
+  revokeVaultToken: (id: number) =>
+    req<{ ok: boolean; message: string }>("DELETE", `/api/vault/tokens/${id}`),
+
+  // Instance-admin system vault
+  instanceVaultItems: () => req<VaultItemMeta[]>("GET", "/api/instance/vault/items"),
+  putInstanceVaultItem: (d: VaultCreateItemInput) =>
+    req<VaultItemMeta>("POST", "/api/instance/vault/items", d),
+  revealInstanceVaultItem: (id: number) =>
+    req<VaultSecretReveal>("POST", `/api/instance/vault/items/${id}/reveal`),
+  deleteInstanceVaultItem: (id: number) =>
+    req<{ ok: boolean; message: string }>("DELETE", `/api/instance/vault/items/${id}`),
 };
