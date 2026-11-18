@@ -109,6 +109,7 @@ export const en = {
   },
   command: {
     create: "Create",
+    quickActions: "Quick Actions",
     placeholder: "Search pages…",
     // Empty palette result. The query is rendered beside this in mono;
     // the hint is the real constraint: ⌘K jumps, it doesn't create.

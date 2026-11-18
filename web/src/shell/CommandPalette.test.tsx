@@ -441,6 +441,58 @@ describe("CommandPalette", () => {
       expect(screen.getByText(/This agent reached its monthly budget limit/)).not.toBeNull();
     });
   });
+
+  it("11. renders indented collapsible groups, skips collapsed groups on ArrowDown, and auto-expands on search", () => {
+    const onNavigate = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <I18nProvider>
+        <CommandPalette
+          open={true}
+          onClose={onClose}
+          areas={dummyAreas}
+          settingsArea={dummySettingsArea}
+          onNavigate={onNavigate}
+          actions={dummyActions}
+        />
+      </I18nProvider>,
+    );
+
+    const quickGroup = screen.getByRole("button", { name: /Quick Actions/ });
+    const opsGroup = screen.getByRole("button", { name: /Operations/ });
+    const settingsGroup = screen.getByRole("button", { name: /Settings/ });
+
+    expect(quickGroup.getAttribute("aria-expanded")).toBe("true");
+    expect(opsGroup.getAttribute("aria-expanded")).toBe("true");
+    expect(settingsGroup.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Links")).not.toBeNull();
+    expect(screen.getByText("My profile")).not.toBeNull();
+
+    // Collapse Quick Actions and Operations; only Settings remains visible for ArrowDown.
+    fireEvent.click(quickGroup);
+    fireEvent.click(opsGroup);
+    expect(quickGroup.getAttribute("aria-expanded")).toBe("false");
+    expect(opsGroup.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Links")).toBeNull();
+    expect(screen.queryByText("Create short link")).toBeNull();
+    expect(screen.getByText("My profile")).not.toBeNull();
+
+    // Pressing Enter immediately activates the first remaining visible item ("Profile").
+    const input = screen.getByPlaceholderText("Search pages…");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onNavigate).toHaveBeenCalledWith("/settings/profile");
+
+    // Typing a query auto-expands collapsed groups with matching results.
+    fireEvent.change(input, { target: { value: "Links" } });
+    expect(opsGroup.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Links")).not.toBeNull();
+
+    // Clearing the query restores the user's collapsed preference.
+    fireEvent.change(input, { target: { value: "" } });
+    expect(opsGroup.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Links")).toBeNull();
+  });
 });
 
 describe("ThinkingCollapsible", () => {

@@ -102,6 +102,7 @@ export const es = {
   },
   command: {
     create: "Crear",
+    quickActions: "Acciones rápidas",
     placeholder: "Buscar páginas…",
     emptyTitle: "Ninguna página ni acción coincide",
     emptyHint: "⌘K abre páginas; no puede crear nada. Prueba una de estas áreas: {{areas}}.",
