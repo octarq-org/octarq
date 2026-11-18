@@ -102,6 +102,7 @@ export const pt = {
   },
   command: {
     create: "Criar",
+    quickActions: "Ações rápidas",
     placeholder: "Pesquisar páginas…",
     emptyTitle: "Nenhuma página ou ação corresponde",
     emptyHint: "O ⌘K abre páginas — não pode criar nada. Tente uma destas áreas: {{areas}}.",

@@ -147,4 +147,35 @@ test.describe("Design System UI Stories", () => {
 
     guard.assertClean();
   });
+
+  test("command palette renders indented collapsible groups", async ({ page }, testInfo) => {
+    mkdirSync(ARTIFACT_DIR, { recursive: true });
+    const guard = attachPageGuards(page);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
+    await page.goto("/admin/overview");
+    await page.waitForLoadState("networkidle");
+
+    await page.keyboard.press("ControlOrMeta+k");
+    const groups = page.locator('[data-slot="command-group"]');
+    await expect(groups.first()).toBeVisible();
+    expect(await groups.count()).toBeGreaterThanOrEqual(2);
+
+    const firstGroupToggle = groups.first().locator('button[aria-expanded]').first();
+    await expect(firstGroupToggle).toHaveAttribute("aria-expanded", "true");
+
+    const cmdkBuf = await page.screenshot({
+      path: path.join(ARTIFACT_DIR, "cmdk-grouped.png"),
+      fullPage: false,
+    });
+    await testInfo.attach("cmdk-grouped.png", { body: cmdkBuf, contentType: "image/png" });
+
+    await firstGroupToggle.click();
+    await expect(firstGroupToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(groups.first().locator('[data-slot="command-group-items"]')).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
+    guard.assertClean();
+  });
 });

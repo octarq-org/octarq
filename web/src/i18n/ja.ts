@@ -102,6 +102,7 @@ export const ja = {
   },
   command: {
     create: "作成",
+    quickActions: "クイックアクション",
     placeholder: "ページを検索…",
     emptyTitle: "一致するページやアクションはありません",
     emptyHint: "⌘K はページを開くだけです（作成はできません）。次のエリアを試してください: {{areas}}。",

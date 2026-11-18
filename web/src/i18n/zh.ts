@@ -103,6 +103,7 @@ export const zh: Resources = {
   },
   command: {
     create: "创建",
+    quickActions: "快捷操作",
     placeholder: "搜索页面…",
     emptyTitle: "没有页面或操作匹配",
     emptyHint: "⌘K 只能跳转页面，不能创建内容。试试这些区域：{{areas}}。",

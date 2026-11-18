@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Search, Sparkles } from "lucide-react";
+import { ChevronDown, Search, Sparkles } from "lucide-react";
+import { cn } from "@octarq/plugin-sdk";
 import { useTranslation } from "../i18n";
 import { Area } from "./areas";
 import { Action } from "../api";
@@ -12,6 +13,7 @@ import {
 } from "./navI18n";
 import { type ChatMessage } from "./command/types";
 import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
+import { groupCommandItems } from "./command/groupItems";
 import { newChatRunId, newChatThreadId, streamChatResponse } from "./command/streamChat";
 import { ChatView } from "./command/ChatView";
 import { agentFailureText } from "./agentFailureText";
@@ -39,6 +41,7 @@ export function CommandPalette({
   const [mode, setMode] = useState<"search" | "chat">("search");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -47,6 +50,7 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
   const threadIdRef = useRef(newChatThreadId());
 
@@ -113,35 +117,55 @@ export function CommandPalette({
     };
   }, [q, t]);
 
-  const filtered = useMemo(() => {
+  const isSearching = q.trim().length > 0;
+
+  const matchedItems = useMemo(() => {
     const nonDocCommands = commands.filter(
       (c) => !c.path.startsWith("/help") && !c.path.startsWith("/admin/help"),
     );
     const needle = q.trim().toLowerCase();
-    let result = nonDocCommands;
-    if (needle) {
-      result = nonDocCommands.filter(
-        (c) =>
-          c.label.toLowerCase().includes(needle) ||
-          (c.isAction ? c.category?.toLowerCase().includes(needle) : false) ||
-          (!c.isAction && c.area?.toLowerCase().includes(needle)) ||
-          (!c.isAction && c.group?.toLowerCase().includes(needle)) ||
-          c.path.toLowerCase().includes(needle) ||
-          (c.actionType ? c.actionType.toLowerCase().includes(needle) : false) ||
-          c.id.toLowerCase().includes(needle),
-      );
-    }
+    if (!needle) return nonDocCommands;
+    return nonDocCommands.filter(
+      (c) =>
+        c.label.toLowerCase().includes(needle) ||
+        (c.isAction ? c.category?.toLowerCase().includes(needle) : false) ||
+        (!c.isAction && c.area?.toLowerCase().includes(needle)) ||
+        (!c.isAction && c.group?.toLowerCase().includes(needle)) ||
+        c.path.toLowerCase().includes(needle) ||
+        (c.actionType ? c.actionType.toLowerCase().includes(needle) : false) ||
+        c.id.toLowerCase().includes(needle),
+    );
+  }, [q, commands]);
+
+  const grouped = useMemo(
+    () => groupCommandItems(matchedItems, t("command.quickActions", "Quick Actions"), areaTitles),
+    [matchedItems, areaTitles, t],
+  );
+
+  const { sections, visibleItems, askAiIndex } = useMemo(() => {
+    const nextVisible: CommandPaletteItem[] = [];
+    const nextSections = grouped.map((g) => {
+      const collapsed = !isSearching && !!collapsedGroups[g.key];
+      const startIndex = nextVisible.length;
+      if (!collapsed) {
+        nextVisible.push(...g.items);
+      }
+      return { ...g, collapsed, startIndex };
+    });
+    let nextAskAiIndex = -1;
     if (askAiItem) {
-      return [...result, askAiItem];
+      nextAskAiIndex = nextVisible.length;
+      nextVisible.push(askAiItem);
     }
-    return result;
-  }, [q, commands, askAiItem]);
+    return { sections: nextSections, visibleItems: nextVisible, askAiIndex: nextAskAiIndex };
+  }, [grouped, collapsedGroups, isSearching, askAiItem]);
 
   // Clean up streaming on unmount or dialog close
   useEffect(() => {
     if (open) {
       setQ("");
       setSel(0);
+      setCollapsedGroups({});
       setMode("search");
       setChatError(null);
     } else {
@@ -159,6 +183,16 @@ export function CommandPalette({
   useEffect(() => {
     setSel(0);
   }, [q]);
+
+  useEffect(() => {
+    setSel((s) => Math.min(s, Math.max(0, visibleItems.length - 1)));
+  }, [visibleItems.length]);
+
+  useEffect(() => {
+    if (open && mode === "search") {
+      itemRefs.current[sel]?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [sel, open, mode]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -298,28 +332,82 @@ export function CommandPalette({
     setQ(val);
   };
 
-  // Arrow/Enter drive search result list navigation.
+  const executeItem = useCallback(
+    (c: CommandPaletteItem) => {
+      if (c.id === "ask-ai-entry") {
+        startChatWithQuery(q);
+      } else if (c.actionHandler) {
+        c.actionHandler();
+        onClose();
+      } else {
+        onNavigate(c.path);
+      }
+    },
+    [startChatWithQuery, q, onClose, onNavigate],
+  );
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Arrow/Enter drive search result list navigation across expanded groups.
   const onSearchKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSel((s) => Math.min(s + 1, filtered.length - 1));
+      setSel((s) => Math.min(s + 1, Math.max(0, visibleItems.length - 1)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSel((s) => Math.max(s - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const c = filtered[sel];
-      if (c) {
-        if (c.id === "ask-ai-entry") {
-          startChatWithQuery(q);
-        } else if (c.actionHandler) {
-          c.actionHandler();
-          onClose();
-        } else {
-          onNavigate(c.path);
-        }
-      }
+      const c = visibleItems[sel];
+      if (c) executeItem(c);
     }
+  };
+
+  const renderCandidateRow = (c: CommandPaletteItem, flatIndex: number) => {
+    const active = flatIndex === sel;
+    const badge =
+      c.id === "ask-ai-entry"
+        ? t("command.chat.modeBadge")
+        : c.shortcut
+        ? c.shortcut
+        : c.isAction
+        ? t("command.create", "Create")
+        : c.group;
+
+    return (
+      <button
+        key={c.id}
+        ref={(el) => {
+          itemRefs.current[flatIndex] = el;
+        }}
+        type="button"
+        onMouseEnter={() => setSel(flatIndex)}
+        onClick={() => executeItem(c)}
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors duration-100",
+          active
+            ? "bg-accent-soft font-medium text-accent-fg dark:bg-primary/20"
+            : "text-foreground hover:bg-surface-hover/80",
+        )}
+      >
+        {c.iconStr ? (
+          <span className="w-4 text-center text-sm">{c.iconStr}</span>
+        ) : c.Icon ? (
+          <c.Icon
+            className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-accent-fg" : "text-muted-foreground")}
+            strokeWidth={1.75}
+          />
+        ) : null}
+        <span className="flex-1 truncate text-[13px]">{c.label}</span>
+        {badge && (
+          <span className="shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {badge}
+          </span>
+        )}
+      </button>
+    );
   };
 
   return (
@@ -365,7 +453,7 @@ export function CommandPalette({
                 </kbd>
               </div>
               <div className="max-h-[50vh] overflow-y-auto p-2 scrollbar-thin">
-                {filtered.length === 0 ? (
+                {sections.length === 0 && !askAiItem ? (
                   <div className="px-3 py-8 text-center">
                     <p className="text-sm text-muted-foreground">
                       {t("command.emptyTitle")} <span className="font-mono">{`“${q}”`}</span>
@@ -375,48 +463,47 @@ export function CommandPalette({
                     </p>
                   </div>
                 ) : (
-                  filtered.map((c, i) => (
-                    <button
-                      key={c.id}
-                      onMouseEnter={() => setSel(i)}
-                      onClick={() => {
-                        if (c.id === "ask-ai-entry") {
-                          startChatWithQuery(q);
-                        } else if (c.actionHandler) {
-                          c.actionHandler();
-                          onClose();
-                        } else {
-                          onNavigate(c.path);
-                        }
-                      }}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
-                        i === sel
-                          ? "bg-accent-soft text-accent-fg dark:bg-primary/20 font-medium"
-                          : "hover:bg-surface-hover/80 text-foreground"
-                      }`}
-                    >
-                      {c.iconStr ? (
-                        <span className="w-4 text-center text-sm">{c.iconStr}</span>
-                      ) : c.Icon ? (
-                        <c.Icon
-                          className={`h-4 w-4 shrink-0 transition-colors ${
-                            i === sel ? "text-accent-fg" : "text-muted-foreground"
-                          }`}
-                          strokeWidth={1.75}
-                        />
-                      ) : null}
-                      <span className="flex-1 truncate text-sm">{c.label}</span>
-                      <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-                        {c.id === "ask-ai-entry"
-                          ? t("command.chat.modeBadge")
-                          : c.shortcut
-                          ? c.shortcut
-                          : c.isAction
-                          ? t("command.create", "Create")
-                          : `${c.area} · ${c.group}`}
-                      </span>
-                    </button>
-                  ))
+                  <div className="space-y-1">
+                    {sections.map((section) => (
+                      <div key={section.key} data-slot="command-group">
+                        <button
+                          type="button"
+                          aria-expanded={!section.collapsed}
+                          onClick={() => toggleGroup(section.key)}
+                          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <ChevronDown
+                              className={cn(
+                                "h-3.5 w-3.5 shrink-0 transition-transform duration-150",
+                                section.collapsed && "-rotate-90",
+                              )}
+                              strokeWidth={1.75}
+                            />
+                            <span className="truncate">{section.label}</span>
+                          </span>
+                          <span className="font-mono text-[10px] font-medium text-muted-foreground/75">
+                            {section.items.length}
+                          </span>
+                        </button>
+                        {!section.collapsed && (
+                          <div
+                            data-slot="command-group-items"
+                            className="mb-1 ml-3.5 mt-0.5 space-y-0.5 border-l border-border/70 pl-2"
+                          >
+                            {section.items.map((item, idx) =>
+                              renderCandidateRow(item, section.startIndex + idx),
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {askAiItem && askAiIndex >= 0 && (
+                      <div className={cn(sections.length > 0 && "mt-1.5 border-t border-border pt-1.5")}>
+                        {renderCandidateRow(askAiItem, askAiIndex)}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </>
