@@ -21,6 +21,8 @@ import SettingsPage from "./Settings";
 vi.mock("./settings/members", () => ({ OrgMembersManager: () => <div data-testid="members-panel" /> }));
 vi.mock("./settings/plugins", () => ({ PluginsSettings: () => <div /> }));
 vi.mock("./settings/general", () => ({ GeneralSettings: () => <div data-testid="general-panel" /> }));
+vi.mock("./settings/gateway", () => ({ GatewaySettings: () => <div /> }));
+vi.mock("./settings/vault/IntegrationsVaultPage", () => ({ IntegrationsVaultPage: () => <div data-testid="integrations-vault-panel" /> }));
 vi.mock("./settings/webhooks", () => ({ WebhooksSettings: () => <div /> }));
 vi.mock("./settings/notifications", () => ({ NotificationChannels: () => <div /> }));
 vi.mock("./settings/auth", () => ({ AuthenticationSettings: () => <div /> }));
@@ -63,5 +65,10 @@ describe("core settings paths that plugin packages link to", () => {
   it("/settings/personal/notifications resolves to the personal notifications preferences panel", async () => {
     renderAt("/settings/personal/notifications");
     await waitFor(() => expect(screen.getByTestId("preferences-panel")).toBeTruthy());
+  });
+
+  it("/settings/integrations resolves to the built-in IntegrationsVaultPage", async () => {
+    renderAt("/settings/integrations");
+    await waitFor(() => expect(screen.getByTestId("integrations-vault-panel")).toBeTruthy());
   });
 });

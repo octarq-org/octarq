@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { api, InstanceSettings as IInstanceSettings, SMTPSender } from "../../api";
 import { I18nProvider } from "../../i18n";
+import { ConfirmBridge } from "../../ConfirmBridge";
 import * as ui from "@octarq/plugin-sdk";
 import { InstanceSettings } from "./settings";
 
@@ -33,10 +34,16 @@ function makeSettings(overrides: Partial<IInstanceSettings> = {}): IInstanceSett
 function renderInstanceSettings() {
   return render(
     <I18nProvider>
-      <InstanceSettings />
+      <ConfirmBridge>
+        <InstanceSettings />
+      </ConfirmBridge>
     </I18nProvider>,
   );
 }
+
+beforeEach(() => {
+  vi.spyOn(api, "instanceVaultItems").mockResolvedValue([]);
+});
 
 afterEach(() => {
   cleanup();
@@ -214,5 +221,78 @@ describe("InstanceSettings suite", () => {
     await waitFor(() => {
       expect(errorSpy).toHaveBeenCalledWith("SMTP connection timeout");
     });
+  });
+
+  it("lists, creates, reveals, and deletes Instance Vault secrets", async () => {
+    vi.spyOn(api, "instanceSettings").mockResolvedValue(makeSettings());
+    vi.spyOn(api, "smtpSenders").mockResolvedValue([]);
+    vi.spyOn(api, "instanceBuild").mockResolvedValue({ version: "dev", commit: "", builtAt: "" });
+    const vaultItem = {
+      id: 77,
+      secretId: "sec-inst-1",
+      orgId: 0,
+      scope: "instance" as const,
+      collectionId: 9,
+      collectionSlug: "system",
+      environment: "default",
+      folderPath: "/",
+      itemType: "kv_secret",
+      keyName: "GOOGLE_CLIENT_SECRET",
+      name: "Google OAuth Secret",
+      isDefault: false,
+      currentVersion: 1,
+      configured: true,
+      fieldKeys: ["value"],
+      ref: "vault://system/default/GOOGLE_CLIENT_SECRET",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    vi.spyOn(api, "instanceVaultItems").mockResolvedValue([vaultItem]);
+    const putSpy = vi.spyOn(api, "putInstanceVaultItem").mockResolvedValue(vaultItem);
+    const revealSpy = vi.spyOn(api, "revealInstanceVaultItem").mockResolvedValue({
+      meta: vaultItem,
+      version: 1,
+      payload: { value: "gocs-secret-xyz" },
+    });
+    const deleteSpy = vi.spyOn(api, "deleteInstanceVaultItem").mockResolvedValue({
+      ok: true,
+      message: "deleted",
+    });
+    vi.spyOn(ui, "confirmDialog").mockResolvedValue(true);
+
+    renderInstanceSettings();
+
+    expect(await screen.findByText("Google OAuth Secret")).toBeTruthy();
+    expect(screen.getByText("GOOGLE_CLIENT_SECRET")).toBeTruthy();
+
+    // Reveal
+    const row = screen.getByTestId("instance-vault-item-77");
+    fireEvent.click(Array.from(row.querySelectorAll("button")).find((b) => b.textContent?.includes("Reveal"))!);
+    await waitFor(() => expect(revealSpy).toHaveBeenCalledWith(77));
+    expect(await screen.findByText("value")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
+
+    // Add new instance secret
+    fireEvent.click(screen.getByRole("button", { name: /add instance secret/i }));
+    fireEvent.change(screen.getAllByPlaceholderText("e.g. GOOGLE_CLIENT_SECRET")[0], {
+      target: { value: "METRICS_TOKEN" },
+    });
+    const passInput = document.querySelectorAll('input[type="password"]');
+    fireEvent.change(passInput[passInput.length - 1], { target: { value: "tok_metrics_123" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(putSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          keyName: "METRICS_TOKEN",
+          itemType: "kv_secret",
+          payload: { value: "tok_metrics_123" },
+        }),
+      ),
+    );
+
+    // Delete
+    fireEvent.click(Array.from(row.querySelectorAll("button")).find((b) => b.textContent?.includes("Delete"))!);
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(77));
   });
 });

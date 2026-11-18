@@ -17,7 +17,7 @@ export default function TelegramForm() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/integrations", { credentials: "same-origin" })
+    fetch("/api/vault/items?provider_type=communication", { credentials: "same-origin" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data: any[]) => {
         if (cancelled) return;

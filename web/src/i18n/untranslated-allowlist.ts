@@ -65,4 +65,13 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "copilot.financeSlidePrefix", // Presentation layout notation in PT (SLIDE #)
 
   "data.no", // Identical spelling in ES (No) — the Spanish word for "no"
+
+  // Vault technical identifiers, placeholders, and universal format strings
+  "vault.categoryDns", // Technical protocol acronym (DNS)
+  "vault.categoryLlm", // Technical acronyms (AI / LLM)
+  "vault.versionBadge", // Universal version tag format (v{{version}})
+  "vault.folderPathPlaceholder", // Universal POSIX root path placeholder (/)
+  "vault.importPlaceholderEnv", // Technical .env key=value example
+  "vault.importPlaceholderJson", // Technical JSON key-value example
+  "vault.tokenScope", // Technical scope tuple format ({{env}} · {{path}} · {{perms}})
 ]);
