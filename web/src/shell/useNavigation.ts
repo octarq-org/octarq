@@ -7,6 +7,7 @@ import { useTranslation } from "../i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, menuIcon } from "./areas";
 import { NavigationTree } from "./NavigationTree";
 import { visibleActions } from "./globalActions";
+import { useShowPersonalArea } from "../prefs";
 
 // Cache last api.menus()/api.plugins() response for instant first paint; replaced when live data arrives.
 export const NAV_CACHE_KEY = "octarq:nav-cache:v1";
@@ -68,6 +69,7 @@ export function useNavigation({
   const navigate = useNavigate();
   const { t, lang: ctxLang } = useTranslation();
   const lang = langProp ?? ctxLang;
+  const showPersonalArea = useShowPersonalArea();
 
   const [backendNav, setBackendNav] = useState<CachedNav>(readCachedNav);
   const [backendLoaded, setBackendLoaded] = useState(false);
@@ -208,6 +210,7 @@ export function useNavigation({
       isInstanceAdmin,
       backendLoaded,
       helpArea,
+      showPersonalArea,
     });
   }, [
     backendNav.menus,
@@ -216,6 +219,7 @@ export function useNavigation({
     isInstanceAdmin,
     backendLoaded,
     helpArea,
+    showPersonalArea,
   ]);
 
   // Visible top-level areas
