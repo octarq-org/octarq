@@ -33,6 +33,13 @@ func (s *hostSession) OrgID(r *http.Request) uint {
 	return 0
 }
 
+func (s *hostSession) PersonalOrgID(r *http.Request) uint {
+	if s.auth != nil {
+		return s.auth.PersonalOrgID(r)
+	}
+	return 0
+}
+
 func (s *hostSession) OrgRole(r *http.Request) string {
 	if s.apiHandler != nil {
 		return s.apiHandler.OrgRole(r)

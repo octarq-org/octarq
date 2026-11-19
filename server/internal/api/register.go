@@ -164,7 +164,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	// workspace does not silently come into being half-set-up.
 	var orgID uint
 	err = h.db.Transaction(func(tx *gorm.DB) error {
-		org := models.Org{Name: name, Slug: slug, InboundToken: uuid.NewString()}
+		org := models.Org{Name: name, Slug: slug, Kind: models.OrgKindTeam, InboundToken: uuid.NewString()}
 		if err := tx.Create(&org).Error; err != nil {
 			return err
 		}

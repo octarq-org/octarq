@@ -417,6 +417,13 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		}
 		return false
 	}
+	// Personal data is resolved per user, not per session org: the MCP and cron
+	// paths carry no request, so they need the same answer the HTTP session
+	// gives. A nil db or a user without a personal org yields 0, which plugins
+	// must treat as "refuse", never as "use the active org".
+	pctx.PersonalOrgID = func(userID uint) uint {
+		return auth.PersonalOrgID(db, userID)
+	}
 	pctx.ActivePlugins = func() []plugin.Plugin {
 		return pluginsList
 	}

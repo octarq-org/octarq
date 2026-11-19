@@ -176,7 +176,7 @@ func (h *Handler) bootstrapOrgID() uint {
 	if err != nil {
 		return 0
 	}
-	org := models.Org{Name: h.cfg.AdminUser, Slug: slug, InboundToken: uuid.NewString()}
+	org := models.Org{Name: h.cfg.AdminUser, Slug: slug, Kind: models.OrgKindTeam, InboundToken: uuid.NewString()}
 	if err := h.db.Create(&org).Error; err != nil {
 		return 0
 	}

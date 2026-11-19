@@ -44,6 +44,7 @@ func (s *stubHelpSession) OrgID(r *http.Request) uint {
 	return 1
 }
 func (s *stubHelpSession) OrgRole(r *http.Request) string                { return "admin" }
+func (s *stubHelpSession) PersonalOrgID(r *http.Request) uint            { return 0 }
 func (s *stubHelpSession) RequireRole(r *http.Request, min string) bool  { return true }
 func (s *stubHelpSession) RequirePerm(r *http.Request, p, m string) bool { return true }
 func (s *stubHelpSession) IsInstanceAdmin(r *http.Request) bool          { return false }

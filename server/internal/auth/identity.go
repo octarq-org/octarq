@@ -286,7 +286,7 @@ func firstOrPersonalOrg(db *gorm.DB, userID uint) (uint, error) {
 	if err != nil {
 		return 0, err
 	}
-	org := models.Org{Name: user.Email, Slug: slug, InboundToken: uuid.NewString()}
+	org := models.Org{Name: user.Email, Slug: slug, Kind: models.OrgKindPersonal, InboundToken: uuid.NewString()}
 	if err := db.Create(&org).Error; err != nil {
 		return 0, err
 	}
