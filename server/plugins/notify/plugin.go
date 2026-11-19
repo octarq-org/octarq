@@ -13,7 +13,8 @@ import (
 // Plugin holds the tenant-scoped DB handle used to read the workspace's enabled
 // notification channels.
 type Plugin struct {
-	db *gorm.DB
+	db   *gorm.DB
+	pctx *plugin.Context
 }
 
 var (
@@ -39,6 +40,7 @@ func (p *Plugin) Describe() plugin.Info {
 func (p *Plugin) Models() []any { return nil }
 
 func (p *Plugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
+	p.pctx = ctx
 	if ctx != nil && ctx.DB != nil {
 		p.db = ctx.DB
 	}

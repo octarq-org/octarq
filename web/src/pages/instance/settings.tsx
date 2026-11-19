@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, type SMTPSender } from "../../api";
 import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { InstanceVaultSection } from "./InstanceVaultSection";
 import { useInstanceSettings } from "./shared";
 
 export function InstanceSettings() {
@@ -318,6 +319,9 @@ export function InstanceSettings() {
           </Button>
         </PageCard>
       </PageSection>
+
+      {/* Instance-level encrypted secrets */}
+      <InstanceVaultSection />
 
       {/* Operator-level extension slot. Named "System Settings", NOT
           "Infrastructure": that word already labels the plugin CATEGORY

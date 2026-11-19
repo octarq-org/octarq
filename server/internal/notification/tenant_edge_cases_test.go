@@ -118,17 +118,19 @@ func TestNotification_PreferencesEdgeCases(t *testing.T) {
 
 func TestTelegramChannel_OrgPayloadFallback(t *testing.T) {
 	db := setupTestDB(t)
-	SetConfigDecryptor(func(s string) (string, bool) { return s, true })
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
 
 	db.Create(&models.NotificationChannel{
-		OrgID:   50,
-		Type:    "telegram",
-		Config:  `{"botToken":"invalid-token","chatId":"999"}`,
-		Enabled: true,
+		OrgID:       50,
+		Type:        "telegram",
+		VaultItemID: 1,
+		Config:      `{"chatId":"999"}`,
+		Enabled:     true,
 	})
 
 	ch := NewTelegramChannel(db)
+	ch.SetVaultService(&stubVaultService{secrets: map[uint]map[string]any{
+		1: {"botToken": "invalid-token"},
+	}})
 	// targetOrg resolved from payload.OrgID when recipient.OrgID is empty
 	err := ch.Send(context.Background(), plugin.NotificationRecipient{}, plugin.NotificationPayload{
 		OrgID: "50",
@@ -147,8 +149,6 @@ func TestTelegramChannel_OrgPayloadFallback(t *testing.T) {
 
 func TestMultiTenant_WebhookChannel_ContextOrgID_And_SystemFallback(t *testing.T) {
 	db := setupTestDB(t)
-	SetConfigDecryptor(func(s string) (string, bool) { return s, true })
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
 
 	// Org 1 (system default)
 	db.Create(&models.NotificationChannel{

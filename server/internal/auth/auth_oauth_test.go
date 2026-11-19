@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +11,53 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
+
+type testAuthVault struct {
+	secrets map[string]string
+	err     error
+}
+
+func (v *testAuthVault) PutSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (v *testAuthVault) UpdateSecret(context.Context, uint, uint, *string, map[string]any, map[string]any, *bool, string, uint) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (v *testAuthVault) GetMeta(context.Context, uint, uint) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (v *testAuthVault) GetSecret(context.Context, uint, uint) (*plugin.VaultSecret, error) {
+	return nil, nil
+}
+func (v *testAuthVault) ResolveByRef(context.Context, uint, string) (*plugin.VaultSecret, error) {
+	return nil, nil
+}
+func (v *testAuthVault) ResolveInstanceSecret(_ context.Context, keyName string) (*plugin.VaultSecret, error) {
+	if v.err != nil {
+		return nil, v.err
+	}
+	s, ok := v.secrets[keyName]
+	if !ok {
+		return nil, plugin.ErrSecretNotFound
+	}
+	return &plugin.VaultSecret{
+		Meta:    plugin.VaultItemMeta{KeyName: keyName, Scope: plugin.VaultScopeInstance},
+		Payload: map[string]any{"clientSecret": s},
+	}, nil
+}
+func (v *testAuthVault) PutInstanceSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (v *testAuthVault) DeleteInstanceSecret(context.Context, string) error { return nil }
+func (v *testAuthVault) ListItems(context.Context, uint, plugin.VaultFilter) ([]plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (v *testAuthVault) DeleteSecret(context.Context, uint, uint) error { return nil }
+func (v *testAuthVault) ComputeTOTP(context.Context, uint, uint) (string, int, error) {
+	return "", 0, nil
+}
 
 func TestOAuthLoadProviderConcurrency(t *testing.T) {
 	db := testDB(t)
@@ -21,21 +68,16 @@ func TestOAuthLoadProviderConcurrency(t *testing.T) {
 	}
 	m := New(cfg, cipher).WithDB(db)
 
-	encSecret, err := cipher.Encrypt([]byte("google-secret"))
-	if err != nil {
-		t.Fatalf("encrypt secret: %v", err)
-	}
-
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
-	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: encSecret})
+	vs := &testAuthVault{secrets: map[string]string{"instance.oauth.google": "google-secret"}}
 
-	handler := NewOAuthHandler(db, m, cipher)
+	handler := NewOAuthHandler(db, m, vs)
 
 	const workers = 10
 	done := make(chan bool, workers)
 	for i := 0; i < workers; i++ {
 		go func() {
-			ok := handler.loadProvider("google", "google@http://localhost", "http://localhost")
+			ok := handler.loadProvider(context.Background(), "google", "google@http://localhost", "http://localhost")
 			if !ok {
 				t.Errorf("expected loadProvider to succeed")
 			}
@@ -52,7 +94,7 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
 	m := New(cfg, crypto.New("secret")).WithDB(db)
-	handler := NewOAuthHandler(db, m, crypto.New("secret"))
+	handler := NewOAuthHandler(db, m, nil)
 
 	InitGothStore("secret")
 
@@ -104,7 +146,7 @@ func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
 	m := New(cfg, crypto.New("secret")).WithDB(db)
-	handler := NewOAuthHandler(db, m, crypto.New("secret"))
+	handler := NewOAuthHandler(db, m, nil)
 
 	// Turn registration off (invite-only instance).
 	if err := db.Create(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {

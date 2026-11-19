@@ -330,3 +330,116 @@ func TestResponsesKeepsCodexDeveloperMessages(t *testing.T) {
 		t.Fatalf("tool_choice sent without tools: %v", sent["tool_choice"])
 	}
 }
+
+func TestResponsesInputAndToolHelpers(t *testing.T) {
+	// flattenRespTools: namespace recursion, empty function name, default parameters
+	var tools []oaiTool
+	flattenRespTools(respTool{
+		Type: "namespace",
+		Tools: []respTool{
+			{Type: "function", Name: ""},
+			{Type: "function", Name: "ping"},
+			{Type: "web_search"},
+		},
+	}, &tools)
+	if len(tools) != 1 || tools[0].Function.Name != "ping" {
+		t.Fatalf("flattenRespTools = %+v", tools)
+	}
+
+	// respToolChoice branches
+	for _, tc := range []struct {
+		raw  string
+		want string
+	}{
+		{"", "auto"},
+		{"null", "auto"},
+		{`"none"`, "none"},
+		{`"required"`, "required"},
+		{`"other"`, "auto"},
+		{`"bad`, "auto"},
+		{`{"type":"other"}`, "auto"},
+	} {
+		if got := respToolChoice(json.RawMessage(tc.raw)); got != tc.want {
+			t.Fatalf("respToolChoice(%s) = %v, want %s", tc.raw, got, tc.want)
+		}
+	}
+	fnChoice, ok := respToolChoice(json.RawMessage(`{"type":"function","name":"ping"}`)).(map[string]any)
+	if !ok || fnChoice["type"] != "function" {
+		t.Fatalf("respToolChoice function = %v", fnChoice)
+	}
+
+	// parseRespInput errors & string input
+	if _, err := parseRespInput(json.RawMessage("null")); err == nil {
+		t.Fatal("expected empty input error")
+	}
+	if _, err := parseRespInput(json.RawMessage(`"bad`)); err == nil {
+		t.Fatal("expected unreadable string input error")
+	}
+	if _, err := parseRespInput(json.RawMessage(`123`)); err == nil {
+		t.Fatal("expected non-list input error")
+	}
+
+	// respMessage branches (user image_url, missing url, file_id, unknown part, assistant, unknown role, empty parts)
+	if msg, err := respMessage(respItem{Role: "user", Content: json.RawMessage(`[{"type":"input_image","image_url":"https://example.com/a.png"}]`)}); err != nil || msg.Role != "user" {
+		t.Fatalf("user image_url = %+v err=%v", msg, err)
+	}
+	if msg, err := respMessage(respItem{Role: "user", Content: json.RawMessage(`[]`)}); err != nil || msg.Content != "" {
+		t.Fatalf("empty user parts = %+v err=%v", msg, err)
+	}
+	if msg, err := respMessage(respItem{Role: "assistant", Content: json.RawMessage(`"hi"`)}); err != nil || msg.Content != "hi" {
+		t.Fatalf("assistant string = %+v err=%v", msg, err)
+	}
+	for _, badItem := range []respItem{
+		{Role: "user", Content: json.RawMessage(`[{"type":"input_image","file_id":"file_1"}]`)},
+		{Role: "user", Content: json.RawMessage(`[{"type":"input_image"}]`)},
+		{Role: "user", Content: json.RawMessage(`[{"type":"input_audio"}]`)},
+		{Role: "developer", Content: json.RawMessage(`[{"type":"input_image","image_url":"u"}]`)},
+		{Role: "assistant", Content: json.RawMessage(`[{"type":"input_image","image_url":"u"}]`)},
+		{Role: "tool", Content: json.RawMessage(`"x"`)},
+		{Role: "user", Content: json.RawMessage(`123`)},
+	} {
+		if _, err := respMessage(badItem); err == nil {
+			t.Fatalf("expected respMessage error for %+v", badItem)
+		}
+	}
+
+	// respText branches (empty, string, array of parts, structured JSON scalar/object, bad JSON)
+	if got, err := respText(json.RawMessage("")); err != nil || got != "" {
+		t.Fatalf("respText empty = %q err=%v", got, err)
+	}
+	if got, err := respText(json.RawMessage(`"hello"`)); err != nil || got != "hello" {
+		t.Fatalf("respText string = %q err=%v", got, err)
+	}
+	if got, err := respText(json.RawMessage(`[{"type":"input_text","text":"a"},{"type":"text","text":"b"}]`)); err != nil || got != "a\nb" {
+		t.Fatalf("respText parts = %q err=%v", got, err)
+	}
+	if got, err := respText(json.RawMessage(`{"ok":true}`)); err != nil || got != `{"ok":true}` {
+		t.Fatalf("respText object = %q err=%v", got, err)
+	}
+	if _, err := respText(json.RawMessage(`"unterminated`)); err == nil {
+		t.Fatal("expected respText string error")
+	}
+	if _, err := respText(json.RawMessage(`[bad`)); err == nil {
+		t.Fatal("expected respText array error")
+	}
+
+	// fromOpenAIResponse edge branches + handleAgentResponses validation errors
+	emptyAns := fromOpenAIResponse("", "m", &oaiResponse{})
+	if len(emptyAns.Output) != 1 || emptyAns.Model != "m" || !strings.HasPrefix(emptyAns.ID, "resp_") {
+		t.Fatalf("emptyAns = %+v", emptyAns)
+	}
+	var toolIn oaiResponse
+	_ = json.Unmarshal([]byte(`{"model":"m2","choices":[{"message":{"tool_calls":[{"function":{"name":"fn","arguments":""}}]}}]}`), &toolIn)
+	toolAns := fromOpenAIResponse("resp_123", "m", &toolIn)
+	if len(toolAns.Output) != 1 || toolAns.Output[0].Arguments != "{}" || toolAns.Output[0].CallID == "" {
+		t.Fatalf("toolAns = %+v", toolAns)
+	}
+
+	f := responsesFixture(t, &upstream{chatBody: `{}`})
+	for _, body := range []string{`{bad`, `{"model":""}`, `{"model":"m"}`} {
+		st, _ := f.do(t, http.MethodPost, "/v1/responses", body)
+		if st != http.StatusBadRequest {
+			t.Fatalf("body %s: status = %d, want 400", body, st)
+		}
+	}
+}

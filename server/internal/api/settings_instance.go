@@ -47,16 +47,16 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"reservedSlugs":            h.getSetting(keyReservedSlugs),
 			"builtinReserved":          []string{"admin", "api", "assets", "portal"},
 			"googleClientId":           h.getSetting(keyGoogleClientID),
-			"googleClientSecretSet":    h.getSetting(keyGoogleClientSecret) != "",
+			"googleClientSecretSet":    h.hasInstanceSecret(ctx, vaultKeyGoogleClientSecret, "clientSecret", "value"),
 			"githubClientId":           h.getSetting(keyGitHubClientID),
-			"githubClientSecretSet":    h.getSetting(keyGitHubClientSecret) != "",
+			"githubClientSecretSet":    h.hasInstanceSecret(ctx, vaultKeyGitHubClientSecret, "clientSecret", "value"),
 			"dataRetentionDays":        retDays,
 			"allowRegistration":        h.registrationEnabled(),
 			"requireEmailVerification": h.requireEmailVerification(),
 			"appName":                  h.getSetting(keyAppName), // raw value; empty = default
 			"baseDomain":               models.BaseDomain(h.db),  // effective value incl. the OCTARQ_BASE_DOMAIN bootstrap fallback
 			"sharedHosts":              h.sharedHostsSetting(),
-			"metricsTokenSet":          h.getSetting(keyMetricsToken) != "",
+			"metricsTokenSet":          h.hasInstanceSecret(ctx, vaultKeyMetricsToken, "token", "value"),
 			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
 			"ratelimitRedirectRpm":     h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
@@ -121,28 +121,16 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		h.setSetting(keyGoogleClientID, strings.TrimSpace(*input.Body.GoogleClientID))
 	}
 	if input.Body.GoogleClientSecret != nil {
-		if *input.Body.GoogleClientSecret == "" {
-			h.setSetting(keyGoogleClientSecret, "")
-		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.GoogleClientSecret)))
-			if err != nil {
-				return nil, huma.Error500InternalServerError("Could not secure OAuth secret; retry the request")
-			}
-			h.setSetting(keyGoogleClientSecret, enc)
+		if err := h.setInstanceSecret(ctx, vaultKeyGoogleClientSecret, "Google OAuth", "clientSecret", *input.Body.GoogleClientSecret, h.auth.UserID(r)); err != nil {
+			return nil, huma.Error500InternalServerError("Could not secure OAuth secret; retry the request")
 		}
 	}
 	if input.Body.GitHubClientID != nil {
 		h.setSetting(keyGitHubClientID, strings.TrimSpace(*input.Body.GitHubClientID))
 	}
 	if input.Body.GitHubClientSecret != nil {
-		if *input.Body.GitHubClientSecret == "" {
-			h.setSetting(keyGitHubClientSecret, "")
-		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.GitHubClientSecret)))
-			if err != nil {
-				return nil, huma.Error500InternalServerError("Could not secure OAuth secret; retry the request")
-			}
-			h.setSetting(keyGitHubClientSecret, enc)
+		if err := h.setInstanceSecret(ctx, vaultKeyGitHubClientSecret, "GitHub OAuth", "clientSecret", *input.Body.GitHubClientSecret, h.auth.UserID(r)); err != nil {
+			return nil, huma.Error500InternalServerError("Could not secure OAuth secret; retry the request")
 		}
 	}
 	if input.Body.DataRetentionDays != nil {
@@ -177,14 +165,8 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		origin.ClearSharedHostsCache(h.db)
 	}
 	if input.Body.MetricsToken != nil {
-		if *input.Body.MetricsToken == "" {
-			h.setSetting(keyMetricsToken, "")
-		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.MetricsToken)))
-			if err != nil {
-				return nil, huma.Error500InternalServerError("Could not secure metrics token; retry the request")
-			}
-			h.setSetting(keyMetricsToken, enc)
+		if err := h.setInstanceSecret(ctx, vaultKeyMetricsToken, "Metrics Bearer Token", "token", *input.Body.MetricsToken, h.auth.UserID(r)); err != nil {
+			return nil, huma.Error500InternalServerError("Could not secure metrics token; retry the request")
 		}
 	}
 	if input.Body.RatelimitAuthRpm != nil {
@@ -265,15 +247,15 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			"reservedSlugs":         h.getSetting(keyReservedSlugs),
 			"builtinReserved":       []string{"admin", "api", "assets", "portal"},
 			"googleClientId":        h.getSetting(keyGoogleClientID),
-			"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
+			"googleClientSecretSet": h.hasInstanceSecret(ctx, vaultKeyGoogleClientSecret, "clientSecret", "value"),
 			"githubClientId":        h.getSetting(keyGitHubClientID),
-			"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
+			"githubClientSecretSet": h.hasInstanceSecret(ctx, vaultKeyGitHubClientSecret, "clientSecret", "value"),
 			"dataRetentionDays":     retDays,
 			"allowRegistration":     h.registrationEnabled(),
 			"appName":               h.getSetting(keyAppName),
 			"baseDomain":            models.BaseDomain(h.db),
 			"sharedHosts":           h.sharedHostsSetting(),
-			"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
+			"metricsTokenSet":       h.hasInstanceSecret(ctx, vaultKeyMetricsToken, "token", "value"),
 			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
 			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),

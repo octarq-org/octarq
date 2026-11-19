@@ -17,10 +17,11 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/notify"
 	"github.com/octarq-org/octarq/server/plugins/ontology"
 	"github.com/octarq-org/octarq/server/plugins/tenantquery"
+	"github.com/octarq-org/octarq/server/plugins/vault"
 )
 
 // Default returns the OSS Core infrastructure plugins in dependency order.
 // Callers mount them via a.Use.
 func Default() []plugin.Plugin {
-	return []plugin.Plugin{help.New(), tenantquery.New(), notify.New(), ontology.New(), llmgateway.New()}
+	return []plugin.Plugin{vault.New(), help.New(), tenantquery.New(), notify.New(), ontology.New(), llmgateway.New()}
 }

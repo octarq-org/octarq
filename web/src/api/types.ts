@@ -422,3 +422,147 @@ export interface SetModelPriceInput {
   output: number;
   reasoning: number;
 }
+
+// Unified Vault & Integrations
+export interface VaultSchemaField {
+  key: string;
+  label: string;
+  kind: "text" | "secret" | "textarea" | "boolean" | "number" | "url" | string;
+  required?: boolean;
+  secret?: boolean;
+  default?: unknown;
+  hint?: string;
+  nonSecret?: boolean;
+}
+
+export interface VaultProviderSchema {
+  id: string;
+  label: string;
+  itemType: string;
+  providerType?: string;
+  testable?: boolean;
+  fields: VaultSchemaField[];
+}
+
+export interface VaultCategorySchema {
+  key: string;
+  label: string;
+  itemType: string;
+  providers: VaultProviderSchema[];
+}
+
+export interface VaultCollection {
+  id: number;
+  orgId: number;
+  scope: "instance" | "org" | "user";
+  slug: string;
+  name: string;
+  kind: string;
+  description?: string;
+  icon?: string;
+  createdBy?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VaultItemMeta {
+  id: number;
+  secretId: string;
+  orgId: number;
+  scope: "instance" | "org" | "user";
+  ownerUserId?: number;
+  collectionId: number;
+  collectionSlug: string;
+  environment: string;
+  folderPath: string;
+  itemType: string;
+  providerType?: string;
+  provider?: string;
+  keyName?: string;
+  name: string;
+  tags?: string[];
+  isDefault: boolean;
+  currentVersion: number;
+  configured: boolean;
+  fieldKeys?: string[];
+  metadata?: Record<string, unknown>;
+  expiresAt?: string;
+  rotationIntervalDays?: number;
+  lastRotatedAt?: string;
+  ref: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VaultSecretReveal {
+  meta: VaultItemMeta;
+  version: number;
+  payload: Record<string, unknown>;
+}
+
+export interface VaultVersionDTO {
+  version: number;
+  createdBy?: number;
+  changeNote?: string;
+  createdAt: string;
+}
+
+export interface VaultServiceToken {
+  id: number;
+  orgId: number;
+  name: string;
+  tokenPrefix: string;
+  collectionId: number;
+  environment: string;
+  folderPrefix: string;
+  permissions: string;
+  expiresAt?: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+  createdBy?: number;
+  createdAt: string;
+}
+
+export interface VaultServiceTokenCreateResult {
+  token: VaultServiceToken;
+  plaintext: string;
+}
+
+export interface VaultTOTPResult {
+  code: string;
+  remainingSeconds: number;
+}
+
+export interface VaultExportResult {
+  format: string;
+  dotEnv?: string;
+  secrets?: Record<string, unknown>;
+  refs?: Record<string, string>;
+}
+
+export interface VaultCreateItemInput {
+  scope?: string;
+  collectionSlug?: string;
+  environment?: string;
+  folderPath?: string;
+  itemType?: string;
+  providerType?: string;
+  provider?: string;
+  keyName?: string;
+  name: string;
+  tags?: string[];
+  isDefault?: boolean;
+  metadata?: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  changeNote?: string;
+  expiresAt?: string;
+  rotationIntervalDays?: number;
+}
+
+export interface VaultUpdateItemInput {
+  name?: string;
+  isDefault?: boolean;
+  metadata?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  changeNote?: string;
+}

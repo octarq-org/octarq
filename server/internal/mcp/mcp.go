@@ -80,7 +80,7 @@ func Run(ctx context.Context) error {
 // Mounting used to (re)build; it is required, not optional, so a caller cannot
 // quietly drop it and lose the export tools.
 func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool)) *mcp.Server {
-	return buildServerInstance(gdb, orgID, plugins, lookup, false, nil)
+	return buildServerInstance(gdb, orgID, plugins, lookup, false, nil, nil)
 }
 
 // NewServerInstance builds an MCP server for a single operator, scoped to
@@ -91,11 +91,29 @@ func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugi
 // NewNetworkedServerInstance. Both expose the same tenant-scoped tool set;
 // there is no transport that gets extra reach.
 func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) *mcp.Server {
-	return buildServerInstance(gdb, orgID, plugins, nil, true, gate)
+	return buildServerInstance(gdb, orgID, plugins, nil, true, gate, nil)
+}
+
+type mcpCryptoHost struct {
+	plugin.Host
+	crypto plugin.CryptoVault
+}
+
+func (h mcpCryptoHost) Crypto() plugin.CryptoVault { return h.crypto }
+
+// NewStdioPluginHost returns the Host capability surface plugins receive when
+// mounted inside the stdio MCP server. If baseHost supplies a CryptoVault, the
+// returned host preserves it so Vault and encrypted plugins work over stdio.
+func NewStdioPluginHost(pctx *plugin.Context, baseHost plugin.Host) plugin.Host {
+	ensured := plugin.EnsureHost(pctx)
+	if baseHost != nil && baseHost.Crypto() != nil {
+		return mcpCryptoHost{Host: ensured, crypto: baseHost.Crypto()}
+	}
+	return ensured
 }
 
 // buildServerInstance is the single chokepoint that constructs an MCP server.
-func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool, gate plugin.TierGate) *mcp.Server {
+func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool, gate plugin.TierGate, baseHost plugin.Host) *mcp.Server {
 	lookupFn := lookup
 	endpointEngine := endpoint.NewEngine()
 	if mountPlugins {
@@ -116,7 +134,7 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
 			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
-		pctx.Host = plugin.EnsureHost(pctx)
+		pctx.Host = NewStdioPluginHost(pctx, baseHost)
 		for _, p := range plugins {
 			pctxCopy := *pctx
 			pctxCopy.Cache = cache.NewScoped(cacheBackend, p.Name())
@@ -182,7 +200,20 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.Ti
 	// fallback — a fallback that is harmless here and a cross-tenant read over
 	// the network. One line at the entry point removes the need for all of them.
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
+	ctx = plugin.WithTokenRole(ctx, "owner")
 	srv := NewServerInstance(gdb, stdioOrgID, plugins, gate)
+	return srv.Run(ctx, stdioTransport())
+}
+
+// RunStdio serves MCP over stdio using an already-opened database and host
+// capabilities (including CryptoVault for plugins such as the Vault).
+func RunStdio(ctx context.Context, gdb *gorm.DB, plugins []plugin.Plugin, host plugin.Host, gate plugin.TierGate) error {
+	telemetry.IncMCPSessions()
+	defer telemetry.DecMCPSessions()
+
+	ctx = plugin.WithOrgID(ctx, stdioOrgID)
+	ctx = plugin.WithTokenRole(ctx, "owner")
+	srv := buildServerInstance(gdb, stdioOrgID, plugins, nil, true, gate, host)
 	return srv.Run(ctx, stdioTransport())
 }
 

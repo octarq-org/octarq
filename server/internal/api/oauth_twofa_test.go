@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -33,12 +34,10 @@ func oauthTestEnv(t *testing.T, h *Handler, db *gorm.DB, email string) []*http.C
 	auth.InitGothStore("secret")
 
 	db.Where("key LIKE ?", "oauth.%").Delete(&models.Setting{})
-	enc, err := h.cipher.Encrypt([]byte("google-secret"))
-	if err != nil {
-		t.Fatalf("encrypt google secret: %v", err)
-	}
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
-	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: string(enc)})
+	if err := h.setInstanceSecret(context.Background(), vaultKeyGoogleClientSecret, "Google OAuth", "clientSecret", "google-secret", 1); err != nil {
+		t.Fatalf("set google secret: %v", err)
+	}
 	if err := db.Create(&testDomain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
 		t.Fatalf("seed domain: %v", err)
 	}

@@ -14,9 +14,13 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/vault"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // The gateway needs a backend it can build without a vendor SDK, so the tests
@@ -61,6 +65,135 @@ type httpFixture struct {
 	db       *gorm.DB
 }
 
+type dbSecretStore struct{ db *gorm.DB }
+
+func (s dbSecretStore) Get(key string) (string, bool) {
+	var row models.Setting
+	if s.db.First(&row, "key = ?", key).Error != nil {
+		return "", false
+	}
+	return row.Value, true
+}
+
+func (s dbSecretStore) Set(key, val string) error {
+	return s.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value"}),
+	}).Create(&models.Setting{Key: key, Value: val}).Error
+}
+
+func (s dbSecretStore) Delete(key string) error {
+	return s.db.Delete(&models.Setting{Key: key}).Error
+}
+
+func (s dbSecretStore) HasEncryptedValues() (bool, error) { return false, nil }
+
+type cipherVaultAdapter struct{ c *crypto.Cipher }
+
+func (r cipherVaultAdapter) Encrypt(p []byte) (string, error) { return r.c.Encrypt(p) }
+func (r cipherVaultAdapter) Decrypt(s string) ([]byte, error) { return r.c.Decrypt(s) }
+func (r cipherVaultAdapter) EncryptWithAAD(p, aad []byte) (string, error) {
+	return r.c.EncryptWithAAD(p, aad)
+}
+func (r cipherVaultAdapter) DecryptWithAAD(s string, aad []byte) ([]byte, error) {
+	return r.c.DecryptWithAAD(s, aad)
+}
+func (r cipherVaultAdapter) SubjectVault(ownerID uint, subject string) (plugin.CryptoVault, error) {
+	sv, err := r.c.SubjectVault(ownerID, subject)
+	if err != nil {
+		return nil, err
+	}
+	return subjectVaultAdapter{sv: sv}, nil
+}
+func (r cipherVaultAdapter) ShredSubjectKey(ownerID uint, subject string) error {
+	return r.c.ShredSubjectKey(ownerID, subject)
+}
+func (r cipherVaultAdapter) HasSubjectKey(ownerID uint, subject string) bool {
+	return r.c.HasSubjectKey(ownerID, subject)
+}
+
+type subjectVaultAdapter struct{ sv *crypto.SubjectVault }
+
+func (r subjectVaultAdapter) Encrypt(p []byte) (string, error) { return r.sv.Encrypt(p) }
+func (r subjectVaultAdapter) Decrypt(s string) ([]byte, error) { return r.sv.Decrypt(s) }
+func (r subjectVaultAdapter) EncryptWithAAD(p, aad []byte) (string, error) {
+	return r.sv.EncryptWithAAD(p, aad)
+}
+func (r subjectVaultAdapter) DecryptWithAAD(s string, aad []byte) ([]byte, error) {
+	return r.sv.DecryptWithAAD(s, aad)
+}
+func (r subjectVaultAdapter) SubjectVault(ownerID uint, subject string) (plugin.CryptoVault, error) {
+	sv, err := r.sv.SubjectVault(ownerID, subject)
+	if err != nil {
+		return nil, err
+	}
+	return subjectVaultAdapter{sv: sv}, nil
+}
+func (r subjectVaultAdapter) ShredSubjectKey(ownerID uint, subject string) error {
+	return r.sv.ShredSubjectKey(ownerID, subject)
+}
+func (r subjectVaultAdapter) HasSubjectKey(ownerID uint, subject string) bool {
+	return r.sv.HasSubjectKey(ownerID, subject)
+}
+
+type stubVaultService struct {
+	getSecretFn func(ctx context.Context, orgID, itemID uint) (*plugin.VaultSecret, error)
+}
+
+func (s *stubVaultService) PutSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) UpdateSecret(context.Context, uint, uint, *string, map[string]any, map[string]any, *bool, string, uint) (*plugin.VaultItemMeta, error) {
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) GetMeta(context.Context, uint, uint) (*plugin.VaultItemMeta, error) {
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) GetSecret(ctx context.Context, orgID, itemID uint) (*plugin.VaultSecret, error) {
+	if s.getSecretFn != nil {
+		return s.getSecretFn(ctx, orgID, itemID)
+	}
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) ResolveByRef(context.Context, uint, string) (*plugin.VaultSecret, error) {
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) ResolveInstanceSecret(context.Context, string) (*plugin.VaultSecret, error) {
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) PutInstanceSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
+	return nil, errors.New("stub")
+}
+func (s *stubVaultService) DeleteInstanceSecret(context.Context, string) error { return nil }
+func (s *stubVaultService) ListItems(context.Context, uint, plugin.VaultFilter) ([]plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (s *stubVaultService) DeleteSecret(context.Context, uint, uint) error { return nil }
+func (s *stubVaultService) ComputeTOTP(context.Context, uint, uint) (string, int, error) {
+	return "", 0, errors.New("stub")
+}
+
+func newTestVaultService(t *testing.T, db *gorm.DB) plugin.VaultService {
+	t.Helper()
+	vp := vault.New()
+	if err := db.AutoMigrate(append([]any{&models.Setting{}}, vp.Models()...)...); err != nil {
+		t.Fatalf("migrate vault: %v", err)
+	}
+	c := crypto.New("llmgateway-test-secret")
+	if err := c.EnableEnvelope(dbSecretStore{db: db}); err != nil {
+		t.Fatalf("enable envelope: %v", err)
+	}
+	reg := plugin.NewRegistry()
+	vp.Mount(nil, &plugin.Context{
+		DB:      db,
+		Host:    &plugin.TestHost{CryptoMock: cipherVaultAdapter{c: c}},
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	})
+	vs, _ := plugin.LookupServiceAs[plugin.VaultService](reg.Lookup, plugin.ServiceVault)
+	return vs
+}
+
 func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -78,6 +211,9 @@ func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture 
 	})
 
 	f := &httpFixture{provided: map[string]any{}, db: db}
+	vs := newTestVaultService(t, db)
+	f.provided[plugin.ServiceVault] = vs
+
 	session := &plugin.TestSession{
 		UserIDFn:      func(*http.Request) uint { return userID },
 		OrgIDFn:       func(*http.Request) uint { return orgID },
@@ -87,12 +223,16 @@ func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture 
 	p.Mount(mux, &plugin.Context{
 		Huma: api,
 		DB:   db,
-		Host: &plugin.TestHost{SessionMock: session, CryptoMock: &plugin.TestCrypto{}},
+		Host: &plugin.TestHost{SessionMock: session},
 		// The platform guard stamps the caller's session. These tests carry the
 		// session in the fixture, so the guard is the identity.
 		Guard: func(next http.Handler) http.Handler { return next },
 		Provide: func(name string, svc any) {
 			f.provided[name] = svc
+		},
+		Lookup: func(name string) (any, bool) {
+			v, ok := f.provided[name]
+			return v, ok
 		},
 		SetLLMResolverForOrg: func(r func(uint) (llmprovider.Provider, error)) {
 			f.resolver = r
@@ -414,30 +554,36 @@ func TestServiceAdaptersFailClosed(t *testing.T) {
 // TestProviderFromRefusesWhatItCannotBuild pins the unseal path: a row whose key
 // cannot be read is an invalid provider, not a provider with no key.
 func TestProviderFromRefusesWhatItCannotBuild(t *testing.T) {
-	// No host: no vault, so a stored key cannot be opened.
+	ctx := context.Background()
+	// No vault service: a stored key cannot be opened.
 	bare := &Plugin{}
-	if _, err := bare.providerFrom(&Provider{Backend: testBackend, APIKeyEncr: "sealed"}); !errors.Is(err, ErrInvalidProvider) {
+	if _, err := bare.providerFrom(ctx, &Provider{OrgID: 1, Backend: testBackend, VaultItemID: 1}); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("no vault = %v, want ErrInvalidProvider", err)
 	}
 
-	// A vault that refuses the ciphertext.
-	refusing := &Plugin{pctx: &plugin.Context{Host: &plugin.TestHost{
-		CryptoMock: &plugin.TestCrypto{DecryptFn: func(string) ([]byte, error) {
-			return nil, errors.New("wrong key")
-		}},
-	}}}
-	if _, err := refusing.providerFrom(&Provider{Backend: testBackend, APIKeyEncr: "sealed"}); !errors.Is(err, ErrInvalidProvider) {
+	// A vault service that refuses the item.
+	refusing := &Plugin{pctx: &plugin.Context{
+		Lookup: func(name string) (any, bool) {
+			if name == plugin.ServiceVault {
+				return &stubVaultService{getSecretFn: func(context.Context, uint, uint) (*plugin.VaultSecret, error) {
+					return nil, errors.New("wrong key")
+				}}, true
+			}
+			return nil, false
+		},
+	}}
+	if _, err := refusing.providerFrom(ctx, &Provider{OrgID: 1, Backend: testBackend, VaultItemID: 1}); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("unseal failure = %v, want ErrInvalidProvider", err)
 	}
 
 	// A backend no factory serves.
-	ok := &Plugin{pctx: &plugin.Context{Host: &plugin.TestHost{CryptoMock: &plugin.TestCrypto{}}}}
-	if _, err := ok.providerFrom(&Provider{Backend: "no-such-backend"}); !errors.Is(err, ErrInvalidProvider) {
+	ok := &Plugin{}
+	if _, err := ok.providerFrom(ctx, &Provider{Backend: "no-such-backend"}); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("unknown backend = %v, want ErrInvalidProvider", err)
 	}
 
 	// A row with no key is valid: local backends need none.
-	if _, err := ok.providerFrom(&Provider{Backend: testBackend}); err != nil {
+	if _, err := ok.providerFrom(ctx, &Provider{Backend: testBackend}); err != nil {
 		t.Fatalf("keyless provider: %v", err)
 	}
 }
@@ -445,16 +591,24 @@ func TestProviderFromRefusesWhatItCannotBuild(t *testing.T) {
 // TestSealRefusesWithoutAVault pins that saving a key without secret storage is
 // a refusal, not a plaintext column.
 func TestSealRefusesWithoutAVault(t *testing.T) {
-	if _, err := (&Plugin{}).seal("k"); err == nil {
-		t.Fatal("seal without a vault succeeded")
-	}
-	withVault := &Plugin{pctx: &plugin.Context{Host: &plugin.TestHost{CryptoMock: &plugin.TestCrypto{}}}}
-	got, err := withVault.seal("k")
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
-		t.Fatalf("seal: %v", err)
+		t.Fatalf("open db: %v", err)
 	}
-	if got != "k" {
-		t.Fatalf("seal = %q", got)
+	if err := db.AutoMigrate(&Provider{}, &ModelPrice{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	s := NewStore(db)
+	if _, err := s.CreateProvider(context.Background(), 1, ProviderInput{Name: "A", Backend: testBackend, APIKey: "k"}, nil); !errors.Is(err, ErrInvalidProvider) {
+		t.Fatalf("create without vault = %v, want ErrInvalidProvider", err)
+	}
+	vs := newTestVaultService(t, db)
+	row, err := s.CreateProvider(context.Background(), 1, ProviderInput{Name: "A", Backend: testBackend, APIKey: "k"}, vs)
+	if err != nil {
+		t.Fatalf("create with vault: %v", err)
+	}
+	if row.VaultItemID == 0 {
+		t.Fatal("expected VaultItemID > 0")
 	}
 }
 

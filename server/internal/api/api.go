@@ -91,7 +91,31 @@ type Handler struct {
 	hostOrgs           hostOrgCache
 	storage            *plugin.LocalStorageService
 	cronService        plugin.CronService
+	vaultSvc           plugin.VaultService
 	resendInviteLimits sync.Map
+}
+
+// SetVaultService injects the unified VaultService into the API handler and OAuth handler.
+func (h *Handler) SetVaultService(vs plugin.VaultService) {
+	h.vaultSvc = vs
+	if h.oauth != nil {
+		h.oauth.SetVaultService(vs)
+	}
+}
+
+func (h *Handler) vault() plugin.VaultService {
+	if h == nil {
+		return nil
+	}
+	if h.vaultSvc != nil {
+		return h.vaultSvc
+	}
+	if h.lookupService != nil {
+		if vs, ok := plugin.LookupServiceAs[plugin.VaultService](h.lookupService, plugin.ServiceVault); ok {
+			return vs
+		}
+	}
+	return nil
 }
 
 // SetHost installs the plugin host runtime. The chat path asks it for the
@@ -188,7 +212,8 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 	h.sendLimiter = newLimiter("send", 100, time.Hour)            // 100 outbound emails / org / hour
 	h.statusLimiter = newLimiter("status", 60, time.Minute)       // 60 requests / minute
 
-	h.oauth = auth.NewOAuthHandler(db, a, c)
+	h.oauth = auth.NewOAuthHandler(db, a, nil)
+	h.oauth.SetVaultLookup(h.vault)
 	h.registerQueueHandlers(q)
 
 	storageDir := cfg.StorageDir

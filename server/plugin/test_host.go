@@ -159,6 +159,7 @@ type TestCrypto struct {
 	// subject namespaces sets them.
 	SubjectVaultFn    func(ownerID uint, subject string) (CryptoVault, error)
 	ShredSubjectKeyFn func(ownerID uint, subject string) error
+	HasSubjectKeyFn   func(ownerID uint, subject string) bool
 }
 
 func (c *TestCrypto) Encrypt(plaintext []byte) (string, error) {
@@ -201,6 +202,13 @@ func (c *TestCrypto) ShredSubjectKey(ownerID uint, subject string) error {
 		return c.ShredSubjectKeyFn(ownerID, subject)
 	}
 	return errors.New("test crypto: subject vaults are not configured")
+}
+
+func (c *TestCrypto) HasSubjectKey(ownerID uint, subject string) bool {
+	if c != nil && c.HasSubjectKeyFn != nil {
+		return c.HasSubjectKeyFn(ownerID, subject)
+	}
+	return false
 }
 
 var _ CryptoVault = (*TestCrypto)(nil)

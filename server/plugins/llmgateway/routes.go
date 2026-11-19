@@ -41,7 +41,7 @@ func toProviderDTO(row Provider) ProviderDTO {
 	return ProviderDTO{
 		ID: row.ID, Name: row.Name, Backend: row.Backend, BaseURL: row.BaseURL,
 		Model: row.Model, CheapModel: row.CheapModel, IsDefault: row.IsDefault,
-		HasKey: row.APIKeyEncr != "", CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		HasKey: row.VaultItemID > 0, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}
 }
 
@@ -180,7 +180,7 @@ func (p *Plugin) createProvider(ctx context.Context, input *CreateProviderInput)
 	row, err := p.store.CreateProvider(ctx, orgID, ProviderInput{
 		Name: input.Body.Name, Backend: input.Body.Backend, APIKey: input.Body.APIKey,
 		BaseURL: input.Body.BaseURL, Model: input.Body.Model, CheapModel: input.Body.CheapModel,
-	}, p.seal)
+	}, p.vaultService())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -215,7 +215,7 @@ func (p *Plugin) updateProvider(ctx context.Context, input *UpdateProviderInput)
 	row, err := p.store.UpdateProvider(ctx, orgID, input.ID, ProviderInput{
 		Name: input.Body.Name, Backend: input.Body.Backend, APIKey: input.Body.APIKey,
 		BaseURL: input.Body.BaseURL, Model: input.Body.Model, CheapModel: input.Body.CheapModel,
-	}, p.seal)
+	}, p.vaultService())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -224,26 +224,26 @@ func (p *Plugin) updateProvider(ctx context.Context, input *UpdateProviderInput)
 	return out, nil
 }
 
-type OKOutput struct {
+type GatewayOKOutput struct {
 	Body struct {
 		OK bool `json:"ok"`
 	}
 }
 
-func (p *Plugin) deleteProvider(ctx context.Context, input *ProviderIDInput) (*OKOutput, error) {
+func (p *Plugin) deleteProvider(ctx context.Context, input *ProviderIDInput) (*GatewayOKOutput, error) {
 	orgID, err := p.caller(input.Ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := p.store.DeleteProvider(ctx, orgID, input.ID); err != nil {
+	if err := p.store.DeleteProvider(ctx, orgID, input.ID, p.vaultService()); err != nil {
 		return nil, mapError(err)
 	}
-	out := &OKOutput{}
+	out := &GatewayOKOutput{}
 	out.Body.OK = true
 	return out, nil
 }
 
-func (p *Plugin) setDefaultProvider(ctx context.Context, input *ProviderIDInput) (*OKOutput, error) {
+func (p *Plugin) setDefaultProvider(ctx context.Context, input *ProviderIDInput) (*GatewayOKOutput, error) {
 	orgID, err := p.caller(input.Ctx)
 	if err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func (p *Plugin) setDefaultProvider(ctx context.Context, input *ProviderIDInput)
 	if err := p.store.SetDefault(ctx, orgID, input.ID); err != nil {
 		return nil, mapError(err)
 	}
-	out := &OKOutput{}
+	out := &GatewayOKOutput{}
 	out.Body.OK = true
 	return out, nil
 }
@@ -324,12 +324,12 @@ func (p *Plugin) draftProvider(ctx context.Context, orgID uint, in DiscoverModel
 		if u := strings.TrimSpace(in.BaseURL); u != "" {
 			row.BaseURL = u
 		}
-		return p.discoveryProviderFromRow(row, in.APIKey)
+		return p.discoveryProviderFromRow(ctx, row, in.APIKey)
 	}
 	if strings.TrimSpace(in.Backend) == "" {
 		return agentProvider{}, fmt.Errorf("%w: backend is required", ErrInvalidProvider)
 	}
-	return p.discoveryProviderFromRow(&Provider{Backend: in.Backend, BaseURL: in.BaseURL}, in.APIKey)
+	return p.discoveryProviderFromRow(ctx, &Provider{Backend: in.Backend, BaseURL: in.BaseURL}, in.APIKey)
 }
 
 // testProvider resolves the stored row the way a real turn does and sends one
@@ -344,7 +344,7 @@ func (p *Plugin) testProvider(ctx context.Context, input *ProviderIDInput) (*Tes
 	if err != nil {
 		return nil, mapError(err)
 	}
-	prov, err := p.providerFrom(row)
+	prov, err := p.providerFrom(ctx, row)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -463,7 +463,7 @@ type DeletePriceInput struct {
 
 func (i *DeletePriceInput) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
 
-func (p *Plugin) deletePrice(ctx context.Context, input *DeletePriceInput) (*OKOutput, error) {
+func (p *Plugin) deletePrice(ctx context.Context, input *DeletePriceInput) (*GatewayOKOutput, error) {
 	orgID, err := p.caller(input.Ctx)
 	if err != nil {
 		return nil, err
@@ -471,7 +471,7 @@ func (p *Plugin) deletePrice(ctx context.Context, input *DeletePriceInput) (*OKO
 	if err := p.store.DeletePrice(ctx, orgID, input.Model); err != nil {
 		return nil, mapError(err)
 	}
-	out := &OKOutput{}
+	out := &GatewayOKOutput{}
 	out.Body.OK = true
 	return out, nil
 }

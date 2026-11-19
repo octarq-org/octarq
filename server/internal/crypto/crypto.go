@@ -184,6 +184,17 @@ func (c *Cipher) DecryptWithAAD(encoded string, aad []byte) ([]byte, error) {
 	return openWith(c.dek, encoded, aad)
 }
 
+// HasSubjectKey reports whether a wrapped DEK row exists in the secret store
+// for (ownerID, subject). Unlike SubjectVault, it never creates a key on miss.
+func (c *Cipher) HasSubjectKey(ownerID uint, subject string) bool {
+	if c == nil || !c.ready || c.store == nil {
+		return false
+	}
+	key := SubjectDEKSettingKey(ownerID, subject)
+	wrapped, ok := c.store.Get(key)
+	return ok && wrapped != ""
+}
+
 // SubjectVault returns the vault whose DEK belongs to (ownerID, subject). The
 // subject DEK is a fresh random key, wrapped under the same KEK and stored in
 // the SecretStore. SubjectVault creates the key on the first call and caches
@@ -317,6 +328,11 @@ func (v *SubjectVault) SubjectVault(ownerID uint, subject string) (*SubjectVault
 // ShredSubjectKey destroys the subject's DEK. See Cipher.ShredSubjectKey.
 func (v *SubjectVault) ShredSubjectKey(ownerID uint, subject string) error {
 	return v.parent.ShredSubjectKey(ownerID, subject)
+}
+
+// HasSubjectKey reports whether (ownerID, subject) has a wrapped DEK row.
+func (v *SubjectVault) HasSubjectKey(ownerID uint, subject string) bool {
+	return v.parent.HasSubjectKey(ownerID, subject)
 }
 
 // sealWith encrypts plaintext under key and returns

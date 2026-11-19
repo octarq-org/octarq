@@ -17,8 +17,54 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
+
+type testVaultService struct {
+	secrets map[uint]string
+	err     error
+}
+
+func (s *testVaultService) PutSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (s *testVaultService) UpdateSecret(context.Context, uint, uint, *string, map[string]any, map[string]any, *bool, string, uint) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (s *testVaultService) GetMeta(context.Context, uint, uint) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (s *testVaultService) GetSecret(_ context.Context, orgID, itemID uint) (*plugin.VaultSecret, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	sec, ok := s.secrets[itemID]
+	if !ok {
+		return nil, plugin.ErrSecretNotFound
+	}
+	return &plugin.VaultSecret{
+		Meta:    plugin.VaultItemMeta{ID: itemID, OrgID: orgID},
+		Payload: map[string]any{"signingSecret": sec},
+	}, nil
+}
+func (s *testVaultService) ResolveByRef(context.Context, uint, string) (*plugin.VaultSecret, error) {
+	return nil, nil
+}
+func (s *testVaultService) ResolveInstanceSecret(context.Context, string) (*plugin.VaultSecret, error) {
+	return nil, nil
+}
+func (s *testVaultService) PutInstanceSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (s *testVaultService) DeleteInstanceSecret(context.Context, string) error { return nil }
+func (s *testVaultService) ListItems(context.Context, uint, plugin.VaultFilter) ([]plugin.VaultItemMeta, error) {
+	return nil, nil
+}
+func (s *testVaultService) DeleteSecret(context.Context, uint, uint) error { return nil }
+func (s *testVaultService) ComputeTOTP(context.Context, uint, uint) (string, int, error) {
+	return "", 0, nil
+}
 
 // testDB gives each test its own sqlite file with the webhook + delivery-log
 // schema, and restores the package db when it finishes.
@@ -56,8 +102,14 @@ func fastRetries(t *testing.T, attempts int) *[]time.Duration {
 
 func allowSecrets(t *testing.T) {
 	t.Helper()
-	SetSecretDecryptor(func(stored string) (string, bool) { return stored, true })
-	t.Cleanup(func() { SetSecretDecryptor(nil) })
+	SetVaultService(&testVaultService{secrets: map[uint]string{
+		1: "s",
+		2: "shhh",
+		3: "test-webhook-secret-key",
+		4: "secret_key",
+		5: "test-secret",
+	}})
+	t.Cleanup(func() { SetVaultService(nil) })
 }
 
 // TestDeliveryRetriesUntilReceiverRecovers is the core reliability guarantee:
@@ -79,14 +131,14 @@ func TestDeliveryRetriesUntilReceiverRecovers(t *testing.T) {
 	defer ts.Close()
 
 	d := delivery{
-		DeliveryID: "dlv-retry",
-		OrgID:      7,
-		WebhookID:  1,
-		Event:      "link.click",
-		URL:        ts.URL,
-		Secret:     "s",
-		Body:       []byte(`{"ok":true}`),
-		SignedAt:   time.Now(),
+		DeliveryID:  "dlv-retry",
+		OrgID:       7,
+		WebhookID:   1,
+		Event:       "link.click",
+		URL:         ts.URL,
+		VaultItemID: 1,
+		Body:        []byte(`{"ok":true}`),
+		SignedAt:    time.Now(),
 	}
 	deliverWithRetry(context.Background(), d)
 
@@ -130,14 +182,14 @@ func TestDeliveryDeadLettersAfterMaxAttempts(t *testing.T) {
 	defer ts.Close()
 
 	deliverWithRetry(context.Background(), delivery{
-		DeliveryID: "dlv-dead",
-		OrgID:      1,
-		WebhookID:  1,
-		Event:      "link.click",
-		URL:        ts.URL,
-		Secret:     "s",
-		Body:       []byte(`{}`),
-		SignedAt:   time.Now(),
+		DeliveryID:  "dlv-dead",
+		OrgID:       1,
+		WebhookID:   1,
+		Event:       "link.click",
+		URL:         ts.URL,
+		VaultItemID: 1,
+		Body:        []byte(`{}`),
+		SignedAt:    time.Now(),
 	})
 
 	if got := hits.Load(); got != 3 {
@@ -166,8 +218,8 @@ func TestDeliveryDeadLettersAfterMaxAttempts(t *testing.T) {
 // whole retry budget.
 func TestPermanentFailureIsNotRetried(t *testing.T) {
 	gdb := testDB(t)
-	SetSecretDecryptor(func(string) (string, bool) { return "", false })
-	t.Cleanup(func() { SetSecretDecryptor(nil) })
+	SetVaultService(&testVaultService{err: context.DeadlineExceeded})
+	t.Cleanup(func() { SetVaultService(nil) })
 	waits := fastRetries(t, 5)
 
 	var hits atomic.Int32
@@ -177,12 +229,12 @@ func TestPermanentFailureIsNotRetried(t *testing.T) {
 	defer ts.Close()
 
 	deliverWithRetry(context.Background(), delivery{
-		DeliveryID: "dlv-perm",
-		OrgID:      1,
-		URL:        ts.URL,
-		Secret:     "s",
-		Body:       []byte(`{}`),
-		SignedAt:   time.Now(),
+		DeliveryID:  "dlv-perm",
+		OrgID:       1,
+		URL:         ts.URL,
+		VaultItemID: 1,
+		Body:        []byte(`{}`),
+		SignedAt:    time.Now(),
 	})
 
 	if hits.Load() != 0 {
@@ -256,12 +308,12 @@ func TestReplayDetectionHeadersAndSignature(t *testing.T) {
 	defer ts.Close()
 
 	d := delivery{
-		DeliveryID: "dlv-abc123",
-		Event:      "link.click",
-		URL:        ts.URL,
-		Secret:     secret,
-		Body:       body,
-		SignedAt:   signedAt,
+		DeliveryID:  "dlv-abc123",
+		Event:       "link.click",
+		URL:         ts.URL,
+		VaultItemID: 2,
+		Body:        body,
+		SignedAt:    signedAt,
 	}
 	if res := attempt(context.Background(), d, 2); res.Err != nil {
 		t.Fatalf("attempt: %v", res.Err)
@@ -333,7 +385,7 @@ func TestFanOutIsBounded(t *testing.T) {
 
 	const hooks = 8
 	for i := 0; i < hooks; i++ {
-		gdb.Create(&models.Webhook{OrgID: 1, Name: "h", URL: ts.URL, Secret: "s", Events: "*", Enabled: true})
+		gdb.Create(&models.Webhook{OrgID: 1, Name: "h", URL: ts.URL, VaultItemID: 1, Events: "*", Enabled: true})
 	}
 
 	Publish(1, "link.click", map[string]any{"ok": true})
@@ -386,7 +438,7 @@ func TestReplayResendsOriginalBodyAndDeliveryID(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	hook := models.Webhook{OrgID: 3, Name: "h", URL: ts.URL, Secret: "s", Events: "*", Enabled: true}
+	hook := models.Webhook{OrgID: 3, Name: "h", URL: ts.URL, VaultItemID: 1, Events: "*", Enabled: true}
 	gdb.Create(&hook)
 	gdb.Create(&WebhookDelivery{
 		DeliveryID: "dlv-replay", OrgID: 3, WebhookID: hook.ID, Event: "link.click",

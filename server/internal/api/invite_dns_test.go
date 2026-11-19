@@ -11,8 +11,9 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/internal/queue"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/vault"
 	"gorm.io/gorm"
 )
 
@@ -27,17 +28,21 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	notify.SetConfigDecryptor(func(stored string) (string, bool) {
-		b, err := cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(b), true
-	})
-	t.Cleanup(func() { notify.SetConfigDecryptor(nil) })
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	reg := plugin.NewRegistry()
+	h.SetServiceLookup(reg.Lookup)
+	vp := vault.New()
+	vp.Mount(nil, &plugin.Context{
+		DB:      db,
+		Host:    &plugin.TestHost{CryptoMock: apiTestCrypto(cipher)},
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	})
+	if vs, ok := plugin.LookupServiceAs[plugin.VaultService](reg.Lookup, plugin.ServiceVault); ok {
+		h.SetVaultService(vs)
+	}
 	srv := h.Routes()
 	return h, srv, db
 }

@@ -17,8 +17,9 @@ import (
 
 // TelegramChannel delivers notifications via Telegram bot.
 type TelegramChannel struct {
-	db   *gorm.DB
-	host plugin.Host
+	db    *gorm.DB
+	host  plugin.Host
+	vault plugin.VaultService
 }
 
 var _ plugin.NotificationChannel = (*TelegramChannel)(nil)
@@ -26,6 +27,11 @@ var _ plugin.NotificationChannel = (*TelegramChannel)(nil)
 // SetHost injects the host runtime SPI for credential resolution.
 func (c *TelegramChannel) SetHost(h plugin.Host) {
 	c.host = h
+}
+
+// SetVaultService injects VaultService for resolving local channel secrets.
+func (c *TelegramChannel) SetVaultService(vs plugin.VaultService) {
+	c.vault = vs
 }
 
 // NewTelegramChannel constructs a Telegram notification channel driver.
@@ -194,30 +200,26 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 	if (botToken == "" || chatIDStr == "") && reqIntegID == 0 && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
-			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "telegram", true).First(&ch).Error; err == nil && ch.Config != "" {
-				plain, decErr := ConfigPlaintext(ch.Config)
+			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "telegram", true).First(&ch).Error; err == nil && (ch.Config != "" || ch.VaultItemID > 0) {
+				cfgMap, decErr := ResolveChannelConfig(ctx, c.vault, ch)
 				if decErr != nil {
-					return fmt.Errorf("telegram: decrypt channel config: %w", decErr)
+					return fmt.Errorf("telegram: resolve channel config: %w", decErr)
 				}
-				var m struct {
-					BotToken string `json:"botToken"`
-					ChatID   any    `json:"chatId"`
-				}
-				if json.Unmarshal([]byte(plain), &m) == nil {
-					if botToken == "" {
-						botToken = strings.TrimSpace(m.BotToken)
+				if botToken == "" {
+					if v, ok := cfgMap["botToken"].(string); ok {
+						botToken = strings.TrimSpace(v)
 					}
-					if chatIDStr == "" && m.ChatID != nil {
-						switch val := m.ChatID.(type) {
-						case string:
-							chatIDStr = strings.TrimSpace(val)
-						case float64:
-							chatIDStr = strconv.FormatInt(int64(val), 10)
-						case int64:
-							chatIDStr = strconv.FormatInt(val, 10)
-						case int:
-							chatIDStr = strconv.Itoa(val)
-						}
+				}
+				if chatIDStr == "" && cfgMap["chatId"] != nil {
+					switch val := cfgMap["chatId"].(type) {
+					case string:
+						chatIDStr = strings.TrimSpace(val)
+					case float64:
+						chatIDStr = strconv.FormatInt(int64(val), 10)
+					case int64:
+						chatIDStr = strconv.FormatInt(val, 10)
+					case int:
+						chatIDStr = strconv.Itoa(val)
 					}
 				}
 			}

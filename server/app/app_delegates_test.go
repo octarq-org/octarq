@@ -15,7 +15,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
@@ -286,18 +285,6 @@ func TestAppNotify(t *testing.T) {
 	a := &App{}
 	ctx := context.Background()
 
-	// notify.Send decrypts stored channel config before dispatch; a bare App{}
-	// has no decryptor registered, so install a passthrough for this test.
-	notification.SetConfigDecryptor(func(stored string) (string, bool) { return stored, true })
-	defer notification.SetConfigDecryptor(nil)
-
-	// Test decrypt error branch
-	notification.SetConfigDecryptor(func(stored string) (string, bool) { return "", false })
-	if err := a.Notify(ctx, "apptest-chan", "garbled", "hi"); err == nil {
-		t.Fatal("expected error on config decryption failure, got nil")
-	}
-	notification.SetConfigDecryptor(func(stored string) (string, bool) { return stored, true })
-
 	if err := a.Notify(ctx, "apptest-nosuch", "{}", "hi"); err == nil {
 		t.Fatal("Notify accepted an unregistered channel type")
 		return
@@ -308,6 +295,9 @@ func TestAppNotify(t *testing.T) {
 		gotText = text
 		return nil
 	})
+	if err := a.Notify(ctx, "apptest-chan", "garbled", "hi"); err == nil {
+		t.Fatal("expected error on invalid config JSON, got nil")
+	}
 	if err := a.Notify(ctx, "apptest-chan", "{}", "hello world"); err != nil {
 		t.Fatalf("Notify: %v", err)
 	}

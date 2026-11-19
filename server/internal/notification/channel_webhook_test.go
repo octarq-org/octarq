@@ -148,11 +148,6 @@ func TestWebhookChannel_DBLookup(t *testing.T) {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	SetConfigDecryptor(func(stored string) (string, bool) {
-		return stored, true
-	})
-	t.Cleanup(func() { SetConfigDecryptor(nil) })
-
 	// Insert active webhook channel for org 1
 	db.Create(&models.NotificationChannel{
 		OrgID:   1,

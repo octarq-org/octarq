@@ -26,6 +26,7 @@ type SlackChannel struct {
 	client  *http.Client
 	timeout time.Duration
 	host    plugin.Host
+	vault   plugin.VaultService
 }
 
 var _ plugin.NotificationChannel = (*SlackChannel)(nil)
@@ -33,6 +34,11 @@ var _ plugin.NotificationChannel = (*SlackChannel)(nil)
 // SetHost injects the host runtime SPI for credential resolution.
 func (c *SlackChannel) SetHost(h plugin.Host) {
 	c.host = h
+}
+
+// SetVaultService injects VaultService for resolving local channel secrets.
+func (c *SlackChannel) SetVaultService(vs plugin.VaultService) {
+	c.vault = vs
 }
 
 // NewSlackChannel constructs a Slack notification channel driver.
@@ -184,21 +190,15 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 	if webhookURL == "" && reqIntegID == 0 && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
-			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "slack", true).First(&ch).Error; err == nil && ch.Config != "" {
-				plain, decErr := ConfigPlaintext(ch.Config)
+			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "slack", true).First(&ch).Error; err == nil && (ch.Config != "" || ch.VaultItemID > 0) {
+				cfgMap, decErr := ResolveChannelConfig(ctx, c.vault, ch)
 				if decErr != nil {
-					return fmt.Errorf("slack: decrypt channel config: %w", decErr)
+					return fmt.Errorf("slack: resolve channel config: %w", decErr)
 				}
-				var m struct {
-					WebhookURL    string `json:"webhookUrl"`
-					WebhookURLAlt string `json:"webhook_url"`
-				}
-				if json.Unmarshal([]byte(plain), &m) == nil {
-					if m.WebhookURL != "" {
-						webhookURL = strings.TrimSpace(m.WebhookURL)
-					} else if m.WebhookURLAlt != "" {
-						webhookURL = strings.TrimSpace(m.WebhookURLAlt)
-					}
+				if v, ok := cfgMap["webhookUrl"].(string); ok && strings.TrimSpace(v) != "" {
+					webhookURL = strings.TrimSpace(v)
+				} else if v, ok := cfgMap["webhook_url"].(string); ok && strings.TrimSpace(v) != "" {
+					webhookURL = strings.TrimSpace(v)
 				}
 			}
 		}

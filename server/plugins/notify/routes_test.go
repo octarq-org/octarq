@@ -60,7 +60,6 @@ func TestPlugin_InfoAndMount(t *testing.T) {
 
 func TestNotify_ChannelFilter(t *testing.T) {
 	db := openTestDB(t)
-	notification.SetConfigDecryptor(func(s string) (string, bool) { return s, true })
 
 	var a, b int
 	mustRegister := func(name string, fn notification.LegacyProviderFunc) {
@@ -100,20 +99,17 @@ func TestNotify_UnknownChannelFilterFailsClosed(t *testing.T) {
 
 func TestNotify_DecryptFailureIsReported(t *testing.T) {
 	db := openTestDB(t)
-	notification.SetConfigDecryptor(func(string) (string, bool) { return "", false })
-	t.Cleanup(func() { notification.SetConfigDecryptor(func(s string) (string, bool) { return s, true }) })
-	if err := db.Create(&models.NotificationChannel{OrgID: 1, Name: "t", Type: "testnotify", Config: "{}", Enabled: true}).Error; err != nil {
+	if err := db.Create(&models.NotificationChannel{OrgID: 1, Name: "t", Type: "testnotify", VaultItemID: 99, Config: "{}", Enabled: true}).Error; err != nil {
 		t.Fatalf("seed channel: %v", err)
 	}
 	p := &Plugin{db: db}
 	if _, err := p.notify(plugin.WithOrgID(context.Background(), 1), NotifyInput{Message: "hi"}); err == nil {
-		t.Fatal("expected a decrypt failure to surface as an error")
+		t.Fatal("expected a vault resolution failure to surface as an error")
 	}
 }
 
 func TestNotify_DeliveryFailureIsReported(t *testing.T) {
 	db := openTestDB(t)
-	notification.SetConfigDecryptor(func(s string) (string, bool) { return s, true })
 	if err := notification.DefaultRouter().RegisterChannel(
 		notification.NewLegacyNotifierAdapter("failchan", "", func(context.Context, string, string) error {
 			return errors.New("boom")
@@ -147,7 +143,6 @@ func TestNotify_NoChannelsFailsClosed(t *testing.T) {
 
 func TestNotify_DeliversToEnabledChannel(t *testing.T) {
 	db := openTestDB(t)
-	notification.SetConfigDecryptor(func(s string) (string, bool) { return s, true })
 
 	var got string
 	if err := notification.DefaultRouter().RegisterChannel(

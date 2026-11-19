@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 	"gorm.io/gorm"
 )
@@ -21,8 +22,9 @@ var (
 	// SSRF-hardened: webhook URLs are tenant-supplied, so delivery must not reach
 	// internal services or cloud metadata (relaxable for trusted self-hosted
 	// receivers via OCTARQ_ALLOW_PRIVATE_WEBHOOKS).
-	httpClient    = safehttp.NewWebhookClient(10 * time.Second)
-	decryptSecret func(string) (string, bool)
+	httpClient   = safehttp.NewWebhookClient(10 * time.Second)
+	vaultMu      sync.RWMutex
+	vaultService plugin.VaultService
 )
 
 // getDB returns the current DB handle under a read lock.
@@ -39,24 +41,40 @@ func Init(gdb *gorm.DB) {
 	dbMu.Unlock()
 }
 
-// SetSecretDecryptor registers how a stored (encrypted) webhook secret is
-// unwrapped before it is used to HMAC-sign the payload.
-func SetSecretDecryptor(fn func(string) (string, bool)) {
-	decryptSecret = fn
+// SetVaultService registers the VaultService used to resolve webhook signing
+// secrets before HMAC-signing deliveries.
+func SetVaultService(vs plugin.VaultService) {
+	vaultMu.Lock()
+	vaultService = vs
+	vaultMu.Unlock()
 }
 
-// signingSecret resolves the plaintext HMAC secret for a stored value. A stored
-// secret that cannot be decrypted, or a build with no decryptor registered, is
-// an error rather than a silent passthrough of whatever was stored.
-func signingSecret(stored string) (string, error) {
-	if decryptSecret == nil {
-		return "", errors.New("no secret decryptor registered")
+func getVaultService() plugin.VaultService {
+	vaultMu.RLock()
+	defer vaultMu.RUnlock()
+	return vaultService
+}
+
+// signingSecret resolves the plaintext HMAC secret for a webhook's vault item.
+// A missing vault service or unresolvable vault item is a hard error rather
+// than signing with an empty or placeholder secret.
+func signingSecret(ctx context.Context, orgID, vaultItemID uint) (string, error) {
+	if vaultItemID == 0 {
+		return "", errors.New("webhook has no vault secret")
 	}
-	pt, ok := decryptSecret(stored)
-	if !ok {
-		return "", errors.New("stored webhook secret could not be decrypted")
+	vs := getVaultService()
+	if vs == nil {
+		return "", errors.New("no vault service registered")
 	}
-	return pt, nil
+	sec, err := vs.GetSecret(ctx, orgID, vaultItemID)
+	if err != nil {
+		return "", fmt.Errorf("stored webhook secret could not be resolved: %w", err)
+	}
+	s, _ := sec.Payload["signingSecret"].(string)
+	if s == "" {
+		return "", errors.New("stored webhook secret is empty")
+	}
+	return s, nil
 }
 
 // EventPayload defines the JSON structure sent to webhook endpoints.
@@ -124,14 +142,14 @@ func Publish(orgID uint, event string, data any) {
 				continue
 			}
 			d := delivery{
-				DeliveryID: newDeliveryID(),
-				OrgID:      orgID,
-				WebhookID:  hook.ID,
-				Event:      event,
-				URL:        hook.URL,
-				Secret:     hook.Secret,
-				Body:       bodyBytes,
-				SignedAt:   signedAt,
+				DeliveryID:  newDeliveryID(),
+				OrgID:       orgID,
+				WebhookID:   hook.ID,
+				Event:       event,
+				URL:         hook.URL,
+				VaultItemID: hook.VaultItemID,
+				Body:        bodyBytes,
+				SignedAt:    signedAt,
 			}
 			deliverySem <- struct{}{}
 			go func(d delivery) {
@@ -150,17 +168,21 @@ func Publish(orgID uint, event string, data any) {
 // permanently dead receiver cannot pin a slot in deliverySem forever.
 var deliveryBudget = 15 * time.Minute
 
-// webhookSecret loads the stored (still encrypted) signing secret for a hook.
-func webhookSecret(ctx context.Context, webhookID uint) (string, error) {
+// webhookVaultItemID loads the VaultItemID for a hook.
+func webhookVaultItemID(ctx context.Context, orgID, webhookID uint) (uint, error) {
 	gdb := getDB()
 	if gdb == nil {
-		return "", errors.New("eventbus: not initialised")
+		return 0, errors.New("eventbus: not initialised")
 	}
 	var hook models.Webhook
-	if err := gdb.WithContext(ctx).Where("id = ?", webhookID).First(&hook).Error; err != nil {
-		return "", fmt.Errorf("eventbus: webhook %d: %w", webhookID, err)
+	q := gdb.WithContext(ctx).Where("id = ?", webhookID)
+	if orgID > 0 {
+		q = q.Where("owner_id = ?", orgID)
 	}
-	return hook.Secret, nil
+	if err := q.First(&hook).Error; err != nil {
+		return 0, fmt.Errorf("eventbus: webhook %d: %w", webhookID, err)
+	}
+	return hook.VaultItemID, nil
 }
 
 // isSubscribed checks if the comma-separated subscriptions string matches the event.

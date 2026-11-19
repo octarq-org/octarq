@@ -8,20 +8,12 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/internal/notify"
 )
 
 func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
-
-	// Set up notify decryptor to use h.cipher
-	notify.SetConfigDecryptor(func(stored string) (string, bool) {
-		b, err := h.cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(b), true
-	})
 
 	const orgID = uint(101)
 	uid := seedOrgMember(t, db, orgID, "admin@notifyenc.com", "admin")
@@ -49,27 +41,38 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 		t.Errorf("expected [REDACTED] in API response, got: %s", respStr)
 	}
 
-	// 2. Query DB directly: verify config column is encrypted (not equal to plaintext)
+	// 2. Query DB directly: verify config column holds non-secret metadata only and VaultItemID is set
 	var storedCh models.NotificationChannel
 	if err := db.Where("owner_id = ? AND name = ?", orgID, "Custom Channel").First(&storedCh).Error; err != nil {
 		t.Fatalf("failed to find channel in DB: %v", err)
 	}
-	if storedCh.Config == plaintextConfig {
-		t.Fatalf("DB config column stored raw plaintext instead of ciphertext!")
+	if strings.Contains(storedCh.Config, "my-super-secret-token") {
+		t.Fatalf("DB config column stored raw secret instead of moving it to Vault!")
+	}
+	if storedCh.VaultItemID == 0 {
+		t.Fatalf("expected VaultItemID > 0 for channel with secret token")
 	}
 
-	// 3. Register mock provider and verify notify.Send receives decrypted plaintext
+	// 3. Register mock provider and verify resolved Vault + metadata config delivers full JSON
 	var receivedConfig string
 	notify.Register("custom", func(ctx context.Context, cfgJSON, text string) error {
 		receivedConfig = cfgJSON
 		return nil
 	})
 
-	// Test notify.Send end-to-end with the stored encrypted config
-	if err := notify.Send(context.Background(), "custom", storedCh.Config, "hello test"); err != nil {
+	resolvedJSON, err := notification.ResolveChannelConfigJSON(context.Background(), h.vault(), storedCh)
+	if err != nil {
+		t.Fatalf("ResolveChannelConfigJSON failed: %v", err)
+	}
+	if err := notify.Send(context.Background(), "custom", resolvedJSON, "hello test"); err != nil {
 		t.Fatalf("notify.Send failed: %v", err)
 	}
-	if receivedConfig != plaintextConfig {
-		t.Errorf("expected notify.Send to receive decrypted plaintext %q, got %q", plaintextConfig, receivedConfig)
+	var gotMap, wantMap map[string]any
+	if err := json.Unmarshal([]byte(receivedConfig), &gotMap); err != nil {
+		t.Fatalf("unmarshal receivedConfig: %v", err)
+	}
+	_ = json.Unmarshal([]byte(plaintextConfig), &wantMap)
+	if gotMap["token"] != wantMap["token"] || gotMap["endpoint"] != wantMap["endpoint"] {
+		t.Errorf("expected resolved config %v, got %v", wantMap, gotMap)
 	}
 }

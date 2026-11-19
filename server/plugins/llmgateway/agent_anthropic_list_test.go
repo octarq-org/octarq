@@ -179,7 +179,8 @@ func TestAnthropicModelsRefusesAnEndlessList(t *testing.T) {
 // reaches Anthropic itself; every other shape keeps the OpenAI path.
 func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	p := &Plugin{}
-	ap, err := p.discoveryProviderFromRow(&Provider{Backend: "claude"}, "sk-ant")
+	ctx := context.Background()
+	ap, err := p.discoveryProviderFromRow(ctx, &Provider{Backend: "claude"}, "sk-ant")
 	if err != nil {
 		t.Fatalf("claude row: %v", err)
 	}
@@ -188,7 +189,7 @@ func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	}
 	// A claude row that names a gateway is read the OpenAI way: that URL is a
 	// proxy, and the proxy answers the OpenAI shape.
-	ap, err = p.discoveryProviderFromRow(&Provider{Backend: "claude", BaseURL: "https://proxy.example/v1"}, "sk-ant")
+	ap, err = p.discoveryProviderFromRow(ctx, &Provider{Backend: "claude", BaseURL: "https://proxy.example/v1"}, "sk-ant")
 	if err != nil {
 		t.Fatalf("claude row with a base URL: %v", err)
 	}
@@ -197,7 +198,7 @@ func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	}
 	// The pasted form of Anthropic's own URL is the same API, so it is read the
 	// same way and the /v1 is not doubled.
-	ap, err = p.discoveryProviderFromRow(&Provider{Backend: "claude", BaseURL: "https://api.anthropic.com/v1"}, "sk-ant")
+	ap, err = p.discoveryProviderFromRow(ctx, &Provider{Backend: "claude", BaseURL: "https://api.anthropic.com/v1"}, "sk-ant")
 	if err != nil {
 		t.Fatalf("pasted anthropic URL: %v", err)
 	}
@@ -205,7 +206,7 @@ func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 		t.Fatalf("pasted anthropic URL resolved to %+v", ap)
 	}
 	// A backend with no list shape is still refused by name.
-	if _, err := p.discoveryProviderFromRow(&Provider{Backend: "gemini"}, "k"); !errors.Is(err, ErrInvalidProvider) {
+	if _, err := p.discoveryProviderFromRow(ctx, &Provider{Backend: "gemini"}, "k"); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("gemini err = %v, want ErrInvalidProvider", err)
 	}
 }

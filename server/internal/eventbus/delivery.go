@@ -152,14 +152,14 @@ func v2Material(ts time.Time, deliveryID string, body []byte) []byte {
 
 // delivery is one webhook send: an event body addressed to one endpoint.
 type delivery struct {
-	DeliveryID string
-	OrgID      uint
-	WebhookID  uint
-	Event      string
-	URL        string
-	Secret     string // as stored (encrypted); decrypted at signing time
-	Body       []byte
-	SignedAt   time.Time
+	DeliveryID  string
+	OrgID       uint
+	WebhookID   uint
+	Event       string
+	URL         string
+	VaultItemID uint
+	Body        []byte
+	SignedAt    time.Time
 }
 
 // attemptResult carries what the delivery log records about one HTTP attempt.
@@ -179,7 +179,7 @@ func attempt(ctx context.Context, d delivery, attemptNo int) attemptResult {
 		// Not retryable: the URL will not become valid on the next attempt.
 		return attemptResult{Err: fmt.Errorf("%w: %w", errPermanent, err)}
 	}
-	secret, err := signingSecret(d.Secret)
+	secret, err := signingSecret(ctx, d.OrgID, d.VaultItemID)
 	if err != nil {
 		return attemptResult{Err: fmt.Errorf("%w: cannot sign: %w", errPermanent, err)}
 	}
@@ -362,19 +362,19 @@ func Replay(ctx context.Context, orgID uint, deliveryID string) error {
 		}
 		return err
 	}
-	secret, err := webhookSecret(ctx, row.WebhookID)
+	vaultItemID, err := webhookVaultItemID(ctx, orgID, row.WebhookID)
 	if err != nil {
 		return err
 	}
 	d := delivery{
-		DeliveryID: row.DeliveryID,
-		OrgID:      row.OrgID,
-		WebhookID:  row.WebhookID,
-		Event:      row.Event,
-		URL:        row.URL,
-		Secret:     secret,
-		Body:       []byte(row.Body),
-		SignedAt:   nowFn(),
+		DeliveryID:  row.DeliveryID,
+		OrgID:       row.OrgID,
+		WebhookID:   row.WebhookID,
+		Event:       row.Event,
+		URL:         row.URL,
+		VaultItemID: vaultItemID,
+		Body:        []byte(row.Body),
+		SignedAt:    nowFn(),
 	}
 	res := attempt(ctx, d, row.Attempts+1)
 	status := StatusDelivered
