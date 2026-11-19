@@ -11,6 +11,10 @@ import (
 type HostSession interface {
 	UserID(r *http.Request) uint
 	OrgID(r *http.Request) uint
+	// PersonalOrgID returns the caller's personal org (kind = personal), or 0
+	// when the account has none. Personal assets live there, not in the team
+	// workspace the session is currently bound to.
+	PersonalOrgID(r *http.Request) uint
 	OrgRole(r *http.Request) string
 	RequireRole(r *http.Request, min string) bool
 	RequirePerm(r *http.Request, permKey, minRole string) bool

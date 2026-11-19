@@ -90,6 +90,7 @@ var _ Host = (*TestHost)(nil)
 type TestSession struct {
 	UserIDFn          func(*http.Request) uint
 	OrgIDFn           func(*http.Request) uint
+	PersonalOrgIDFn   func(*http.Request) uint
 	OrgRoleFn         func(*http.Request) string
 	RequireRoleFn     func(*http.Request, string) bool
 	RequirePermFn     func(*http.Request, string, string) bool
@@ -107,6 +108,13 @@ func (s *TestSession) UserID(r *http.Request) uint {
 func (s *TestSession) OrgID(r *http.Request) uint {
 	if s != nil && s.OrgIDFn != nil {
 		return s.OrgIDFn(r)
+	}
+	return 0
+}
+
+func (s *TestSession) PersonalOrgID(r *http.Request) uint {
+	if s != nil && s.PersonalOrgIDFn != nil {
+		return s.PersonalOrgIDFn(r)
 	}
 	return 0
 }

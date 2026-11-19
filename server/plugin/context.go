@@ -221,6 +221,11 @@ type Context struct {
 	RegisterNotifier func(typ string, send func(ctx context.Context, cfgJSON, text string) error)
 	// FeatureActive reports whether the given feature key is active for orgID.
 	FeatureActive func(orgID uint, featureKey string) bool
+	// PersonalOrgID resolves a user's personal org (kind = personal), or 0 when
+	// the account has none. Personal credentials and accounts belong there,
+	// never in the team workspace the session is bound to. nil on hosts that
+	// predate it.
+	PersonalOrgID func(userID uint) uint
 
 	// LoginByEmail completes a login for an already-verified email address: it
 	// provisions (or finds) the user + a personal org and issues the session
@@ -383,4 +388,14 @@ func (c *Context) TenantDBFor(orgID uint) *TenantDB {
 		return c.TenantDB(orgID)
 	}
 	return nil
+}
+
+// PersonalOrgFor returns userID's personal org, or 0 when unconfigured or the
+// account has none. Callers must fail closed on 0; it is never a reason to
+// fall back to the active workspace.
+func (c *Context) PersonalOrgFor(userID uint) uint {
+	if c != nil && c.PersonalOrgID != nil {
+		return c.PersonalOrgID(userID)
+	}
+	return 0
 }

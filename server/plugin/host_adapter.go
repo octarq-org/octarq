@@ -59,6 +59,7 @@ type noopSession struct{}
 
 func (noopSession) UserID(*http.Request) uint                      { return 0 }
 func (noopSession) OrgID(*http.Request) uint                       { return 0 }
+func (noopSession) PersonalOrgID(*http.Request) uint               { return 0 }
 func (noopSession) OrgRole(*http.Request) string                   { return "" }
 func (noopSession) RequireRole(*http.Request, string) bool         { return false }
 func (noopSession) RequirePerm(*http.Request, string, string) bool { return false }

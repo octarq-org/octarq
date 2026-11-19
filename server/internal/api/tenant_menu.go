@@ -196,7 +196,7 @@ func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*Create
 	if name == "" {
 		return nil, huma.Error400BadRequest("Workspace name is required; provide a workspace name")
 	}
-	org := models.Org{Name: name}
+	org := models.Org{Name: name, Kind: models.OrgKindTeam}
 	err := h.db.Transaction(func(tx *gorm.DB) error {
 		slug, err := models.AllocateOrgSlug(tx)
 		if err != nil {

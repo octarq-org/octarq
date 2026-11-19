@@ -13,6 +13,7 @@ import (
 type mockHostSession struct {
 	userID          uint
 	orgID           uint
+	personalOrgID   uint
 	orgRole         string
 	isInstanceAdmin bool
 	requirePerm     func(r *http.Request, p, min string) bool
@@ -20,6 +21,7 @@ type mockHostSession struct {
 
 func (m *mockHostSession) UserID(r *http.Request) uint                  { return m.userID }
 func (m *mockHostSession) OrgID(r *http.Request) uint                   { return m.orgID }
+func (m *mockHostSession) PersonalOrgID(r *http.Request) uint           { return m.personalOrgID }
 func (m *mockHostSession) OrgRole(r *http.Request) string               { return m.orgRole }
 func (m *mockHostSession) RequireRole(r *http.Request, min string) bool { return true }
 func (m *mockHostSession) RequirePerm(r *http.Request, p, min string) bool {

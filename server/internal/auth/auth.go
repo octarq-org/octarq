@@ -253,6 +253,34 @@ func (m *Manager) OrgID(r *http.Request) uint {
 	return s.OrgID
 }
 
+// PersonalOrgID returns the caller's personal org, or 0 when they have none.
+// It never provisions: signup creates the personal org, so a missing one is a
+// broken account and callers must fail closed rather than guess a workspace.
+func (m *Manager) PersonalOrgID(r *http.Request) uint {
+	if m == nil || m.db == nil || r == nil {
+		return 0
+	}
+	return PersonalOrgID(m.db, m.UserID(r))
+}
+
+// PersonalOrgID resolves the personal org of userID. The zero return means
+// "none"; it is never an invitation to fall back to the active session org.
+func PersonalOrgID(db *gorm.DB, userID uint) uint {
+	if db == nil || userID == 0 {
+		return 0
+	}
+	var member models.OrgMember
+	err := db.Table("org_members").
+		Joins("JOIN orgs ON orgs.id = org_members.org_id").
+		Where("org_members.user_id = ? AND orgs.kind = ?", userID, models.OrgKindPersonal).
+		Order("org_members.org_id").
+		First(&member).Error
+	if err != nil {
+		return 0
+	}
+	return member.OrgID
+}
+
 // SessionID extracts the Session row ID from the request context (set by
 // Require middleware). Returns 0 if not in context.
 func (m *Manager) SessionID(r *http.Request) uint {

@@ -25,11 +25,23 @@ import (
 // resolved from the authenticated session.
 const SingleUserID uint = 1
 
+// Org kinds. A personal org holds one user's private assets; a team org is a
+// shared workspace. Signup provisions the personal org, so it always exists
+// before the user can join a team.
+const (
+	OrgKindPersonal = "personal"
+	OrgKindTeam     = "team"
+)
+
 // Org is a tenant — every data row is scoped to exactly one Org.
 type Org struct {
 	ID   uint   `gorm:"primaryKey" json:"id"`
 	Name string `gorm:"size:255;not null" json:"name"`
 	Slug string `gorm:"uniqueIndex;size:64;not null" json:"slug"`
+	// Kind is "personal" or "team". Personal data (private credentials,
+	// personal accounts) is stored in the user's personal org, never in the
+	// team workspace that happens to be active in the session.
+	Kind string `gorm:"size:16;not null;default:'team';index" json:"kind"`
 	// InboundToken is this org's per-tenant secret for the inbound-email webhook.
 	// It travels in the webhook URL (?token=) instead of a header to keep the
 	// Cloudflare worker config to a single value; it is never exposed publicly.
