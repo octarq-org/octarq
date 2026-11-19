@@ -65,6 +65,7 @@ export function IntegrationsVaultPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const { role, isInstanceAdmin } = useCurrentRole();
+  const isOwner = roleSatisfies("owner", role, isInstanceAdmin);
   const canManage = roleSatisfies("admin", role, isInstanceAdmin);
 
   const initialCategory = searchParams.get("category");
@@ -73,6 +74,7 @@ export function IntegrationsVaultPage() {
     [initialCategory],
   );
 
+  const [scopeFilter, setScopeFilter] = useState<"org" | "user">("org");
   const [activeTab, setActiveTab] = useState<VaultTab>(initialSelection.tab);
   const [providerTypeFilter, setProviderTypeFilter] = useState<string>(
     initialSelection.providerType,
@@ -116,12 +118,19 @@ export function IntegrationsVaultPage() {
     }
   }, []);
 
+  const isPersonal = scopeFilter === "user";
+  const canCreateOrEdit = isPersonal || canManage;
+  const canReveal = isPersonal || canManage;
+  const canDelete = isPersonal || isOwner;
+  const canRollback = isPersonal || canManage;
+
   const loadItems = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const list = await api.vaultItems({
-        collection: collectionFilter || undefined,
+        scope: scopeFilter,
+        collection: !isPersonal ? collectionFilter || undefined : undefined,
         environment: environmentFilter || undefined,
         q: searchQuery.trim() || undefined,
       });
@@ -131,7 +140,7 @@ export function IntegrationsVaultPage() {
     } finally {
       setLoading(false);
     }
-  }, [collectionFilter, environmentFilter, searchQuery, t]);
+  }, [scopeFilter, isPersonal, collectionFilter, environmentFilter, searchQuery, t]);
 
   useEffect(() => {
     void loadMeta();
@@ -214,43 +223,77 @@ export function IntegrationsVaultPage() {
       title={t("vault.title")}
       description={t("vault.description")}
       action={
-        canManage && (
+        (canCreateOrEdit || (!isPersonal && isOwner)) && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              <span>{t("vault.importBtn")}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowExport(true)}
-              className="flex items-center gap-1.5"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span>{t("vault.exportBtn")}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>{t("vault.newItem")}</span>
-            </Button>
+            {!isPersonal && canManage && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowImport(true)}
+                className="flex items-center gap-1.5"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>{t("vault.importBtn")}</span>
+              </Button>
+            )}
+            {!isPersonal && isOwner && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowExport(true)}
+                className="flex items-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>{t("vault.exportBtn")}</span>
+              </Button>
+            )}
+            {canCreateOrEdit && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{t("vault.newItem")}</span>
+              </Button>
+            )}
           </div>
         )
       }
     >
       <div className="mt-4 space-y-4">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label={t("vault.scopeLabel")}
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant={scopeFilter === "org" ? "primary" : "outline"}
+            onClick={() => setScopeFilter("org")}
+          >
+            {t("vault.scopeOrg")}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={scopeFilter === "user" ? "primary" : "outline"}
+            onClick={() => {
+              setScopeFilter("user");
+              if (activeTab === "tokens") {
+                setActiveTab("all");
+              }
+            }}
+          >
+            {t("vault.scopeUser")}
+          </Button>
+        </div>
+
         <Tabs
           value={activeTab}
           onValueChange={(val) => {
@@ -264,36 +307,46 @@ export function IntegrationsVaultPage() {
             { value: "integrations", label: t("vault.tabIntegrations"), content: null },
             { value: "secrets", label: t("vault.tabSecrets"), content: null },
             { value: "logins", label: t("vault.tabLogins"), content: null },
-            { value: "tokens", label: t("vault.tabTokens"), content: null },
+            ...(!isPersonal && canManage
+              ? [{ value: "tokens", label: t("vault.tabTokens"), content: null }]
+              : []),
           ]}
         />
 
         {activeTab !== "tokens" && (
           <>
             <PageCard className="mt-0 p-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr_auto]">
-                <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <Select
-                      aria-label={t("vault.collectionLabel")}
-                      value={collectionFilter}
-                      onValueChange={setCollectionFilter}
-                      options={collectionOptions}
-                    />
+              <div
+                className={
+                  isPersonal
+                    ? "grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr]"
+                    : "grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr_auto]"
+                }
+              >
+                {!isPersonal && (
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        aria-label={t("vault.collectionLabel")}
+                        value={collectionFilter}
+                        onValueChange={setCollectionFilter}
+                        options={collectionOptions}
+                      />
+                    </div>
+                    {canManage && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowNewCollection(true)}
+                        className="flex shrink-0 items-center gap-1.5"
+                      >
+                        <FolderPlus className="h-3.5 w-3.5" />
+                        <span>{t("vault.newCollection")}</span>
+                      </Button>
+                    )}
                   </div>
-                  {canManage && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowNewCollection(true)}
-                      className="flex shrink-0 items-center gap-1.5"
-                    >
-                      <FolderPlus className="h-3.5 w-3.5" />
-                      <span>{t("vault.newCollection")}</span>
-                    </Button>
-                  )}
-                </div>
+                )}
 
                 <div className="w-full md:w-44">
                   <Select
@@ -304,7 +357,7 @@ export function IntegrationsVaultPage() {
                   />
                 </div>
 
-                <div className="relative md:col-span-2">
+                <div className={isPersonal ? "relative" : "relative md:col-span-2"}>
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     className="pl-8 text-sm"
@@ -372,7 +425,7 @@ export function IntegrationsVaultPage() {
                   title={t("vault.emptyTitle")}
                   detail={t("vault.emptyDetail")}
                   action={
-                    canManage ? (
+                    canCreateOrEdit ? (
                       <Button
                         type="button"
                         variant="primary"
@@ -451,16 +504,18 @@ export function IntegrationsVaultPage() {
                           </div>
 
                           <div className="flex flex-wrap shrink-0 items-center gap-1.5">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setRevealingItem(item)}
-                              className="flex items-center gap-1 text-xs"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              <span>{t("vault.reveal")}</span>
-                            </Button>
+                            {canReveal && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRevealingItem(item)}
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>{t("vault.reveal")}</span>
+                              </Button>
+                            )}
 
                             {item.itemType === "twofa_totp" && (
                               <Button
@@ -489,7 +544,7 @@ export function IntegrationsVaultPage() {
                               </Button>
                             )}
 
-                            {canManage && item.providerType && !item.isDefault && (
+                            {!isPersonal && canManage && item.providerType && !item.isDefault && (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -502,7 +557,7 @@ export function IntegrationsVaultPage() {
                               </Button>
                             )}
 
-                            {canManage && (
+                            {canCreateOrEdit && (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -526,7 +581,7 @@ export function IntegrationsVaultPage() {
                               <span>{t("vault.versions")}</span>
                             </Button>
 
-                            {canManage && (
+                            {canDelete && (
                               <Button
                                 type="button"
                                 variant="danger"
@@ -549,7 +604,7 @@ export function IntegrationsVaultPage() {
           </>
         )}
 
-        {activeTab === "tokens" && (
+        {activeTab === "tokens" && !isPersonal && canManage && (
           <VaultTokensPanel collections={collections} canManage={canManage} />
         )}
       </div>
@@ -559,9 +614,10 @@ export function IntegrationsVaultPage() {
           schemas={schemas}
           collections={collections}
           editingItem={editingItem}
+          scope={scopeFilter}
           defaultTab={activeTab}
           defaultProviderType={providerTypeFilter}
-          defaultCollectionSlug={collectionFilter}
+          defaultCollectionSlug={isPersonal ? "default" : collectionFilter}
           defaultEnvironment={environmentFilter}
           onClose={() => {
             setShowCreateModal(false);
@@ -586,6 +642,7 @@ export function IntegrationsVaultPage() {
       {versionsItem && (
         <VaultVersionsModal
           item={versionsItem}
+          canRollback={canRollback}
           onClose={() => setVersionsItem(null)}
           onRolledBack={() => void loadItems()}
         />

@@ -246,6 +246,9 @@ export const ja = {
   vault: {
     title: "連携とボールト",
     description: "外部連携、暗号化シークレット、認証情報、サービストークンを一元管理します。",
+    scopeLabel: "スコープ",
+    scopeOrg: "ワークスペース",
+    scopeUser: "個人",
     allCollections: "すべてのコレクション",
     collectionLabel: "コレクション",
     newCollection: "新規コレクション",
@@ -376,7 +379,6 @@ export const ja = {
     tokenFolderPrefix: "フォルダー接頭辞",
     tokenPermissions: "権限",
     permRead: "読み取り専用",
-    permReadWrite: "読み書き",
     tokenExpiresDays: "有効期限（日数・任意）",
     tokenExpiresPlaceholder: "空欄の場合は無期限",
     tokenStatusActive: "有効",

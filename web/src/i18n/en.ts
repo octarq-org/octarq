@@ -270,6 +270,9 @@ export const en = {
   vault: {
     title: "Integrations & Vault",
     description: "Manage third-party integrations, encrypted secrets, credentials, and service tokens.",
+    scopeLabel: "Scope",
+    scopeOrg: "Workspace",
+    scopeUser: "Personal",
     allCollections: "All collections",
     collectionLabel: "Collection",
     newCollection: "New collection",
@@ -400,7 +403,6 @@ export const en = {
     tokenFolderPrefix: "Folder prefix",
     tokenPermissions: "Permissions",
     permRead: "Read only",
-    permReadWrite: "Read and write",
     tokenExpiresDays: "Expires in (days, optional)",
     tokenExpiresPlaceholder: "Never expires if empty",
     tokenStatusActive: "Active",

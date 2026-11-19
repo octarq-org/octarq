@@ -234,7 +234,7 @@ func quoteCol(db *gorm.DB, name string) string {
 		return `"` + name + `"`
 	}
 	var b strings.Builder
-	db.Dialector.QuoteTo(&b, name)
+	db.QuoteTo(&b, name)
 	return b.String()
 }
 

@@ -190,11 +190,17 @@ const mockTokens: VaultServiceToken[] = [
   },
 ];
 
-function renderVaultPage(initialEntry = "/settings/integrations") {
+function renderVaultPage(
+  initialEntry = "/settings/integrations",
+  roleValue: { role: string; isInstanceAdmin: boolean } = {
+    role: "owner",
+    isInstanceAdmin: true,
+  },
+) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <I18nProvider>
-        <RoleProvider value={{ role: "owner", isInstanceAdmin: true }}>
+        <RoleProvider value={roleValue}>
           <ConfirmBridge>
             <IntegrationsVaultPage />
           </ConfirmBridge>
@@ -407,5 +413,154 @@ describe("IntegrationsVaultPage", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /revoke/i })[0]);
     await waitFor(() => expect(revokeSpy).toHaveBeenCalledWith(51));
+  });
+
+  it("enforces member, admin, and owner RBAC controls in Workspace scope", async () => {
+    vi.spyOn(api, "vaultSchemas").mockResolvedValue(mockSchemas);
+    vi.spyOn(api, "vaultCollections").mockResolvedValue(mockCollections);
+    vi.spyOn(api, "vaultItems").mockResolvedValue(mockItems);
+    vi.spyOn(api, "vaultItemVersions").mockResolvedValue([
+      { version: 2, changeNote: "Rotated key", createdAt: "2026-01-02T00:00:00Z" },
+      { version: 1, changeNote: "Initial", createdAt: "2026-01-01T00:00:00Z" },
+    ]);
+
+    // Member role in Workspace scope: read-only + TOTP + test + versions (no rollback)
+    renderVaultPage("/settings/integrations", { role: "member", isInstanceAdmin: false });
+    expect(await screen.findByText("Prod OpenAI")).toBeTruthy();
+
+    expect(screen.queryByRole("button", { name: /new item/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^import$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^export$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /new collection/i })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /service tokens/i })).toBeNull();
+
+    const memberRow = screen.getByTestId("vault-item-10");
+    expect(memberRow.textContent).not.toContain("Reveal");
+    expect(memberRow.textContent).not.toContain("Edit");
+    expect(memberRow.textContent).not.toContain("Set default");
+    expect(memberRow.textContent).not.toContain("Delete");
+    expect(memberRow.textContent).toContain("Test");
+    expect(memberRow.textContent).toContain("Versions");
+
+    const versionsBtn = Array.from(memberRow.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Versions"),
+    )!;
+    fireEvent.click(versionsBtn);
+    expect(await screen.findByText("Initial")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /rollback/i })).toBeNull();
+
+    cleanup();
+
+    // Admin role (non-owner) in Workspace scope: manages items & tokens, but cannot Export or Delete
+    renderVaultPage("/settings/integrations", { role: "admin", isInstanceAdmin: false });
+    expect(await screen.findByText("Prod OpenAI")).toBeTruthy();
+
+    expect(screen.getByRole("button", { name: /new item/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^import$/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /new collection/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /service tokens/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^export$/i })).toBeNull();
+
+    const adminRow = screen.getByTestId("vault-item-10");
+    expect(adminRow.textContent).toContain("Reveal");
+    expect(adminRow.textContent).toContain("Edit");
+    expect(adminRow.textContent).toContain("Set default");
+    expect(adminRow.textContent).not.toContain("Delete");
+
+    // Tokens panel only offers read-only permission
+    vi.spyOn(api, "vaultTokens").mockResolvedValue(mockTokens);
+    fireEvent.click(screen.getByRole("tab", { name: /service tokens/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /new service token/i }));
+    expect(screen.queryByText("Read and write")).toBeNull();
+    expect(screen.getByText("Read only")).toBeTruthy();
+  });
+
+  it("supports Personal (user) scope self-service for workspace members", async () => {
+    const personalItem: VaultItemMeta = {
+      id: 99,
+      secretId: "sec-personal",
+      orgId: 1,
+      scope: "user",
+      ownerUserId: 10,
+      collectionId: 3,
+      collectionSlug: "default",
+      environment: "default",
+      folderPath: "/",
+      itemType: "kv_secret",
+      keyName: "MY_SSH_PASS",
+      name: "My Personal Secret",
+      isDefault: false,
+      currentVersion: 2,
+      configured: true,
+      fieldKeys: ["value"],
+      ref: "vault://default/default/MY_SSH_PASS",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+
+    vi.spyOn(api, "vaultSchemas").mockResolvedValue(mockSchemas);
+    vi.spyOn(api, "vaultCollections").mockResolvedValue(mockCollections);
+    const itemsSpy = vi.spyOn(api, "vaultItems").mockImplementation(async (q) => {
+      if (q?.scope === "user") return [personalItem];
+      return mockItems;
+    });
+    const createSpy = vi.spyOn(api, "createVaultItem").mockResolvedValue(personalItem);
+    vi.spyOn(api, "vaultItemVersions").mockResolvedValue([
+      { version: 2, changeNote: "v2", createdAt: "2026-01-02T00:00:00Z" },
+      { version: 1, changeNote: "v1", createdAt: "2026-01-01T00:00:00Z" },
+    ]);
+
+    renderVaultPage("/settings/integrations", { role: "member", isInstanceAdmin: false });
+    expect(await screen.findByText("Prod OpenAI")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Personal" }));
+
+    await waitFor(() =>
+      expect(itemsSpy).toHaveBeenCalledWith(expect.objectContaining({ scope: "user" })),
+    );
+    expect(await screen.findByText("My Personal Secret")).toBeTruthy();
+
+    // Org-only controls stay hidden in Personal scope
+    expect(screen.queryByRole("tab", { name: /service tokens/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^import$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^export$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /new collection/i })).toBeNull();
+
+    // Member owns their personal items: sees Reveal, Edit, Delete, and Rollback
+    const personalRow = screen.getByTestId("vault-item-99");
+    expect(personalRow.textContent).toContain("Reveal");
+    expect(personalRow.textContent).toContain("Edit");
+    expect(personalRow.textContent).toContain("Delete");
+    expect(personalRow.textContent).not.toContain("Set default");
+
+    const versionsBtn = Array.from(personalRow.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Versions"),
+    )!;
+    fireEvent.click(versionsBtn);
+    expect(await screen.findByRole("button", { name: /rollback/i })).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
+
+    // Create personal item
+    fireEvent.click(screen.getByRole("button", { name: /new item/i }));
+    expect(screen.queryByLabelText("Collection")).toBeNull();
+    expect(screen.queryByLabelText(/set as default/i)).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("e.g. Production OpenAI"), {
+      target: { value: "Personal API Token" },
+    });
+    const passwordInputs = document.querySelectorAll('input[type="password"]');
+    fireEvent.change(passwordInputs[0], { target: { value: "tok-personal-123" } });
+    fireEvent.click(screen.getByRole("button", { name: /^create$/i }));
+
+    await waitFor(() =>
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: "user",
+          collectionSlug: "default",
+          isDefault: false,
+          name: "Personal API Token",
+        }),
+      ),
+    );
   });
 });

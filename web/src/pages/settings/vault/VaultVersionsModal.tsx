@@ -7,11 +7,17 @@ import { useTranslation } from "../../../i18n";
 
 interface VaultVersionsModalProps {
   item: VaultItemMeta;
+  canRollback?: boolean;
   onClose: () => void;
   onRolledBack: (updated: VaultItemMeta) => void;
 }
 
-export function VaultVersionsModal({ item, onClose, onRolledBack }: VaultVersionsModalProps) {
+export function VaultVersionsModal({
+  item,
+  canRollback = true,
+  onClose,
+  onRolledBack,
+}: VaultVersionsModalProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +93,7 @@ export function VaultVersionsModal({ item, onClose, onRolledBack }: VaultVersion
                       <p className="text-xs text-foreground">{v.changeNote}</p>
                     )}
                   </div>
-                  {!isCurrent && (
+                  {canRollback && !isCurrent && (
                     <Button
                       type="button"
                       variant="outline"

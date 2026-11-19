@@ -191,3 +191,57 @@ func TestValidateBackend(t *testing.T) {
 		t.Fatalf("unknown = %v", err)
 	}
 }
+
+func TestProviderVaultLifecycleAndGuards(t *testing.T) {
+	s, vs := newTestStore(t)
+	ctx := context.Background()
+
+	// nil Store fails closed
+	if _, err := (*Store)(nil).ListProviders(ctx, 1); !errors.Is(err, ErrInvalidProvider) {
+		t.Fatalf("nil store ListProviders = %v", err)
+	}
+	// CreateProvider with APIKey and nil VaultService fails closed
+	if _, err := s.CreateProvider(ctx, 1, ProviderInput{Name: "NoVault", Backend: "openai", APIKey: "sk-1"}, nil); !errors.Is(err, ErrInvalidProvider) {
+		t.Fatalf("nil vs CreateProvider = %v", err)
+	}
+
+	// Create without key -> VaultItemID == 0, then Update with key -> creates VaultItem
+	row, err := s.CreateProvider(ctx, 1, ProviderInput{Name: "Ollama", Backend: "ollama", BaseURL: "http://127.0.0.1:11434"}, vs)
+	if err != nil || row.VaultItemID != 0 {
+		t.Fatalf("create keyless provider: row=%+v err=%v", row, err)
+	}
+	if _, err := s.UpdateProvider(ctx, 1, row.ID, ProviderInput{Name: "Ollama", Backend: "ollama", APIKey: "k1"}, nil); !errors.Is(err, ErrInvalidProvider) {
+		t.Fatalf("nil vs UpdateProvider = %v", err)
+	}
+	row, err = s.UpdateProvider(ctx, 1, row.ID, ProviderInput{Name: "Ollama2", Backend: "openai", APIKey: "sk-added"}, vs)
+	if err != nil || row.VaultItemID == 0 {
+		t.Fatalf("update adding key: row=%+v err=%v", row, err)
+	}
+	// Update existing VaultItem
+	row, err = s.UpdateProvider(ctx, 1, row.ID, ProviderInput{Name: "OpenAI", Backend: "openai", APIKey: "sk-rotated"}, vs)
+	if err != nil {
+		t.Fatalf("update rotating key: %v", err)
+	}
+	// Simulate orphaned VaultItemID (deleted in vault) -> UpdateProvider recreates vault item
+	if err := vs.DeleteSecret(ctx, 1, row.VaultItemID); err != nil {
+		t.Fatalf("DeleteSecret: %v", err)
+	}
+	row2, err := s.UpdateProvider(ctx, 1, row.ID, ProviderInput{Name: "OpenAI", Backend: "openai", APIKey: "sk-recreated"}, vs)
+	if err != nil || row2.VaultItemID == 0 || row2.VaultItemID == row.VaultItemID {
+		t.Fatalf("expected recreated vault item, row2=%+v err=%v", row2, err)
+	}
+
+	// DeleteProvider deletes vault item cleanly (and tolerates already-deleted secret)
+	if err := s.DeleteProvider(ctx, 1, row2.ID, vs); err != nil {
+		t.Fatalf("DeleteProvider: %v", err)
+	}
+	if _, err := vs.GetSecret(ctx, 1, row2.VaultItemID); !errors.Is(err, plugin.ErrSecretNotFound) {
+		t.Fatalf("expected vault secret shredded after DeleteProvider, got %v", err)
+	}
+	if _, err := s.GetProvider(ctx, 1, row2.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+	if err := s.DeleteProvider(ctx, 1, 99999, vs); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound deleting missing provider, got %v", err)
+	}
+}

@@ -257,7 +257,6 @@ export function VaultTokensPanel({ collections, canManage }: VaultTokensPanelPro
                   onValueChange={setPermissions}
                   options={[
                     { value: "read", label: t("vault.permRead") },
-                    { value: "read_write", label: t("vault.permReadWrite") },
                   ]}
                 />
               </Field>

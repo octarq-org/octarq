@@ -246,6 +246,9 @@ export const pt = {
   vault: {
     title: "Integrações e Cofre",
     description: "Gerencie integrações de terceiros, segredos criptografados, credenciais e tokens de serviço.",
+    scopeLabel: "Escopo",
+    scopeOrg: "Espaço de trabalho",
+    scopeUser: "Pessoal",
     allCollections: "Todas as coleções",
     collectionLabel: "Coleção",
     newCollection: "Nova coleção",
@@ -376,7 +379,6 @@ export const pt = {
     tokenFolderPrefix: "Prefixo de pasta",
     tokenPermissions: "Permissões",
     permRead: "Somente leitura",
-    permReadWrite: "Leitura e escrita",
     tokenExpiresDays: "Expira em (dias, opcional)",
     tokenExpiresPlaceholder: "Nunca expira se vazio",
     tokenStatusActive: "Ativo",

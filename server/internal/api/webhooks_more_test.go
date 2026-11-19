@@ -192,6 +192,17 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 	if err != nil || sec.Payload["signingSecret"] != "test-secret" {
 		t.Errorf("vault GetSecret = (%+v, %v), want signingSecret=test-secret", sec, err)
 	}
+	// Orphaned VaultItemID -> update recreates vault item; VaultItemID == 0 -> update creates vault item
+	_ = h.vault().DeleteSecret(context.Background(), 1, dbHook.VaultItemID)
+	rec = do(srv2, "PUT", fmt.Sprintf("/api/webhooks/%d", vh.ID), adminCookies2, `{"name":"Vault Hook","url":"https://example.com/vh","secret":"recreated-sec"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update orphaned vault hook: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	h.db.Model(&models.Webhook{}).Where("id = ?", vh.ID).Update("vault_item_id", 0)
+	rec = do(srv2, "PUT", fmt.Sprintf("/api/webhooks/%d", vh.ID), adminCookies2, `{"name":"Vault Hook","url":"https://example.com/vh","secret":"fresh-sec","enabled":false}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update zero vault hook: got %d (%s)", rec.Code, rec.Body.String())
+	}
 
 	// 10. Nil Ctx calls
 	ctx := context.Background()

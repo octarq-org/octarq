@@ -253,6 +253,8 @@ func (p *Plugin) listItems(ctx context.Context, in *ListItemsInput) (*ItemsOutpu
 	scope := plugin.VaultScopeOrg
 	if strings.EqualFold(in.Scope, string(plugin.VaultScopeUser)) {
 		scope = plugin.VaultScopeUser
+	} else if in.Scope != "" && !strings.EqualFold(in.Scope, string(plugin.VaultScopeOrg)) {
+		return nil, huma.Error400BadRequest("Invalid vault scope.")
 	}
 	items, err := p.ListItems(ctx, orgID, plugin.VaultFilter{
 		Scope:          scope,
@@ -298,22 +300,36 @@ func (i *CreateItemInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; retur
 type ItemOutput struct{ Body plugin.VaultItemMeta }
 
 func (p *Plugin) createItem(ctx context.Context, in *CreateItemInput) (*ItemOutput, error) {
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.create", "admin")
+	b := in.Body
+	isPersonal := strings.EqualFold(b.Scope, string(plugin.VaultScopeUser))
+	minRole := "admin"
+	if isPersonal {
+		minRole = "member"
+	}
+	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.create", minRole)
 	if err != nil {
 		return nil, err
 	}
-	b := in.Body
+	if b.Scope != "" && !isPersonal && !strings.EqualFold(b.Scope, string(plugin.VaultScopeOrg)) {
+		return nil, huma.Error400BadRequest("Invalid vault scope.")
+	}
 	scope := plugin.VaultScopeOrg
 	var ownerUID uint
-	if strings.EqualFold(b.Scope, string(plugin.VaultScopeUser)) {
+	colSlug := b.CollectionSlug
+	isDefault := b.IsDefault
+	if isPersonal {
 		scope = plugin.VaultScopeUser
 		ownerUID = uid
+		if strings.TrimSpace(colSlug) == "" {
+			colSlug = "default"
+		}
+		isDefault = false
 	}
 	meta, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:                orgID,
 		Scope:                scope,
 		OwnerUserID:          ownerUID,
-		CollectionSlug:       b.CollectionSlug,
+		CollectionSlug:       colSlug,
 		Environment:          b.Environment,
 		FolderPath:           b.FolderPath,
 		ItemType:             b.ItemType,
@@ -322,7 +338,7 @@ func (p *Plugin) createItem(ctx context.Context, in *CreateItemInput) (*ItemOutp
 		KeyName:              b.KeyName,
 		Name:                 b.Name,
 		Tags:                 b.Tags,
-		IsDefault:            b.IsDefault,
+		IsDefault:            isDefault,
 		Metadata:             b.Metadata,
 		Payload:              b.Payload,
 		ChangeNote:           b.ChangeNote,
@@ -334,31 +350,37 @@ func (p *Plugin) createItem(ctx context.Context, in *CreateItemInput) (*ItemOutp
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	p.recordAudit(r, "vault.item.created", "vault_item", meta.ID, map[string]any{
-		"itemType": meta.ItemType, "providerType": meta.ProviderType, "provider": meta.Provider, "ref": meta.Ref,
+		"scope": meta.Scope, "itemType": meta.ItemType, "providerType": meta.ProviderType, "provider": meta.Provider, "ref": meta.Ref,
 	})
 	return &ItemOutput{Body: *meta}, nil
 }
 
-func (p *Plugin) requireOwnedMeta(ctx context.Context, orgID, uid, itemID uint) (*plugin.VaultItemMeta, error) {
+func (p *Plugin) loadAndAuthorizeItemAccess(ctx context.Context, humaCtx huma.Context, permKey, orgMinRole string, itemID uint) (*http.Request, uint, uint, *plugin.VaultItemMeta, error) {
+	r, orgID, uid, err := p.callerOrg(humaCtx, permKey, "member")
+	if err != nil {
+		return nil, 0, 0, nil, err
+	}
 	meta, err := p.GetMeta(ctx, orgID, itemID)
 	if err != nil {
 		if errors.Is(err, plugin.ErrSecretNotFound) {
-			return nil, huma.Error404NotFound("Vault item not found.")
+			return nil, 0, 0, nil, huma.Error404NotFound("Vault item not found.")
 		}
-		return nil, huma.Error500InternalServerError("Failed to read vault item.")
+		return nil, 0, 0, nil, huma.Error500InternalServerError("Failed to read vault item.")
 	}
-	if meta.Scope == plugin.VaultScopeUser && meta.OwnerUserID != uid {
-		return nil, huma.Error404NotFound("Vault item not found.")
+	if meta.Scope == plugin.VaultScopeUser {
+		if meta.OwnerUserID != uid {
+			return nil, 0, 0, nil, huma.Error404NotFound("Vault item not found.")
+		}
+		return r, orgID, uid, meta, nil
 	}
-	return meta, nil
+	if !p.host.Session().RequirePerm(r, permKey, orgMinRole) {
+		return nil, 0, 0, nil, huma.Error403Forbidden("Insufficient workspace permissions.")
+	}
+	return r, orgID, uid, meta, nil
 }
 
 func (p *Plugin) getItem(ctx context.Context, in *IDPathInput) (*ItemOutput, error) {
-	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
-	if err != nil {
-		return nil, err
-	}
-	meta, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID)
+	_, _, _, meta, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.read", "member", in.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -380,14 +402,18 @@ type UpdateItemInput struct {
 func (i *UpdateItemInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; return nil }
 
 func (p *Plugin) updateItem(ctx context.Context, in *UpdateItemInput) (*ItemOutput, error) {
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.update", "admin")
+	r, orgID, uid, existing, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
-		return nil, err
+	isDefault := in.Body.IsDefault
+	if existing.Scope == plugin.VaultScopeUser {
+		if isDefault != nil && *isDefault {
+			return nil, huma.Error400BadRequest("Default integrations are only supported for workspace scope.")
+		}
+		isDefault = nil
 	}
-	meta, err := p.UpdateSecret(ctx, orgID, in.ID, in.Body.Name, in.Body.Metadata, in.Body.Payload, in.Body.IsDefault, in.Body.ChangeNote, uid)
+	meta, err := p.UpdateSecret(ctx, orgID, in.ID, in.Body.Name, in.Body.Metadata, in.Body.Payload, isDefault, in.Body.ChangeNote, uid)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
@@ -396,11 +422,7 @@ func (p *Plugin) updateItem(ctx context.Context, in *UpdateItemInput) (*ItemOutp
 }
 
 func (p *Plugin) deleteItem(ctx context.Context, in *IDPathInput) (*OKOutput, error) {
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.delete", "owner")
-	if err != nil {
-		return nil, err
-	}
-	existing, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID)
+	r, orgID, _, existing, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.delete", "owner", in.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -423,11 +445,8 @@ type RevealOutput struct {
 }
 
 func (p *Plugin) revealItem(ctx context.Context, in *IDPathInput) (*RevealOutput, error) {
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.secret.reveal", "admin")
+	r, orgID, _, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.secret.reveal", "admin", in.ID)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	sec, err := p.GetSecret(ctx, orgID, in.ID)
@@ -455,11 +474,8 @@ type VersionDTO struct {
 type VersionsOutput struct{ Body []VersionDTO }
 
 func (p *Plugin) listItemVersions(ctx context.Context, in *IDPathInput) (*VersionsOutput, error) {
-	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	_, orgID, _, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.read", "member", in.ID)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	var vers []VaultItemVersion
@@ -482,11 +498,8 @@ type RollbackInput struct {
 func (i *RollbackInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; return nil }
 
 func (p *Plugin) rollbackItem(ctx context.Context, in *RollbackInput) (*ItemOutput, error) {
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.update", "admin")
+	r, orgID, uid, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	meta, err := p.RollbackVersion(ctx, orgID, in.ID, in.Version, uid)
@@ -498,12 +511,12 @@ func (p *Plugin) rollbackItem(ctx context.Context, in *RollbackInput) (*ItemOutp
 }
 
 func (p *Plugin) setDefaultItem(ctx context.Context, in *IDPathInput) (*ItemOutput, error) {
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.update", "admin")
+	r, orgID, uid, existing, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
-		return nil, err
+	if existing.Scope == plugin.VaultScopeUser {
+		return nil, huma.Error400BadRequest("Default integrations are only supported for workspace scope.")
 	}
 	isDef := true
 	meta, err := p.UpdateSecret(ctx, orgID, in.ID, nil, nil, nil, &isDef, "", uid)
@@ -518,11 +531,8 @@ func (p *Plugin) setDefaultItem(ctx context.Context, in *IDPathInput) (*ItemOutp
 }
 
 func (p *Plugin) testItem(ctx context.Context, in *IDPathInput) (*OKOutput, error) {
-	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	_, orgID, _, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.read", "member", in.ID)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	var row VaultItem
@@ -551,11 +561,8 @@ type TOTPOutput struct {
 }
 
 func (p *Plugin) getItemTOTP(ctx context.Context, in *IDPathInput) (*TOTPOutput, error) {
-	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	_, orgID, _, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.read", "member", in.ID)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	code, rem, err := p.ComputeTOTP(ctx, orgID, in.ID)

@@ -129,6 +129,37 @@ func TestNotificationChannelsHTTPFlow(t *testing.T) {
 		t.Errorf("preserved secret or updated webhook_url missing in Vault: %q", resolved)
 	}
 
+	// 5b. Update Channel with explicit new secret, then clear secrets, and test invalid JSON
+	rec = do(srv, "PUT", fmt.Sprintf("/api/notification-channels/%d", created.ID), adminCookies, `{
+		"type": "slack",
+		"config": "{\"channel\":\"#ops\",\"bot_token\":\"xoxb-rotated\"}"
+	}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update channel with new secret: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	rec = do(srv, "PUT", fmt.Sprintf("/api/notification-channels/%d", created.ID), adminCookies, `{
+		"config": "{\"channel\":\"#ops-plain\"}"
+	}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update channel clearing secret: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	db.First(&updated, created.ID)
+	if updated.VaultItemID != 0 {
+		t.Fatalf("expected VaultItemID cleared when secret removed, got %d", updated.VaultItemID)
+	}
+	rec = do(srv, "PUT", fmt.Sprintf("/api/notification-channels/%d", created.ID), adminCookies, `{
+		"config": "{\"channel\":\"#ops-resecret\",\"bot_token\":\"xoxb-new\"}"
+	}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update channel re-adding secret: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	rec = do(srv, "PUT", fmt.Sprintf("/api/notification-channels/%d", created.ID), adminCookies, `{
+		"config": "not-json"
+	}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("update channel invalid JSON: got %d, want 400", rec.Code)
+	}
+
 	// Update nonexistent channel -> 404
 	rec = do(srv, "PUT", "/api/notification-channels/999999", adminCookies, `{"name":"test"}`)
 	if rec.Code != http.StatusNotFound {

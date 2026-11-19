@@ -247,6 +247,9 @@ export const zh: Resources = {
   vault: {
     title: "集成与凭据库",
     description: "统一管理第三方服务集成、加密密钥、账号凭据与服务令牌。",
+    scopeLabel: "作用域",
+    scopeOrg: "工作区",
+    scopeUser: "个人",
     allCollections: "全部集合",
     collectionLabel: "集合",
     newCollection: "新建集合",
@@ -377,7 +380,6 @@ export const zh: Resources = {
     tokenFolderPrefix: "目录前缀",
     tokenPermissions: "权限",
     permRead: "只读",
-    permReadWrite: "读写",
     tokenExpiresDays: "有效期（天，可选）",
     tokenExpiresPlaceholder: "留空则永不过期",
     tokenStatusActive: "有效",

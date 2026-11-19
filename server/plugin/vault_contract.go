@@ -104,7 +104,7 @@ type VaultFilter struct {
 
 // VaultService is the cross-plugin contract for storing, resolving, rotating,
 // and shredding unified credentials and secrets across Core, Community Plugins,
-// and Pro Modules.
+// and downstream modules.
 type VaultService interface {
 	PutSecret(ctx context.Context, req PutSecretRequest) (*VaultItemMeta, error)
 	UpdateSecret(ctx context.Context, orgID, itemID uint, name *string, metadata map[string]any, payload map[string]any, isDefault *bool, changeNote string, actorUserID uint) (*VaultItemMeta, error)

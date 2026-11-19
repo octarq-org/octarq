@@ -637,7 +637,7 @@ func (p *Plugin) ListItems(ctx context.Context, orgID uint, filter plugin.VaultF
 	}
 	if s := strings.TrimSpace(filter.Query); s != "" {
 		like := "%" + strings.ToLower(s) + "%"
-		q = q.Where("LOWER(name) LIKE ? OR LOWER(key_name) LIKE ? OR LOWER(provider) LIKE ? OR LOWER(tags_json) LIKE ?", like, like, like, like)
+		q = q.Where("(LOWER(name) LIKE ? OR LOWER(key_name) LIKE ? OR LOWER(provider) LIKE ? OR LOWER(tags_json) LIKE ?)", like, like, like, like)
 	}
 	var rows []VaultItem
 	if err := q.Order("is_default DESC, name ASC, id ASC").Find(&rows).Error; err != nil {

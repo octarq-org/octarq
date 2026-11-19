@@ -48,8 +48,11 @@ func (p *Plugin) CreateServiceToken(ctx context.Context, orgID uint, name string
 	if err != nil {
 		return nil, "", fmt.Errorf("vault: collection %q not found", collectionSlug)
 	}
-	if perms != "read" && perms != "read_write" {
+	perms = strings.ToLower(strings.TrimSpace(perms))
+	if perms == "" {
 		perms = "read"
+	} else if perms != "read" {
+		return nil, "", errors.New("vault: only \"read\" permission is supported for service tokens")
 	}
 	raw, prefix, hash, err := generateServiceToken()
 	if err != nil {

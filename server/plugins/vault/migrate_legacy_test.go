@@ -97,3 +97,55 @@ func TestMigrateLegacyCoreSecrets(t *testing.T) {
 	}
 	_ = plugin.VaultScopeOrg
 }
+
+func TestMigrateLegacyCoreSecrets_ErrorsAndEdgeBranches(t *testing.T) {
+	ctx := context.Background()
+
+	// quoteCol with nil DB
+	if got := quoteCol(nil, "key"); got != `"key"` {
+		t.Fatalf("quoteCol(nil) = %q", got)
+	}
+
+	// Missing crypto fails closed
+	pNoCrypto := New()
+	if err := pNoCrypto.MigrateLegacyCoreSecrets(ctx); err != nil {
+		t.Fatalf("nil DB should return nil, got %v", err)
+	}
+	_, db, _ := setupVaultTest(t)
+	pNoCrypto.db = db
+	if err := pNoCrypto.MigrateLegacyCoreSecrets(ctx); err == nil {
+		t.Fatal("expected error when crypto is unavailable")
+	}
+
+	// Corrupted legacy ciphertexts fail closed per table
+	p, db2, _ := setupVaultTest(t)
+	db2.Exec(`CREATE TABLE llm_gateway_providers (id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL, name TEXT, backend TEXT, api_key_encr TEXT, vault_item_id INTEGER DEFAULT 0, base_url TEXT, model TEXT, cheap_model TEXT, is_default BOOLEAN)`)
+	db2.Exec(`INSERT INTO llm_gateway_providers (org_id, name, backend, api_key_encr, vault_item_id) VALUES (1, 'Bad', 'openai', 'not-valid-ciphertext', 0)`)
+	if err := p.MigrateLegacyCoreSecrets(ctx); err == nil {
+		t.Fatal("expected fail-closed error on bad llm ciphertext")
+	}
+	db2.Exec(`DELETE FROM llm_gateway_providers`)
+
+	db2.Exec(`CREATE TABLE webhooks (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER NOT NULL, name TEXT, url TEXT, secret TEXT, vault_item_id INTEGER DEFAULT 0)`)
+	db2.Exec(`INSERT INTO webhooks (owner_id, name, url, secret, vault_item_id) VALUES (1, 'Bad Hook', 'https://example.com', 'not-valid-ciphertext', 0)`)
+	if err := p.MigrateLegacyCoreSecrets(ctx); err == nil {
+		t.Fatal("expected fail-closed error on bad webhook ciphertext")
+	}
+	db2.Exec(`DELETE FROM webhooks`)
+
+	db2.Exec(`CREATE TABLE notification_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER NOT NULL, name TEXT, type TEXT, config TEXT, vault_item_id INTEGER DEFAULT 0)`)
+	db2.Exec(`INSERT INTO notification_channels (owner_id, name, type, config, vault_item_id) VALUES (1, 'Plain', 'slack', '{"channel":"ops"}', 0)`)
+	if err := p.MigrateLegacyCoreSecrets(ctx); err != nil {
+		t.Fatalf("plaintext json channel should be skipped cleanly, got %v", err)
+	}
+	db2.Exec(`INSERT INTO notification_channels (owner_id, name, type, config, vault_item_id) VALUES (1, 'Bad', 'slack', 'not-valid-ciphertext', 0)`)
+	if err := p.MigrateLegacyCoreSecrets(ctx); err == nil {
+		t.Fatal("expected fail-closed error on bad channel ciphertext")
+	}
+	db2.Exec(`DELETE FROM notification_channels`)
+
+	db2.Create(&models.Setting{Key: "metrics_token", Value: "not-valid-ciphertext"})
+	if err := p.MigrateLegacyCoreSecrets(ctx); err == nil {
+		t.Fatal("expected fail-closed error on bad setting ciphertext")
+	}
+}
