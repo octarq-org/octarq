@@ -164,6 +164,7 @@ func (s *stubVaultService) ResolveInstanceSecret(context.Context, string) (*plug
 func (s *stubVaultService) PutInstanceSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
 	return nil, errors.New("stub")
 }
+func (s *stubVaultService) DeleteInstanceSecret(context.Context, string) error { return nil }
 func (s *stubVaultService) ListItems(context.Context, uint, plugin.VaultFilter) ([]plugin.VaultItemMeta, error) {
 	return nil, nil
 }

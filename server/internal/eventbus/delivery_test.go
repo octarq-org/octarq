@@ -57,6 +57,7 @@ func (s *testVaultService) ResolveInstanceSecret(context.Context, string) (*plug
 func (s *testVaultService) PutInstanceSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
 	return nil, nil
 }
+func (s *testVaultService) DeleteInstanceSecret(context.Context, string) error { return nil }
 func (s *testVaultService) ListItems(context.Context, uint, plugin.VaultFilter) ([]plugin.VaultItemMeta, error) {
 	return nil, nil
 }

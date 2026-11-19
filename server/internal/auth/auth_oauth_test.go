@@ -50,6 +50,7 @@ func (v *testAuthVault) ResolveInstanceSecret(_ context.Context, keyName string)
 func (v *testAuthVault) PutInstanceSecret(context.Context, plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
 	return nil, nil
 }
+func (v *testAuthVault) DeleteInstanceSecret(context.Context, string) error { return nil }
 func (v *testAuthVault) ListItems(context.Context, uint, plugin.VaultFilter) ([]plugin.VaultItemMeta, error) {
 	return nil, nil
 }

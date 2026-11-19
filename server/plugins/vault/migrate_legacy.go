@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/octarq-org/octarq/server/plugin"
+	"gorm.io/gorm"
 )
 
 // MigrateLegacyCoreSecrets deterministically migrates pre-Vault encrypted Core
@@ -228,6 +229,15 @@ func (p *Plugin) migrateLegacyNotifyChannels(ctx context.Context, c plugin.Crypt
 	return nil
 }
 
+func quoteCol(db *gorm.DB, name string) string {
+	if db == nil || db.Dialector == nil {
+		return `"` + name + `"`
+	}
+	var b strings.Builder
+	db.Dialector.QuoteTo(&b, name)
+	return b.String()
+}
+
 func (p *Plugin) migrateLegacyInstanceSettings(ctx context.Context, c plugin.CryptoVault) error {
 	if !p.db.Migrator().HasTable("settings") {
 		return nil
@@ -247,9 +257,10 @@ func (p *Plugin) migrateLegacyInstanceSettings(ctx context.Context, c plugin.Cry
 		{"github_client_secret", "instance.oauth.github", "instance_secret", "GitHub OAuth", "clientSecret"},
 		{"metrics_token", "instance.metrics_token", "instance_secret", "Metrics Bearer Token", "token"},
 	}
+	keyCol := quoteCol(p.db, "key")
 	for _, m := range mappings {
 		var row settingRow
-		if err := p.db.WithContext(ctx).Table("settings").Where("key = ? AND value <> ''", m.settingKey).First(&row).Error; err != nil {
+		if err := p.db.WithContext(ctx).Table("settings").Where(keyCol+" = ? AND value <> ''", m.settingKey).First(&row).Error; err != nil {
 			continue
 		}
 		plain, err := c.Decrypt(row.Value)
@@ -265,7 +276,7 @@ func (p *Plugin) migrateLegacyInstanceSettings(ctx context.Context, c plugin.Cry
 		}); err != nil {
 			return fmt.Errorf("vault migrate setting %s: store: %w", m.settingKey, err)
 		}
-		if err := p.db.WithContext(ctx).Table("settings").Where("key = ?", m.settingKey).Update("value", "").Error; err != nil {
+		if err := p.db.WithContext(ctx).Table("settings").Where(keyCol+" = ?", m.settingKey).Update("value", "").Error; err != nil {
 			return fmt.Errorf("vault migrate setting %s: clear: %w", m.settingKey, err)
 		}
 	}

@@ -188,6 +188,9 @@ func (p *Plugin) PutInstanceSecret(ctx context.Context, req plugin.PutSecretRequ
 }
 
 func (p *Plugin) putSecretInternal(ctx context.Context, req plugin.PutSecretRequest, scope plugin.VaultScope) (*plugin.VaultItemMeta, error) {
+	if scope == plugin.VaultScopeUser && req.OwnerUserID == 0 {
+		return nil, errors.New("vault: owner user id is required for user-scoped secrets")
+	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		name = strings.TrimSpace(req.KeyName)
@@ -225,14 +228,18 @@ func (p *Plugin) putSecretInternal(ctx context.Context, req plugin.PutSecretRequ
 	folder := normalizeFolderPath(req.FolderPath)
 	keyName := strings.TrimSpace(req.KeyName)
 
-	// If keyName is specified and already exists in this exact (org, scope, collection, env, folder),
+	// If keyName is specified and already exists in this exact (org, scope, [owner_user_id], collection, env, folder),
 	// append a new immutable version instead of duplicating.
 	if keyName != "" {
 		var existing VaultItem
-		err := p.db.WithContext(ctx).Where(
+		q := p.db.WithContext(ctx).Where(
 			"org_id = ? AND scope = ? AND collection_id = ? AND environment = ? AND folder_path = ? AND key_name = ?",
 			req.OrgID, scope, col.ID, env, folder, keyName,
-		).First(&existing).Error
+		)
+		if scope == plugin.VaultScopeUser {
+			q = q.Where("owner_user_id = ?", req.OwnerUserID)
+		}
+		err := q.First(&existing).Error
 		if err == nil {
 			var isDef *bool
 			if req.IsDefault {
@@ -282,9 +289,11 @@ func (p *Plugin) putSecretInternal(ctx context.Context, req plugin.PutSecretRequ
 
 	err = p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if req.IsDefault && provType != "" {
-			if err := tx.Model(&VaultItem{}).
-				Where("org_id = ? AND scope = ? AND provider_type = ?", req.OrgID, scope, provType).
-				Update("is_default", false).Error; err != nil {
+			q := tx.Model(&VaultItem{}).Where("org_id = ? AND scope = ? AND provider_type = ?", req.OrgID, scope, provType)
+			if scope == plugin.VaultScopeUser {
+				q = q.Where("owner_user_id = ?", req.OwnerUserID)
+			}
+			if err := q.Update("is_default", false).Error; err != nil {
 				return err
 			}
 		}
@@ -411,9 +420,11 @@ func (p *Plugin) updateSecretInternal(ctx context.Context, row VaultItem, name *
 
 	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if row.IsDefault && row.ProviderType != "" {
-			if err := tx.Model(&VaultItem{}).
-				Where("org_id = ? AND scope = ? AND provider_type = ? AND id <> ?", row.OrgID, row.Scope, row.ProviderType, row.ID).
-				Update("is_default", false).Error; err != nil {
+			q := tx.Model(&VaultItem{}).Where("org_id = ? AND scope = ? AND provider_type = ? AND id <> ?", row.OrgID, row.Scope, row.ProviderType, row.ID)
+			if row.Scope == plugin.VaultScopeUser {
+				q = q.Where("owner_user_id = ?", row.OwnerUserID)
+			}
+			if err := q.Update("is_default", false).Error; err != nil {
 				return err
 			}
 		}
@@ -532,7 +543,17 @@ func (p *Plugin) ResolveByRef(ctx context.Context, orgID uint, ref string) (*plu
 		return nil, err
 	}
 	if parsed.itemID > 0 {
-		return p.GetSecret(ctx, orgID, parsed.itemID)
+		var row VaultItem
+		if err := p.db.WithContext(ctx).Where(
+			"org_id = ? AND scope = ? AND id = ?",
+			orgID, plugin.VaultScopeOrg, parsed.itemID,
+		).First(&row).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, plugin.ErrSecretNotFound
+			}
+			return nil, err
+		}
+		return p.decryptItem(ctx, row)
 	}
 	col, err := p.findCollection(ctx, orgID, plugin.VaultScopeOrg, parsed.collection)
 	if err != nil {
@@ -583,7 +604,10 @@ func (p *Plugin) ListItems(ctx context.Context, orgID uint, filter plugin.VaultF
 		return nil, errors.New("vault: organization id is required")
 	}
 	q := p.db.WithContext(ctx).Where("org_id = ? AND scope = ?", orgID, scope)
-	if scope == plugin.VaultScopeUser && filter.OwnerUserID > 0 {
+	if scope == plugin.VaultScopeUser {
+		if filter.OwnerUserID == 0 {
+			return nil, errors.New("vault: owner user id is required for user-scoped list")
+		}
 		q = q.Where("owner_user_id = ?", filter.OwnerUserID)
 	}
 	if filter.CollectionSlug != "" {
@@ -635,6 +659,28 @@ func (p *Plugin) DeleteSecret(ctx context.Context, orgID, itemID uint) error {
 	}
 	var row VaultItem
 	if err := p.db.WithContext(ctx).Where("org_id = ? AND id = ?", orgID, itemID).First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return plugin.ErrSecretNotFound
+		}
+		return err
+	}
+	return p.deleteItemRow(ctx, row)
+}
+
+// DeleteInstanceSecret hard-deletes an instance-scoped secret by keyName and shreds its SubjectVault DEK.
+func (p *Plugin) DeleteInstanceSecret(ctx context.Context, keyName string) error {
+	if p.db == nil {
+		return errors.New("vault: database unavailable")
+	}
+	keyName = strings.TrimSpace(keyName)
+	if keyName == "" {
+		return errors.New("vault: keyName is required")
+	}
+	var row VaultItem
+	if err := p.db.WithContext(ctx).Where(
+		"org_id = 0 AND scope = ? AND key_name = ?",
+		plugin.VaultScopeInstance, keyName,
+	).First(&row).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return plugin.ErrSecretNotFound
 		}

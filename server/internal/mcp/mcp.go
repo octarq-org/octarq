@@ -200,6 +200,7 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.Ti
 	// fallback — a fallback that is harmless here and a cross-tenant read over
 	// the network. One line at the entry point removes the need for all of them.
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
+	ctx = plugin.WithTokenRole(ctx, "owner")
 	srv := NewServerInstance(gdb, stdioOrgID, plugins, gate)
 	return srv.Run(ctx, stdioTransport())
 }
@@ -211,6 +212,7 @@ func RunStdio(ctx context.Context, gdb *gorm.DB, plugins []plugin.Plugin, host p
 	defer telemetry.DecMCPSessions()
 
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
+	ctx = plugin.WithTokenRole(ctx, "owner")
 	srv := buildServerInstance(gdb, stdioOrgID, plugins, nil, true, gate, host)
 	return srv.Run(ctx, stdioTransport())
 }

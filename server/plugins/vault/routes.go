@@ -339,12 +339,8 @@ func (p *Plugin) createItem(ctx context.Context, in *CreateItemInput) (*ItemOutp
 	return &ItemOutput{Body: *meta}, nil
 }
 
-func (p *Plugin) getItem(ctx context.Context, in *IDPathInput) (*ItemOutput, error) {
-	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
-	if err != nil {
-		return nil, err
-	}
-	meta, err := p.GetMeta(ctx, orgID, in.ID)
+func (p *Plugin) requireOwnedMeta(ctx context.Context, orgID, uid, itemID uint) (*plugin.VaultItemMeta, error) {
+	meta, err := p.GetMeta(ctx, orgID, itemID)
 	if err != nil {
 		if errors.Is(err, plugin.ErrSecretNotFound) {
 			return nil, huma.Error404NotFound("Vault item not found.")
@@ -353,6 +349,18 @@ func (p *Plugin) getItem(ctx context.Context, in *IDPathInput) (*ItemOutput, err
 	}
 	if meta.Scope == plugin.VaultScopeUser && meta.OwnerUserID != uid {
 		return nil, huma.Error404NotFound("Vault item not found.")
+	}
+	return meta, nil
+}
+
+func (p *Plugin) getItem(ctx context.Context, in *IDPathInput) (*ItemOutput, error) {
+	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	if err != nil {
+		return nil, err
+	}
+	meta, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID)
+	if err != nil {
+		return nil, err
 	}
 	return &ItemOutput{Body: *meta}, nil
 }
@@ -376,15 +384,8 @@ func (p *Plugin) updateItem(ctx context.Context, in *UpdateItemInput) (*ItemOutp
 	if err != nil {
 		return nil, err
 	}
-	existing, err := p.GetMeta(ctx, orgID, in.ID)
-	if err != nil {
-		if errors.Is(err, plugin.ErrSecretNotFound) {
-			return nil, huma.Error404NotFound("Vault item not found.")
-		}
-		return nil, huma.Error500InternalServerError("Failed to read vault item.")
-	}
-	if existing.Scope == plugin.VaultScopeUser && existing.OwnerUserID != uid {
-		return nil, huma.Error404NotFound("Vault item not found.")
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
+		return nil, err
 	}
 	meta, err := p.UpdateSecret(ctx, orgID, in.ID, in.Body.Name, in.Body.Metadata, in.Body.Payload, in.Body.IsDefault, in.Body.ChangeNote, uid)
 	if err != nil {
@@ -399,15 +400,9 @@ func (p *Plugin) deleteItem(ctx context.Context, in *IDPathInput) (*OKOutput, er
 	if err != nil {
 		return nil, err
 	}
-	existing, err := p.GetMeta(ctx, orgID, in.ID)
+	existing, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID)
 	if err != nil {
-		if errors.Is(err, plugin.ErrSecretNotFound) {
-			return nil, huma.Error404NotFound("Vault item not found.")
-		}
-		return nil, huma.Error500InternalServerError("Failed to read vault item.")
-	}
-	if existing.Scope == plugin.VaultScopeUser && existing.OwnerUserID != uid {
-		return nil, huma.Error404NotFound("Vault item not found.")
+		return nil, err
 	}
 	if err := p.DeleteSecret(ctx, orgID, in.ID); err != nil {
 		return nil, huma.Error500InternalServerError("Failed to delete vault item.")
@@ -432,15 +427,15 @@ func (p *Plugin) revealItem(ctx context.Context, in *IDPathInput) (*RevealOutput
 	if err != nil {
 		return nil, err
 	}
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
+		return nil, err
+	}
 	sec, err := p.GetSecret(ctx, orgID, in.ID)
 	if err != nil {
 		if errors.Is(err, plugin.ErrSecretNotFound) {
 			return nil, huma.Error404NotFound("Vault item not found.")
 		}
 		return nil, huma.Error500InternalServerError("Failed to decrypt secret payload.")
-	}
-	if sec.Meta.Scope == plugin.VaultScopeUser && sec.Meta.OwnerUserID != uid {
-		return nil, huma.Error404NotFound("Vault item not found.")
 	}
 	p.recordAudit(r, "vault.secret.revealed", "vault_item", sec.Meta.ID, map[string]any{"version": sec.Version, "ref": sec.Meta.Ref})
 	out := &RevealOutput{}
@@ -464,12 +459,8 @@ func (p *Plugin) listItemVersions(ctx context.Context, in *IDPathInput) (*Versio
 	if err != nil {
 		return nil, err
 	}
-	meta, err := p.GetMeta(ctx, orgID, in.ID)
-	if err != nil {
-		return nil, huma.Error404NotFound("Vault item not found.")
-	}
-	if meta.Scope == plugin.VaultScopeUser && meta.OwnerUserID != uid {
-		return nil, huma.Error404NotFound("Vault item not found.")
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
+		return nil, err
 	}
 	var vers []VaultItemVersion
 	if err := p.db.WithContext(ctx).Where("org_id = ? AND item_id = ?", orgID, in.ID).Order("version DESC").Find(&vers).Error; err != nil {
@@ -495,6 +486,9 @@ func (p *Plugin) rollbackItem(ctx context.Context, in *RollbackInput) (*ItemOutp
 	if err != nil {
 		return nil, err
 	}
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
+		return nil, err
+	}
 	meta, err := p.RollbackVersion(ctx, orgID, in.ID, in.Version, uid)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
@@ -506,6 +500,9 @@ func (p *Plugin) rollbackItem(ctx context.Context, in *RollbackInput) (*ItemOutp
 func (p *Plugin) setDefaultItem(ctx context.Context, in *IDPathInput) (*ItemOutput, error) {
 	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.update", "admin")
 	if err != nil {
+		return nil, err
+	}
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	isDef := true
@@ -521,8 +518,11 @@ func (p *Plugin) setDefaultItem(ctx context.Context, in *IDPathInput) (*ItemOutp
 }
 
 func (p *Plugin) testItem(ctx context.Context, in *IDPathInput) (*OKOutput, error) {
-	_, orgID, _, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
 	if err != nil {
+		return nil, err
+	}
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	var row VaultItem
@@ -551,8 +551,11 @@ type TOTPOutput struct {
 }
 
 func (p *Plugin) getItemTOTP(ctx context.Context, in *IDPathInput) (*TOTPOutput, error) {
-	_, orgID, _, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
 	if err != nil {
+		return nil, err
+	}
+	if _, err := p.requireOwnedMeta(ctx, orgID, uid, in.ID); err != nil {
 		return nil, err
 	}
 	code, rem, err := p.ComputeTOTP(ctx, orgID, in.ID)
@@ -815,7 +818,7 @@ func (p *Plugin) handleServiceTokenPull(w http.ResponseWriter, r *http.Request) 
 	}
 	var filtered []plugin.VaultSecret
 	for _, row := range rows {
-		if tok.FolderPrefix != "/" && !strings.HasPrefix(row.FolderPath, tok.FolderPrefix) {
+		if tok.FolderPrefix != "/" && row.FolderPath != tok.FolderPrefix && !strings.HasPrefix(row.FolderPath, tok.FolderPrefix+"/") {
 			continue
 		}
 		sec, decErr := p.decryptItem(r.Context(), row)
@@ -824,6 +827,36 @@ func (p *Plugin) handleServiceTokenPull(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		filtered = append(filtered, *sec)
+	}
+	auditMeta := map[string]any{
+		"name":         tok.Name,
+		"env":          tok.Environment,
+		"folderPrefix": tok.FolderPrefix,
+		"count":        len(filtered),
+	}
+	if p.audit != nil {
+		rAudited := r.WithContext(plugin.WithOrgID(r.Context(), tok.OrgID))
+		p.recordAudit(rAudited, "vault.service_token.pulled", "vault_service_token", tok.ID, auditMeta)
+	} else if p.db != nil && p.db.Migrator().HasTable("audit_logs") {
+		metaJSON, _ := json.Marshal(auditMeta)
+		_ = p.db.WithContext(r.Context()).Table("audit_logs").Create(&struct {
+			OrgID      uint      `gorm:"column:org_id"`
+			ActorID    uint      `gorm:"column:actor_id"`
+			Action     string    `gorm:"column:action"`
+			TargetType string    `gorm:"column:target_type"`
+			TargetID   uint      `gorm:"column:target_id"`
+			Meta       string    `gorm:"column:meta"`
+			IP         string    `gorm:"column:ip"`
+			CreatedAt  time.Time `gorm:"column:created_at"`
+		}{
+			OrgID:      tok.OrgID,
+			Action:     "vault.service_token.pulled",
+			TargetType: "vault_service_token",
+			TargetID:   tok.ID,
+			Meta:       string(metaJSON),
+			IP:         r.RemoteAddr,
+			CreatedAt:  time.Now(),
+		}).Error
 	}
 	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
 	if format == "env" || format == "dotenv" {

@@ -154,6 +154,13 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 		if orgID == 0 || in.ItemID == 0 {
 			return nil, nil, fmt.Errorf("vault: workspace context and itemId are required")
 		}
+		meta, err := p.GetMeta(ctx, orgID, in.ItemID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if meta.Scope != plugin.VaultScopeOrg {
+			return nil, nil, plugin.ErrSecretNotFound
+		}
 		code, rem, err := p.ComputeTOTP(ctx, orgID, in.ItemID)
 		if err != nil {
 			return nil, nil, err

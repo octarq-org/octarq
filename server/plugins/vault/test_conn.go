@@ -64,7 +64,7 @@ func (p *Plugin) testVaultItem(ctx context.Context, item VaultItem, payload map[
 			port = int(pv)
 		}
 		addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-		conn, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", addr)
+		conn, err := (&net.Dialer{Timeout: 5 * time.Second, Control: safehttp.Control}).DialContext(ctx, "tcp", addr)
 		if err != nil {
 			return false, fmt.Sprintf("TCP connection to %s failed: %v", addr, err)
 		}

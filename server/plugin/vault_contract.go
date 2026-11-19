@@ -113,6 +113,7 @@ type VaultService interface {
 	ResolveByRef(ctx context.Context, orgID uint, ref string) (*VaultSecret, error)
 	ResolveInstanceSecret(ctx context.Context, keyName string) (*VaultSecret, error)
 	PutInstanceSecret(ctx context.Context, req PutSecretRequest) (*VaultItemMeta, error)
+	DeleteInstanceSecret(ctx context.Context, keyName string) error
 	ListItems(ctx context.Context, orgID uint, filter VaultFilter) ([]VaultItemMeta, error)
 	DeleteSecret(ctx context.Context, orgID, itemID uint) error
 	ComputeTOTP(ctx context.Context, orgID, itemID uint) (code string, remainingSec int, err error)
