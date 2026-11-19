@@ -139,6 +139,7 @@ export const ja = {
   areas: {
     operations: { title: "オペレーション", subtitle: "日常のトラフィックとコミュニケーション" },
     assets: { title: "インフラ", subtitle: "サーバー、ネットワーク、データベース" },
+    personal: { title: "個人", subtitle: "あなた自身のアカウントと認証情報" },
     help: { title: "利用ガイド", subtitle: "コンソールの操作手順、運用上の注意と FAQ" },
     settings: { title: "設定", subtitle: "ワークスペースとプロファイル設定" },
   },

@@ -140,6 +140,7 @@ export const zh: Resources = {
   areas: {
     operations: { title: "运营", subtitle: "日常流量与消息服务" },
     assets: { title: "基础设施", subtitle: "服务器、网络与数据库" },
+    personal: { title: "个人", subtitle: "属于你本人的账户与凭据" },
     help: { title: "使用指南", subtitle: "控制台使用流程与常见问题说明" },
     settings: { title: "设置", subtitle: "工作区与个人配置" },
   },

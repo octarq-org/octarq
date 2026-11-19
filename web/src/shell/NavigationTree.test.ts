@@ -20,7 +20,7 @@ describe("NavigationTree domain model", () => {
       expect(NavigationTree.resolveCategoryToArea("settings")).toBe("settings");
       expect(NavigationTree.resolveCategoryToArea("instance")).toBe("settings");
       expect(NavigationTree.resolveCategoryToArea("account")).toBe("settings");
-      expect(NavigationTree.resolveCategoryToArea("personal")).toBe("settings");
+      expect(NavigationTree.resolveCategoryToArea("personal")).toBe("personal");
       expect(NavigationTree.resolveCategoryToArea("integrations")).toBe("settings");
     });
 
@@ -277,6 +277,23 @@ describe("NavigationTree domain model", () => {
       expect(areaIds).not.toContain("commerce");
     });
 
+    it("routes personal menus to the Personal area and hides it when empty", () => {
+      const menus: MenuItem[] = [
+        { id: "pt", label: "PT Accounts", path: "/personal/pt", icon: "hard-drive", category: "Accounts", area: "personal" },
+        { id: "personal-twofa", label: "Personal 2FA", path: "/personal/twofa", icon: "shield", category: "Security", area: "personal" },
+      ];
+
+      const tree = NavigationTree.build({ menus, backendLoaded: true });
+      const personal = tree.findArea("personal");
+      expect(personal).toBeDefined();
+      expect(personal!.groups.flatMap((g) => g.items.map((i) => i.id))).toEqual(["pt", "personal-twofa"]);
+      // Personal items never leak into the settings area.
+      expect(tree.settingsArea.groups.flatMap((g) => g.items.map((i) => i.id))).not.toContain("pt");
+
+      const empty = NavigationTree.build({ menus: [], backendLoaded: true });
+      expect(empty.areas.map((a) => a.id)).not.toContain("personal");
+    });
+
     it("enforces declared group order within areas", () => {
       // Provide Marketing before Workspace in menus array
       const menus: MenuItem[] = [
@@ -302,11 +319,11 @@ describe("NavigationTree domain model", () => {
         "Instance",
         "Workspace",
         "Integrations",
-        "Personal",
+        "Account",
       ]);
       const settingsGroupLabels = tree.settingsArea.groups.map((g) => g.label);
       expect(settingsGroupLabels.indexOf("Workspace")).toBeLessThan(settingsGroupLabels.indexOf("Integrations"));
-      expect(settingsGroupLabels.indexOf("Integrations")).toBeLessThan(settingsGroupLabels.indexOf("Personal"));
+      expect(settingsGroupLabels.indexOf("Integrations")).toBeLessThan(settingsGroupLabels.indexOf("Account"));
     });
 
     it("respects role gating for menu items", () => {
