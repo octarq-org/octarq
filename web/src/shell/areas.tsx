@@ -95,6 +95,16 @@ export const STATIC_AREAS: Area[] = [
     Icon: Boxes,
     groups: [],
   },
+  {
+    // Personal space: credentials and accounts that belong to the signed-in
+    // user, never to the active team workspace. Plugins place menus here with
+    // Area: "personal"; the area stays hidden until one does.
+    id: "personal",
+    title: "Personal",
+    subtitle: "Accounts & credentials that belong to you",
+    Icon: User,
+    groups: [],
+  },
 ];
 
 export const SETTINGS_AREA: Area = {
@@ -133,7 +143,7 @@ export const SETTINGS_AREA: Area = {
       ],
     },
     {
-      label: "Personal",
+      label: "Account",
       items: [
         { id: "profile",  label: "My Profile", Icon: User,      path: "/settings/profile" },
         { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },

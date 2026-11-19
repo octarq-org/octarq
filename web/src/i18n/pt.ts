@@ -139,6 +139,7 @@ export const pt = {
   areas: {
     operations: { title: "Operações", subtitle: "Tráfego diário e comunicação" },
     assets: { title: "Infraestrutura", subtitle: "Servidores, rede e bancos de dados" },
+    personal: { title: "Pessoal", subtitle: "Contas e credenciais que pertencem a você" },
     help: { title: "Manual de uso", subtitle: "Fluxos do console, notas operacionais e perguntas frequentes" },
     settings: { title: "Configurações", subtitle: "Configurações de workspace e perfil" },
   },

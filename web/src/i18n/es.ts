@@ -139,6 +139,7 @@ export const es = {
   areas: {
     operations: { title: "Operaciones", subtitle: "Tráfico diario y comunicaciones" },
     assets: { title: "Infraestructura", subtitle: "Servidores, red y bases de datos" },
+    personal: { title: "Personal", subtitle: "Cuentas y credenciales que te pertenecen" },
     help: { title: "Manual de uso", subtitle: "Flujos de la consola, notas operativas y preguntas frecuentes" },
     settings: { title: "Configuración", subtitle: "Configuraciones del espacio de trabajo y perfil" },
   },

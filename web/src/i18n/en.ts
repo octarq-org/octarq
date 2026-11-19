@@ -148,6 +148,7 @@ export const en = {
   areas: {
     operations: { title: "Operations", subtitle: "Daily traffic & communication" },
     assets: { title: "Infrastructure", subtitle: "Servers, network & databases" },
+    personal: { title: "Personal", subtitle: "Accounts & credentials that belong to you" },
     help: { title: "User manual", subtitle: "Console usage workflows, operational notes & FAQs" },
     settings: { title: "Settings", subtitle: "Workspace & profile configurations" },
   },
