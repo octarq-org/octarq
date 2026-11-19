@@ -4,12 +4,14 @@ import {
   PageSection,
   PageShell,
   Separator,
+  Switch,
   cn,
   useTableDensity,
   useSetTableDensity,
 } from "@octarq/plugin-sdk";
 import { LANGS, useTranslation, type Lang } from "../../i18n";
 import { setTheme, useTheme, type Theme } from "../../theme";
+import { setShowPersonalArea, useShowPersonalArea } from "../../prefs";
 
 function Segmented<T extends string>({
   value,
@@ -54,6 +56,7 @@ export function AppearanceSettings() {
   const theme = useTheme();
   const density = useTableDensity();
   const setDensity = useSetTableDensity();
+  const showPersonalArea = useShowPersonalArea();
 
   return (
     <PageShell title={t("appearance.title")} description={t("appearance.subtitle")}>
@@ -100,6 +103,18 @@ export function AppearanceSettings() {
                   { value: "comfortable" as const, label: t("appearance.densityComfortable") },
                   { value: "compact" as const, label: t("appearance.densityCompact") },
                 ]}
+              />
+            }
+          />
+          <Separator />
+          <PageRow
+            title={t("appearance.showPersonalTitle")}
+            description={t("appearance.showPersonalDesc")}
+            control={
+              <Switch
+                checked={showPersonalArea}
+                onCheckedChange={setShowPersonalArea}
+                aria-label={t("appearance.showPersonalTitle")}
               />
             }
           />

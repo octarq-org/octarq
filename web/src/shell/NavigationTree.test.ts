@@ -294,6 +294,42 @@ describe("NavigationTree domain model", () => {
       expect(empty.areas.map((a) => a.id)).not.toContain("personal");
     });
 
+    it("keeps the Personal area by default (showPersonalArea true)", () => {
+      const menus: MenuItem[] = [
+        { id: "pt", label: "PT Accounts", path: "/personal/pt", icon: "hard-drive", category: "Accounts", area: "personal" },
+      ];
+
+      const tree = NavigationTree.build({ menus, backendLoaded: true, showPersonalArea: true });
+      expect(tree.findArea("personal")).toBeDefined();
+      expect(tree.findArea("personal")!.groups.flatMap((g) => g.items.map((i) => i.id))).toEqual(["pt"]);
+      expect(tree.areas.map((a) => a.id)).toContain("personal");
+    });
+
+    it("drops Personal menus and the area when showPersonalArea is false", () => {
+      const menus: MenuItem[] = [
+        { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
+        { id: "pt", label: "PT Accounts", path: "/personal/pt", icon: "hard-drive", category: "Accounts", area: "personal" },
+        { id: "personal-twofa", label: "Personal 2FA", path: "/personal/twofa", icon: "shield", category: "Security", area: "personal" },
+        { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
+      ];
+
+      const tree = NavigationTree.build({ menus, backendLoaded: true, showPersonalArea: false });
+
+      expect(tree.findArea("personal")).toBeUndefined();
+      expect(tree.areas.map((a) => a.id)).not.toContain("personal");
+
+      // Personal menus are gone entirely — they must not leak into another area.
+      const allItems = tree.allAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.id)));
+      expect(allItems).not.toContain("pt");
+      expect(allItems).not.toContain("personal-twofa");
+      expect(allItems).toContain("overview");
+      expect(allItems).toContain("links");
+
+      // Settings/account behaviour is unchanged.
+      expect(tree.isSettingsPath("/settings/appearance")).toBe(true);
+      expect(tree.settingsArea.groups.flatMap((g) => g.items.map((i) => i.id))).toContain("appearance");
+    });
+
     it("enforces declared group order within areas", () => {
       // Provide Marketing before Workspace in menus array
       const menus: MenuItem[] = [

@@ -18,6 +18,10 @@ export interface BuildNavigationTreeOptions {
   isInstanceAdmin?: boolean;
   backendLoaded?: boolean;
   helpArea?: Area;
+  // Client-side preference; when false the Personal area and its menus are
+  // hidden from the sidebar. Routes are untouched, so direct /personal/* URLs
+  // still render.
+  showPersonalArea?: boolean;
 }
 
 export class NavigationTree {
@@ -139,6 +143,7 @@ export class NavigationTree {
     const role = options.role;
     const isInstanceAdmin = !!options.isInstanceAdmin;
     const helpArea = options.helpArea;
+    const showPersonalArea = options.showPersonalArea ?? true;
 
     const disabledPlugins = new Set(plugins.filter((p) => !p.enabled).map((p) => p.key));
     const disabledPaths = new Set(
@@ -169,11 +174,14 @@ export class NavigationTree {
       baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))),
     );
 
-    // Filter dynamic items by static presence, disabled plugins, and role authorization
+    // Filter dynamic items by static presence, disabled plugins, the Personal
+    // area preference, and role authorization
     const extras = dedupedMenus.filter(
       (m) =>
         !staticPaths.has(m.path) &&
         !disabledPaths.has(m.path) &&
+        (showPersonalArea ||
+          NavigationTree.resolveMenuToArea(m, validPluginAreas) !== "personal") &&
         roleSatisfies(m.requiredRole, role, isInstanceAdmin),
     );
 
@@ -280,9 +288,13 @@ export class NavigationTree {
       settingsArea.groups.flatMap((g) => g.items.map((i) => i.path)),
     );
 
-    // Business areas (excluding settings and dropping empty areas)
+    // Business areas (excluding settings and the hidden Personal area, and
+    // dropping empty areas)
     const businessAreas = mergedAreas.filter(
-      (a) => a.id !== "settings" && a.groups.length > 0,
+      (a) =>
+        a.id !== "settings" &&
+        (showPersonalArea || a.id !== "personal") &&
+        a.groups.length > 0,
     );
 
     return new NavigationTree({

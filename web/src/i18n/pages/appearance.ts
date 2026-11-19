@@ -12,6 +12,8 @@ export const appearance = {
     densityDesc: "Default row spacing for tables across the application.",
     densityComfortable: "Comfortable",
     densityCompact: "Compact",
+    showPersonalTitle: "Show the Personal space in team workspaces",
+    showPersonalDesc: "Controls the Personal area in the sidebar. Direct links still open.",
   },
   zh: {
     title: "外观",
@@ -26,6 +28,8 @@ export const appearance = {
     densityDesc: "全站表格的默认行距与间距。",
     densityComfortable: "舒适",
     densityCompact: "紧凑",
+    showPersonalTitle: "在团队工作区显示个人空间",
+    showPersonalDesc: "控制侧栏中的个人区域。直接链接仍可打开。",
   },
   es: {
     title: "Apariencia",
@@ -40,6 +44,8 @@ export const appearance = {
     densityDesc: "Espaciado predeterminado de filas para las tablas en toda la aplicación.",
     densityComfortable: "Cómodo",
     densityCompact: "Compacto",
+    showPersonalTitle: "Mostrar el espacio personal en los espacios de trabajo de equipo",
+    showPersonalDesc: "Controla el área Personal en la barra lateral. Los enlaces directos siguen funcionando.",
   },
   pt: {
     title: "Aparência",
@@ -54,6 +60,8 @@ export const appearance = {
     densityDesc: "Espaçamento padrão de linhas para tabelas em todo o aplicativo.",
     densityComfortable: "Confortável",
     densityCompact: "Compacto",
+    showPersonalTitle: "Mostrar o espaço pessoal em workspaces de equipe",
+    showPersonalDesc: "Controla a área Pessoal na barra lateral. Os links diretos continuam funcionando.",
   },
   ja: {
     title: "外観",
@@ -68,5 +76,7 @@ export const appearance = {
     densityDesc: "アプリケーション全体のテーブルのデフォルト行間隔。",
     densityComfortable: "ゆったり",
     densityCompact: "コンパクト",
+    showPersonalTitle: "チームワークスペースに個人スペースを表示",
+    showPersonalDesc: "サイドバーの個人エリアを表示します。直接リンクは引き続き開きます。",
   },
 };
