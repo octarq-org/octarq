@@ -10,15 +10,13 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ScopedCache wraps a Cache instance and prefixes all keys with a plugin namespace.
 type ScopedCache struct {
 	backend Cache
 	prefix  string
 	mu      sync.RWMutex
-	tags    map[string]map[string]struct{} // tag -> set of keys (with prefix)
+	tags    map[string]map[string]struct{}
 }
 
-// NewScoped constructs a ScopedCache for the given plugin namespace.
 func NewScoped(backend Cache, prefix string) plugin.ScopedCache {
 	if !strings.HasSuffix(prefix, ":") && prefix != "" {
 		prefix += ":"
@@ -30,7 +28,6 @@ func NewScoped(backend Cache, prefix string) plugin.ScopedCache {
 	}
 }
 
-// NewTenantScoped constructs a ScopedCache for the given tenant org and plugin namespace.
 func NewTenantScoped(backend Cache, orgID uint, prefix string) plugin.ScopedCache {
 	p := prefix
 	if orgID > 0 {
@@ -43,7 +40,6 @@ func NewTenantScoped(backend Cache, orgID uint, prefix string) plugin.ScopedCach
 	return NewScoped(backend, p)
 }
 
-// NewMemoryScoped creates an in-memory ScopedCache.
 func NewMemoryScoped() plugin.ScopedCache {
 	return NewScoped(NewMemoryCache(10000), "")
 }

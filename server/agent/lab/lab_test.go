@@ -52,7 +52,6 @@ func TestReplay_ScriptedResponses(t *testing.T) {
 	assert.NotEmpty(t, res.CapturedSystem)
 	assert.NotEmpty(t, res.TraceEvents)
 
-	// Verify trace events
 	kinds := make([]harness.TraceKind, 0, len(res.TraceEvents))
 	for _, ev := range res.TraceEvents {
 		kinds = append(kinds, ev.Kind)
@@ -126,22 +125,17 @@ func TestScorer_Deterministic(t *testing.T) {
 	rep2, err := engine.Run(ctx, ts, cands, tmp2)
 	require.NoError(t, err)
 
-	// Compare scores struct-by-struct
 	require.Equal(t, len(rep1.Scores), len(rep2.Scores))
 	for i := range rep1.Scores {
 		assert.Equal(t, rep1.Scores[i], rep2.Scores[i], "scores must be bit-for-bit identical across runs")
 	}
 
-	// Compare written JSON reports byte-for-byte
 	b1, err := os.ReadFile(filepath.Join(tmp1, "report.json"))
 	require.NoError(t, err)
 	b2, err := os.ReadFile(filepath.Join(tmp2, "report.json"))
 	require.NoError(t, err)
 	assert.Equal(t, string(b1), string(b2), "report.json must be identical across runs")
 
-	// The report carries no wall-clock reading. A mock tool call takes no
-	// time to measure, so a duration in the report would be the machine's,
-	// not the candidate's — and two runs on a loaded machine would differ.
 	for _, cr := range rep1.CandidateResults {
 		for _, tr := range cr.TaskResults {
 			for _, ev := range tr.TraceEvents {
@@ -208,7 +202,6 @@ func TestCandidate_InvalidSpecRejected(t *testing.T) {
 			require.Error(t, err, "must reject invalid candidate spec")
 			assert.Contains(t, err.Error(), tc.wantErrMsg)
 
-			// Also verify LoadCandidates fails closed
 			_, errAll := lab.LoadCandidates([]string{filePath})
 			require.Error(t, errAll)
 		})
@@ -281,7 +274,6 @@ func TestReporter_GeneratesJSONAndMarkdown(t *testing.T) {
 	assert.False(t, report.IsBaselineRecommended)
 	assert.Len(t, report.Scores, 3)
 
-	// Check files generated
 	jsonPath := filepath.Join(tmp, "report.json")
 	mdPath := filepath.Join(tmp, "report.md")
 
@@ -312,15 +304,12 @@ func TestEngine_FailClosed(t *testing.T) {
 	}
 	validCand := lab.Candidate{Name: "c1", Spec: harness.DefaultHarnessSpec()}
 
-	// Nil task set
 	_, err := engine.Run(context.Background(), nil, []lab.Candidate{validCand}, t.TempDir())
 	assert.Error(t, err)
 
-	// Empty candidates
 	_, err = engine.Run(context.Background(), validTS, nil, t.TempDir())
 	assert.Error(t, err)
 
-	// Empty outDir
 	_, err = engine.Run(context.Background(), validTS, []lab.Candidate{validCand}, "")
 	assert.Error(t, err)
 }

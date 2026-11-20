@@ -12,16 +12,11 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// connect serves srv over an in-memory transport and returns a client for it.
-// The connection context carries the workspace and the role, the same way the
-// stdio entry point stamps them.
 func connect(t *testing.T, srv *mcp.Server) (*mcp.ClientSession, func()) {
 	t.Helper()
 	return connectAs(t, srv, "member")
 }
 
-// connectAs is connect with an explicit role ceiling, for the tools a member
-// cannot reach.
 func connectAs(t *testing.T, srv *mcp.Server, role string) (*mcp.ClientSession, func()) {
 	t.Helper()
 	ctx := plugin.WithTokenRole(plugin.WithOrgID(context.Background(), 1), role)
@@ -55,8 +50,6 @@ func mountedMCP(t *testing.T) *Plugin {
 	return p
 }
 
-// TestRegisterMCPPublishesDeclaredTools is the agent-facing contract: one tool
-// per exposed operation, named for the entity and the operation.
 func TestRegisterMCPPublishesDeclaredTools(t *testing.T) {
 	p := mountedMCP(t)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1"}, nil)
@@ -80,8 +73,6 @@ func TestRegisterMCPPublishesDeclaredTools(t *testing.T) {
 	}
 }
 
-// TestMCPToolsReadAndWriteRecords drives the generated tools end to end: an
-// agent creates a ticket, lists it, updates it and deletes it.
 func TestMCPToolsReadAndWriteRecords(t *testing.T) {
 	p := mountedMCP(t)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1"}, nil)
@@ -137,8 +128,6 @@ func TestMCPToolsReadAndWriteRecords(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	// delete requires admin and the connection carries member, so this must be
-	// refused, and the record must still be there.
 	if !deleted.IsError {
 		t.Fatalf("delete was allowed for a member: %s", textOf(deleted))
 	}
@@ -154,8 +143,6 @@ func TestMCPToolsReadAndWriteRecords(t *testing.T) {
 	}
 }
 
-// TestMCPToolsRefuseUnknownField pins that the MCP surface runs the same decoder
-// as HTTP: a field the declaration does not contain is refused, not stored.
 func TestMCPToolsRefuseUnknownField(t *testing.T) {
 	p := mountedMCP(t)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1"}, nil)
@@ -178,9 +165,6 @@ func TestMCPToolsRefuseUnknownField(t *testing.T) {
 	}
 }
 
-// TestMCPListRefusesAPageOutsideTheBounds is the client-facing half: the bounds
-// the list tool publishes in its schema are the ones a client is held to, so an
-// agent that asks for 500 rows is told no instead of quietly reading 200.
 func TestMCPListRefusesAPageOutsideTheBounds(t *testing.T) {
 	p := mountedMCP(t)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1"}, nil)
@@ -207,10 +191,6 @@ func TestMCPListRefusesAPageOutsideTheBounds(t *testing.T) {
 	}
 }
 
-// TestPageParamsRefusesAPageOutsideTheBounds covers the handler's own check,
-// which runs behind the tool schema. A client that skips schema validation — or
-// a future schema change that loosens it — must still be refused rather than
-// served a page it did not ask for.
 func TestPageParamsRefusesAPageOutsideTheBounds(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -268,9 +248,6 @@ func resultString(t *testing.T, res *mcp.CallToolResult, key string) string {
 	return ""
 }
 
-// TestReadyTellsAMissingRoleApartFromALowOne pins the three refusals apart. A
-// transport that carries no role — stdio — cannot be fixed by changing the
-// token, so it must not answer with the message that says it can.
 func TestReadyTellsAMissingRoleApartFromALowOne(t *testing.T) {
 	p := mountedMCP(t)
 	e := p.entities[0]
@@ -287,9 +264,6 @@ func TestReadyTellsAMissingRoleApartFromALowOne(t *testing.T) {
 	}
 }
 
-// TestInputSchemaLeavesAJSONFieldUntyped pins the schema to what the decoder
-// accepts: a json field holds any JSON value, so a declared "object" would make
-// the SDK refuse an array the server would store.
 func TestInputSchemaLeavesAJSONFieldUntyped(t *testing.T) {
 	doc := strings.Replace(ticketDoc,
 		`{"name":"due_at","type":"timestamp"}`,
@@ -309,9 +283,6 @@ func TestInputSchemaLeavesAJSONFieldUntyped(t *testing.T) {
 	}
 }
 
-// TestMCPOwnerDeletesARecord pins the success path of the delete tool, and the
-// not-found answer of get, update and delete once the record is gone: an agent
-// asking for a record that no longer exists is told, not handed an empty object.
 func TestMCPOwnerDeletesARecord(t *testing.T) {
 	p := mountedMCP(t)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1"}, nil)

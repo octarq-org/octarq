@@ -11,25 +11,19 @@ import (
 	"time"
 )
 
-// Rate limiter (fixed-window, in-memory, IP-keyed)
-
-// tier identifies which threshold applies to a request.
 type tier int
 
 const (
-	tierAuth     tier = iota // auth-sensitive: strict
-	tierAPI                  // general API: generous
-	tierRedirect             // short-link hot path: very loose
+	tierAuth tier = iota
+	tierAPI
+	tierRedirect
 )
 
-// rlCounter is one IP's request count within the current fixed window.
 type rlCounter struct {
 	count   int
 	resetAt time.Time
 }
 
-// rateLimiter is a fixed-window per-IP limiter shared across tiers. The map key
-// is "tier|ip" so the same IP gets an independent budget per tier.
 type rateLimiter struct {
 	window    time.Duration
 	limits    map[tier]int
@@ -51,16 +45,12 @@ func newRateLimiter() *rateLimiter {
 	}
 }
 
-// setLimits replaces the per-tier budgets (from the runtime settings refresh).
 func (rl *rateLimiter) setLimits(authRPM, apiRPM, redirectRPM int) {
 	rl.mu.Lock()
 	rl.limits = map[tier]int{tierAuth: authRPM, tierAPI: apiRPM, tierRedirect: redirectRPM}
 	rl.mu.Unlock()
 }
 
-// allow reports whether a request from ip in the given tier may proceed. When
-// denied it also returns the Retry-After duration until the window resets. A
-// non-positive limit disables the tier (always allowed).
 func (rl *rateLimiter) allow(t tier, ip string, now time.Time) (bool, time.Duration) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -85,13 +75,6 @@ func (rl *rateLimiter) allow(t tier, ip string, now time.Time) (bool, time.Durat
 	return true, 0
 }
 
-// budget reports the current window's state for one ip/tier without consuming
-// any of it: the tier's limit, how many requests remain, and when the window
-// resets. Read-only on purpose — allow() stays the only mutator, so its
-// signature (and its callers) are untouched by rate-limit headers existing.
-//
-// A limit of 0 means the tier is disabled; the caller then emits no headers,
-// which is honest — "unlimited" has no number to report.
 func (rl *rateLimiter) budget(t tier, ip string, now time.Time) (limit, remaining int, resetAt time.Time) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -111,8 +94,6 @@ func (rl *rateLimiter) budget(t tier, ip string, now time.Time) (limit, remainin
 	return limit, remaining, c.resetAt
 }
 
-// sweepLocked drops expired counters so the map can't grow without bound. It is
-// throttled to run at most once per window. Caller must hold rl.mu.
 func (rl *rateLimiter) sweepLocked(now time.Time) {
 	if now.Sub(rl.lastSweep) < rl.window {
 		return
@@ -125,7 +106,6 @@ func (rl *rateLimiter) sweepLocked(now time.Time) {
 	}
 }
 
-// tierFor classifies a request into a rate-limit tier by path/method.
 func tierFor(r *http.Request) tier {
 	p := r.URL.Path
 	switch {
@@ -135,36 +115,20 @@ func tierFor(r *http.Request) tier {
 		return tierAuth
 	case strings.HasPrefix(p, "/api/"), strings.HasPrefix(p, "/v1/"), strings.HasPrefix(p, "/v1beta/"),
 		strings.HasPrefix(p, "/.well-known/"):
-		// /v1 is the OpenAI-compatible agent surface and /v1beta the Gemini one.
-		// Both are APIs, not short-link redirects, so they get the API budget
-		// rather than the loose redirect one. /.well-known is the discovery
-		// document an agent reads before it has a credential — one fetch per
-		// login, not a redirect.
 		return tierAPI
 	case p == "/admin" || strings.HasPrefix(p, "/admin/"),
 		p == "/portal" || strings.HasPrefix(p, "/portal/"),
 		p == "/instance" || strings.HasPrefix(p, "/instance/"),
 		p == "/status" || p == "/status/",
 		p == "/", p == "/metrics":
-		// Dashboard/portal/root: treat as general API budget, not the loose
-		// redirect budget (these are not the redirect hot path).
 		return tierAPI
 	default:
-		// Root-namespace short-link redirects — the product hot path.
 		return tierRedirect
 	}
 }
 
-// Client IP
-
-// trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
-// once from config at server construction; when false, X-Forwarded-For /
-// X-Real-IP are ignored so clients can't spoof their IP to evade rate limits.
 var trustProxy bool
 
-// clientIP returns the best-guess client IP. When trustProxy is enabled it
-// honours the first hop of X-Forwarded-For then X-Real-IP, falling back to
-// RemoteAddr; otherwise it always uses RemoteAddr.
 func clientIP(r *http.Request) string {
 	if trustProxy {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -182,13 +146,6 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-// setRateLimitHeaders publishes the caller's remaining budget on every response
-// the limiter governs, allowed or refused. Enforcing a limit without telling
-// anyone what it is makes every integrator discover it by tripping it: the
-// headers are what let a client pace itself instead of backing off blindly.
-//
-// X-RateLimit-Reset is a Unix timestamp in seconds — the widespread convention
-// (GitHub, Stripe). Retry-After, set only on a 429, stays delta-seconds per RFC 9110.
 func (mw *middleware) setRateLimitHeaders(w http.ResponseWriter, t tier, ip string, now time.Time) {
 	limit, remaining, resetAt := mw.limiter.budget(t, ip, now)
 	if limit <= 0 {
@@ -200,14 +157,6 @@ func (mw *middleware) setRateLimitHeaders(w http.ResponseWriter, t tier, ip stri
 	h.Set("X-RateLimit-Reset", strconv.FormatInt(resetAt.Unix(), 10))
 }
 
-// writeRateLimited emits the 429 in the same RFC 7807 shape huma gives every
-// other API error, instead of the text/plain line http.Error produces. A client
-// that parses error bodies should not need a special case for the one error
-// this middleware raises before the API handlers are ever reached.
-//
-// The body is written here rather than borrowed from internal/api: server must
-// not import api (api imports server), and duplicating four fields beats an
-// import cycle.
 func writeRateLimited(w http.ResponseWriter, retryAfterSecs int) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusTooManyRequests)

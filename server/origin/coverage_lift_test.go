@@ -51,7 +51,6 @@ func TestCoverageLift_NilAndEmptyInputs(t *testing.T) {
 	if p := namespace(nil); p != "nodb|" {
 		t.Fatalf("expected nodb| for nil db, got %q", p)
 	}
-	// Clone via Session so no lock-bearing gorm structs are copied (copylocks).
 	badGDB := db.Session(&gorm.Session{NewDB: true})
 	badGDB.Statement.ConnPool = &sql.Tx{}
 	if p := namespace(badGDB); p != "nodb|" {
@@ -93,7 +92,6 @@ func TestCoverageLift_ClearDomainCache_AnySuffix(t *testing.T) {
 func TestCoverageLift_GlobalCache_OverLimitResets(t *testing.T) {
 	db := testDB(t)
 
-	// 1. Trigger reset in cachedBaseDomain
 	globalCacheMu.Lock()
 	for i := 0; i < 1030; i++ {
 		globalCache[fmt.Sprintf("k-base-%d", i)] = entry{ok: true}
@@ -101,7 +99,6 @@ func TestCoverageLift_GlobalCache_OverLimitResets(t *testing.T) {
 	globalCacheMu.Unlock()
 	_ = cachedBaseDomain(db)
 
-	// 2. Trigger reset in cachedSharedHosts
 	globalCacheMu.Lock()
 	for i := 0; i < 1030; i++ {
 		globalCache[fmt.Sprintf("k-shared-%d", i)] = entry{ok: true}
@@ -109,7 +106,6 @@ func TestCoverageLift_GlobalCache_OverLimitResets(t *testing.T) {
 	globalCacheMu.Unlock()
 	_ = cachedSharedHosts(db)
 
-	// 3. Trigger reset in cachedCompute
 	globalCacheMu.Lock()
 	for i := 0; i < 1030; i++ {
 		globalCache[fmt.Sprintf("k-comp-%d", i)] = entry{ok: true}

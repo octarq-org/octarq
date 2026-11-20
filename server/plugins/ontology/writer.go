@@ -10,19 +10,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// findLimit caps a Find. A caller uses it to answer "is this row already there",
-// not to page a table: the REST surface owns paging.
 const findLimit = 100
 
-// recordWriter is the seam a module writes through. It holds the plugin so every
-// call reaches the same declaration set, store and tenant handle the REST
-// surface uses.
 type recordWriter struct{ p *Plugin }
 
 var _ core.RecordWriter = recordWriter{}
 
-// entity resolves a slug against what the boot applied. A slug nobody declared
-// is refused instead of being turned into a table name.
 func (w recordWriter) entity(slug string) (*entity, error) {
 	for _, e := range w.p.entities {
 		if e.spec.Slug == slug {
@@ -32,8 +25,6 @@ func (w recordWriter) entity(slug string) (*entity, error) {
 	return nil, fmt.Errorf("ontology: no entity is declared as %q", slug)
 }
 
-// tenant returns the handle for one workspace. The host builds it, so the org
-// predicate is the platform's and never assembled from a caller value.
 func (w recordWriter) tenant(orgID uint) (*plugin.TenantDB, error) {
 	if w.p.host == nil {
 		return nil, ErrNoTenantScope
@@ -45,9 +36,6 @@ func (w recordWriter) tenant(orgID uint) (*plugin.TenantDB, error) {
 	return tdb, nil
 }
 
-// Create stores one row. The values pass through the same decoder the REST
-// create uses, so a reserved key, an undeclared field or a wrong type is refused
-// before an INSERT is built.
 func (w recordWriter) Create(ctx context.Context, orgID uint, slug string, values map[string]any) (map[string]any, error) {
 	e, err := w.entity(slug)
 	if err != nil {
@@ -72,8 +60,6 @@ func (w recordWriter) Create(ctx context.Context, orgID uint, slug string, value
 	return core.FromRow(e.spec, row), nil
 }
 
-// Update applies a patch. Omitted fields keep their value, and a row of another
-// workspace is ErrNotFound.
 func (w recordWriter) Update(ctx context.Context, orgID uint, slug, id string, patch map[string]any) (map[string]any, error) {
 	e, err := w.entity(slug)
 	if err != nil {
@@ -98,7 +84,6 @@ func (w recordWriter) Update(ctx context.Context, orgID uint, slug, id string, p
 	return core.FromRow(e.spec, row), nil
 }
 
-// Get reads one row of one workspace.
 func (w recordWriter) Get(ctx context.Context, orgID uint, slug, id string) (map[string]any, error) {
 	e, err := w.entity(slug)
 	if err != nil {
@@ -115,9 +100,6 @@ func (w recordWriter) Get(ctx context.Context, orgID uint, slug, id string) (map
 	return core.FromRow(e.spec, row), nil
 }
 
-// Find returns the rows whose declared field equals value, newest first. The
-// field is checked against the declaration, so a caller cannot name a column the
-// declaration does not have.
 func (w recordWriter) Find(ctx context.Context, orgID uint, slug, field string, value any) ([]map[string]any, error) {
 	e, err := w.entity(slug)
 	if err != nil {

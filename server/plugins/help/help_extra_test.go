@@ -31,7 +31,6 @@ func TestPluginMetadataAndLifecycle(t *testing.T) {
 		t.Error("expected non-nil HelpDocsFS")
 	}
 
-	// Test Mount
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Help API", "1.0.0"))
 	pctx := &plugin.Context{

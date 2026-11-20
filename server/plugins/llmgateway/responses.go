@@ -10,28 +10,13 @@ import (
 	"time"
 )
 
-// Codex CLI speaks the OpenAI Responses API. It is the second wire format a
-// coding agent uses, and since Codex 0.167 it is the only one: the `chat` wire
-// API no longer loads, so a gateway without this route cannot serve Codex at
-// all.
-//
-// Like the Messages translation, this is a translation and not a relay. The
-// provider speaks Chat Completions, so the Responses request is rebuilt into
-// that shape and the answer is rebuilt back, streaming events included. A
-// construct with no Chat Completions counterpart is refused by name rather than
-// dropped, so an agent never silently loses part of its turn.
 const (
-	// AgentResponsesPath is the OpenAI Responses endpoint.
 	AgentResponsesPath = "/v1/responses"
 )
 
-// --- request shapes (Responses in) ---
-
 type respRequest struct {
-	Model string `json:"model"`
-	// Input is a string or a list of items. Codex always sends the list.
-	Input json.RawMessage `json:"input"`
-	// Instructions is the system prompt. It is a string or a part list.
+	Model        string          `json:"model"`
+	Input        json.RawMessage `json:"input"`
 	Instructions json.RawMessage `json:"instructions,omitempty"`
 	Tools        []respTool      `json:"tools,omitempty"`
 	ToolChoice   json.RawMessage `json:"tool_choice,omitempty"`
@@ -41,14 +26,9 @@ type respRequest struct {
 	MaxOutputTokens int      `json:"max_output_tokens,omitempty"`
 	Stream          bool     `json:"stream,omitempty"`
 
-	// PreviousResponseID names state the gateway does not keep. Refusing it is
-	// the only honest answer: answering without the stored turn would lose the
-	// conversation.
 	PreviousResponseID string `json:"previous_response_id,omitempty"`
 }
 
-// respTool is one entry of the tools list. A `namespace` groups functions, and
-// its Ttools are flattened into the flat list Chat Completions expects.
 type respTool struct {
 	Type        string          `json:"type"`
 	Name        string          `json:"name,omitempty"`
@@ -57,22 +37,18 @@ type respTool struct {
 	Tools       []respTool      `json:"tools,omitempty"`
 }
 
-// respItem is one input item. Only the fields its Type defines are read.
 type respItem struct {
 	Type    string          `json:"type"`
 	Role    string          `json:"role,omitempty"`
 	Content json.RawMessage `json:"content,omitempty"`
 
-	// function_call: the model asked for a tool.
 	CallID    string `json:"call_id,omitempty"`
 	Name      string `json:"name,omitempty"`
 	Arguments string `json:"arguments,omitempty"`
 
-	// function_call_output: the agent ran the tool.
 	Output json.RawMessage `json:"output,omitempty"`
 }
 
-// respPart is one content part of a message.
 type respPart struct {
 	Type     string `json:"type"`
 	Text     string `json:"text,omitempty"`
@@ -80,8 +56,6 @@ type respPart struct {
 	FileID   string `json:"file_id,omitempty"`
 }
 
-// responsesToOpenAI rebuilds a Responses request as the Chat Completions one the
-// provider reads.
 func (p *Plugin) responsesToOpenAI(in *respRequest) (*oaiRequest, error) {
 	if in.PreviousResponseID != "" {
 		return nil, fmt.Errorf("previous_response_id is not supported: the gateway stores no responses, so send the full input")
@@ -113,9 +87,6 @@ func (p *Plugin) responsesToOpenAI(in *respRequest) (*oaiRequest, error) {
 			}
 			out.Messages = append(out.Messages, msg)
 		case "function_call":
-			// Consecutive calls are one assistant turn: the model asked for
-			// several tools in one answer, and Chat Completions models it as
-			// one message holding every call.
 			msg := oaiMessage{Role: "assistant"}
 			for ; i < len(items) && items[i].Type == "function_call"; i++ {
 				call := items[i]
@@ -139,9 +110,6 @@ func (p *Plugin) responsesToOpenAI(in *respRequest) (*oaiRequest, error) {
 				Role: "tool", ToolCallID: item.CallID, Content: text,
 			})
 		case "reasoning":
-			// Provider-private reasoning. This gateway never emits one, so an
-			// item here came from another gateway and carries nothing the
-			// provider can read.
 		default:
 			return nil, fmt.Errorf("input item type %q has no Chat Completions counterpart", item.Type)
 		}
@@ -158,9 +126,6 @@ func (p *Plugin) responsesToOpenAI(in *respRequest) (*oaiRequest, error) {
 	return out, nil
 }
 
-// flattenRespTools appends the function tools of one entry. A namespace holds
-// functions and is walked; a hosted tool such as web_search has no Chat
-// Completions form and is skipped, so the model simply never calls it.
 func flattenRespTools(t respTool, out *[]oaiTool) {
 	switch t.Type {
 	case "function":
@@ -182,7 +147,6 @@ func flattenRespTools(t respTool, out *[]oaiTool) {
 	}
 }
 
-// respToolChoice maps the Responses choice onto the Chat Completions one.
 func respToolChoice(raw json.RawMessage) any {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
@@ -210,8 +174,6 @@ func respToolChoice(raw json.RawMessage) any {
 	return map[string]any{"type": "function", "function": map[string]string{"name": fn.Name}}
 }
 
-// parseRespInput reads the input field, which is a plain string or an item
-// list.
 func parseRespInput(raw json.RawMessage) ([]respItem, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
@@ -232,8 +194,6 @@ func parseRespInput(raw json.RawMessage) ([]respItem, error) {
 	return items, nil
 }
 
-// respMessage turns one message item into the Chat Completions message it
-// implies.
 func respMessage(item respItem) (oaiMessage, error) {
 	parts, err := respParts(item.Content)
 	if err != nil {
@@ -280,7 +240,6 @@ func respMessage(item respItem) (oaiMessage, error) {
 	}
 }
 
-// respParts reads a content field that is a string or a part list.
 func respParts(raw json.RawMessage) ([]respPart, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
@@ -300,7 +259,6 @@ func respParts(raw json.RawMessage) ([]respPart, error) {
 	return parts, nil
 }
 
-// partsText joins the text parts of a field, whatever shape it arrived in.
 func partsText(parts []respPart) (string, error) {
 	texts := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -314,8 +272,6 @@ func partsText(parts []respPart) (string, error) {
 	return strings.Join(texts, "\n"), nil
 }
 
-// respText reads a field that is a string, a part list, or a JSON scalar such
-// as the tool output a function returns.
 func respText(raw json.RawMessage) (string, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
@@ -335,11 +291,8 @@ func respText(raw json.RawMessage) (string, error) {
 		}
 		return partsText(parts)
 	}
-	// A structured tool output is passed through as the text the model reads.
 	return trimmed, nil
 }
-
-// --- response shapes (Responses out) ---
 
 type respResponse struct {
 	ID        string       `json:"id"`
@@ -351,15 +304,11 @@ type respResponse struct {
 	Usage     respUsage    `json:"usage,omitempty"`
 }
 
-// respOutput is one output item: a message or a function call.
 type respOutput struct {
-	Type   string `json:"type"`
-	ID     string `json:"id"`
-	Status string `json:"status,omitempty"`
-	Role   string `json:"role,omitempty"`
-	// A message item always carries a content list, empty included: a client
-	// opens its active item from this field, and a missing one leaves the text
-	// deltas unattached. A function call carries no content at all.
+	Type      string         `json:"type"`
+	ID        string         `json:"id"`
+	Status    string         `json:"status,omitempty"`
+	Role      string         `json:"role,omitempty"`
 	Content   *[]respOutPart `json:"content,omitempty"`
 	CallID    string         `json:"call_id,omitempty"`
 	Name      string         `json:"name,omitempty"`
@@ -378,7 +327,6 @@ type respUsage struct {
 	TotalTokens  int `json:"total_tokens"`
 }
 
-// fromOpenAI rebuilds one Chat Completions answer as a Responses object.
 func fromOpenAIResponse(providerID, model string, in *oaiResponse) *respResponse {
 	out := &respResponse{
 		ID:        responseID(providerID),
@@ -424,7 +372,6 @@ func fromOpenAIResponse(providerID, model string, in *oaiResponse) *respResponse
 	return out
 }
 
-// respTextItem is one assistant message item holding one text.
 func respTextItem(index int, text string) respOutput {
 	return respOutput{
 		Type: "message", ID: messageItemID(index), Status: "completed", Role: "assistant",
@@ -432,7 +379,6 @@ func respTextItem(index int, text string) respOutput {
 	}
 }
 
-// outputContent is the content list of a message item, empty included.
 func outputContent(parts ...respOutPart) *[]respOutPart {
 	if parts == nil {
 		parts = []respOutPart{}
@@ -440,8 +386,6 @@ func outputContent(parts ...respOutPart) *[]respOutPart {
 	return &parts
 }
 
-// The ids keep the prefixes the Responses API uses, so a client that reads the
-// prefix — Codex does for call ids — sees the shape it expects.
 func responseID(providerID string) string {
 	if providerID == "" {
 		return fmt.Sprintf("resp_%d", time.Now().UnixNano())
@@ -457,9 +401,6 @@ func callItemID(index int) string {
 	return fmt.Sprintf("fc_%d_%d", time.Now().UnixNano(), index)
 }
 
-// --- the route ---
-
-// handleAgentResponses serves POST /v1/responses.
 func (p *Plugin) handleAgentResponses(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := p.agentOrg(w, r)
 	if !ok {
@@ -506,7 +447,6 @@ func (p *Plugin) handleAgentResponses(w http.ResponseWriter, r *http.Request) {
 	p.completeResponses(w, r, ap, out, in.Model)
 }
 
-// completeResponses sends the turn and answers with one Responses object.
 func (p *Plugin) completeResponses(w http.ResponseWriter, r *http.Request, ap agentProvider, body *oaiRequest, model string) {
 	resp, err := p.postProvider(r.Context(), ap, "/chat/completions", body)
 	if err != nil {
@@ -532,14 +472,6 @@ func (p *Plugin) completeResponses(w http.ResponseWriter, r *http.Request, ap ag
 	writeJSON(w, http.StatusOK, fromOpenAIResponse(oai.ID, model, &oai))
 }
 
-// --- streaming ---
-
-// respStreamer writes the Responses event sequence while the provider streams
-// Chat Completions chunks.
-//
-// The client reads event names as well as payloads, and it needs the closing
-// response.completed to consider the turn finished — without it Codex retries
-// the whole turn.
 type respStreamer struct {
 	w         http.ResponseWriter
 	flusher   http.Flusher
@@ -555,9 +487,8 @@ type respStreamer struct {
 	tools map[int]*respToolStream
 }
 
-// respToolStream is one function call being streamed.
 type respToolStream struct {
-	index     int // output index
+	index     int
 	itemID    string
 	callID    string
 	name      string
@@ -585,8 +516,6 @@ func newRespStreamer(w http.ResponseWriter, model string) *respStreamer {
 	}
 }
 
-// event writes one SSE frame. The payload carries the event name as `type`,
-// because the OpenAI SDKs read it there, and the name on the frame as well.
 func (s *respStreamer) event(name string, payload map[string]any) {
 	payload["type"] = name
 	payload["sequence_number"] = s.seq
@@ -610,8 +539,6 @@ func (s *respStreamer) snapshot() *respResponse {
 	return &copied
 }
 
-// textDelta opens the message item on the first delta and writes one
-// output_text.delta per provider chunk.
 func (s *respStreamer) textDelta(text string) {
 	if text == "" {
 		return
@@ -645,7 +572,6 @@ func (s *respStreamer) textDelta(text string) {
 	})
 }
 
-// closeText finishes the message item, if one is open.
 func (s *respStreamer) closeText() {
 	if !s.textOpen {
 		return
@@ -670,8 +596,6 @@ func (s *respStreamer) closeText() {
 	})
 }
 
-// toolDelta streams one function call. The first fragment announces the item;
-// the rest carry argument deltas.
 func (s *respStreamer) toolDelta(call oaiToolCall) {
 	stream, open := s.tools[call.Index]
 	if !open {
@@ -710,15 +634,11 @@ func (s *respStreamer) toolDelta(call oaiToolCall) {
 	}
 }
 
-// closeTools finishes every open call, in the order the provider announced
-// them.
 func (s *respStreamer) closeTools() {
 	indexes := make([]int, 0, len(s.tools))
 	for index := range s.tools {
 		indexes = append(indexes, index)
 	}
-	// The provider's tool indexes are small and ordered; sorting them keeps the
-	// output items in call order.
 	for i := 0; i < len(indexes); i++ {
 		for j := i + 1; j < len(indexes); j++ {
 			if indexes[j] < indexes[i] {
@@ -751,7 +671,6 @@ func (s *respStreamer) closeTools() {
 	s.tools = map[int]*respToolStream{}
 }
 
-// finish writes the usage and the closing event.
 func (s *respStreamer) finish(inputTokens, outputTokens int) {
 	s.closeText()
 	s.closeTools()
@@ -764,7 +683,6 @@ func (s *respStreamer) finish(inputTokens, outputTokens int) {
 	s.event("response.completed", map[string]any{"response": s.snapshot()})
 }
 
-// streamResponses relays the provider's stream as Responses events.
 func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agentProvider, body *oaiRequest, model string) {
 	resp, err := p.postProvider(r.Context(), ap, "/chat/completions", body)
 	if err != nil {
@@ -806,8 +724,6 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 			} `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
-			// A malformed frame is skipped: the stream stays open, and the
-			// client still gets every event that parsed.
 			continue
 		}
 		for _, choice := range chunk.Choices {
@@ -833,8 +749,6 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 	st.finish(inputTokens, outputTokens)
 }
 
-// estimateResponsesTokens approximates the request size for the input count.
-// The provider's own usage replaces it whenever the stream reports one.
 func estimateResponsesTokens(body *oaiRequest) int {
 	total := 4
 	for _, msg := range body.Messages {

@@ -1,17 +1,3 @@
-// Multi-vendor backends for llmprovider, powered by the open-source langchaingo
-// framework (github.com/tmc/langchaingo) — the Go analogue of LangChain.
-//
-// Instead of hand-writing a client per vendor, one thin adapter wraps
-// langchaingo's `llms.Model` interface and we register a factory per provider:
-// OpenAI (and any OpenAI-compatible endpoint via BaseURL — Groq, Together,
-// DeepSeek, OpenRouter, a local server…), Google Gemini, Mistral, Cohere, and
-// Ollama (local/offline). Adding another langchaingo-supported vendor is a few
-// lines here, not a new file.
-//
-// Claude is the one exception: it stays on the official anthropic-sdk-go
-// (claude.go) because langchaingo's Anthropic client always serializes
-// `temperature`, which the Opus 4.7+ family rejects with a 400. Everything else
-// accepts `temperature`, so the shared adapter is safe for them.
 package llmprovider
 
 import (
@@ -27,10 +13,6 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
-// Default model ids per vendor. These are fallbacks only — every consumer can
-// override per call (Request.Model) or per deployment (Options.Model /
-// OCTARQ_LLM_MODEL / the dashboard), so a vendor renaming a model never breaks the
-// build, just change the setting.
 var vendorDefaults = map[string]struct{ reasoning, cheap string }{
 	"openai":  {"gpt-4o", "gpt-4o-mini"},
 	"gemini":  {"gemini-1.5-pro", "gemini-1.5-flash"},
@@ -47,12 +29,11 @@ func init() {
 	Register("ollama", makeOllama)
 }
 
-// langchainProvider adapts a langchaingo llms.Model to our Provider interface.
 type langchainProvider struct {
 	name  string
 	model llms.Model
-	def   string // reasoning-tier default model id
-	cheap string // cheap-tier default model id
+	def   string
+	cheap string
 }
 
 func newLangchain(name string, m llms.Model, def, cheap string) *langchainProvider {
@@ -117,7 +98,7 @@ func (p *langchainProvider) buildMessages(req Request) ([]llms.MessageContent, e
 				Role:  llms.ChatMessageTypeTool,
 				Parts: parts,
 			})
-		default: // RoleUser
+		default:
 			msgs = append(msgs, llms.TextParts(llms.ChatMessageTypeHuman, m.Content))
 		}
 	}
@@ -251,8 +232,6 @@ func (p *langchainProvider) StreamComplete(ctx context.Context, req Request, h S
 	}, nil
 }
 
-// tokensFromInfo pulls token usage out of langchaingo's per-vendor
-// GenerationInfo map, tolerating the different key names vendors use.
 func tokensFromInfo(info map[string]any) (in, out int) {
 	pick := func(keys ...string) int {
 		for _, k := range keys {
@@ -274,7 +253,6 @@ func tokensFromInfo(info map[string]any) (in, out int) {
 	return in, out
 }
 
-// reasoningTokensFromInfo extracts reasoning/thinking token usage if reported.
 func reasoningTokensFromInfo(info map[string]any) int {
 	pick := func(keys ...string) int {
 		for _, k := range keys {
@@ -294,7 +272,6 @@ func reasoningTokensFromInfo(info map[string]any) int {
 	return pick("ReasoningTokens", "reasoning_tokens", "ReasoningTokenCount", "reasoning_token_count")
 }
 
-// cacheTokensFromInfo extracts prompt cache read / creation token counts.
 func cacheTokensFromInfo(info map[string]any) (read, creation int) {
 	if info == nil {
 		return 0, 0
@@ -318,8 +295,6 @@ func cacheTokensFromInfo(info map[string]any) (read, creation int) {
 	creation = pick("cache_creation_input_tokens", "cache_creation_tokens")
 	return read, creation
 }
-
-// --- per-vendor factories ---
 
 func makeOpenAI(o Options) (Provider, error) {
 	opts := []openai.Option{}

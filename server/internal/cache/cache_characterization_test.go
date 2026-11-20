@@ -15,20 +15,17 @@ func TestCacheCharacterizationTenantScoping(t *testing.T) {
 
 	ctx := plugin.WithOrgID(context.Background(), 42)
 
-	// Set value with tenant context
 	err := scoped.Set(ctx, "hello", "world", time.Minute)
 	if err != nil {
 		t.Fatalf("Set failed: %v", err)
 	}
 
-	// Verify tenant-isolated retrieval
 	var val string
 	found, err := scoped.Get(ctx, "hello", &val)
 	if err != nil || !found || val != "world" {
 		t.Fatalf("Get with tenant failed: found=%v, val=%q, err=%v", found, val, err)
 	}
 
-	// Different tenant must NOT see the key
 	ctxOther := plugin.WithOrgID(context.Background(), 99)
 	var valOther string
 	found, err = scoped.Get(ctxOther, "hello", &valOther)

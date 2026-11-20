@@ -1,7 +1,3 @@
-// Package readiness evaluates an octarq instance's capabilities into one
-// structured report. Two renderers consume it — the startup log (app package)
-// and the instance-admin readiness API (internal/api) — but the judgment
-// itself lives here, once: deriving, never duplicating.
 package readiness
 
 import (
@@ -11,23 +7,15 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 )
 
-// Status is the state of one capability check.
 type Status string
 
 const (
-	// StatusOK means the capability works.
-	StatusOK Status = "ok"
-	// StatusDegraded means the capability is limited but not broken.
+	StatusOK       Status = "ok"
 	StatusDegraded Status = "degraded"
-	// StatusBlocked means a capability is broken in a way that locks users out.
-	StatusBlocked Status = "blocked"
-	// StatusDev is the log-side leniency status: informational, fine in
-	// development. The API has no dev vocabulary and collapses it to ok.
-	StatusDev Status = "dev"
+	StatusBlocked  Status = "blocked"
+	StatusDev      Status = "dev"
 )
 
-// Check is one structured readiness row. The API serializes it as-is; the log
-// renderer drops ID and FixPath.
 type Check struct {
 	ID      string `json:"id"`
 	Status  Status `json:"status"`
@@ -36,29 +24,8 @@ type Check struct {
 	FixPath string `json:"fixPath"`
 }
 
-// Evaluate describes what this instance can and cannot do. It exists because
-// several capabilities fail *silently*: an instance with no mail plugin boots
-// cleanly, serves every page, and only reveals that account recovery was never
-// possible when a locked-out user asks for a reset link that never arrives.
-//
-// mailReady must come from a real lookup of the "mail.ready" service, not from
-// configuration: whether mail works depends on which plugins the composition
-// root mounted AND whether any SMTP sender is configured. requireEmailVerification
-// feeds the self-contradiction check: an instance that demands verified emails
-// but cannot send them has a broken registration flow — the exact dead end the
-// verification gate is meant to prevent.
-//
-// The result NEVER includes a secret value. The secret key, the admin password
-// and any DSN password are reported as configured / not configured only — this
-// output reaches the operator's log aggregator and the instance-admin API,
-// neither of which is a place for the KEK.
 func Evaluate(cfg *config.Config, mailReady, domainsRegistered, requireEmailVerification bool) []Check {
 	checks := []Check{
-		// Absolute URLs come from the request host, checked against the
-		// registered domains (origin). With none registered there is nothing to
-		// check against and the request host is used as sent — worth saying out
-		// loud, because it is the one state in which a forged Host header could
-		// aim a password-reset link somewhere else.
 		{
 			ID: "public-origin", Title: "public origin", FixPath: "/domains",
 			Status: boolStatus(domainsRegistered),
@@ -112,9 +79,6 @@ func Evaluate(cfg *config.Config, mailReady, domainsRegistered, requireEmailVeri
 	return checks
 }
 
-// registrationStatus is blocked when the instance demands verified emails but
-// the system sender cannot deliver them — the sign-up dead end the verification
-// gate exists to prevent.
 func registrationStatus(requireEmailVerification, mailReady bool) Status {
 	if requireEmailVerification && !mailReady {
 		return StatusBlocked
@@ -146,12 +110,6 @@ func boolDetail(ok bool, whenOK, whenNot string) string {
 	return whenNot
 }
 
-// redactDSN renders a data source name safely. A sqlite DSN is a file path and
-// is the operator's most useful "where is my data" signal, so it is shown;
-// every other driver's DSN embeds a password (postgres://user:pass@host/db),
-// and no partial-masking scheme survives the shapes those strings take —
-// key/value pairs, URL userinfo, appended options — so the whole thing is
-// withheld.
 func redactDSN(driver, dsn string) string {
 	if driver == "sqlite" {
 		return dsn

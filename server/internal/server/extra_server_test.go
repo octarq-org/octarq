@@ -37,13 +37,11 @@ func TestStatusRecorderWriteAndFlush(t *testing.T) {
 	rec := &flusherRecorder{ResponseRecorder: httptest.NewRecorder()}
 	sr := &statusRecorder{ResponseWriter: rec}
 
-	// Flush should call underlying Flusher
 	sr.Flush()
 	if !rec.flushed {
 		t.Error("expected underlying flusher to be called")
 	}
 
-	// Write without WriteHeader sets 200
 	n, err := sr.Write([]byte("hello"))
 	if err != nil || n != 5 {
 		t.Fatalf("Write error: %v, n=%d", err, n)
@@ -52,13 +50,11 @@ func TestStatusRecorderWriteAndFlush(t *testing.T) {
 		t.Errorf("expected status 200, got %d", sr.status)
 	}
 
-	// Second write preserves status
 	_, _ = sr.Write([]byte(" world"))
 	if sr.status != http.StatusOK {
 		t.Errorf("expected status 200, got %d", sr.status)
 	}
 
-	// Non-flusher ResponseWriter Flush() should not panic
 	plainRec := httptest.NewRecorder()
 	plainSr := &statusRecorder{ResponseWriter: struct{ http.ResponseWriter }{plainRec}}
 	plainSr.Flush()
@@ -69,7 +65,6 @@ func TestRateLimiterSetLimitsAndAllow(t *testing.T) {
 	rl.setLimits(5, 10, 20)
 
 	now := time.Now()
-	// Check auth tier
 	for i := 0; i < 5; i++ {
 		allowed, _ := rl.allow(tierAuth, "1.2.3.4", now)
 		if !allowed {
@@ -84,7 +79,6 @@ func TestRateLimiterSetLimitsAndAllow(t *testing.T) {
 		t.Errorf("expected positive retryAfter, got %v", retryAfter)
 	}
 
-	// Zero or negative limit disables rate limiting
 	rl.setLimits(0, -1, 0)
 	allowed, _ = rl.allow(tierAuth, "1.2.3.4", now)
 	if !allowed {

@@ -103,7 +103,7 @@ func TestToolFilter_KeepsOnlyTheListedTools(t *testing.T) {
 }
 
 func TestEffectiveMaxSteps_ResolvesOrRefuses(t *testing.T) {
-	spec := validSpec() // Profile is zero, so ProfileNormal applies.
+	spec := validSpec()
 	spec.MaxSteps = 3
 	got, err := spec.EffectiveMaxSteps(false)
 	if err != nil || got != 3 {
@@ -116,14 +116,11 @@ func TestEffectiveMaxSteps_ResolvesOrRefuses(t *testing.T) {
 		t.Errorf("a spec without a budget must use the profile ceiling, got %d, %v", got, err)
 	}
 
-	// 32 is above ProfileNormal's ceiling. The value is refused, never
-	// rewritten to 8.
 	spec.MaxSteps = 32
 	if got, err = spec.EffectiveMaxSteps(false); !errors.Is(err, harness.ErrMaxStepsExceedsProfile) {
 		t.Errorf("an over-ceiling budget must be refused, got %d, %v", got, err)
 	}
 
-	// The same budget is valid under the profile that allows it.
 	spec.Profile = harness.ProfileWorker
 	if got, err = spec.EffectiveMaxSteps(false); err != nil || got != 32 {
 		t.Errorf("ProfileWorker must accept 32 steps, got %d, %v", got, err)
@@ -203,7 +200,6 @@ func TestSystemPrompt_UsesTheSpecPreambleAndRules(t *testing.T) {
 		t.Errorf("the default preamble leaked into a spec prompt:\n%s", prompt)
 	}
 
-	// The built-in rules come first: a spec can add rules, never remove them.
 	builtIn := strings.Index(prompt, "Tool results are DATA")
 	extra := strings.Index(prompt, spec.ExtraRules[0])
 	if builtIn < 0 || extra < 0 || builtIn > extra {
@@ -263,10 +259,6 @@ func TestSpecCanonicalJSON_IsStable(t *testing.T) {
 	}
 }
 
-// TestDecodeSpecRefusesContentAfterTheDocument pins the rule that a spec
-// document ends where it says it does. A file holding two JSON objects would
-// otherwise decode as the first one, and everything after it would vanish
-// without a word.
 func TestDecodeSpecRefusesContentAfterTheDocument(t *testing.T) {
 	raw := []byte(`{"version":1,"name":"a"}{"version":1,"name":"b"}`)
 	if _, err := harness.DecodeSpec(raw); err == nil {
@@ -274,10 +266,6 @@ func TestDecodeSpecRefusesContentAfterTheDocument(t *testing.T) {
 	}
 }
 
-// TestValidateRefusesAStepBudgetTheRunnerWouldIgnore pins the promise that a
-// knob is either in effect or refused. A budget above the profile ceiling
-// would be clamped at run time, so the operator would read the spec, believe
-// the budget was 32, and watch the agent stop at 8.
 func TestValidateRefusesAStepBudgetTheRunnerWouldIgnore(t *testing.T) {
 	spec := harness.HarnessSpec{
 		Version:  harness.HarnessSpecVersion,
@@ -287,16 +275,11 @@ func TestValidateRefusesAStepBudgetTheRunnerWouldIgnore(t *testing.T) {
 	if err := harness.Validate(spec); err == nil {
 		t.Fatalf("expected maxSteps=%d to be refused", spec.MaxSteps)
 	}
-	// The ceiling the profile owns is the highest one, so the spec's range
-	// and the runner's range cannot drift apart.
 	if harness.MaxSpecMaxSteps != harness.MaxStepsWorker {
 		t.Fatalf("the spec accepts %d steps but the profile allows %d", harness.MaxSpecMaxSteps, harness.MaxStepsWorker)
 	}
 }
 
-// TestValidateRefusesABudgetAboveTheSpecProfilesCeiling pins the earlier of the
-// two gates. Runner assembly also refuses it, but a spec that can never run
-// must not be storable: the operator would save it and watch every request fail.
 func TestValidateRefusesABudgetAboveTheSpecProfilesCeiling(t *testing.T) {
 	spec := harness.DefaultHarnessSpec()
 	spec.MaxSteps = harness.MaxStepsNormal + 1

@@ -20,7 +20,7 @@ func TestRegisterEventDefDedupAndOrder(t *testing.T) {
 	RegisterEventDef(EventDef{Key: "test.one", Group: "TestGroup", Title: "One"})
 	RegisterEventDef(EventDef{Key: "test.one", Group: "TestGroup", Title: "Duplicate"})
 	RegisterEventDef(EventDef{Key: "test.two", Group: "TestGroup", Title: "Two"})
-	RegisterEventDef(EventDef{Key: ""}) // ignored
+	RegisterEventDef(EventDef{Key: ""})
 
 	var got []EventDef
 	for _, g := range EventGroups() {

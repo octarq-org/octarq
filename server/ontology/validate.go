@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Issue codes. Each one is stable: callers branch on it, and operators see it in
-// the error payload.
 const (
 	CodeSlugInvalid           = "SLUG_INVALID"
 	CodeSlugReserved          = "SLUG_RESERVED"
@@ -43,9 +41,6 @@ const (
 	CodeScopeImmutable            = "SCOPE_IMMUTABLE"
 )
 
-// sameDefault compares two literal defaults. nil and a pointer to an equal
-// string are different declarations to DDL (the second renders DEFAULT), so both
-// the presence and the value matter.
 func sameDefault(a, b *string) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
@@ -53,10 +48,6 @@ func sameDefault(a, b *string) bool {
 	return *a == *b
 }
 
-// validDefault reports whether a literal default parses as its declared type.
-// A value that does not parse would produce a statement the database either
-// rejects or coerces silently — Postgres refuses the DDL, SQLite stores the
-// literal, and either way the declaration stops meaning what it says.
 func validDefault(t FieldType, raw string) bool {
 	s := strings.TrimSpace(raw)
 	switch t {
@@ -79,24 +70,17 @@ func validDefault(t FieldType, raw string) bool {
 	}
 }
 
-// indexableTypes and defaultableTypes are the types that stay portable across
-// all three dialects. MySQL cannot index a TEXT or JSON column without a prefix
-// length, and cannot give one a literal default; refusing the declaration is
-// cleaner than emitting SQL that fails only on MySQL.
 var (
 	indexableTypes   = map[FieldType]bool{TypeString: true, TypeInteger: true, TypeBoolean: true, TypeNumber: true, TypeTimestamp: true, TypeUUID: true}
 	defaultableTypes = map[FieldType]bool{TypeString: true, TypeInteger: true, TypeBoolean: true, TypeNumber: true, TypeTimestamp: true, TypeUUID: true}
 )
 
-// Issue is one reason a declaration was refused. Path points at the offending
-// part of the document, so a form can highlight the field.
 type Issue struct {
 	Code    string `json:"code"`
 	Path    string `json:"path"`
 	Message string `json:"message"`
 }
 
-// Errors is a non-empty list of issues, and satisfies error.
 type Errors []Issue
 
 func (e Errors) Error() string {
@@ -110,7 +94,6 @@ func (e Errors) Error() string {
 	return "invalid entity: " + strings.Join(parts, "; ")
 }
 
-// IsInvalid reports whether err is a validation failure, and returns its issues.
 func IsInvalid(err error) (Errors, bool) {
 	var e Errors
 	if errors.As(err, &e) {
@@ -136,8 +119,6 @@ func normalize(errs Errors) error {
 	return errs
 }
 
-// Validate checks a declaration against everything that can be decided without
-// looking at the database.
 func Validate(spec Spec) error {
 	var errs Errors
 
@@ -213,16 +194,10 @@ func Validate(spec Spec) error {
 				errs = append(errs, issue(CodeRoleUnknown, path+".roles", "%q is not a known role", r))
 			}
 		}
-		// A tier the license ladder does not recognise ranks below every tier, so
-		// a typo would ship the operation without the gate it promised.
 		if !validTier(acl.Tier) {
 			errs = append(errs, issue(CodeTierUnknown, path+".tier",
 				"%q is not a known tier; use %q, %q or leave it empty", acl.Tier, TierPro, TierElite))
 		}
-		// Approval is enforced by the agent harness only, and the MCP surface
-		// merely appends "[approval required]" to the tool description. A
-		// declaration that promises a gate which does not exist is worse than a
-		// refusal, so the promise is rejected until the gate is real.
 		if acl.RequireApproval {
 			errs = append(errs, issue(CodeApprovalUnsupported, path+".requireApproval",
 				"operator approval is not enforced on generated endpoints yet"))
@@ -244,9 +219,6 @@ func Validate(spec Spec) error {
 	return normalize(errs)
 }
 
-// ValidateTransition checks a change against the stored declaration and the
-// number of rows already in the entity's table. It refuses anything the DDL
-// layer cannot apply without losing data.
 func ValidateTransition(old, next Spec, rows int64) error {
 	var errs Errors
 
@@ -255,10 +227,6 @@ func ValidateTransition(old, next Spec, rows int64) error {
 			"cannot change slug from %q to %q", old.Slug, next.Slug))
 	}
 
-	// Scope is a column, not a declaration detail: changing it would mean adding
-	// or dropping a platform column, and the only ALTER this layer can emit is
-	// ADD COLUMN. A table that recorded the new scope while keeping the old
-	// column would let rows from one member be read by the whole workspace.
 	if ScopeOf(old) != ScopeOf(next) {
 		errs = append(errs, issue(CodeScopeImmutable, "scope",
 			"cannot change scope from %q to %q on an existing table", ScopeOf(old), ScopeOf(next)))
@@ -276,9 +244,6 @@ func ValidateTransition(old, next Spec, rows int64) error {
 	for _, f := range old.Fields {
 		n, kept := nextFields[f.Name]
 		if !kept {
-			// Not even an empty table allows it. DROP COLUMN leaves the index the
-			// column carried behind, and the bookkeeping row could no longer
-			// describe the table it is supposed to match. Add a field instead.
 			errs = append(errs, issue(CodeColumnDropUnsupported, "fields."+f.Name,
 				"cannot remove %q; the generated table keeps its columns", f.Name))
 			continue
@@ -287,10 +252,6 @@ func ValidateTransition(old, next Spec, rows int64) error {
 			errs = append(errs, issue(CodeTypeChangeUnsupported, "fields."+n.Name+".type",
 				"cannot change %q from %s to %s", n.Name, f.Type, n.Type))
 		}
-		// Dropping an index the physical table still carries would leave the
-		// database enforcing a rule the declaration no longer states: a unique
-		// index the operator removed keeps rejecting duplicates at runtime.
-		// Refusing is honest until DROP INDEX is implemented.
 		if f.Unique && !n.Unique {
 			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".unique",
 				"cannot drop the unique constraint on %q", n.Name))
@@ -299,12 +260,6 @@ func ValidateTransition(old, next Spec, rows int64) error {
 			errs = append(errs, issue(CodeIndexRemoved, "fields."+n.Name+".indexed",
 				"cannot drop the index on %q", n.Name))
 		}
-		// A column's NOT NULL and DEFAULT are part of the table, not of the
-		// bookkeeping row. The only ALTER this layer can emit is ADD COLUMN, so a
-		// change to either one would be recorded as applied while the database
-		// kept the old rule: a relaxed `required` would still reject the write, a
-		// tightened one would silently accept NULLs, and a new default would
-		// never reach a row. Refuse until a column can be altered.
 		if f.Required != n.Required {
 			errs = append(errs, issue(CodeRequiredChangeUnsupported, "fields."+n.Name+".required",
 				"cannot change required on %q; add a field instead", n.Name))

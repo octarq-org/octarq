@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// Config encapsulates configuration for OpenTelemetry tracing and metrics.
 type Config struct {
 	Enabled            bool
 	ServiceName        string
@@ -15,19 +14,18 @@ type Config struct {
 	Endpoint           string
 	TracesEndpoint     string
 	MetricsEndpoint    string
-	Protocol           string // "grpc", "http/protobuf", "http/json"
+	Protocol           string
 	Insecure           bool
 	Headers            map[string]string
-	TracesExporter     string // "otlp", "stdout", "none"
-	MetricsExporter    string // "otlp", "prometheus", "stdout", "none"
-	Sampler            string // "always_on", "always_off", "traceidratio", "parentbased_always_on", "parentbased_traceidratio"
+	TracesExporter     string
+	MetricsExporter    string
+	Sampler            string
 	SampleRatio        float64
 	ResourceAttributes map[string]string
 	MetricsEnabled     bool
 	MetricsToken       string
 }
 
-// ConfigFromEnv reads standard OpenTelemetry and Octarq-specific environment variables.
 func ConfigFromEnv(defaultServiceName, defaultVersion string) Config {
 	if defaultServiceName == "" {
 		defaultServiceName = "octarq"
@@ -55,8 +53,6 @@ func ConfigFromEnv(defaultServiceName, defaultVersion string) Config {
 		MetricsToken:       envOr("OCTARQ_METRICS_TOKEN", ""),
 	}
 
-	// OCTARQ_OTEL_ENABLED / OTEL_SDK_DISABLED handling
-	// OpenTelemetry is disabled by default unless explicitly enabled via OCTARQ_OTEL_ENABLED=true.
 	if sdkDisabled := parseBool(os.Getenv("OTEL_SDK_DISABLED"), false); sdkDisabled {
 		cfg.Enabled = false
 		return cfg
@@ -65,7 +61,6 @@ func ConfigFromEnv(defaultServiceName, defaultVersion string) Config {
 	if val, exists := os.LookupEnv("OCTARQ_OTEL_ENABLED"); exists {
 		cfg.Enabled = parseBool(val, false)
 	} else {
-		// Disabled by default
 		cfg.Enabled = false
 	}
 

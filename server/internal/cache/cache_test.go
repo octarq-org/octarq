@@ -73,7 +73,7 @@ func TestMemoryCache_Capacity(t *testing.T) {
 	_ = c.Set(ctx, "k1", "v1", 0)
 	_ = c.Set(ctx, "k2", "v2", 0)
 	_ = c.Set(ctx, "k3", "v3", 0)
-	_ = c.Set(ctx, "k4", "v4", 0) // Should evict one
+	_ = c.Set(ctx, "k4", "v4", 0)
 
 	var dst string
 	count := 0
@@ -151,7 +151,6 @@ func TestScopedCache_TenantIsolation(t *testing.T) {
 		t.Errorf("ctx20 route should remain intact")
 	}
 
-	// Test explicit NewTenantScoped
 	tsc := NewTenantScoped(backend, 42, "auth")
 	_ = tsc.Set(context.Background(), "token", "tok42", 0)
 	var vTok string
@@ -185,7 +184,6 @@ func TestScopedCache_Concurrency(t *testing.T) {
 
 func TestRedisCache_Unreachable(t *testing.T) {
 	c := New("redis://127.0.0.1:58999/0")
-	// Since connection fails, it falls back to memory cache
 	if c.IsRedis() {
 		t.Fatalf("expected fallback to MemoryCache when unreachable")
 	}
@@ -196,7 +194,6 @@ func TestRedisCache_Unreachable(t *testing.T) {
 	}
 }
 
-// Start a minimal fake Redis TCP server for testing RedisCache paths.
 func startFakeRedis(t *testing.T) (string, func()) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -354,12 +351,10 @@ func TestScopedCache_InvalidateTag_And_NilBackend(t *testing.T) {
 	sc := NewScoped(backend, "test-scope")
 	ctx := context.Background()
 
-	// Tag invalidation when no tags registered
 	if err := sc.InvalidateTag(ctx, "nonexistent"); err != nil {
 		t.Errorf("expected nil error on nonexistent tag, got %v", err)
 	}
 
-	// Tag invalidation with populated tag
 	if concrete, ok := sc.(*ScopedCache); ok {
 		concrete.mu.Lock()
 		concrete.tags["my-tag"] = map[string]struct{}{"test-scope:key1": {}, "test-scope:key2": {}}
@@ -376,7 +371,6 @@ func TestScopedCache_InvalidateTag_And_NilBackend(t *testing.T) {
 		}
 	}
 
-	// Nil backend checks
 	nilScoped := NewScoped(nil, "nil-scope")
 	var dst string
 	ok, err := nilScoped.Get(ctx, "k", &dst)
@@ -396,22 +390,19 @@ func TestScopedCache_InvalidateTag_And_NilBackend(t *testing.T) {
 
 func TestMemoryCache_EdgeCases(t *testing.T) {
 	t.Parallel()
-	mc := NewMemoryCache(0) // should fallback to 10000
+	mc := NewMemoryCache(0)
 	ctx := context.Background()
 
-	// Test dst == nil
 	_ = mc.Set(ctx, "key1", "val1", time.Minute)
 	if !mc.Get(ctx, "key1", nil) {
 		t.Errorf("expected Get with dst=nil to return true for existing key")
 	}
 
-	// Test unmarshal failure
 	var intDst int
 	if mc.Get(ctx, "key1", &intDst) {
 		t.Errorf("expected unmarshal failure to return false")
 	}
 
-	// Test Set marshal error
 	unmarshallable := make(chan int)
 	if err := mc.Set(ctx, "chan", unmarshallable, time.Minute); err == nil {
 		t.Errorf("expected Set with unmarshallable value to return error")

@@ -4,7 +4,6 @@ import (
 	"sort"
 )
 
-// CandidateScore summarizes the deterministic performance of a candidate across tasks.
 type CandidateScore struct {
 	CandidateName   string  `json:"candidate_name"`
 	SpecFingerprint string  `json:"spec_fingerprint"`
@@ -17,7 +16,6 @@ type CandidateScore struct {
 	Rank            int     `json:"rank"`
 }
 
-// ScoreCandidate derives deterministic metrics from a candidate's execution evidence.
 func ScoreCandidate(res CandidateResult) CandidateScore {
 	totalTasks := len(res.TaskResults)
 	successTasks := 0
@@ -51,13 +49,6 @@ func ScoreCandidate(res CandidateResult) CandidateScore {
 	}
 }
 
-// CompareCandidateScores returns -1 if a is better, 1 if b is better, and 0 if tied.
-// Criteria:
-// 1. Higher SuccessTasks
-// 2. Lower ToolErrors
-// 3. Lower TotalSteps
-// 4. Lower EstimatedTokens
-// 5. CandidateName ascending (stable deterministic tie-breaker)
 func CompareCandidateScores(a, b CandidateScore) int {
 	if a.SuccessTasks != b.SuccessTasks {
 		if a.SuccessTasks > b.SuccessTasks {
@@ -97,7 +88,6 @@ func CompareCandidateScores(a, b CandidateScore) int {
 	return 0
 }
 
-// RankScores orders candidates deterministically by score and assigns rank 1..N.
 func RankScores(scores []CandidateScore) []CandidateScore {
 	ranked := make([]CandidateScore, len(scores))
 	copy(ranked, scores)

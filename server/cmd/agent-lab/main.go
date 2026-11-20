@@ -49,7 +49,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	// Capture any trailing positional arguments as candidate targets
 	for _, arg := range fs.Args() {
 		arg = strings.TrimSpace(arg)
 		if arg != "" {
@@ -57,7 +56,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	// Fail closed: enforce mandatory inputs
 	if strings.TrimSpace(tasksPath) == "" {
 		fmt.Fprintln(stderr, "error: missing required flag: -tasks <task-set.json>")
 		return 1
@@ -71,21 +69,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	// Load and validate task set
 	ts, err := lab.LoadTaskSet(tasksPath)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: failed to load task set: %v\n", err)
 		return 2
 	}
 
-	// Load and validate candidate specs
 	candidates, err := lab.LoadCandidates(candidateTargets)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: failed to load candidates:\n%s\n", lab.FormatValidationError(err))
 		return 3
 	}
 
-	// Execute offline evaluation
 	ctx := context.Background()
 	engine := lab.NewEngine(baselineName)
 	report, err := engine.Run(ctx, ts, candidates, outDir)
@@ -94,7 +89,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 4
 	}
 
-	// Generate proposal if requested
 	if strings.TrimSpace(proposePath) != "" {
 		proposal, err := lab.BuildProposal(report)
 		if err != nil {

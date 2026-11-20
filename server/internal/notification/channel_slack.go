@@ -20,7 +20,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// SlackChannel delivers notifications to Slack via incoming webhooks or tenant integrations.
 type SlackChannel struct {
 	db      *gorm.DB
 	client  *http.Client
@@ -31,17 +30,14 @@ type SlackChannel struct {
 
 var _ plugin.NotificationChannel = (*SlackChannel)(nil)
 
-// SetHost injects the host runtime SPI for credential resolution.
 func (c *SlackChannel) SetHost(h plugin.Host) {
 	c.host = h
 }
 
-// SetVaultService injects VaultService for resolving local channel secrets.
 func (c *SlackChannel) SetVaultService(vs plugin.VaultService) {
 	c.vault = vs
 }
 
-// NewSlackChannel constructs a Slack notification channel driver.
 func NewSlackChannel(db ...*gorm.DB) *SlackChannel {
 	var gdb *gorm.DB
 	if len(db) > 0 {
@@ -53,17 +49,14 @@ func NewSlackChannel(db ...*gorm.DB) *SlackChannel {
 	}
 }
 
-// Name returns the channel identifier "slack".
 func (c *SlackChannel) Name() string {
 	return "slack"
 }
 
-// DisplayName returns the human-readable channel name.
 func (c *SlackChannel) DisplayName() string {
 	return "Slack"
 }
 
-// ConfigSchema returns the JSON Schema for user configuration.
 func (c *SlackChannel) ConfigSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"$schema": "http://json-schema.org/draft-07/schema#",
@@ -82,12 +75,10 @@ func (c *SlackChannel) ConfigSchema() json.RawMessage {
 	}`)
 }
 
-// Send resolves the webhook URL and dispatches the notification payload to Slack.
 func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	webhookURL := ""
 	var reqIntegID uint
 
-	// 1. Resolve from recipient.Config ("webhook_url", "webhookUrl", or "integration_id")
 	if recipient.Config != nil {
 		if v, ok := recipient.Config["webhook_url"].(string); ok && strings.TrimSpace(v) != "" {
 			webhookURL = strings.TrimSpace(v)
@@ -136,10 +127,6 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		}
 	}
 
-	// 2. Resolve webhookURL via Host SPI (Centralized Integrations Hub). A
-	// config that names an integration is answered by the Hub alone: falling
-	// back to the local row would deliver to a destination the operator did not
-	// select. An inline URL left in a stale row must not shadow it either.
 	if reqIntegID > 0 {
 		webhookURL = ""
 	}
@@ -186,7 +173,6 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		}
 	}
 
-	// 3. Local channel config, only when no integration was named.
 	if webhookURL == "" && reqIntegID == 0 && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
@@ -254,7 +240,6 @@ func (c *SlackChannel) getClient() *http.Client {
 	return safehttp.NewWebhookClient(timeout)
 }
 
-// formatSlackMessage formats NotificationPayload into a Slack mrkdwn message text.
 func formatSlackMessage(p plugin.NotificationPayload) string {
 	var lines []string
 

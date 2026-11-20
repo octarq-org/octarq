@@ -193,9 +193,6 @@ func TestAIChatStream_ReadOnlyGuard_HaltsOnApprovalRequired(t *testing.T) {
 	}
 }
 
-// The audit trail must say what the guard did. A refusal and a failure look
-// the same in a row that only records "failed", and an operator cannot tell
-// a policy decision from a broken tool.
 func TestAIChatStream_AuditRecordsTheStepOutcome(t *testing.T) {
 	var postExecuted bool
 	src := &fakeEndpointSource{

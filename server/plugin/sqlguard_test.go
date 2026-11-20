@@ -9,7 +9,6 @@ import (
 func TestSQLGuardAndMetaHelpers(t *testing.T) {
 	t.Parallel()
 
-	// 1. WithOrgID & OrgIDFromContext
 	ctx := WithOrgID(context.Background(), 42)
 	if orgID := OrgIDFromContext(ctx); orgID != 42 {
 		t.Errorf("OrgIDFromContext expected 42, got %d", orgID)
@@ -18,7 +17,6 @@ func TestSQLGuardAndMetaHelpers(t *testing.T) {
 		t.Errorf("OrgIDFromContext expected 0, got %d", orgID)
 	}
 
-	// 2. ValidateReadOnlyQuery
 	if _, err := ValidateReadOnlyQuery(""); err == nil {
 		t.Error("expected error for empty query")
 	}
@@ -45,7 +43,6 @@ func TestSQLGuardAndMetaHelpers(t *testing.T) {
 		t.Errorf("ValidateReadOnlyQuery altered explicit LIMIT: %v, %s", err, validQ2)
 	}
 
-	// 3. RedactRow
 	row := map[string]any{
 		"id":       1,
 		"password": "secretpass",
@@ -56,7 +53,6 @@ func TestSQLGuardAndMetaHelpers(t *testing.T) {
 		t.Errorf("RedactRow failed to redact password, got %v", row["password"])
 	}
 
-	// 4. FeatureIsCore
 	pCore := dummyPlugin{info: Info{Core: true, Group: "mygrp"}}
 	pNonCore := dummyPlugin{info: Info{Core: false, Group: "other"}}
 	if !FeatureIsCore([]Plugin{pCore, pNonCore}, "mygrp") {
@@ -85,7 +81,7 @@ func TestValidateReadOnlyQueryAccepts(t *testing.T) {
 		"SELECT * FROM links",
 		"select count(*) from emails",
 		"WITH t AS (SELECT id FROM links) SELECT * FROM t",
-		"SELECT * FROM links;", // trailing semicolon stripped
+		"SELECT * FROM links;",
 	}
 	for _, q := range cases {
 		if _, err := ValidateReadOnlyQuery(q); err != nil {
@@ -105,14 +101,14 @@ func TestValidateReadOnlyQueryRejects(t *testing.T) {
 		"DROP TABLE links",
 		"PRAGMA table_info(links)",
 		"ATTACH DATABASE 'x.db' AS y",
-		"SELECT * FROM links; DROP TABLE links", // multi-statement
-		"SELECT 1; SELECT 2",                    // multi-statement
+		"SELECT * FROM links; DROP TABLE links",
+		"SELECT 1; SELECT 2",
 		"VACUUM",
-		"SELECT * FROM users",                    // secret-bearing table
-		"SELECT * FROM tokens",                   // token hashes
-		"SELECT config FROM provider_accounts",   // encrypted credentials
-		"SELECT password_hash AS x FROM users",   // alias bypass of redaction
-		"SELECT * FROM emails JOIN users ON 1=1", // secret table via join
+		"SELECT * FROM users",
+		"SELECT * FROM tokens",
+		"SELECT config FROM provider_accounts",
+		"SELECT password_hash AS x FROM users",
+		"SELECT * FROM emails JOIN users ON 1=1",
 	}
 	for _, q := range cases {
 		if _, err := ValidateReadOnlyQuery(q); err == nil {
@@ -124,7 +120,6 @@ func TestValidateReadOnlyQueryRejects(t *testing.T) {
 func TestContainsWordBoundary(t *testing.T) {
 	t.Parallel()
 
-	// "created" contains "create" as a substring but not as a word.
 	if ContainsWord("select created_at from links", "create") {
 		t.Error("containsWord matched 'create' inside 'created_at'")
 	}
@@ -133,11 +128,6 @@ func TestContainsWordBoundary(t *testing.T) {
 	}
 }
 
-// The identifiers below were reachable before this guard existed: `email_ais`
-// (a downstream table) and its `otp` column let a raw SELECT dump other tenants' one-
-// time codes, and `subject`/`text` returned other tenants' plaintext mail.
-// ValidateReadOnlyQuery is only a content filter, but out-of-tree plugins call
-// it, so these must stay closed.
 func TestValidateReadOnlyQueryBlocksMailAndOTPIdentifiers(t *testing.T) {
 	t.Parallel()
 
@@ -152,8 +142,6 @@ func TestValidateReadOnlyQueryBlocksMailAndOTPIdentifiers(t *testing.T) {
 	}
 }
 
-// Redaction is the second line: a column that slips through the identifier check
-// (a view, a computed alias) must still not return message contents.
 func TestRedactRowRedactsMessageContentAndOTP(t *testing.T) {
 	t.Parallel()
 

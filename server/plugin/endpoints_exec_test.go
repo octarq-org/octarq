@@ -16,7 +16,6 @@ import (
 )
 
 func TestEndpointSpec_RegisterHTTP_RejectsInvalid(t *testing.T) {
-	// When api == nil, RegisterHTTP returns nil without checking Validate
 	specInvalid := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "invalid",
 		Path: "/foo",
@@ -28,12 +27,10 @@ func TestEndpointSpec_RegisterHTTP_RejectsInvalid(t *testing.T) {
 	router := http.NewServeMux()
 	api := humago.New(router, huma.DefaultConfig("Test API", "1.0.0"))
 
-	// Invalid Path: must fail and not register
 	if err := specInvalid.RegisterHTTP(api, plugin.HTTPOptions{}); err == nil {
 		t.Error("expected error when registering endpoint with invalid path /foo, got nil")
 	}
 
-	// Empty Name: must fail and not register
 	specEmptyName := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "",
 		Path: "/api/test",
@@ -42,7 +39,6 @@ func TestEndpointSpec_RegisterHTTP_RejectsInvalid(t *testing.T) {
 		t.Error("expected error when registering endpoint with empty name, got nil")
 	}
 
-	// Valid endpoint: succeeds
 	specValid := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "valid",
 		Path: "/api/test-valid",
@@ -169,7 +165,6 @@ func TestEndpointSpec_RegisterMCP_RiskSuffix(t *testing.T) {
 }
 
 func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
-	// POST endpoint
 	specPost := plugin.EndpointSpec[echoIn, echoOut]{
 		Name:        "post_echo",
 		Method:      "POST",
@@ -195,7 +190,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		Message string `query:"message" json:"message"`
 	}
 
-	// GET endpoint
 	specGet := plugin.EndpointSpec[queryIn, echoOut]{
 		Name:        "get_echo",
 		Method:      "GET",
@@ -236,7 +230,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Fatalf("RegisterHTTP GET failed: %v", err)
 	}
 
-	// Test POST success
 	body, _ := json.Marshal(map[string]any{"message": "hello"})
 	req := httptest.NewRequest("POST", "/api/post-echo", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -246,7 +239,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Errorf("POST expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Test POST AgentError
 	bodyAE, _ := json.Marshal(map[string]any{"message": "ae"})
 	reqAE := httptest.NewRequest("POST", "/api/post-echo", bytes.NewReader(bodyAE))
 	reqAE.Header.Set("Content-Type", "application/json")
@@ -256,7 +248,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Errorf("POST expected 400 for AgentError, got %d", wAE.Code)
 	}
 
-	// Test POST nil output
 	bodyNil, _ := json.Marshal(map[string]any{"message": "nil"})
 	reqNil := httptest.NewRequest("POST", "/api/post-echo", bytes.NewReader(bodyNil))
 	reqNil.Header.Set("Content-Type", "application/json")
@@ -266,7 +257,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Errorf("POST nil output expected 200, got %d", wNil.Code)
 	}
 
-	// Test GET success
 	reqGet := httptest.NewRequest("GET", "/api/get-echo?message=hello", nil)
 	wGet := httptest.NewRecorder()
 	router.ServeHTTP(wGet, reqGet)
@@ -274,7 +264,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Errorf("GET expected 200, got %d: %s", wGet.Code, wGet.Body.String())
 	}
 
-	// Test GET AgentError
 	reqGetAE := httptest.NewRequest("GET", "/api/get-echo?message=ae", nil)
 	wGetAE := httptest.NewRecorder()
 	router.ServeHTTP(wGetAE, reqGetAE)
@@ -282,7 +271,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Errorf("GET expected 403 for AgentError, got %d", wGetAE.Code)
 	}
 
-	// Test GET nil output
 	reqGetNil := httptest.NewRequest("GET", "/api/get-echo?message=nil", nil)
 	wGetNil := httptest.NewRecorder()
 	router.ServeHTTP(wGetNil, reqGetNil)
@@ -290,7 +278,6 @@ func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
 		t.Errorf("GET nil output expected 200, got %d", wGetNil.Code)
 	}
 
-	// Test MCP tool invocation via client
 	ctx := context.Background()
 	mcpSrv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
 	if err := specPost.RegisterMCP(mcpSrv); err != nil {

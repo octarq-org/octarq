@@ -15,7 +15,7 @@ func TestParserSecurity_AttackVectors(t *testing.T) {
 	tests := []struct {
 		name    string
 		sql     string
-		blocked bool // expected to be blocked (fail validation)
+		blocked bool
 	}{
 		{
 			name:    "UNION attack",

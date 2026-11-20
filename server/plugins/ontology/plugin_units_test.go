@@ -9,7 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestIdentity pins the three methods the platform reads a plugin through.
 func TestIdentity(t *testing.T) {
 	p := New()
 	if p.Name() != "ontology" {
@@ -24,9 +23,6 @@ func TestIdentity(t *testing.T) {
 	}
 }
 
-// TestMountRefusesANilContext pins the one input a composition root must never
-// pass: the plugin cannot register anything without the context that carries the
-// API and the database.
 func TestMountRefusesANilContext(t *testing.T) {
 	p := New()
 	p.Mount(nil, nil)
@@ -35,9 +31,6 @@ func TestMountRefusesANilContext(t *testing.T) {
 	}
 }
 
-// TestFieldHelpers pins the fallbacks a declaration relies on: a missing label
-// is the field name, a missing plural label is the label plus "s", and an
-// unknown widget is the one the type implies.
 func TestFieldHelpers(t *testing.T) {
 	plain := core.Field{Name: "notes", Type: core.TypeString}
 	if got := fieldLabel(plain); got != "notes" {
@@ -63,7 +56,6 @@ func TestFieldHelpers(t *testing.T) {
 	}
 
 	labelled := core.Field{Name: "notes", Label: "Notes"}
-	// No plural is invented: a wrong "+s" reads worse than the singular.
 	if got := pluralLabel(core.Spec{Slug: "notes", Label: "Note"}); got != "Note" {
 		t.Fatalf("pluralLabel = %q, want the label as written", got)
 	}
@@ -82,8 +74,6 @@ func TestFieldHelpers(t *testing.T) {
 	}
 }
 
-// TestOrderClause pins the default order and the descending marker. A name that
-// reached this function is already checked against the declaration.
 func TestOrderClause(t *testing.T) {
 	if got := orderClause(nil); got != core.ColumnCreatedAt+" DESC" {
 		t.Fatalf("orderClause(nil) = %q, want newest first", got)
@@ -93,8 +83,6 @@ func TestOrderClause(t *testing.T) {
 	}
 }
 
-// TestArgIntReadsEveryShapeTheSdkSends pins the argument reader: a page size
-// that arrives as a JSON number must not be silently defaulted.
 func TestArgIntReadsEveryShapeTheSdkSends(t *testing.T) {
 	cases := []struct {
 		name string
@@ -126,9 +114,6 @@ func TestArgIntReadsEveryShapeTheSdkSends(t *testing.T) {
 	}
 }
 
-// TestTypedDefaultAndJSONType pin the two renderers of a declared type: the SDK
-// validates a schema default against the property, so the value has to be the
-// JSON type the property declares.
 func TestTypedDefaultAndJSONType(t *testing.T) {
 	text := func(s string) *string { return &s }
 
@@ -147,8 +132,6 @@ func TestTypedDefaultAndJSONType(t *testing.T) {
 	if _, ok := typedDefault(core.Field{Type: core.TypeString}); ok {
 		t.Fatal("typedDefault(no default) = ok, want false")
 	}
-	// A literal the declaration should have refused is not rendered as a
-	// different value: it is dropped.
 	if _, ok := typedDefault(core.Field{Type: core.TypeInteger, Default: text("two")}); ok {
 		t.Fatal("typedDefault(unparsable) = ok, want false")
 	}
@@ -170,8 +153,6 @@ func TestTypedDefaultAndJSONType(t *testing.T) {
 	}
 }
 
-// TestAsFailureMapsEveryRefusal pins the status table. The MCP surface reads the
-// same map, so a wrong status here is wrong on both surfaces.
 func TestAsFailureMapsEveryRefusal(t *testing.T) {
 	cases := []struct {
 		err    error
@@ -203,8 +184,6 @@ func TestAsFailureMapsEveryRefusal(t *testing.T) {
 	}
 }
 
-// TestAuditIsANoOpWithoutASink pins the composition that has no audit ledger:
-// the write still succeeds, and nothing panics.
 func TestAuditIsANoOpWithoutASink(t *testing.T) {
 	t.Setenv(EntitiesEnv, ticketDoc)
 	t.Setenv(EntitiesFileEnv, "")
@@ -213,6 +192,5 @@ func TestAuditIsANoOpWithoutASink(t *testing.T) {
 	p.Mount(nil, &plugin.Context{DB: openDB(t)})
 	p.audit(context.Background(), nil, "data.create", p.entities[0], "abc")
 
-	// A plugin that never mounted has no context at all.
 	New().audit(context.Background(), nil, "data.create", p.entities[0], "abc")
 }

@@ -51,12 +51,9 @@ func TestInviteFlow(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	const orgID = uint(1)
 
-	// Create an admin user first to manage members.
 	adminUID := seedOrgMember(t, db, orgID, "admin@example.com", "owner")
 	adminSession := sessionCookies(t, adminUID, orgID)
 
-	// The raw token reaches the invited mailbox and nowhere else, so the test
-	// reads it the way the invitee would.
 	sent := captureInviteMail(t, h)
 
 	email := t.Name() + "+newbie@example.com"
@@ -65,13 +62,10 @@ func TestInviteFlow(t *testing.T) {
 		t.Fatal("expected invite token in the mailed link, got empty")
 	}
 
-	// Verify database record has token and expiry
 	var user models.User
 	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
 		t.Fatalf("user not found in db: %v", err)
 	}
-	// The raw token lives only in the mailed link: the DB row stores only its
-	// SHA-256 hash, so a DB read cannot recover a live invite.
 	if user.InviteTokenHash == rawToken {
 		t.Fatalf("invite token stored in plaintext: db hash %q equals the raw token %q", user.InviteTokenHash, rawToken)
 	}
@@ -86,19 +80,16 @@ func TestInviteFlow(t *testing.T) {
 		t.Fatal("db invite expires at is in the past")
 	}
 
-	// Try to accept invite with empty token -> should fail
 	recAcceptEmpty := do(srv, "POST", "/api/auth/invite/accept", nil, `{"token":"","password":"newpassword"}`)
 	if recAcceptEmpty.Code != http.StatusBadRequest {
 		t.Errorf("accept empty token: got status %d, want 400", recAcceptEmpty.Code)
 	}
 
-	// Try to accept invite with bad token -> should fail
 	recAcceptBad := do(srv, "POST", "/api/auth/invite/accept", nil, `{"token":"badtoken","password":"newpassword"}`)
 	if recAcceptBad.Code != http.StatusBadRequest {
 		t.Errorf("accept bad token: got status %d, want 400", recAcceptBad.Code)
 	}
 
-	// Try to accept invite with expired token -> should fail
 	expiredTime := time.Now().Add(-1 * time.Hour)
 	db.Model(&user).Updates(map[string]any{
 		"invite_expires_at": &expiredTime,
@@ -108,19 +99,16 @@ func TestInviteFlow(t *testing.T) {
 		t.Errorf("accept expired token: got status %d, want 400", recAcceptExpired.Code)
 	}
 
-	// Reset expiration to future
 	futureTime := time.Now().Add(24 * time.Hour)
 	db.Model(&user).Updates(map[string]any{
 		"invite_expires_at": &futureTime,
 	})
 
-	// Accept invite successfully
 	recAcceptSuccess := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"newpassword"}`, rawToken))
 	if recAcceptSuccess.Code != http.StatusOK {
 		t.Fatalf("accept invite success: got status %d, body %s", recAcceptSuccess.Code, recAcceptSuccess.Body.String())
 	}
 
-	// Check user record is updated: password hashed, token/expiry cleared
 	var updatedUser models.User
 	if err := db.First(&updatedUser, user.ID).Error; err != nil {
 		t.Fatalf("failed to query updated user: %v", err)
@@ -136,16 +124,8 @@ func TestInviteFlow(t *testing.T) {
 	}
 }
 
-// TestInviteAcceptMarksEmailVerifiedAndAllowsLogin pins the fix for the broken
-// team-invite path: redeeming a valid invite token proves the user owns the
-// invited address (the token is delivered only to that mailbox), so
-// acceptInvite must mark the email verified. Otherwise a teammate who just set
-// their password is bounced from login by "email verification required" on
-// instances that require verification (the default) and waits for a
-// verification email that was never sent.
 func TestInviteAcceptMarksEmailVerifiedAndAllowsLogin(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
-	// Pin the default-on gate explicitly rather than leaning on it silently.
 	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"}).Error; err != nil {
 		t.Fatalf("set require_email_verification=true: %v", err)
 	}
@@ -174,7 +154,6 @@ func TestInviteAcceptMarksEmailVerifiedAndAllowsLogin(t *testing.T) {
 		t.Fatal("acceptInvite did not mark the invited email verified")
 	}
 
-	// The verified teammate must be able to log in under the verification gate.
 	rec = do(srv, "POST", "/api/auth/login", nil, fmt.Sprintf(`{"email":%q,"password":"teampass123"}`, email))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("invited user login under verification gate: got %d (%s), want 200", rec.Code, rec.Body.String())

@@ -17,7 +17,6 @@ import (
 func TestAuthContextAndCacheHelpers(t *testing.T) {
 	t.Parallel()
 
-	// 1. Context helpers
 	ctx := context.Background()
 	ctx = plugin.WithOrgID(ctx, 5)
 	ctx = WithUserID(ctx, 10)
@@ -34,7 +33,6 @@ func TestAuthContextAndCacheHelpers(t *testing.T) {
 		t.Errorf("TokenRoleFromContext expected admin, got %s", TokenRoleFromContext(ctx))
 	}
 
-	// 2. Manager Cache & Check
 	m := testManager(t)
 	c := cache.New("")
 	m = m.WithCache(c)
@@ -42,7 +40,6 @@ func TestAuthContextAndCacheHelpers(t *testing.T) {
 		t.Error("Cache() did not return expected cache instance")
 	}
 
-	// 3. IsConfigAdmin
 	if !m.IsConfigAdmin("admin") {
 		t.Error("IsConfigAdmin expected true for admin")
 	}
@@ -50,7 +47,6 @@ func TestAuthContextAndCacheHelpers(t *testing.T) {
 		t.Error("IsConfigAdmin expected false for other_user")
 	}
 
-	// 4. Dedicated DB for session tests
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -90,23 +86,17 @@ func TestAuthContextAndCacheHelpers(t *testing.T) {
 		t.Errorf("UserID expected 1, got %d", uid)
 	}
 
-	// TouchSession & reporterIP
 	m.TouchSession(reqCookie)
 	ip := reporterIP(reqCookie)
 	if ip == "" {
 		t.Error("reporterIP returned empty string")
 	}
 
-	// Revoke sessions
 	if numRevoked := m.RevokeUserOrgSessions(1, 1); numRevoked != 1 {
 		t.Errorf("RevokeUserOrgSessions expected 1, got %d", numRevoked)
 	}
 }
 
-// A plugin reads its caller's authority through plugin.RoleFromContext, so the
-// stamp and the read must share one context key. Two keys would compile, pass
-// every auth test, and silently hand a plugin an empty role — which reads as
-// "member" and hides the caller's admin rights.
 func TestTokenRoleIsReadableByPlugins(t *testing.T) {
 	ctx := WithTokenRole(context.Background(), "admin")
 	if got := plugin.RoleFromContext(ctx); got != "admin" {

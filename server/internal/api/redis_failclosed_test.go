@@ -11,9 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/queue"
 )
 
-// TestHandlerReportsAnUnreachableCounterStore pins the boot-time refusal: a
-// deployment that configures Redis and cannot reach it learns at startup,
-// instead of quietly enforcing every budget per process.
 func TestHandlerReportsAnUnreachableCounterStore(t *testing.T) {
 	db := newTestDB(t)
 

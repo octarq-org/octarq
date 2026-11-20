@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// ConfigFieldType defines the supported data types for plugin configuration fields.
 type ConfigFieldType string
 
 const (
@@ -15,14 +14,12 @@ const (
 	FieldTypeBool   ConfigFieldType = "bool"
 	FieldTypeSelect ConfigFieldType = "select"
 
-	// Alias constants matching naming variations
 	ConfigFieldTypeString = FieldTypeString
 	ConfigFieldTypeInt    = FieldTypeInt
 	ConfigFieldTypeBool   = FieldTypeBool
 	ConfigFieldTypeSelect = FieldTypeSelect
 )
 
-// ConfigField describes an individual configuration field within a plugin config schema.
 type ConfigField struct {
 	Name     string          `json:"name"`
 	Label    string          `json:"label,omitempty"`
@@ -36,7 +33,6 @@ type ConfigField struct {
 	Max      *int            `json:"max,omitempty"`
 }
 
-// ConfigSchema defines the configuration schema for a plugin.
 type ConfigSchema struct {
 	Title  string        `json:"title,omitempty"`
 	Fields []ConfigField `json:"fields"`
@@ -98,8 +94,6 @@ func toInt(v any) (int, bool) {
 	}
 }
 
-// ToJSONSchema generates a Draft-07 compliant JSON Schema representation of the ConfigSchema.
-// Secret fields are tagged with the "x-secret": true extension property.
 func (s ConfigSchema) ToJSONSchema() ([]byte, error) {
 	properties := make(map[string]map[string]any)
 	var required []string
@@ -156,7 +150,6 @@ func (s ConfigSchema) ToJSONSchema() ([]byte, error) {
 	return json.Marshal(schema)
 }
 
-// Validate checks the provided data map against the ConfigSchema constraints (required, type, enum, min, max).
 func (s ConfigSchema) Validate(data map[string]any) error {
 	for _, f := range s.Fields {
 		val, exists := data[f.Name]

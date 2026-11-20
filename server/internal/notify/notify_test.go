@@ -23,14 +23,12 @@ func TestRegisterProvider(t *testing.T) {
 		gotCfg, gotText = cfgJSON, text
 		return nil
 	})
-	// Registration is case-insensitive and reachable through Send.
 	if err := Send(context.Background(), "pigeon", `{"coop":1}`, "fly"); err != nil {
 		t.Fatalf("Send to registered provider: %v", err)
 	}
 	if gotCfg != `{"coop":1}` || gotText != "fly" {
 		t.Fatalf("provider got cfg=%q text=%q", gotCfg, gotText)
 	}
-	// A built-in type still resolves to its handler, not the registry.
 	if err := Send(context.Background(), "webhook", `{}`, "x"); err == nil {
 		t.Fatal("expected error: webhook with empty url")
 		return
@@ -87,14 +85,12 @@ func TestSendWebhookErrorsOnBadStatus(t *testing.T) {
 }
 
 func TestSendTelegramAPIErrors(t *testing.T) {
-	// Invalid token format triggers telegram.New error
 	cfgJSON := `{"botToken":"invalid-token","chatId":"123456"}`
 	err := Send(context.Background(), "telegram", cfgJSON, "hello")
 	if err == nil {
 		t.Error("expected error for invalid telegram bot token, got nil")
 	}
 
-	// Valid format token progresses past telegram.New to notifier.Send
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	cfgValidFormat := `{"botToken":"123456789:ABCdefGHIjklMNOpqrsTUVwxyz","chatId":"123456"}`
@@ -114,18 +110,15 @@ func TestSendInvalidJSON(t *testing.T) {
 }
 
 func TestSendTelegram_InvalidChatIDAndMissing(t *testing.T) {
-	// Invalid chatId (not an int)
 	cfgJSON := `{"botToken":"tok","chatId":"not-a-number"}`
 	if err := Send(context.Background(), "telegram", cfgJSON, "hello"); err == nil {
 		t.Error("expected error for non-integer chatId")
 	}
 
-	// Missing botToken
 	if err := Send(context.Background(), "telegram", `{"botToken":"","chatId":"123"}`, "hello"); err == nil {
 		t.Error("expected error for empty botToken")
 	}
 
-	// Missing chatId
 	if err := Send(context.Background(), "telegram", `{"botToken":"tok","chatId":""}`, "hello"); err == nil {
 		t.Error("expected error for empty chatId")
 	}
@@ -137,7 +130,6 @@ func TestSendWebhook_InvalidScheme(t *testing.T) {
 		t.Error("expected error for ftp scheme")
 	}
 
-	// Test request execution error (canceled context)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	validURLCfg := `{"url":"http://127.0.0.1:59999/webhook"}`

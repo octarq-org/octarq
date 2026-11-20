@@ -81,7 +81,6 @@ func newMockS3Server() (*httptest.Server, *mockS3Server) {
 
 		case http.MethodGet:
 			if r.URL.Query().Get("list-type") == "2" {
-				// ListObjectsV2
 				prefix := r.URL.Query().Get("prefix")
 				var entries []s3ObjectEntry
 				for k, v := range m.objects {
@@ -116,7 +115,6 @@ func newMockS3Server() (*httptest.Server, *mockS3Server) {
 				return
 			}
 
-			// GetObject
 			data, ok := m.objects[key]
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)
@@ -165,7 +163,6 @@ func TestS3Backup(t *testing.T) {
 		BackupRetentionDays: 30,
 	}
 
-	// 1. Populate a realistic test SQLite database with tables, indexes, and rows
 	type TenantSecret struct {
 		ID        uint   `gorm:"primaryKey"`
 		TenantID  string `gorm:"index:idx_tenant_name;size:64"`
@@ -194,12 +191,10 @@ func TestS3Backup(t *testing.T) {
 	sqlDB, _ := gdb.DB()
 	sqlDB.Close()
 
-	// Verify original DB integrity
 	if err := db.VerifySQLiteIntegrity(sourceDBPath); err != nil {
 		t.Fatalf("source db integrity failed: %v", err)
 	}
 
-	// 2. Perform native SQLite online backup
 	if err := db.Backup(cfg, backupRawPath); err != nil {
 		t.Fatalf("db.Backup failed: %v", err)
 	}
@@ -207,13 +202,10 @@ func TestS3Backup(t *testing.T) {
 		t.Fatalf("raw backup file integrity failed: %v", err)
 	}
 
-	// 3. Encrypt backup file with AES-256-GCM zero-knowledge encryption
 	if err := crypto.EncryptBackup(backupRawPath, backupEncPath, secretKey); err != nil {
 		t.Fatalf("crypto.EncryptBackup failed: %v", err)
 	}
 
-	// 4. Verification: Local SQLite file encrypted cannot be opened by SQLite driver directly
-	// (ensures real ciphertext encryption)
 	if err := db.VerifySQLiteIntegrity(backupEncPath); err == nil {
 		t.Fatal("CRITICAL: encrypted backup file passed VerifySQLiteIntegrity! It must not be valid SQLite")
 	}
@@ -229,7 +221,6 @@ func TestS3Backup(t *testing.T) {
 		}
 	}
 
-	// 5. Upload encrypted backup to Mock S3
 	uploader, err := db.NewS3Uploader(cfg)
 	if err != nil {
 		t.Fatalf("NewS3Uploader failed: %v", err)
@@ -240,13 +231,11 @@ func TestS3Backup(t *testing.T) {
 		t.Fatalf("uploader.Upload failed: %v", err)
 	}
 
-	// Verify object exists in Mock S3
 	encRemoteKey := filepath.Base(backupEncPath)
 	if _, ok := mock.objects[encRemoteKey]; !ok {
 		t.Fatalf("expected remote key %q in mock s3 objects", encRemoteKey)
 	}
 
-	// 6. Test ListBackups and LatestBackup
 	latestKey, err := uploader.LatestBackupKey(ctx)
 	if err != nil {
 		t.Fatalf("LatestBackupKey failed: %v", err)
@@ -255,18 +244,15 @@ func TestS3Backup(t *testing.T) {
 		t.Errorf("latest key = %q, want %q", latestKey, encRemoteKey)
 	}
 
-	// 7. Download encrypted backup from S3
 	downloadedEncPath := filepath.Join(tempDir, "downloaded.db.enc")
 	if err := uploader.Download(ctx, encRemoteKey, downloadedEncPath); err != nil {
 		t.Fatalf("uploader.Download failed: %v", err)
 	}
 
-	// 8. Decrypt the downloaded backup
 	if err := crypto.DecryptBackup(downloadedEncPath, restoredPath, secretKey); err != nil {
 		t.Fatalf("crypto.DecryptBackup failed: %v", err)
 	}
 
-	// 9. Verify decrypted database integrity and data rows
 	if err := db.VerifySQLiteIntegrity(restoredPath); err != nil {
 		t.Fatalf("restored db integrity check failed: %v", err)
 	}
@@ -298,7 +284,7 @@ func TestS3Backup(t *testing.T) {
 func TestS3Uploader_ChecksumMismatch(t *testing.T) {
 	ts, mock := newMockS3Server()
 	defer ts.Close()
-	mock.badETag = true // deliberately return bogus ETag to trigger mismatch detection
+	mock.badETag = true
 
 	tempDir := t.TempDir()
 	filePath := filepath.Join(tempDir, "octarq-backup-corrupt.db")
@@ -329,9 +315,8 @@ func TestS3Uploader_PruneOlderThan(t *testing.T) {
 	ts, mock := newMockS3Server()
 	defer ts.Close()
 
-	// Seed mock objects: 1 fresh, 2 old
 	now := time.Now().UTC()
-	oldTime := now.AddDate(0, 0, -40) // 40 days ago
+	oldTime := now.AddDate(0, 0, -40)
 
 	mock.objects["octarq-backup-old1.db.enc"] = []byte("old1")
 	mock.lastModified["octarq-backup-old1.db.enc"] = oldTime
@@ -342,7 +327,6 @@ func TestS3Uploader_PruneOlderThan(t *testing.T) {
 	mock.objects["octarq-backup-fresh.db.enc"] = []byte("fresh")
 	mock.lastModified["octarq-backup-fresh.db.enc"] = now
 
-	// A non-backup object that should NOT be touched
 	mock.objects["unrelated-file.txt"] = []byte("keep")
 	mock.lastModified["unrelated-file.txt"] = oldTime
 
@@ -359,7 +343,7 @@ func TestS3Uploader_PruneOlderThan(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	pruned, err := uploader.PruneOlderThan(ctx, 30) // retain 30 days
+	pruned, err := uploader.PruneOlderThan(ctx, 30)
 	if err != nil {
 		t.Fatalf("PruneOlderThan failed: %v", err)
 	}
@@ -367,7 +351,6 @@ func TestS3Uploader_PruneOlderThan(t *testing.T) {
 		t.Errorf("expected 2 pruned objects, got %d", pruned)
 	}
 
-	// Verify old backups are deleted
 	if _, exists := mock.objects["octarq-backup-old1.db.enc"]; exists {
 		t.Errorf("old1 was not deleted")
 	}
@@ -375,7 +358,6 @@ func TestS3Uploader_PruneOlderThan(t *testing.T) {
 		t.Errorf("old2 was not deleted")
 	}
 
-	// Verify fresh backup is preserved
 	if _, exists := mock.objects["octarq-backup-fresh.db.enc"]; !exists {
 		t.Errorf("fresh was deleted!")
 	}

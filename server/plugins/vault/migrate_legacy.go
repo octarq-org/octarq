@@ -10,12 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// MigrateLegacyCoreSecrets deterministically migrates pre-Vault encrypted Core
-// secrets (llmgateway, webhooks, notification_channels, instance settings)
-// into vault_items + vault_item_versions under per-item SubjectVault DEKs.
-//
-// It is idempotent and fail-closed: any decryption failure aborts migration and
-// leaves legacy data intact.
 func (p *Plugin) MigrateLegacyCoreSecrets(ctx context.Context) error {
 	if p.db == nil {
 		return nil
@@ -179,7 +173,6 @@ func (p *Plugin) migrateLegacyNotifyChannels(ctx context.Context, c plugin.Crypt
 	}
 	for _, r := range rows {
 		trimmed := strings.TrimSpace(r.Config)
-		// Already non-secret JSON metadata (no migration needed).
 		if strings.HasPrefix(trimmed, "{") {
 			continue
 		}

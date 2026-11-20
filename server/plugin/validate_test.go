@@ -9,7 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// validatingPlugin records the order validators ran in and can refuse.
 type validatingPlugin struct {
 	namedPlugin
 	order   *[]string
@@ -27,8 +26,6 @@ func (p validatingPlugin) Validate(_ context.Context, host plugin.Host) error {
 
 func TestValidateAllRunsInDependencyOrder(t *testing.T) {
 	var order []string
-	// base is registered last but required by dependent, so registration order
-	// would run dependent first and hand it a registry that is still empty.
 	plugins := []plugin.Plugin{
 		validatingPlugin{namedPlugin: namedPlugin{name: "dependent", requires: []string{"base"}}, order: &order},
 		validatingPlugin{namedPlugin: namedPlugin{name: "base"}, order: &order},
@@ -63,15 +60,11 @@ func TestValidateAllNamesThePluginThatRefused(t *testing.T) {
 	if !strings.Contains(err.Error(), `plugin "needs-crypto"`) {
 		t.Fatalf("err = %v, want the refusing plugin named", err)
 	}
-	// A refusal must stop the boot, not collect every failure and continue.
 	if len(order) != 2 {
 		t.Fatalf("validation order = %v, want it to stop at the refusal", order)
 	}
 }
 
-// TestValidateAllRefusesAnIncompleteComposition pins the check the HTTP root's
-// preflight used to own. The other two roots have no preflight, so a requirement
-// that is not mounted must be refused here rather than treated as a leaf.
 func TestValidateAllRefusesAnIncompleteComposition(t *testing.T) {
 	var order []string
 	err := plugin.ValidateAll(context.Background(), []plugin.Plugin{
@@ -85,9 +78,6 @@ func TestValidateAllRefusesAnIncompleteComposition(t *testing.T) {
 	}
 }
 
-// TestValidateAllRefusesADuplicateName pins the other half: DependencyOrder keys
-// its graph by name, so a second plugin with the same name would never be
-// validated while the mount still runs it.
 func TestValidateAllRefusesADuplicateName(t *testing.T) {
 	var order []string
 	err := plugin.ValidateAll(context.Background(), []plugin.Plugin{

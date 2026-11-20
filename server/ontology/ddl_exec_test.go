@@ -8,8 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TestGeneratedDDLRunsOnSQLite proves the builder's output is real SQL, not just
-// a string that matches a golden file.
 func TestGeneratedDDLRunsOnSQLite(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
@@ -30,8 +28,6 @@ func TestGeneratedDDLRunsOnSQLite(t *testing.T) {
 			t.Fatalf("exec %q: %v", stmt, err)
 		}
 	}
-	// Running the same statements again must be a no-op: CREATE TABLE fails, but
-	// the indexes carry IF NOT EXISTS, which is what makes a re-apply safe.
 	for _, stmt := range stmts[1:] {
 		if err := db.Exec(stmt).Error; err != nil {
 			t.Fatalf("re-exec %q: %v", stmt, err)

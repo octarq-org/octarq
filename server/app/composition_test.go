@@ -7,7 +7,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
-// TestBuiltinDefaultSet checks the OSS Core infrastructure plugins in dependency order.
 func TestBuiltinDefaultSet(t *testing.T) {
 	got := builtin.Default()
 	names := make([]string, len(got))
@@ -23,7 +22,6 @@ func TestBuiltinDefaultSet(t *testing.T) {
 			t.Fatalf("Default() order = %v, want %v", names, want)
 		}
 	}
-	// Every entry must be EnabledByDefault or Core.
 	for _, p := range got {
 		info := plugin.Describe(p)
 		if !info.EnabledByDefault && !info.Core {

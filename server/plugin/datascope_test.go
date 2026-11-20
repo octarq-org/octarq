@@ -94,13 +94,11 @@ func TestGetDataScopeFilter_RegisteredAndOverride(t *testing.T) {
 		t.Fatalf("filter was not invoked with expected parameters: %+v", mockFilter)
 	}
 
-	// Test error propagation
 	_, err = filter.ApplyScope(context.Background(), "SELECT 1", "user-1", "error-org")
 	if err == nil {
 		t.Fatal("expected error from filter.ApplyScope, got nil")
 	}
 
-	// Test Pro custom filter override pattern (simulating a separate registry or Pro override)
 	proReg := NewRegistry()
 	proFilter := &customProDataScopeFilter{deptID: "dept-99"}
 	proReg.Provide(ServiceDataScope, DataScopeFilter(proFilter))

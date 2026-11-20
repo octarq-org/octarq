@@ -21,8 +21,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// pluginEnabledStub stands in for the API handler's PluginEnabled in pluginGate
-// tests.
 type pluginEnabledStub struct {
 	enabled func(orgID uint, key string) bool
 }
@@ -31,8 +29,6 @@ func (s pluginEnabledStub) PluginEnabled(orgID uint, key string) bool {
 	return s.enabled(orgID, key)
 }
 
-// TestPluginGate pins the org-0 contract (not workspace-scoped, never gated) and
-// the delegation to the API handler's PluginEnabled for a real workspace.
 func TestPluginGate(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -43,13 +39,11 @@ func TestPluginGate(t *testing.T) {
 
 	gate := a.pluginGate(pluginEnabledStub{enabled: func(orgID uint, key string) bool { return true }})
 
-	// No workspace in session -> not scoped, and the route stays unblocked.
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	if allowed, scoped := gate(r, "x"); allowed || scoped {
 		t.Errorf("org-0 gate = (%v, %v), want (false, false)", allowed, scoped)
 	}
 
-	// A workspace present is gated through the API handler.
 	r = r.WithContext(plugin.WithOrgID(r.Context(), 7))
 	if allowed, scoped := gate(r, "x"); !allowed || !scoped {
 		t.Errorf("org-7 gate = (%v, %v), want (true, true)", allowed, scoped)
@@ -62,9 +56,6 @@ func TestPluginGate(t *testing.T) {
 	}
 }
 
-// TestRecoverWriterFlushAndWrite exercises the stream-forwarding half of
-// recoverWriter: headers/writes mark the written flag, Flush forwards to a
-// flusher and is a no-op without one.
 func TestRecoverWriterFlushAndWrite(t *testing.T) {
 	rec := httptest.NewRecorder()
 	rw := &recoverWriter{ResponseWriter: rec}
@@ -79,8 +70,6 @@ func TestRecoverWriterFlushAndWrite(t *testing.T) {
 		t.Errorf("Write did not forward the body: %q", rec.Body.String())
 	}
 
-	// WriteHeader forwards, but the recorder has already implicitly written 200
-	// on the Write above — a fresh writer records it directly.
 	rec2 := httptest.NewRecorder()
 	rw2 := &recoverWriter{ResponseWriter: rec2}
 	rw2.WriteHeader(http.StatusTeapot)
@@ -88,13 +77,11 @@ func TestRecoverWriterFlushAndWrite(t *testing.T) {
 		t.Errorf("WriteHeader did not forward to the underlying writer: got %d", rec2.Code)
 	}
 
-	// Flush forwards when the underlying writer implements http.Flusher.
 	rw.Flush()
 	if !rec.Flushed {
 		t.Error("Flush did not reach the underlying http.Flusher")
 	}
 
-	// Flush without an http.Flusher must be a safe no-op.
 	plain := &plainResponseWriter{new(bytes.Buffer)}
 	rw3 := &recoverWriter{ResponseWriter: plain}
 	rw3.Flush()
@@ -106,8 +93,6 @@ func (p *plainResponseWriter) Header() http.Header         { return http.Header{
 func (p *plainResponseWriter) Write(b []byte) (int, error) { return p.buf.Write(b) }
 func (p *plainResponseWriter) WriteHeader(int)             {}
 
-// TestGatedMuxHandle covers the Handle method (as opposed to HandleFunc), which
-// registers a gated handler under an exact pattern.
 func TestGatedMuxHandle(t *testing.T) {
 	real := http.NewServeMux()
 	gm := &gatedMux{
@@ -141,9 +126,6 @@ func TestGatedMuxHandle(t *testing.T) {
 	}
 }
 
-// TestGatedAdapterPanic verifies a panicking Huma handler registered through
-// the gated adapter is recovered into a 500 JSON response instead of crashing
-// the process.
 func TestGatedAdapterPanic(t *testing.T) {
 	realMux := http.NewServeMux()
 	realAPI := humago.New(realMux, huma.DefaultConfig("Test API", "1.0.0"))
@@ -171,15 +153,12 @@ func TestGatedAdapterPanic(t *testing.T) {
 	}
 }
 
-// appAuthDB builds an App with an in-memory auth manager and migrated schema
-// for the login delegate tests.
 func appAuthDB(t *testing.T) (*App, *gorm.DB) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:appauth-"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	// Drop the shared in-memory DB on cleanup so -count=2 re-runs stay isolated.
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
@@ -214,9 +193,6 @@ func seedIdentityUser(t *testing.T, db *gorm.DB) (models.User, models.Org) {
 	return u, o
 }
 
-// TestLoginDelegates maps the app-level login methods onto the auth manager:
-// registration-disabled and account-link refusals must translate to the
-// plugin-package sentinels, and a bound identity completes a session.
 func TestLoginDelegates(t *testing.T) {
 	t.Run("registration disabled maps to plugin sentinel", func(t *testing.T) {
 		a, db := appAuthDB(t)
@@ -279,8 +255,6 @@ func TestLoginDelegates(t *testing.T) {
 	})
 }
 
-// TestAppNotify routes through the notify registry: an unknown channel type is
-// refused, and a registered provider receives the message text.
 func TestAppNotify(t *testing.T) {
 	a := &App{}
 	ctx := context.Background()
@@ -306,7 +280,6 @@ func TestAppNotify(t *testing.T) {
 	}
 }
 
-// fakeDNSManager satisfies plugin.DNSManager for the lazy-resolver happy path.
 type fakeDNSManager struct{}
 
 func (fakeDNSManager) List(context.Context, uint, uint) ([]plugin.DNSRecord, error) {
@@ -317,8 +290,6 @@ func (fakeDNSManager) Set(context.Context, uint, uint, plugin.DNSRecord) (plugin
 }
 func (fakeDNSManager) Delete(context.Context, uint, uint, string) error { return nil }
 
-// TestLazyDNSResolution covers resolve()'s type-assertion guard and the three
-// delegated operations through a resolvable manager.
 func TestLazyDNSResolution(t *testing.T) {
 	ctx := context.Background()
 	missing := &lazyDNSManager{lookup: func(string) (any, bool) { return nil, false }}
@@ -343,8 +314,6 @@ func TestLazyDNSResolution(t *testing.T) {
 	}
 }
 
-// TestBuiltinDefaultMonitor ensures the default open-core composition used by
-// main() still wires through the mount loop used by Run.
 func TestBuiltinDefaultMonitor(t *testing.T) {
 	a := bootApp(t)
 	for _, p := range builtin.Default() {

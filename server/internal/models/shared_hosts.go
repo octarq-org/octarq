@@ -7,17 +7,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// SharedHostsSetting is the settings-table key holding the instance-wide
-// shared hostnames (comma or newline separated) trusted for public origin derivation.
 const SharedHostsSetting = "shared_hosts"
 
-// SharedHostsEnv is the bootstrap fallback environment variable.
 const SharedHostsEnv = "OCTARQ_SHARED_HOSTS"
 
-// SharedHosts returns the configured instance-wide shared hostnames, normalized
-// (lowercased, trimmed, port removed, trailing dot removed, de-duplicated).
-// It reads from the settings table first; if not found or empty, it falls back
-// to the OCTARQ_SHARED_HOSTS environment variable.
 func SharedHosts(db *gorm.DB) []string {
 	var raw string
 	if db != nil && db.Migrator().HasTable("settings") {
@@ -35,7 +28,6 @@ func SharedHosts(db *gorm.DB) []string {
 	return ParseSharedHosts(raw)
 }
 
-// ParseSharedHosts parses and normalizes a comma/newline/space-separated list of hostnames.
 func ParseSharedHosts(raw string) []string {
 	fields := strings.FieldsFunc(raw, func(r rune) bool {
 		return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == '\t'

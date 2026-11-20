@@ -27,7 +27,6 @@ func setupTestDB(t *testing.T) (*gorm.DB, *tenantsql.Registry) {
 		}
 	})
 
-	// Auto-migrate tables
 	if err := db.AutoMigrate(
 		&sqlTestLink{},
 		&sqlTestLinkEvent{},
@@ -55,7 +54,6 @@ func setupTestDB(t *testing.T) (*gorm.DB, *tenantsql.Registry) {
 func TestExecute_CrossTenantIsolation(t *testing.T) {
 	db, reg := setupTestDB(t)
 
-	// Seed data for Org 1
 	link1 := sqlTestLink{
 		OrgID:    1,
 		Slug:     "slug-org-1",
@@ -67,7 +65,6 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 		t.Fatalf("create link1: %v", err)
 	}
 
-	// Seed data for Org 2
 	link2 := sqlTestLink{
 		OrgID:    2,
 		Slug:     "slug-org-2",
@@ -79,7 +76,6 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 		t.Fatalf("create link2: %v", err)
 	}
 
-	// Query as Org 1
 	ctx1 := plugin.WithOrgID(context.Background(), 1)
 	ctx1 = auth.WithUserID(ctx1, 101)
 	rows1, meta1, err := tenantsql.Execute(ctx1, db, reg, "SELECT id, slug, target, password, title FROM tenant_links")
@@ -93,12 +89,10 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 	if rows1[0]["slug"] != "slug-org-1" {
 		t.Errorf("expected slug-org-1, got %v", rows1[0]["slug"])
 	}
-	// Verify sensitive redaction
 	if rows1[0]["password"] != plugin.RedactedValue {
 		t.Errorf("expected password to be redacted to %q, got %v", plugin.RedactedValue, rows1[0]["password"])
 	}
 
-	// Query as Org 2
 	ctx2 := plugin.WithOrgID(context.Background(), 2)
 	ctx2 = auth.WithUserID(ctx2, 102)
 	rows2, meta2, err := tenantsql.Execute(ctx2, db, reg, "SELECT id, slug, target, password, title FROM tenant_links")
@@ -116,7 +110,6 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 		t.Errorf("expected password to be redacted to %q, got %v", plugin.RedactedValue, rows2[0]["password"])
 	}
 
-	// Verify AuditLog entries were recorded
 	var logs []models.AuditLog
 	if err := db.Where("action = ?", "tenant_sql.query").Find(&logs).Error; err != nil {
 		t.Fatalf("find audit logs: %v", err)
@@ -129,7 +122,6 @@ func TestExecute_CrossTenantIsolation(t *testing.T) {
 func TestExecute_JoinViewsIsolation(t *testing.T) {
 	db, reg := setupTestDB(t)
 
-	// Create Link and LinkEvents for Org 1 and Org 2
 	l1 := sqlTestLink{OrgID: 1, Slug: "l1", Target: "https://l1.com"}
 	db.Create(&l1)
 	db.Create(&sqlTestLinkEvent{LinkID: l1.ID, IP: "1.1.1.1", Fingerprint: "fp1", CreatedAt: time.Now()})
@@ -138,7 +130,6 @@ func TestExecute_JoinViewsIsolation(t *testing.T) {
 	db.Create(&l2)
 	db.Create(&sqlTestLinkEvent{LinkID: l2.ID, IP: "2.2.2.2", Fingerprint: "fp2", CreatedAt: time.Now()})
 
-	// Create Mailbox and Email for Org 1 and Org 2
 	mb1 := sqlTestMailbox{OrgID: 1, Address: "box1@org1.com"}
 	db.Create(&mb1)
 	db.Create(&sqlTestEmail{MailboxID: mb1.ID, MessageID: "msg-1", Subject: "Secret 1", Text: "Body 1"})
@@ -147,7 +138,6 @@ func TestExecute_JoinViewsIsolation(t *testing.T) {
 	db.Create(&mb2)
 	db.Create(&sqlTestEmail{MailboxID: mb2.ID, MessageID: "msg-2", Subject: "Secret 2", Text: "Body 2"})
 
-	// Query tenant_link_events as Org 1
 	ctx1 := plugin.WithOrgID(context.Background(), 1)
 	rows, _, err := tenantsql.Execute(ctx1, db, reg, "SELECT ip, fingerprint FROM tenant_link_events")
 	if err != nil {
@@ -163,7 +153,6 @@ func TestExecute_JoinViewsIsolation(t *testing.T) {
 		t.Errorf("expected fingerprint redacted, got %v", rows[0]["fingerprint"])
 	}
 
-	// Query tenant_emails as Org 1
 	emailRows, _, err := tenantsql.Execute(ctx1, db, reg, "SELECT message_id, subject, text FROM tenant_emails")
 	if err != nil {
 		t.Fatalf("execute emails query: %v", err)
@@ -185,27 +174,23 @@ func TestExecute_JoinViewsIsolation(t *testing.T) {
 func TestExecute_FailClosedSecurityChecks(t *testing.T) {
 	db, reg := setupTestDB(t)
 
-	// 1. Missing Org Context
 	ctxNoOrg := context.Background()
 	_, _, err := tenantsql.Execute(ctxNoOrg, db, reg, "SELECT * FROM tenant_links")
 	if err == nil {
 		t.Error("expected error when org context is missing")
 	}
 
-	// 2. Direct Base Table Access Rejection
 	ctx := plugin.WithOrgID(context.Background(), 1)
 	_, _, err = tenantsql.Execute(ctx, db, reg, "SELECT * FROM links")
 	if err == nil {
 		t.Error("expected error when querying raw base table 'links'")
 	}
 
-	// 3. Unknown View Rejection
 	_, _, err = tenantsql.Execute(ctx, db, reg, "SELECT * FROM tenant_unknown")
 	if err == nil {
 		t.Error("expected error when querying unregistered view")
 	}
 
-	// 4. Disallowed Statements Rejection
 	mutations := []string{
 		"INSERT INTO tenant_links (slug) VALUES ('test')",
 		"UPDATE tenant_links SET slug = 'foo'",
@@ -220,7 +205,6 @@ func TestExecute_FailClosedSecurityChecks(t *testing.T) {
 		}
 	}
 
-	// 5. Disallowed Function Rejection
 	_, _, err = tenantsql.Execute(ctx, db, reg, "SELECT load_extension('foo') FROM tenant_links")
 	if err == nil {
 		t.Error("expected error for disallowed function load_extension")
@@ -230,7 +214,6 @@ func TestExecute_FailClosedSecurityChecks(t *testing.T) {
 func TestExecute_RowAndByteLimits(t *testing.T) {
 	db, reg := setupTestDB(t)
 
-	// Seed 5 links for Org 1
 	for i := 0; i < 5; i++ {
 		db.Create(&sqlTestLink{
 			OrgID:  1,
@@ -241,7 +224,6 @@ func TestExecute_RowAndByteLimits(t *testing.T) {
 
 	ctx := plugin.WithOrgID(context.Background(), 1)
 
-	// Test MaxRows limit and Truncated flag
 	rows, meta, err := tenantsql.Execute(ctx, db, reg, "SELECT slug FROM tenant_links ORDER BY slug ASC", tenantsql.WithMaxRows(3))
 	if err != nil {
 		t.Fatalf("query with max rows failed: %v", err)
@@ -253,7 +235,6 @@ func TestExecute_RowAndByteLimits(t *testing.T) {
 		t.Error("expected Truncated to be true when exceeding maxRows")
 	}
 
-	// Test MaxBytes limit
 	_, _, err = tenantsql.Execute(ctx, db, reg, "SELECT slug FROM tenant_links", tenantsql.WithMaxBytes(20))
 	if err == nil {
 		t.Error("expected error when query exceeds MaxBytes limit")
@@ -292,7 +273,6 @@ func TestExecute_NilDBAndNilRegistry(t *testing.T) {
 	}
 
 	db, _ := setupTestDB(t)
-	// Using DefaultRegistry when reg is nil
 	_ = tenantsql.DefaultRegistry().Register(plugin.TenantView{
 		Name:       "tenant_default_reg_test",
 		Definition: func(orgID uint) string { return "SELECT 1 AS col" },
@@ -327,7 +307,7 @@ func TestExecute_ContextCancellation(t *testing.T) {
 	db.Create(&sqlTestLink{OrgID: 1, Slug: "cancel-test", Target: "https://example.com"})
 
 	ctx, cancel := context.WithCancel(plugin.WithOrgID(context.Background(), 1))
-	cancel() // cancel immediately
+	cancel()
 
 	_, _, err := tenantsql.Execute(ctx, db, reg, "SELECT * FROM tenant_links")
 	if err == nil {
@@ -373,7 +353,6 @@ func TestExecute_AliasDoesNotBypassRedaction(t *testing.T) {
 		t.Errorf("raw password leaked through alias: %v", got)
 	}
 
-	// Also verify emails sensitive columns alias redaction (subject, text, html, storage_key)
 	mb := sqlTestMailbox{OrgID: 1, Address: "test@example.com"}
 	db.Create(&mb)
 	db.Create(&sqlTestEmail{

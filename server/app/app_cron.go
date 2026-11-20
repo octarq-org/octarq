@@ -11,7 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// Setup sets up built-in background services, including cron jobs.
 func (a *App) Setup(pctx *plugin.Context, apiHandler *api.Handler) {
 	a.setupBuiltinCron(pctx, apiHandler)
 }

@@ -16,13 +16,11 @@ import (
 )
 
 func TestCoverageLiftExitErrorAndDefaultName(t *testing.T) {
-	// 1. exitError Error() string
 	ee := &exitError{code: 123}
 	if ee.Error() != "exit 123" {
 		t.Errorf("expected 'exit 123', got %q", ee.Error())
 	}
 
-	// 2. Default binary name in NewRootCmd
 	root := NewRootCmd(Deps{})
 	if root.Name() != "octarq" {
 		t.Errorf("expected default name 'octarq', got %q", root.Name())
@@ -112,7 +110,6 @@ func TestCoverageLiftIPCStatusAndReload(t *testing.T) {
 	}()
 	defer srv.Shutdown(context.Background())
 
-	// 1. status command
 	var out, errb bytes.Buffer
 	code := Execute(ctx, []string{"status"}, &out, &errb, testDeps())
 	if code != 0 {
@@ -122,7 +119,6 @@ func TestCoverageLiftIPCStatusAndReload(t *testing.T) {
 		t.Errorf("unexpected status output: %q", out.String())
 	}
 
-	// 2. reload command with no keys changed
 	out.Reset()
 	errb.Reset()
 	code = Execute(ctx, []string{"reload"}, &out, &errb, testDeps())
@@ -133,7 +129,6 @@ func TestCoverageLiftIPCStatusAndReload(t *testing.T) {
 		t.Errorf("unexpected reload output: %q", out.String())
 	}
 
-	// 3. reload command with applied keys
 	reloadMu.Lock()
 	appliedKeys = []string{"listen", "rate_limits"}
 	reloadMu.Unlock()

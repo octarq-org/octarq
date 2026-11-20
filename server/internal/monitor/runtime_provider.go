@@ -8,24 +8,20 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// RuntimeProvider monitors process runtime metrics including goroutines, memory, GC, and Go version.
 type RuntimeProvider struct {
 	startTime time.Time
 }
 
-// NewRuntimeProvider creates a new RuntimeProvider.
 func NewRuntimeProvider() *RuntimeProvider {
 	return &RuntimeProvider{
 		startTime: time.Now(),
 	}
 }
 
-// Name returns the identifier of the runtime provider.
 func (p *RuntimeProvider) Name() string {
 	return "runtime"
 }
 
-// Metadata returns the classification and unit metadata for the runtime provider.
 func (p *RuntimeProvider) Metadata() plugin.HealthMeta {
 	return plugin.HealthMeta{
 		Category: plugin.CategoryRuntime,
@@ -33,7 +29,6 @@ func (p *RuntimeProvider) Metadata() plugin.HealthMeta {
 	}
 }
 
-// Check evaluates the runtime health and returns current runtime metrics.
 func (p *RuntimeProvider) Check(ctx context.Context) plugin.HealthResult {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)

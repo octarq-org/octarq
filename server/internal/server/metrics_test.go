@@ -11,13 +11,10 @@ import (
 
 const testMetricsToken = "metrics-token-for-tests"
 
-// newMetricsTokenMiddleware builds edge middleware with a metrics token set.
 func newMetricsTokenMiddleware() *middleware {
 	return newMiddleware(RuntimeSettings{MetricsToken: func() string { return testMetricsToken }})
 }
 
-// Test 1: Default Prometheus format returns 200 OK, text/plain Content-Type,
-// and contains standard Go runtime and Octarq metrics.
 func TestMetrics_DefaultPrometheusFormat(t *testing.T) {
 	mw := newMetricsTokenMiddleware()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -38,13 +35,11 @@ func TestMetrics_DefaultPrometheusFormat(t *testing.T) {
 
 	body := rec.Body.String()
 
-	// Assert standard Go runtime metric
 	goGoroutinesRegex := regexp.MustCompile(`# HELP go_goroutines`)
 	if !goGoroutinesRegex.MatchString(body) {
 		t.Errorf("expected body to contain '# HELP go_goroutines', body:\n%s", body)
 	}
 
-	// Assert Octarq business metrics
 	if !strings.Contains(body, "octarq_http_requests_total") {
 		t.Errorf("expected body to contain 'octarq_http_requests_total', body:\n%s", body)
 	}
@@ -59,9 +54,7 @@ func TestMetrics_DefaultPrometheusFormat(t *testing.T) {
 	}
 }
 
-// Test 2: Security interception tests loopback vs remote token verification.
 func TestMetrics_SecurityInterception(t *testing.T) {
-	// Subtest 2.1: No token configured turns the endpoint off.
 	t.Run("NoTokenConfigured", func(t *testing.T) {
 		mw := newMiddleware(RuntimeSettings{})
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -75,9 +68,6 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 		}
 	})
 
-	// Subtest 2.1b: A loopback peer is not a credential. A reverse proxy on the
-	// same host makes every remote client a loopback peer, so this request must
-	// be refused exactly like any other unauthenticated one.
 	t.Run("LoopbackPeerWithoutToken", func(t *testing.T) {
 		mw := newMetricsTokenMiddleware()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -94,7 +84,6 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 		}
 	})
 
-	// Subtest 2.1c: The same loopback peer with the token is served.
 	t.Run("LoopbackPeerWithToken", func(t *testing.T) {
 		mw := newMetricsTokenMiddleware()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -109,7 +98,6 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 		}
 	})
 
-	// Subtest 2.2: Remote peer with wrong token is rejected with 403 Forbidden.
 	t.Run("RemoteWithWrongToken", func(t *testing.T) {
 		mw := newMetricsTokenMiddleware()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -124,7 +112,6 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 		}
 	})
 
-	// Subtest 2.3: Remote peer with correct Bearer token configured via settings returns 200 OK.
 	t.Run("RemoteWithCorrectSettingsToken", func(t *testing.T) {
 		mw := newMetricsTokenMiddleware()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -139,7 +126,6 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 		}
 	})
 
-	// Subtest 2.4: Remote peer with correct Bearer token configured via OCTARQ_METRICS_TOKEN env var.
 	t.Run("RemoteWithEnvToken", func(t *testing.T) {
 		t.Setenv("OCTARQ_METRICS_TOKEN", "env-token-987")
 		mw := newMiddleware(RuntimeSettings{})
@@ -156,7 +142,6 @@ func TestMetrics_SecurityInterception(t *testing.T) {
 	})
 }
 
-// Test 3: Backward compatibility for ?format=json returns valid JSON expvar snapshot.
 func TestMetrics_JSONFormatCompatibility(t *testing.T) {
 	mw := newMetricsTokenMiddleware()
 	req := httptest.NewRequest(http.MethodGet, "/metrics?format=json", nil)
@@ -197,7 +182,6 @@ func TestMetrics_JSONFormatCompatibility(t *testing.T) {
 	}
 }
 
-// Test 4: When OCTARQ_METRICS_ENABLED is set to false, /metrics returns 404 Not Found.
 func TestMetrics_Disabled(t *testing.T) {
 	t.Setenv("OCTARQ_METRICS_ENABLED", "false")
 	mw := newMiddleware(RuntimeSettings{})

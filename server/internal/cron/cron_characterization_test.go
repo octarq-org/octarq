@@ -9,7 +9,6 @@ import (
 )
 
 func TestCronCharacterizationExpressionParsing(t *testing.T) {
-	// Valid standard 5-part expressions
 	validSpecs := []string{
 		"0 * * * *",
 		"*/5 * * * *",
@@ -30,7 +29,6 @@ func TestCronCharacterizationExpressionParsing(t *testing.T) {
 		}
 	}
 
-	// Invalid expressions must fail closed
 	invalidSpecs := []string{
 		"",
 		"invalid",
@@ -50,22 +48,18 @@ func TestCronCharacterizationLocalGuard(t *testing.T) {
 	guard := cron.NewLocalGuard()
 	ctx := context.Background()
 
-	// 1. First lock acquisition succeeds
 	rel, ok, err := guard.Acquire(ctx, "test_job", time.Minute)
 	if err != nil || !ok || rel == nil {
 		t.Fatalf("expected initial lock acquisition to succeed, got ok=%v, err=%v", ok, err)
 	}
 
-	// 2. Concurrent acquisition for same job must fail
 	_, ok2, err2 := guard.Acquire(ctx, "test_job", time.Minute)
 	if err2 != nil || ok2 {
 		t.Fatalf("expected concurrent lock to be rejected, got ok=%v, err=%v", ok2, err2)
 	}
 
-	// 3. Release lock
 	rel()
 
-	// 4. Lock can be acquired again
 	rel3, ok3, err3 := guard.Acquire(ctx, "test_job", time.Minute)
 	if err3 != nil || !ok3 || rel3 == nil {
 		t.Fatalf("expected lock re-acquisition to succeed after release, got ok=%v, err=%v", ok3, err3)

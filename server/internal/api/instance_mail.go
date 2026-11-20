@@ -33,12 +33,6 @@ type TestInstanceMailOutput struct {
 	Body TestInstanceMailOutputBody
 }
 
-// testInstanceMail sends a test email to a recipient using the instance system mail sender.
-// POST /api/instance/mail/test
-//
-// Requires instance administrator privileges. Returns 401 for unauthenticated
-// requests, 403 for non-instance-admins, 400 for invalid recipient email or
-// delivery errors, and 503 if no system mail sender is configured.
 func (h *Handler) testInstanceMail(ctx context.Context, input *TestInstanceMailInput) (*TestInstanceMailOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")

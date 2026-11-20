@@ -8,8 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestDeclarePermIsIdempotent verifies that calling DeclarePerm multiple times
-// with the same Key replaces the definition rather than appending it.
 func TestDeclarePermIsIdempotent(t *testing.T) {
 	t.Cleanup(plugin.ResetPermRegistry)
 	plugin.ResetPermRegistry()
@@ -43,8 +41,6 @@ func TestDeclarePermIsIdempotent(t *testing.T) {
 	}
 }
 
-// TestHasPermFailClosedWhenNil verifies that HasPerm returns false (fail-closed)
-// when Context or Context.RequirePerm is nil.
 func TestHasPermFailClosedWhenNil(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://example.com", nil)
 	if err != nil {
@@ -62,8 +58,6 @@ func TestHasPermFailClosedWhenNil(t *testing.T) {
 	}
 }
 
-// TestPermSerializesTheNamesTheMatrixReads pins the exact JSON tag names expected
-// by downstream roles matrix UI.
 func TestPermSerializesTheNamesTheMatrixReads(t *testing.T) {
 	p := plugin.Perm{
 		Key:      "dns.records.delete",

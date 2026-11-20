@@ -8,9 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// A Gemini client sends its key in x-goog-api-key, not in Authorization. The
-// header is admitted only when the value is a stored workspace token, so the
-// Gemini surface authorises with the same token the console mints.
 func TestTokenByRequestAcceptsTheGeminiKeyHeader(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -30,8 +27,6 @@ func TestTokenByRequestAcceptsTheGeminiKeyHeader(t *testing.T) {
 		t.Fatalf("the Gemini key header was not admitted: ok=%v tok=%+v", ok, tok)
 	}
 
-	// A Google key is not a workspace token, and the header does not make it
-	// one.
 	other := httptest.NewRequest(http.MethodGet, "/v1beta/models", nil)
 	other.Header.Set("X-Goog-Api-Key", "AIzaSy-not-an-octarq-token")
 	if _, ok := m.TokenByRequest(other); ok {

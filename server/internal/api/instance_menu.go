@@ -1,9 +1,5 @@
 package api
 
-// Instance-scope plugin menus — the backend half of plugin.InstanceMenuProvider.
-// Own file by design: tenant menus live in tenant_menu.go, instance menus here;
-// the file name is the scope boundary, and the two endpoints must never merge.
-
 import (
 	"context"
 	"sort"
@@ -26,13 +22,6 @@ type ListInstanceMenusOutput struct {
 	Body []MenuItem
 }
 
-// listInstanceMenus aggregates the InstanceMenus() of every plugin that
-// implements plugin.InstanceMenuProvider.
-// GET /api/instance/menus — instance-admin only, mirroring listInstancePlugins:
-// 401 before the admin check, 403 for a logged-in non-admin. There is NO
-// per-workspace toggle here (tenant_menu.go's filter has no meaning: instance
-// config belongs to no workspace, and a disabled workspace must not hide a
-// deployment-wide page). Order asc, then ID asc, so the console rail is stable.
 func (h *Handler) listInstanceMenus(ctx context.Context, input *ListInstanceMenusInput) (*ListInstanceMenusOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")

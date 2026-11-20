@@ -14,12 +14,10 @@ func TestAccountExportAndPurge(t *testing.T) {
 	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
 	sess := sessionCookies(t, ownerUID, org)
 
-	// Seed a couple of org-owned records + a secret-bearing one.
 	db.Create(&testLink{OrgID: org, Slug: "exp1", Target: "https://e.com"})
 	db.Create(&models.Token{OrgID: org, Name: "t", Hash: models.HashToken("oct_acct_export_token_000000000000"), Prefix: "oct_acct"})
 	db.Create(&testSMTPSender{OrgID: org, Name: "relay", Host: "smtp.x", FromEmail: "a@x.com", Pass: "supersecret"})
 
-	// Export must include data but never leak the secrets.
 	rec := do(srv, "GET", "/api/account/export", sess, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("export: got %d, want 200 (%s)", rec.Code, rec.Body.String())
@@ -36,12 +34,10 @@ func TestAccountExportAndPurge(t *testing.T) {
 		}
 	}
 
-	// Purge without confirmation is rejected.
 	if rec := do(srv, "DELETE", "/api/account/data", sess, `{"confirm":"nope"}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("purge w/o confirm: got %d, want 400", rec.Code)
 	}
 
-	// Purge with confirmation wipes the org's rows.
 	if rec := do(srv, "DELETE", "/api/account/data", sess, `{"confirm":"DELETE MY DATA"}`); rec.Code != http.StatusOK {
 		t.Fatalf("purge: got %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
@@ -76,12 +72,10 @@ func containsAny(s string, subs ...string) bool {
 	return false
 }
 
-// jsonContains is a substring check that also tolerates JSON escaping.
 func jsonContains(haystack, needle string) bool {
 	if idx := indexOf(haystack, needle); idx >= 0 {
 		return true
 	}
-	// Try the JSON-escaped form (e.g. for values with special chars).
 	if b, err := json.Marshal(needle); err == nil {
 		trimmed := string(b[1 : len(b)-1])
 		return indexOf(haystack, trimmed) >= 0

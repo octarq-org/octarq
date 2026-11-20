@@ -1,13 +1,3 @@
-// Package server wires the API, short-link redirector, and embedded SPA
-// behind a single http.Handler.
-//
-// Routing:
-//   - /api/*    → JSON API
-//   - /admin/*  → embedded React dashboard (assets + SPA fallback)
-//   - /status   → public status page (same SPA, gated by dashboardAllowed)
-//   - /instance → instance operator console (same SPA, gated by dashboardAllowed)
-//   - /         → redirect to /admin/
-//   - /{slug}   → short-link redirect (the root namespace belongs to links)
 package server
 
 import (
@@ -25,18 +15,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// StaticMount is an embedded single-page app served under Prefix (e.g.
-// "/portal") on behalf of a plugin — the backing for plugin.Context.HandleStatic.
-// FS is the built dist directory and must contain index.html. The core no
-// longer knows anything about the buyer portal specifically; a plugin (in a
-// composed edition) registers its own frontend here, and an OSS build that
-// composes no such plugin serves nothing under the prefix.
 type StaticMount struct {
-	Prefix string // absolute path prefix, no trailing slash (e.g. "/portal")
-	FS     fs.FS  // built dist dir; must contain index.html
+	Prefix string
+	FS     fs.FS
 }
 
-// preparedMount is a StaticMount resolved into the handlers Server serves.
 type preparedMount struct {
 	prefix  string
 	handler http.Handler
@@ -44,7 +27,6 @@ type preparedMount struct {
 	assets  fs.FS
 }
 
-// Server is the top-level HTTP handler.
 type Server struct {
 	cfg          *config.Config
 	api          http.Handler
@@ -58,12 +40,6 @@ type Server struct {
 	origins      *origin.Resolver
 }
 
-// New builds the combined handler. webFS is the embedded dist directory.
-// db backs the host lookup that decides where the dashboard is served.
-// mounts are plugin-contributed static SPAs (plugin.Context.HandleStatic),
-// each served under its own path prefix. rs supplies the DB-backed runtime
-// settings for the edge middleware (rate limits, metrics token); zero value =
-// built-in defaults.
 func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, mounts []StaticMount, rs RuntimeSettings) (*Server, error) {
 	var devProxy *httputil.ReverseProxy
 	if cfg != nil && cfg.DevWebProxy != "" {
@@ -71,13 +47,6 @@ func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback 
 		if err != nil || target.Scheme == "" || target.Host == "" {
 			return nil, fmt.Errorf("invalid OCTARQ_DEV_WEB_PROXY URL %q: scheme and host required", cfg.DevWebProxy)
 		}
-		// Built directly rather than via httputil.NewSingleHostReverseProxy,
-		// which sets the legacy Director hook (deprecated in Go 1.26) that
-		// ReverseProxy refuses to pair with Rewrite. SetURL routes the
-		// outbound request to the target and clears Out.Host so the Host
-		// header matches the target — the same override the old Director
-		// wrapper did; SetXForwarded preserves the X-Forwarded-* headers the
-		// Director path used to add.
 		devProxy = &httputil.ReverseProxy{
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.SetURL(target)
@@ -148,25 +117,18 @@ func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback 
 	return s, nil
 }
 
-// ServeHTTP applies the edge middleware (request IDs, rate limiting, metrics,
-// access logging) and then dispatches to the router.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mw.handle(w, r, s.route)
 }
 
-// route performs the actual path-based dispatch.
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
-	// 1. API and inbound webhook.
 	if strings.HasPrefix(path, "/api/") {
 		s.api.ServeHTTP(w, r)
 		return
 	}
 
-	// 1.25 OAuth flow ingress routes (/auth/begin/... and /auth/callback/...)
-	// mounted by the auth/oauth package on s.api. Gated by dashboardAllowed
-	// like /admin and /login: link/mail hostnames must not serve OAuth flows.
 	if strings.HasPrefix(path, "/auth/") {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)
@@ -176,54 +138,26 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1.5 The API's own generated reference. huma registers these on the API
-	// mux from the real handler registrations, so this document cannot drift
-	// from what the instance serves — it IS what the instance serves.
-	//
-	// They live outside /api/ because huma puts them there, and without this
-	// branch every one of them fell through to the short-link router and 404ed:
-	// the one spec that cannot go stale was the one nobody could fetch. The
-	// published website artifact is generated from this same document.
-	//
-	// Deliberately reachable without a session: an API reference a developer
-	// must first log in to read is a reference they will not read, and it
-	// describes only the shape of the API, never any workspace's data.
 	if isSpecPath(path) {
 		s.api.ServeHTTP(w, r)
 		return
 	}
 
-	// 1.6 The OpenAI-compatible agent surface. A coding agent is configured with
-	// a base URL of <instance>/v1, which sits outside /api/ by convention. Without
-	// this branch the route reached the API mux only in tests and every real
-	// model call fell through to the short-link router and 404ed. Authorisation
-	// is the token guard on the routes themselves; a two-segment path cannot be
-	// a short-link slug, so the root namespace keeps its shape.
 	if strings.HasPrefix(path, "/v1/") {
 		s.api.ServeHTTP(w, r)
 		return
 	}
 
-	// 1.7 The Gemini surface. Gemini CLI addresses the gateway at
-	// <instance>/v1beta/models/…:generateContent, which is neither /v1 nor /api,
-	// so it needs its own branch for the same reason: without it every Gemini
-	// turn fell through to the short-link router and 404ed. Authorisation is the
-	// token guard on the routes themselves.
 	if strings.HasPrefix(path, "/v1beta/") {
 		s.api.ServeHTTP(w, r)
 		return
 	}
 
-	// 1.65 Well-known documents. A coding agent discovers the workspace model
-	// provider at /.well-known/opencode before it holds a credential, so those
-	// paths reach the plugin mux instead of the short-link router. RFC 8615
-	// reserves the namespace: no link may claim a slug under it.
 	if strings.HasPrefix(path, "/.well-known/") {
 		s.api.ServeHTTP(w, r)
 		return
 	}
 
-	// 1.75 Robots.txt: disallow all crawlers and robots across all hosts.
 	if path == "/robots.txt" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -231,7 +165,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Dashboard SPA under /admin (gated by dashboardAllowed).
 	if path == "/admin" || strings.HasPrefix(path, "/admin/") {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)
@@ -250,12 +183,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2.25 Public status page. Serves the same SPA index.html — the React
-	// client reads window.location.pathname and renders StatusPage when it
-	// sees /status. Assets load from /admin/assets/ (the Vite base) so
-	// nothing extra is needed. Gated by dashboardAllowed like the admin
-	// console: a host registered for short links / mail has no reason to
-	// expose the instance's operational status.
 	if path == "/status" || path == "/status/" {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)
@@ -269,14 +196,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2.3 Instance operator console. Same SPA index.html again — the router
-	// picks its basename from the path (main.tsx) and renders the console.
-	// It lives OUTSIDE /admin on purpose: operating the deployment is not a
-	// workspace activity, and the two surfaces should not read as one.
-	// Serving it here also keeps /instance out of the root namespace, where
-	// an unrouted path is looked up as a short-link slug.
-	// Authorisation is the API's job — every /api/instance/* endpoint requires
-	// an instance admin; this only decides which HTML the browser gets.
 	if path == "/instance" || strings.HasPrefix(path, "/instance/") {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)
@@ -290,11 +209,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2.5 Plugin-contributed static SPAs (e.g. the buyer portal under /portal),
-	// registered via plugin.Context.HandleStatic. Each serves an asset when it
-	// exists and otherwise its own index.html for client-side routing. An OSS
-	// build composes no such plugin, so this loop is empty and the prefix falls
-	// through to the root namespace (404).
 	for i := range s.mounts {
 		m := &s.mounts[i]
 		if path == m.prefix || strings.HasPrefix(path, m.prefix+"/") {
@@ -308,11 +222,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 2.75 Marketing-entry shortcuts to the dashboard's auth views. The
-	// marketing site links these directly; both are gated by the same
-	// dashboardAllowed check as /admin, so a link/mail host can't be used to
-	// reach the login or register forms. Query strings pass through so a
-	// campaign param (?plan=pro) survives to the client.
 	switch path {
 	case "/signup":
 		if !s.dashboardAllowed(r.Host) {
@@ -338,7 +247,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Root → dashboard.
 	if path == "/" {
 		if s.dashboardAllowed(r.Host) {
 			http.Redirect(w, r, "/admin/", http.StatusFound)
@@ -348,7 +256,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Everything else in the root namespace is handled by the rootFallback handler (if any).
 	if s.rootFallback != nil {
 		s.rootFallback.ServeHTTP(w, r)
 		return
@@ -356,10 +263,6 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-// specPaths are the documentation endpoints huma registers on the API mux (see
-// huma.DefaultConfig: OpenAPIPath "/openapi", DocsPath "/docs", SchemasPath
-// "/schemas"). Listing them exactly — rather than prefix-matching — keeps the
-// root namespace intact: /openapi-notes stays a short-link slug.
 var specPaths = map[string]bool{
 	"/openapi.json":     true,
 	"/openapi.yaml":     true,
@@ -368,26 +271,13 @@ var specPaths = map[string]bool{
 	"/docs":             true,
 }
 
-// isSpecPath reports whether path is one of the generated reference endpoints.
 func isSpecPath(path string) bool {
 	if specPaths[path] {
 		return true
 	}
-	// Individual JSON Schemas the document $refs into. Without these the
-	// reference renders with dangling references.
 	return strings.HasPrefix(path, "/schemas/")
 }
 
-// dashboardAllowed reports whether the dashboard may be served for this host.
-//
-// A hostname a workspace registered for short links or for mail exists to serve
-// that workspace's public traffic; the operator console has no business
-// answering there, and hiding it removes a login form from a domain whose
-// visitors have no reason to see one. Every other hostname serves the
-// dashboard.
-//
-// The domains table is the source of truth: an instance legitimately answers on
-// several hostnames for different purposes, which a single host constant could not express.
 func (s *Server) dashboardAllowed(host string) bool {
 	return !s.origins.ServesTraffic(host)
 }
@@ -407,8 +297,6 @@ func (s *Server) assetExists(name string) bool {
 	return true
 }
 
-// mountAssetExists reports whether name resolves to a (non-directory) file in a
-// plugin static mount's FS.
 func mountAssetExists(assets fs.FS, name string) bool {
 	if assets == nil {
 		return false

@@ -19,10 +19,6 @@ func isSecretConfigKey(k string) bool {
 	return false
 }
 
-// splitChannelConfig separates a channel JSON config into non-secret routing
-// metadata (stored in notification_channels.config) and secret fields (stored in
-// VaultService). Any secret key carrying "[REDACTED]" is tracked in
-// redactedKeys so updates can preserve the existing vault secret.
 func splitChannelConfig(cfgJSON string) (metaMap map[string]any, secretMap map[string]any, redactedKeys []string, err error) {
 	metaMap = make(map[string]any)
 	secretMap = make(map[string]any)

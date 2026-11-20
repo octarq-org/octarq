@@ -12,8 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
-// The challenge signature must use the challenge subkey, not the raw master
-// secret the session cookies and CSRF tokens also use.
 func TestTwoFAChallengeUsesItsOwnSubkey(t *testing.T) {
 	const secret = "master-secret"
 	m := New(&config.Config{SecretKey: secret}, crypto.New(secret))
@@ -45,8 +43,6 @@ func TestTwoFAChallengeUsesItsOwnSubkey(t *testing.T) {
 	}
 }
 
-// The OAuth state cookie is signed and encrypted by the goth session store, so
-// its key must be the OAuth subkey, not the raw master secret.
 func TestOAuthStateKeyUsesItsOwnSubkey(t *testing.T) {
 	const secret = "master-secret"
 	if got, want := oauthStateKey(secret), crypto.DeriveKey([]byte(secret), "octarq/oauth-state/v1"); string(got) != string(want) {

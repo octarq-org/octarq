@@ -11,22 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrRegistrationDisabled is returned when an unknown email tries to sign in
-// through an external identity source (OAuth, SSO) on an instance that has
-// public registration turned off. Existing users still resolve; only creating a
-// brand-new account is refused.
 var ErrRegistrationDisabled = errors.New("registration disabled")
 
-// UpsertUserByEmail finds or creates the User + a default Org + OrgMember for a
-// verified email address and returns their IDs. It is the single provisioning
-// path shared by every "we trust this email" login (built-in OAuth and the Pro
-// SSO plugin).
-//
-// Creating a brand-new user is gated on allowRegistration so an external
-// identity source can't be a side door into an invite-only instance; a user
-// that already exists always resolves regardless of the flag. JIT-provisioned
-// users are ordinary org owners of their own personal org — never instance
-// admins (that privilege is reserved for the config-backed admin credential).
 func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userID, orgID uint, err error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
@@ -49,8 +35,6 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 		db.Model(&user).Update("email_verified", true)
 	}
 
-	// Resolve the org this user belongs to (first one wins); create a personal
-	// org for a brand-new user.
 	var member models.OrgMember
 	me := db.Where("user_id = ?", user.ID).First(&member).Error
 	if errors.Is(me, gorm.ErrRecordNotFound) {
@@ -62,9 +46,6 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 		if err := db.Create(&org).Error; err != nil {
 			return 0, 0, err
 		}
-		// A configured base domain gives the fresh org its tenant subdomain; a
-		// name collision propagates as an error rather than leaving an org with
-		// no address and nobody told.
 		if _, _, err := tenancy.Provision(db, org.ID, org.Slug); err != nil {
 			return 0, 0, err
 		}
@@ -79,30 +60,17 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 	return user.ID, member.OrgID, nil
 }
 
-// registrationAllowed reports whether new accounts may be provisioned, reading
-// the "allow_registration" setting directly (default on when the row is
-// absent). It keeps the auth package independent of the api package.
 func registrationAllowed(db *gorm.DB) bool {
 	if db == nil {
 		return false
 	}
 	var s models.Setting
 	if err := db.Where("key = ?", "allow_registration").First(&s).Error; err != nil {
-		return true // no row → default on
+		return true
 	}
 	return s.Value != "false"
 }
 
-// LoginByEmail completes a login for an already-verified email: it provisions
-// (or finds) the user and issues the session cookie, exactly as built-in OAuth
-// login does. It is the capability exposed to plugins via
-// plugin.Context.LoginByEmail, so an SSO/identity plugin can finish login after
-// it has verified an external identity (ID token, SAML assertion, …).
-//
-// It honours the instance's registration policy: an unknown email on an
-// invite-only instance is refused with ErrRegistrationDisabled rather than
-// silently provisioned. Callers MUST verify the email before calling — this
-// method performs no authentication of its own.
 func (m *Manager) LoginByEmail(w http.ResponseWriter, r *http.Request, email string) (userID uint, err error) {
 	if m.db == nil {
 		return 0, errors.New("auth: no database configured")
@@ -111,12 +79,6 @@ func (m *Manager) LoginByEmail(w http.ResponseWriter, r *http.Request, email str
 	if err != nil {
 		return 0, err
 	}
-	// Second factor: same deliberate skip as LoginByIdentity (R3-twofa
-	// decision 2). This method's only callers are identity plugins that have
-	// already verified the email against an external source — audit of the
-	// call sites as of the fix: app.App.loginByEmail, the sole wire for
-	// plugin.Context.LoginByEmail; no other caller exists in-repo or
-	// downstream. There is no admin-impersonation path to force TOTP on.
 	if m.userHasTOTP(uid) {
 		m.auditSSOTOTPBypass(r, orgID, uid, "email", "", "")
 	}

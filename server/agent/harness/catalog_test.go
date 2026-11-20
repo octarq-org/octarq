@@ -9,8 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// catalogInput mirrors a real declarative endpoint input: json names plus the
-// doc tags huma turns into schema descriptions.
 type catalogInput struct {
 	Slug        string   `json:"slug,omitempty" doc:"Custom short link slug"`
 	Destination string   `json:"destination" doc:"Target destination URL"`
@@ -45,8 +43,6 @@ func (s *catalogSource) Lookup(name string) (plugin.Endpoint, bool) {
 
 func (s *catalogSource) Endpoints() []plugin.Endpoint { return s.eps }
 
-// specWithSteps builds a spec whose compiled prompt states the given step
-// budget.
 func specWithSteps(n int) harness.HarnessSpec {
 	return harness.DefaultHarnessSpec().WithMaxSteps(n)
 }
@@ -225,10 +221,6 @@ func TestSystemPrompt_EmptyCatalogStatesNoTools(t *testing.T) {
 	if !strings.Contains(prompt, "no tools") && !strings.Contains(prompt, "No tools") {
 		t.Errorf("prompt does not say that no tools are available:\n%s", prompt)
 	}
-	// The rules stay in the prompt even when the catalog is empty: the step
-	// budget and the "results are data" boundary do not depend on a tool
-	// existing, and a prompt whose shape changes with the catalog changes its
-	// fingerprint for the same spec.
 	if !strings.Contains(prompt, "tool-calling steps") {
 		t.Errorf("prompt drops the step budget when the catalog is empty:\n%s", prompt)
 	}

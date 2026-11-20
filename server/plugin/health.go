@@ -4,7 +4,6 @@ import (
 	"context"
 )
 
-// HealthStatus represents the health evaluation state of a provider or overall system.
 type HealthStatus string
 
 const (
@@ -13,28 +12,23 @@ const (
 	HealthError HealthStatus = "error"
 )
 
-// HealthProvider is the SPI contract for plugins and core modules to contribute
-// health check evaluation and diagnostic metrics.
 type HealthProvider interface {
 	Name() string
 	Check(ctx context.Context) HealthResult
 	Metadata() HealthMeta
 }
 
-// HealthResult carries the outcome of an individual health check.
 type HealthResult struct {
 	Status  HealthStatus           `json:"status"`
 	Message string                 `json:"message,omitempty"`
-	Metrics map[string]interface{} `json:"metrics,omitempty"` // Custom metric key-value pairs
+	Metrics map[string]interface{} `json:"metrics,omitempty"`
 }
 
-// HealthMeta describes categorization and display metadata for a HealthProvider.
 type HealthMeta struct {
-	Category string `json:"category,omitempty"` // "runtime" | "database" | "storage" | "custom"
-	Unit     string `json:"unit,omitempty"`     // "bytes" | "count" | "ms" | "percent"
+	Category string `json:"category,omitempty"`
+	Unit     string `json:"unit,omitempty"`
 }
 
-// Predefined HealthMeta categories.
 const (
 	CategoryRuntime  = "runtime"
 	CategoryDatabase = "database"
@@ -42,7 +36,6 @@ const (
 	CategoryCustom   = "custom"
 )
 
-// Predefined HealthMeta units.
 const (
 	UnitBytes   = "bytes"
 	UnitCount   = "count"
@@ -50,7 +43,6 @@ const (
 	UnitPercent = "percent"
 )
 
-// GetHealthProviders resolves all registered HealthProvider instances from the context.
 func GetHealthProviders(ctx *Context) []HealthProvider {
 	if ctx == nil {
 		return nil

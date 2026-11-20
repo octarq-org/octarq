@@ -7,11 +7,9 @@ import (
 )
 
 func TestDescriptorsAndRegisterWithDescriptor(t *testing.T) {
-	// Register with empty type or nil provider (should be ignored)
 	RegisterWithDescriptor(Descriptor{Type: ""}, func(ctx context.Context, cfgJSON, text string) error { return nil })
 	RegisterWithDescriptor(Descriptor{Type: "invalid"}, nil)
 
-	// Register a valid custom provider with descriptor
 	customDesc := Descriptor{
 		Type:        "slack",
 		Title:       "Slack",
@@ -28,7 +26,6 @@ func TestDescriptorsAndRegisterWithDescriptor(t *testing.T) {
 		t.Fatalf("expected at least 3 descriptors, got %d", len(list))
 	}
 
-	// Verify descriptors are sorted alphabetically by Type
 	for i := 1; i < len(list); i++ {
 		if list[i-1].Type > list[i].Type {
 			t.Errorf("descriptors not sorted: %s > %s", list[i-1].Type, list[i].Type)

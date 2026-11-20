@@ -11,14 +11,11 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// Proposal represents a recommended harness spec ready for adoption as a draft.
-// Its shape strictly matches the core admin draft import contract.
 type Proposal struct {
 	Spec     harness.HarnessSpec `json:"spec"`
 	Evidence ProposalEvidence    `json:"evidence"`
 }
 
-// ProposalEvidence captures empirical benchmark evidence supporting the proposal.
 type ProposalEvidence struct {
 	TaskSet              string  `json:"taskSet"`
 	Baseline             string  `json:"baseline"`
@@ -31,10 +28,6 @@ type ProposalEvidence struct {
 	EstimatedTokens      int     `json:"estimatedTokens"`
 }
 
-// BuildProposal constructs an importable draft Proposal from an evaluation report.
-// It enforces that the recommended candidate's spec adheres strictly to its
-// declared profile's step limits, passes harness.Validate, and captures
-// empirical evidence comparing it to the baseline.
 func BuildProposal(report *LabReport) (*Proposal, error) {
 	if report == nil {
 		return nil, errors.New("cannot build proposal: report is nil")
@@ -46,7 +39,6 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 		return nil, errors.New("cannot build proposal: report contains no scores")
 	}
 
-	// Locate the recommended candidate in CandidateResults
 	var recCand *Candidate
 	for _, cr := range report.CandidateResults {
 		if cr.Candidate.Name == report.RecommendedCandidate {
@@ -59,7 +51,6 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 		return nil, fmt.Errorf("recommended candidate %q not found in candidate results", report.RecommendedCandidate)
 	}
 
-	// Locate the recommended candidate's score
 	var recScore *CandidateScore
 	for _, sc := range report.Scores {
 		if sc.CandidateName == report.RecommendedCandidate {
@@ -72,7 +63,6 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 		return nil, fmt.Errorf("recommended candidate %q score not found in report", report.RecommendedCandidate)
 	}
 
-	// Core invariant: Name is mandatory and <= 64 chars
 	if strings.TrimSpace(recCand.Spec.Name) == "" {
 		return nil, errors.New("candidate spec name must not be empty")
 	}
@@ -80,21 +70,16 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 		return nil, fmt.Errorf("candidate spec name exceeds %d characters", harness.MaxSpecNameLen)
 	}
 
-	// The proposal carries the candidate's profile and the exact budget the
-	// runner enforces. A budget above the profile ceiling is refused, never
-	// rewritten to a smaller number.
 	effectiveSteps, err := recCand.Spec.EffectiveMaxSteps(false)
 	if err != nil {
 		return nil, fmt.Errorf("candidate %q: %w", recCand.Name, err)
 	}
 	specToPropose := recCand.Spec.WithMaxSteps(effectiveSteps)
 
-	// Validate proposed spec fails closed
 	if err := harness.Validate(specToPropose); err != nil {
 		return nil, fmt.Errorf("proposal spec validation failed: %w", err)
 	}
 
-	// Resolve baseline fingerprint
 	baselineFp := report.SpecDiffFromBaseline.Fingerprint.Baseline
 	if baselineFp == "" {
 		for _, sc := range report.Scores {
@@ -131,7 +116,6 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 	}, nil
 }
 
-// WriteProposalFile serializes the Proposal to formatted JSON and writes it to path.
 func WriteProposalFile(p *Proposal, path string) error {
 	if p == nil {
 		return errors.New("cannot write nil proposal")

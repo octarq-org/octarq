@@ -8,8 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ownFrontendPlugin declares a menu entry for a frontend it mounts itself with
-// Context.HandleStatic, plus one ordinary dashboard route.
 type ownFrontendPlugin struct{}
 
 func (ownFrontendPlugin) Name() string                          { return "ownfront" }
@@ -22,10 +20,6 @@ func (ownFrontendPlugin) Menus() []plugin.MenuItem {
 	}
 }
 
-// The shell renders a menu entry as an in-app route unless the item says it is
-// external; a static frontend mounted outside the dashboard SPA then lands on
-// the "unavailable" page. This asserts the flag survives plugin declaration →
-// /api/menus JSON.
 func TestMenusCarryExternal(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{ownFrontendPlugin{}})
@@ -57,8 +51,6 @@ func TestMenusCarryExternal(t *testing.T) {
 	if !got["desk"] {
 		t.Error("desk external = false, want true")
 	}
-	// A dashboard route must stay internal, or the sidebar turns it into a
-	// full page load for no reason.
 	if got["plain"] {
 		t.Error("plain external = true, want false")
 	}

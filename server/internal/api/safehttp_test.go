@@ -15,18 +15,18 @@ func TestDisallowedIP(t *testing.T) {
 		ip      string
 		blocked bool
 	}{
-		{"127.0.0.1", true},       // loopback
-		{"::1", true},             // loopback v6
-		{"169.254.169.254", true}, // cloud metadata (link-local)
-		{"10.0.0.5", true},        // RFC1918
-		{"192.168.1.1", true},     // RFC1918
-		{"172.16.0.1", true},      // RFC1918
-		{"100.64.0.1", true},      // CGNAT
-		{"0.0.0.0", true},         // unspecified
-		{"fc00::1", true},         // IPv6 ULA
-		{"8.8.8.8", false},        // public
-		{"1.1.1.1", false},        // public
-		{"93.184.216.34", false},  // public (example.com)
+		{"127.0.0.1", true},
+		{"::1", true},
+		{"169.254.169.254", true},
+		{"10.0.0.5", true},
+		{"192.168.1.1", true},
+		{"172.16.0.1", true},
+		{"100.64.0.1", true},
+		{"0.0.0.0", true},
+		{"fc00::1", true},
+		{"8.8.8.8", false},
+		{"1.1.1.1", false},
+		{"93.184.216.34", false},
 	}
 	for _, c := range cases {
 		ip := net.ParseIP(c.ip)
@@ -37,7 +37,6 @@ func TestDisallowedIP(t *testing.T) {
 }
 
 func TestSafeGetBlocksLoopback(t *testing.T) {
-	// A real loopback server — the guard must refuse to connect to it.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("<title>secret</title>"))
 	}))

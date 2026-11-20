@@ -30,7 +30,6 @@ func TestMonitorCharacterizationAggregation(t *testing.T) {
 	c := monitor.NewCollector(time.Minute)
 	ctx := context.Background()
 
-	// 1. All OK -> Overall OK
 	c.RegisterProvider(&charMockProvider{name: "db", status: plugin.HealthOK})
 	c.RegisterProvider(&charMockProvider{name: "disk", status: plugin.HealthOK})
 	c.Collect(ctx)
@@ -39,7 +38,6 @@ func TestMonitorCharacterizationAggregation(t *testing.T) {
 		t.Fatalf("expected HealthOK, got %v", rep.Overall)
 	}
 
-	// 2. One Error -> Overall Error
 	c.RegisterProvider(&charMockProvider{name: "net", status: plugin.HealthError})
 	c.Collect(ctx)
 	rep = c.LatestReport(ctx)

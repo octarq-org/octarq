@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-// responsesFixture points one workspace provider at a stand-in upstream.
 func responsesFixture(t *testing.T, u *upstream) *httpFixture {
 	t.Helper()
 	f := newHTTPFixture(t, 1, 1, "member")
@@ -18,7 +17,6 @@ func responsesFixture(t *testing.T, u *upstream) *httpFixture {
 	return f
 }
 
-// responsesSent is the conversation the gateway built for the provider.
 func responsesSent(t *testing.T, u *upstream) map[string]any {
 	t.Helper()
 	var body map[string]any
@@ -28,8 +26,6 @@ func responsesSent(t *testing.T, u *upstream) map[string]any {
 	return body
 }
 
-// TestResponsesAnswersWithAnOutputText proves the plain turn works: the input
-// becomes messages, and the completion becomes a message item with output_text.
 func TestResponsesAnswersWithAnOutputText(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"chatcmpl-1","model":"stub-model",
 		"choices":[{"message":{"content":"pong"},"finish_reason":"stop"}],
@@ -67,7 +63,6 @@ func TestResponsesAnswersWithAnOutputText(t *testing.T) {
 		t.Fatalf("usage = %v", usage)
 	}
 
-	// The provider reads a system message and a user message.
 	sent := responsesSent(t, u)
 	messages, _ := sent["messages"].([]any)
 	if len(messages) != 2 {
@@ -79,8 +74,6 @@ func TestResponsesAnswersWithAnOutputText(t *testing.T) {
 	}
 }
 
-// TestResponsesKeepsTheToolConversation proves the turn after a tool call keeps
-// both sides: the assistant's call and the tool's answer.
 func TestResponsesKeepsTheToolConversation(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c2","model":"m","choices":[{"message":{"content":"",
 		"tool_calls":[{"id":"call_9","type":"function","function":{"name":"read","arguments":"{\"path\":\"a.go\"}"}}]},
@@ -117,7 +110,6 @@ func TestResponsesKeepsTheToolConversation(t *testing.T) {
 		t.Fatalf("tool message = %v", tool)
 	}
 
-	// The answer's call becomes a function_call item the agent can run.
 	output, _ := body["output"].([]any)
 	if len(output) != 1 {
 		t.Fatalf("output = %v", body["output"])
@@ -131,8 +123,6 @@ func TestResponsesKeepsTheToolConversation(t *testing.T) {
 	}
 }
 
-// TestResponsesFlattensToolLists covers the three tool shapes Codex sends: a
-// function, a namespace holding functions, and a hosted tool it cannot call.
 func TestResponsesFlattensToolLists(t *testing.T) {
 	u := &upstream{chatBody: `{"choices":[{"message":{"content":""},"finish_reason":"stop"}]}`}
 	f := responsesFixture(t, u)
@@ -163,8 +153,6 @@ func TestResponsesFlattensToolLists(t *testing.T) {
 	}
 }
 
-// TestResponsesRefusesStateItCannotKeep keeps a stored-response client from
-// losing the conversation instead of failing.
 func TestResponsesRefusesStateItCannotKeep(t *testing.T) {
 	f := responsesFixture(t, &upstream{chatBody: `{}`})
 	status, body := f.do(t, http.MethodPost, "/v1/responses",
@@ -179,8 +167,6 @@ func TestResponsesRefusesStateItCannotKeep(t *testing.T) {
 	}
 }
 
-// TestResponsesRefusesAnUnknownItem names the item it cannot translate, rather
-// than dropping part of the turn.
 func TestResponsesRefusesAnUnknownItem(t *testing.T) {
 	f := responsesFixture(t, &upstream{chatBody: `{}`})
 	status, body := f.do(t, http.MethodPost, "/v1/responses",
@@ -195,8 +181,6 @@ func TestResponsesRefusesAnUnknownItem(t *testing.T) {
 	}
 }
 
-// TestResponsesStreamsTheEventSequence walks the events Codex parses: created,
-// the message item, the text deltas, and the closing completed event.
 func TestResponsesStreamsTheEventSequence(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{"content":"pong"}}]}`,
@@ -241,8 +225,6 @@ func TestResponsesStreamsTheEventSequence(t *testing.T) {
 			t.Fatalf("missing %q in:\n%s", want, text)
 		}
 	}
-	// The closing event carries the finished items, which is where a client
-	// that ignored the deltas reads the answer.
 	completed := text[strings.LastIndex(text, "event: response.completed"):]
 	if !strings.Contains(completed, `"text":"pong"`) || !strings.Contains(completed, `"status":"completed"`) {
 		t.Fatalf("completed event = %s", completed)
@@ -254,8 +236,6 @@ func TestResponsesStreamsTheEventSequence(t *testing.T) {
 	}
 }
 
-// TestResponsesStreamsAToolCall proves the arguments arrive assembled, which is
-// what the agent runs.
 func TestResponsesStreamsAToolCall(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_3","type":"function","function":{"name":"read","arguments":""}}]}}]}`,
@@ -294,9 +274,6 @@ func TestResponsesStreamsAToolCall(t *testing.T) {
 	}
 }
 
-// TestResponsesKeepsCodexDeveloperMessages covers the shape Codex actually
-// sends: two messages with role "developer" carrying input_text, no
-// instructions field, and the user turn last.
 func TestResponsesKeepsCodexDeveloperMessages(t *testing.T) {
 	u := &upstream{chatBody: `{"choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}`}
 	f := responsesFixture(t, u)
@@ -332,7 +309,6 @@ func TestResponsesKeepsCodexDeveloperMessages(t *testing.T) {
 }
 
 func TestResponsesInputAndToolHelpers(t *testing.T) {
-	// flattenRespTools: namespace recursion, empty function name, default parameters
 	var tools []oaiTool
 	flattenRespTools(respTool{
 		Type: "namespace",
@@ -346,7 +322,6 @@ func TestResponsesInputAndToolHelpers(t *testing.T) {
 		t.Fatalf("flattenRespTools = %+v", tools)
 	}
 
-	// respToolChoice branches
 	for _, tc := range []struct {
 		raw  string
 		want string
@@ -368,7 +343,6 @@ func TestResponsesInputAndToolHelpers(t *testing.T) {
 		t.Fatalf("respToolChoice function = %v", fnChoice)
 	}
 
-	// parseRespInput errors & string input
 	if _, err := parseRespInput(json.RawMessage("null")); err == nil {
 		t.Fatal("expected empty input error")
 	}
@@ -379,7 +353,6 @@ func TestResponsesInputAndToolHelpers(t *testing.T) {
 		t.Fatal("expected non-list input error")
 	}
 
-	// respMessage branches (user image_url, missing url, file_id, unknown part, assistant, unknown role, empty parts)
 	if msg, err := respMessage(respItem{Role: "user", Content: json.RawMessage(`[{"type":"input_image","image_url":"https://example.com/a.png"}]`)}); err != nil || msg.Role != "user" {
 		t.Fatalf("user image_url = %+v err=%v", msg, err)
 	}
@@ -403,7 +376,6 @@ func TestResponsesInputAndToolHelpers(t *testing.T) {
 		}
 	}
 
-	// respText branches (empty, string, array of parts, structured JSON scalar/object, bad JSON)
 	if got, err := respText(json.RawMessage("")); err != nil || got != "" {
 		t.Fatalf("respText empty = %q err=%v", got, err)
 	}
@@ -423,7 +395,6 @@ func TestResponsesInputAndToolHelpers(t *testing.T) {
 		t.Fatal("expected respText array error")
 	}
 
-	// fromOpenAIResponse edge branches + handleAgentResponses validation errors
 	emptyAns := fromOpenAIResponse("", "m", &oaiResponse{})
 	if len(emptyAns.Output) != 1 || emptyAns.Model != "m" || !strings.HasPrefix(emptyAns.ID, "resp_") {
 		t.Fatalf("emptyAns = %+v", emptyAns)

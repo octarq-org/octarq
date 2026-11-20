@@ -61,7 +61,6 @@ func (m *mockNonStreamProvider) Complete(ctx context.Context, req llmprovider.Re
 }
 
 func TestCoverageLiftStreamMaxSteps(t *testing.T) {
-	// A streamer that keeps outputting tool calls until maxSteps is exceeded
 	streamer := &mockStreamProvider{}
 	runner := newTestRunner(t, &CompleterAdapter{Provider: streamer}, &fakeExecutor{}, WithProfile(ProfileReactor)).(*defaultRunner)
 
@@ -79,20 +78,17 @@ func TestCoverageLiftStreamMaxSteps(t *testing.T) {
 func TestCoverageLiftCompleterAdapter(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. Complete with error
 	badAdapter := &CompleterAdapter{Provider: &mockNonStreamProvider{err: errors.New("fail")}}
 	_, err := badAdapter.Complete(ctx, "model", "system", nil)
 	if err == nil || !strings.Contains(err.Error(), "fail") {
 		t.Fatalf("expected fail error, got %v", err)
 	}
 
-	// 2. StreamComplete with provider that does NOT support streaming
 	_, err = badAdapter.StreamComplete(ctx, llmprovider.Request{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "does not support streaming") {
 		t.Fatalf("expected does not support streaming error, got %v", err)
 	}
 
-	// 3. StreamComplete with provider that DOES support streaming
 	streamAdapter := &CompleterAdapter{Provider: &mockStreamProvider{}}
 	_, err = streamAdapter.StreamComplete(ctx, llmprovider.Request{}, nil)
 	if err != nil {
@@ -103,7 +99,6 @@ func TestCoverageLiftCompleterAdapter(t *testing.T) {
 func TestCoverageLiftStreamRunnerBranches(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. StreamComplete returning error
 	failingStreamer := &mockStreamProvider{streamErr: errors.New("stream exploded")}
 	r1 := newTestRunner(t, &CompleterAdapter{Provider: failingStreamer}, &fakeExecutor{}).(*defaultRunner)
 	s1 := &Session{ID: "s1", OrgID: 1}
@@ -116,7 +111,6 @@ func TestCoverageLiftStreamRunnerBranches(t *testing.T) {
 		t.Errorf("expected failed status, got %v", t1.Status)
 	}
 
-	// 2. Stream execution order violation
 	r2 := newTestRunner(t, &CompleterAdapter{Provider: &mockStreamOrderErrorProvider{}}, &fakeExecutor{}).(*defaultRunner)
 	s2 := &Session{ID: "s2", OrgID: 1}
 	t2 := &Turn{Input: "invoke"}
@@ -128,7 +122,6 @@ func TestCoverageLiftStreamRunnerBranches(t *testing.T) {
 		t.Errorf("expected failed status, got %v", t2.Status)
 	}
 
-	// 3. streamCollector early returns when c.err != nil
 	collector := newStreamCollector(nil)
 	collector.err = errors.New("prior error")
 	collector.OnThinking("delta")
@@ -160,7 +153,6 @@ func (mockBadOutputEndpoint) Execute(_ context.Context, _ any) (any, error) {
 }
 func (mockBadOutputEndpoint) Spec() any { return nil }
 func (mockBadOutputEndpoint) ExecuteAgentJSON(_ context.Context, _ string) (any, error) {
-	// Channels cannot be JSON-marshaled
 	return make(chan int), nil
 }
 
@@ -177,21 +169,18 @@ func (mockBadOutputSource) Endpoints() []plugin.Endpoint {
 func TestCoverageLiftWiringEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. RegistryExecutor with nil source
 	reNil := NewRegistryExecutor(nil)
 	_, err := reNil.Execute(ctx, 1, "any_tool", "{}")
 	if err == nil || !strings.Contains(err.Error(), "UNKNOWN_TOOL") {
 		t.Fatalf("expected UNKNOWN_TOOL error for nil source, got %v", err)
 	}
 
-	// 2. RiskGuard with nil source
 	rgNil := NewRiskGuard(nil)
 	err = rgNil.Allow(ctx, 1, "any_tool", "{}")
 	if err == nil || !strings.Contains(err.Error(), "UNKNOWN_TOOL") {
 		t.Fatalf("expected UNKNOWN_TOOL error for nil source, got %v", err)
 	}
 
-	// 3. RegistryExecutor with unmarshalable tool result
 	reBad := NewRegistryExecutor(mockBadOutputSource{})
 	_, err = reBad.Execute(ctx, 1, "bad", "{}")
 	if err == nil || !strings.Contains(err.Error(), "marshal tool output") {

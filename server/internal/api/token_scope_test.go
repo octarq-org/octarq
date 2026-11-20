@@ -12,22 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// An API bearer token acts as the person who minted it. It borrows their
-// membership rather than carrying authority of its own, and may narrow itself
-// below them but never above: the effective role is
-// min(the holder's role in the org, the token's own).
-//
-// That replaces a parallel authorization path — bearer requests used to consult
-// the token's role while everything else consulted the user's — with a single
-// one, and it is what makes offboarding a person revoke their tokens too.
-//
-// GET /api/webhooks is the admin-gated route under test throughout. It used to
-// be GET /api/tokens, which stopped being admin-gated when minting a personal
-// token became something any member may do (listTokens now narrows a non-admin
-// to their own rows instead of refusing them). The property being probed is the
-// cap itself, so any admin gate serves — this one has no per-caller narrowing to
-// confuse a 200 with.
-
 func bearer(srv http.Handler, method, path, raw string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, nil)
 	req.Header.Set("Authorization", "Bearer "+raw)
@@ -36,8 +20,6 @@ func bearer(srv http.Handler, method, path, raw string) *httptest.ResponseRecord
 	return rec
 }
 
-// seedMember gives uid a membership row at the named role, which is what every
-// role gate now reads for token requests too.
 func seedMember(t *testing.T, db *gorm.DB, uid uint, role string) {
 	t.Helper()
 	var mem models.OrgMember
@@ -48,7 +30,6 @@ func seedMember(t *testing.T, db *gorm.DB, uid uint, role string) {
 	}
 }
 
-// seedToken mints a token held by uid with its own role cap.
 func seedToken(t *testing.T, db *gorm.DB, raw string, uid uint, cap string) {
 	t.Helper()
 	if err := db.Create(&models.Token{
@@ -63,10 +44,6 @@ func seedToken(t *testing.T, db *gorm.DB, raw string, uid uint, cap string) {
 	}
 }
 
-// A token that belongs to nobody has no membership to borrow, so it clears no
-// gate. This is the fail-closed direction: the previous model read an empty
-// role as "unrestricted", which meant an unattributable row was the most
-// powerful credential in the system rather than the least.
 func TestTokenWithNoHolderClearsNothing(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const raw = "oct_ownerlesstoken0000000000000000001"
@@ -77,8 +54,6 @@ func TestTokenWithNoHolderClearsNothing(t *testing.T) {
 	}
 }
 
-// TestMemberTokenDeniedAdminRoute: the cap does its job even when the holder
-// could have done more.
 func TestMemberTokenDeniedAdminRoute(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const raw = "oct_memberscopedtoken00000000000000001"
@@ -89,9 +64,6 @@ func TestMemberTokenDeniedAdminRoute(t *testing.T) {
 		t.Errorf("member-capped token on admin route: got %d, want 403 (body=%s)", rec.Code, rec.Body.String())
 	}
 
-	// Positive half: the token is still a valid credential for ungated routes.
-	// Without this a token that had simply stopped authenticating would pass the
-	// assertion above for entirely the wrong reason.
 	if rec := bearer(srv, http.MethodGet, "/api/overview", raw); rec.Code != http.StatusOK {
 		t.Errorf("member-capped token on ungated route: got %d, want 200 (body=%s)", rec.Code, rec.Body.String())
 	}
@@ -108,10 +80,6 @@ func TestAdminTokenAllowedAdminRoute(t *testing.T) {
 	}
 }
 
-// The other direction, and the reason the cap is a floor-and-ceiling rather
-// than a substitute: a token stamped "owner" held by someone who is only a
-// member is a member's token. Otherwise minting would be an escalation any
-// member could perform on themselves.
 func TestTokenCannotOutrankItsHolder(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const raw = "oct_ownercaptoken00000000000000000001"
@@ -123,9 +91,6 @@ func TestTokenCannotOutrankItsHolder(t *testing.T) {
 	}
 }
 
-// Offboarding. Deleting the membership is the whole revocation — the role is
-// read on every request rather than frozen into the token at mint time, so
-// there is no separate list of credentials to remember to clean up.
 func TestRemovingTheHolderRevokesTheirTokens(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const raw = "oct_offboardingtoken00000000000000001"
@@ -145,12 +110,10 @@ func TestRemovingTheHolderRevokesTheirTokens(t *testing.T) {
 	}
 }
 
-// TestTokenCannotMintAboveOwnRole closes the escalation loop: an admin-scoped
-// token that could mint an owner-scoped one would make the cap decorative.
 func TestTokenCannotMintAboveOwnRole(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const raw = "oct_adminmintertoken000000000000000001"
-	seedMember(t, db, 12, "owner") // the holder could mint owner; the token may not
+	seedMember(t, db, 12, "owner")
 	seedToken(t, db, raw, 12, "admin")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/tokens", strings.NewReader(`{"name":"escalate","role":"owner"}`))
@@ -162,7 +125,6 @@ func TestTokenCannotMintAboveOwnRole(t *testing.T) {
 		t.Errorf("admin token minting an owner token: got %d, want 403 (body=%s)", rec.Code, rec.Body.String())
 	}
 
-	// And it may still mint at or below its own level.
 	req = httptest.NewRequest(http.MethodPost, "/api/tokens", strings.NewReader(`{"name":"ok","role":"member"}`))
 	req.Header.Set("Authorization", "Bearer "+raw)
 	req.Header.Set("Content-Type", "application/json")
@@ -173,9 +135,6 @@ func TestTokenCannotMintAboveOwnRole(t *testing.T) {
 	}
 }
 
-// A minted token records who it acts as. Without this the credential outlives
-// any account it can be traced to, which is the state the whole change exists
-// to end.
 func TestMintedTokenRecordsItsHolder(t *testing.T) {
 	srv, db := newTestHandler(t)
 	owner := sessionCookies(t, 1, 1)
@@ -193,8 +152,6 @@ func TestMintedTokenRecordsItsHolder(t *testing.T) {
 	}
 }
 
-// TestMintedTokenDefaultsToMember pins the default. A caller who does not think
-// about scope should get the narrow token, not a copy of their own account.
 func TestMintedTokenDefaultsToMember(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	owner := sessionCookies(t, 1, 1)
@@ -220,10 +177,6 @@ func TestMintTokenRejectsUnknownRole(t *testing.T) {
 	}
 }
 
-// TestMCPAuthStampsTokenIdentity covers the third bearer path. mcpAuth used to
-// put only the org on the context, so anything an MCP client changed landed in
-// the audit log with actor 0 AND no tokenId — attributable to nobody at all.
-// It also means the cap applies over MCP like anywhere else.
 func TestMCPAuthStampsTokenIdentity(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 	const raw = "oct_mcpidentitytoken00000000000000001"
@@ -262,13 +215,6 @@ func TestMCPAuthStampsTokenIdentity(t *testing.T) {
 	}
 }
 
-// OrgRole is what plugins gate workspace administration on
-// (plugin.Context.OrgRole). It is a separate surface from RequireRole, and it
-// is the one with no compiler or test pressure behind it from this repo — the
-// callers live downstream. Returning the holder's raw membership here would
-// let downstream gates ignore the token's cap while core's own gates honoured it,
-// which is the kind of split that stays invisible until someone reports that a
-// read-only CI token deleted something.
 func TestOrgRoleReportsTheCappedRoleNotTheHolders(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 	const raw = "oct_orgrolecaptoken000000000000000001"
@@ -286,8 +232,6 @@ func TestOrgRoleReportsTheCappedRoleNotTheHolders(t *testing.T) {
 		t.Errorf("OrgRole = %q for a member-capped token held by an owner, want \"member\" — every plugin gate reads this", got)
 	}
 
-	// And a session for the same person still reports the full membership: the
-	// cap belongs to the credential, not to the user.
 	sess := httptest.NewRequest(http.MethodGet, "/api/anything", nil)
 	for _, c := range sessionCookies(t, 31, 1) {
 		sess.AddCookie(c)
@@ -301,18 +245,6 @@ func TestOrgRoleReportsTheCappedRoleNotTheHolders(t *testing.T) {
 	}
 }
 
-// A token is a personal credential: it acts as whoever minted it and can never
-// out-rank them (TestTokenCannotOutrankItsHolder). That is what makes minting
-// safe to open up to any member — the old admin gate meant a member automating
-// their own work had to be handed a credential that answered as somebody else,
-// which is strictly worse for both audit and blast radius.
-//
-// The gate it replaces is ownership, and ownership is the whole of it: everyone
-// sees, edits and revokes only the tokens they minted — an admin included. A
-// workspace admin has no more business reading a colleague's personal
-// credential than anyone else does; what they keep is removing the person,
-// which takes their tokens with them. Everything outside your own rows is a 404
-// rather than a 403, so a probe cannot confirm that an id exists.
 func TestMemberTokensAreTheirOwn(t *testing.T) {
 	srv, db := newTestHandler(t)
 	seedMember(t, db, 21, "member")
@@ -320,7 +252,6 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 	member := sessionCookies(t, 21, 1)
 	admin := sessionCookies(t, 22, 1)
 
-	// Minting: allowed, and capped at the minter's own role.
 	if rec := do(srv, http.MethodPost, "/api/tokens", member, `{"name":"my-cli"}`); rec.Code != http.StatusCreated {
 		t.Fatalf("member minting their own token: got %d, want 201 (body=%s)", rec.Code, rec.Body.String())
 	}
@@ -336,13 +267,11 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 		t.Errorf("minted token role = %q, want member", mine.Role)
 	}
 
-	// Someone else's token, minted by the admin.
 	theirs := models.Token{OrgID: 1, UserID: 22, Name: "admin-cli", Hash: models.HashToken("oct_someoneelsestoken000000000000001"), Prefix: "oct_some", Role: "admin"}
 	if err := db.Create(&theirs).Error; err != nil {
 		t.Fatalf("seed admin token: %v", err)
 	}
 
-	// Each list stops at its owner's rows, in both directions.
 	rec := do(srv, http.MethodGet, "/api/tokens", member, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("member listing tokens: got %d, want 200", rec.Code)
@@ -355,7 +284,6 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 		t.Errorf("admin's token list shows someone else's personal credentials: %s", body)
 	}
 
-	// And the admin cannot reach into the member's, either.
 	mineID := testIDStr(mine.ID)
 	if rec := do(srv, http.MethodPut, "/api/tokens/"+mineID, admin, `{"name":"seized"}`); rec.Code != http.StatusNotFound {
 		t.Errorf("admin editing a member's token: got %d, want 404", rec.Code)
@@ -379,7 +307,6 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 		t.Errorf("a member renamed someone else's token to %q", still.Name)
 	}
 
-	// Their own, on the other hand, is theirs to revoke.
 	if rec := do(srv, http.MethodDelete, "/api/tokens/"+testIDStr(mine.ID), member, ""); rec.Code != http.StatusOK {
 		t.Errorf("member revoking their own token: got %d, want 200 (body=%s)", rec.Code, rec.Body.String())
 	}
@@ -389,19 +316,16 @@ func TestMintAgentToken_ValidationAndSuccess(t *testing.T) {
 	srv, db := newTestHandler(t)
 	owner := sessionCookies(t, 1, 1)
 
-	// 1. Agent token with empty allowed_tools is rejected (Fail-Closed)
 	recEmpty := do(srv, http.MethodPost, "/api/tokens", owner, `{"name":"agent-dead","is_agent":true,"allowed_tools":[]}`)
 	if recEmpty.Code != http.StatusBadRequest {
 		t.Errorf("mint agent token with empty tools: got %d, want 400 (body=%s)", recEmpty.Code, recEmpty.Body.String())
 	}
 
-	// 2. Agent token with invalid tool name is rejected
 	recInvalid := do(srv, http.MethodPost, "/api/tokens", owner, `{"name":"agent-bad","is_agent":true,"allowed_tools":["invalid tool with spaces!"]}`)
 	if recInvalid.Code != http.StatusBadRequest {
 		t.Errorf("mint agent token with invalid tool name: got %d, want 400 (body=%s)", recInvalid.Code, recInvalid.Body.String())
 	}
 
-	// 3. Valid agent token creation succeeds
 	recOK := do(srv, http.MethodPost, "/api/tokens", owner, `{"name":"agent-ok","is_agent":true,"allowed_tools":["octarq_network__list_links","octarq_network__get_email_summary"]}`)
 	if recOK.Code != http.StatusOK && recOK.Code != http.StatusCreated {
 		t.Fatalf("mint valid agent token: got %d (body=%s)", recOK.Code, recOK.Body.String())
@@ -421,7 +345,6 @@ func TestMintAgentToken_ValidationAndSuccess(t *testing.T) {
 		t.Error("expected tok.AllowsTool(octarq_network__delete_link) to be false")
 	}
 
-	// 4. Update agent token allowed tools
 	tokID := testIDStr(tok.ID)
 	recUpdate := do(srv, http.MethodPut, "/api/tokens/"+tokID, owner, `{"allowed_tools":["octarq_network__list_links"]}`)
 	if recUpdate.Code != http.StatusOK {

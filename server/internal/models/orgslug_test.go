@@ -21,9 +21,6 @@ func slugTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// A slug must never be derivable from anything the caller supplies. The old
-// derivation put the founder's email into /api/webhook/{orgSlug}/..., a path
-// that reaches Stripe and every proxy in between.
 func TestAllocateOrgSlugIsNotDerivedFromInput(t *testing.T) {
 	db := slugTestDB(t)
 	seen := map[string]bool{}
@@ -39,7 +36,6 @@ func TestAllocateOrgSlugIsNotDerivedFromInput(t *testing.T) {
 			t.Fatalf("slug %q is not URL-safe", slug)
 		}
 		seen[slug] = true
-		// Occupy it, so the next call has to find a different one.
 		if err := db.Create(&Org{Name: "x", Slug: slug}).Error; err != nil {
 			t.Fatalf("create org: %v", err)
 		}
@@ -49,17 +45,12 @@ func TestAllocateOrgSlugIsNotDerivedFromInput(t *testing.T) {
 	}
 }
 
-// The squatting lockout (§6.3): a taken slug must never be handed out again, or
-// the second org's INSERT dies on the unique index and its owner can never sign
-// in. Shrinking the slug to one character makes the whole space enumerable, so
-// this asserts the table lookup rather than relying on 40 bits not colliding.
 func TestAllocateOrgSlugSkipsTaken(t *testing.T) {
 	db := slugTestDB(t)
 	defer func(n, a int) { orgSlugLen, orgSlugAttempts = n, a }(orgSlugLen, orgSlugAttempts)
 	orgSlugLen = 1
-	orgSlugAttempts = 500 // one free slug in 32; 20 tries would be a coin flip
+	orgSlugAttempts = 500
 
-	// Occupy every single-character slug but one.
 	free := string(slugAlphabet[7])
 	for _, c := range slugAlphabet {
 		if string(c) == free {
@@ -78,7 +69,6 @@ func TestAllocateOrgSlugSkipsTaken(t *testing.T) {
 		t.Fatalf("allocated %q, the only free slug is %q", got, free)
 	}
 
-	// With the space fully exhausted it must fail loudly, not return a duplicate.
 	if err := db.Create(&Org{Name: "last", Slug: free}).Error; err != nil {
 		t.Fatalf("create org: %v", err)
 	}
@@ -88,8 +78,6 @@ func TestAllocateOrgSlugSkipsTaken(t *testing.T) {
 	}
 }
 
-// Reserved words are org-scoped, not the short-link list: an org must not be
-// able to take a slug that a future /{slug} route needs.
 func TestReservedOrgSlugs(t *testing.T) {
 	for _, s := range []string{"admin", "API", " sso ", ".well-known", "storefront"} {
 		if !IsReservedOrgSlug(s) {
@@ -109,7 +97,6 @@ func TestAllocateOrgSlugSkipsHistory(t *testing.T) {
 	orgSlugLen = 1
 	orgSlugAttempts = 500
 
-	// Occupy every single-character slug except one in active Orgs, and put that last one into OrgSlugHistory.
 	freeInOrg := string(slugAlphabet[7])
 	for _, c := range slugAlphabet {
 		if string(c) == freeInOrg {
@@ -140,48 +127,40 @@ func TestAllocateOrgSlugNilDB(t *testing.T) {
 func TestCheckOrgSlugAvailable(t *testing.T) {
 	db := slugTestDB(t)
 
-	// Reserved slug
 	status, err := CheckOrgSlugAvailable(db, "admin", 0)
 	if err != nil || status != SlugReserved {
 		t.Fatalf("expected SlugReserved for 'admin', got status=%v err=%v", status, err)
 	}
 
-	// Create org with slug "alpha"
 	org := Org{Name: "Alpha", Slug: "alpha"}
 	if err := db.Create(&org).Error; err != nil {
 		t.Fatalf("create org: %v", err)
 	}
 
-	// Same slug queried for new org (targetOrgID = 0) -> Taken
 	status, err = CheckOrgSlugAvailable(db, "alpha", 0)
 	if err != nil || status != SlugTaken {
 		t.Fatalf("expected SlugTaken for existing org slug, got status=%v err=%v", status, err)
 	}
 
-	// Same slug queried for targetOrgID == org.ID -> Available (retaining own slug)
 	status, err = CheckOrgSlugAvailable(db, "alpha", org.ID)
 	if err != nil || status != SlugAvailable {
 		t.Fatalf("expected SlugAvailable when targetOrgID matches existing org, got status=%v err=%v", status, err)
 	}
 
-	// Slug in history for org 10
 	if err := db.Create(&OrgSlugHistory{Slug: "retired-beta", OrgID: 10}).Error; err != nil {
 		t.Fatalf("create history: %v", err)
 	}
 
-	// Queried by org 10 -> Available (reclaiming own old slug)
 	status, err = CheckOrgSlugAvailable(db, "retired-beta", 10)
 	if err != nil || status != SlugAvailable {
 		t.Fatalf("expected SlugAvailable when reclaiming historical slug, got status=%v err=%v", status, err)
 	}
 
-	// Queried by another org (e.g. 20) -> Taken
 	status, err = CheckOrgSlugAvailable(db, "retired-beta", 20)
 	if err != nil || status != SlugTaken {
 		t.Fatalf("expected SlugTaken when claiming another org's historical slug, got status=%v err=%v", status, err)
 	}
 
-	// Brand new available slug
 	status, err = CheckOrgSlugAvailable(db, "brand-new-slug", 0)
 	if err != nil || status != SlugAvailable {
 		t.Fatalf("expected SlugAvailable for new slug, got status=%v err=%v", status, err)

@@ -15,12 +15,10 @@ import (
 func TestRecoveryMore(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
-	// 1. mailReady without service -> false
 	if h.mailReady() {
 		t.Error("mailReady() = true, want false when ServiceMailReady not provided")
 	}
 
-	// mailReady with service -> true
 	reg := plugin.NewRegistry()
 	reg.Provide(plugin.ServiceMailReady, plugin.MailReady(func() bool { return true }))
 	h.SetServiceLookup(reg.Lookup)
@@ -28,11 +26,9 @@ func TestRecoveryMore(t *testing.T) {
 		t.Error("mailReady() = false, want true when ServiceMailReady provided")
 	}
 
-	// 2. sendPasswordResetEmail and sendVerificationEmail
 	h.sendPasswordResetEmail("user@example.com", "https://example.com/reset")
 	h.sendVerificationEmail("user@example.com", "https://example.com/verify")
 
-	// 3. forgotPassword empty email & unknown email -> 200
 	rec := do(srv, "POST", "/api/auth/forgot", nil, `{"email":""}`)
 	if rec.Code != http.StatusOK {
 		t.Errorf("forgotPassword empty email: got %d, want 200", rec.Code)
@@ -43,7 +39,6 @@ func TestRecoveryMore(t *testing.T) {
 		t.Errorf("forgotPassword unknown email: got %d, want 200", rec.Code)
 	}
 
-	// 4. resetPassword validation: empty token & short password & expired token
 	rec = do(srv, "POST", "/api/auth/reset", nil, `{"token":"","password":"newpassword123"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("resetPassword empty token: got %d, want 400", rec.Code)
@@ -54,7 +49,6 @@ func TestRecoveryMore(t *testing.T) {
 		t.Errorf("resetPassword short password: got %d, want 400", rec.Code)
 	}
 
-	// Create user with expired reset token
 	expiredTime := time.Now().Add(-1 * time.Hour)
 	user := models.User{
 		Email:            "expired@example.com",
@@ -67,7 +61,6 @@ func TestRecoveryMore(t *testing.T) {
 		t.Errorf("resetPassword expired token: got %d, want 400", rec.Code)
 	}
 
-	// 5. verifyEmail empty token & expired token
 	req := httptest.NewRequest("GET", "/api/auth/verify-email?token=", nil)
 	rec2 := httptest.NewRecorder()
 	srv.ServeHTTP(rec2, req)
@@ -88,7 +81,6 @@ func TestRecoveryMore(t *testing.T) {
 		t.Errorf("verifyEmail expired token: got %d (%s)", rec2.Code, rec2.Header().Get("Location"))
 	}
 
-	// 6. resendVerification empty email & unknown email & already verified email
 	h.recoveryLimiter.reset("192.0.2.1")
 	rec = do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":""}`)
 	if rec.Code != http.StatusOK {
@@ -107,7 +99,6 @@ func TestRecoveryMore(t *testing.T) {
 		t.Errorf("resendVerification already verified email: got %d, want 200", rec.Code)
 	}
 
-	// 7. Nil Ctx guards
 	ctx := context.Background()
 	if _, err := h.forgotPassword(ctx, &ForgotPasswordInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in forgotPassword")

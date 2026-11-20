@@ -11,7 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// Dispatcher manages asynchronous delivery to notification channels with exponential backoff retries.
 type Dispatcher struct {
 	maxRetries  int
 	baseBackoff time.Duration
@@ -21,7 +20,6 @@ type Dispatcher struct {
 	sleepFunc   func(d time.Duration)
 }
 
-// NewDispatcher initializes a Dispatcher with default retry parameters (max 3 attempts, 50ms initial backoff).
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		maxRetries:  3,
@@ -30,7 +28,6 @@ func NewDispatcher() *Dispatcher {
 	}
 }
 
-// SetMaxRetries updates the maximum delivery attempts (minimum 1).
 func (d *Dispatcher) SetMaxRetries(n int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -40,7 +37,6 @@ func (d *Dispatcher) SetMaxRetries(n int) {
 	d.maxRetries = n
 }
 
-// SetBaseBackoff updates the initial exponential backoff duration.
 func (d *Dispatcher) SetBaseBackoff(b time.Duration) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -50,19 +46,16 @@ func (d *Dispatcher) SetBaseBackoff(b time.Duration) {
 	d.baseBackoff = b
 }
 
-// SetOnFailure registers a callback invoked when a notification fails after all retry attempts.
 func (d *Dispatcher) SetOnFailure(fn func(err error, ch plugin.NotificationChannel, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload)) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.onFailure = fn
 }
 
-// Wait blocks until all in-flight asynchronous dispatch goroutines complete.
 func (d *Dispatcher) Wait() {
 	d.wg.Wait()
 }
 
-// Dispatch kicks off asynchronous delivery in a goroutine with exponential backoff retries up to maxRetries.
 func (d *Dispatcher) Dispatch(ctx context.Context, ch plugin.NotificationChannel, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) {
 	if ch == nil {
 		return
@@ -76,7 +69,6 @@ func (d *Dispatcher) Dispatch(ctx context.Context, ch plugin.NotificationChannel
 	}()
 }
 
-// DispatchSync delivers a notification synchronously, retrying up to maxRetries on failure using exponential backoff.
 func (d *Dispatcher) DispatchSync(ctx context.Context, ch plugin.NotificationChannel, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	if ch == nil {
 		return errors.New("notification: nil channel")

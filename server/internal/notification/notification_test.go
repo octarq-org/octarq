@@ -49,14 +49,12 @@ func TestMatchEventPattern(t *testing.T) {
 		{"*.job_failed", "cron.job_failed", true},
 		{"*.job_failed", "backup.job_failed", true},
 		{"*.job_failed", "backup.success", false},
-		// Edge cases that fall through path.Match (due to slashes or malformed patterns)
 		{"security.*", "security", true},
 		{"security.*", "security.auth/failed", true},
 		{"*.job_failed", "job_failed", true},
 		{"*.job_failed", "cron/backup.job_failed", true},
 		{"sec[urity.*", "sec[urity.failed", true},
 		{"*.fa[iled", "job.fa[iled", true},
-		// Whitespace trimming
 		{"  security.*  ", "  security.login_failed  ", true},
 	}
 
@@ -73,7 +71,6 @@ func TestPreferencesStoreAndResolution(t *testing.T) {
 	ctx := context.Background()
 	userID := "user_42"
 
-	// 1. Unconfigured preferences -> fallback to DefaultChannels
 	channels, err := ResolveChannels(ctx, db, userID, "security.login_failed")
 	if err != nil {
 		t.Fatalf("ResolveChannels failed: %v", err)
@@ -82,7 +79,6 @@ func TestPreferencesStoreAndResolution(t *testing.T) {
 		t.Errorf("expected default channels [in_app email], got %v", channels)
 	}
 
-	// 2. Save preferences
 	items := []PreferenceItem{
 		{EventPattern: "*", Channels: []string{"in_app"}},
 		{EventPattern: "security.*", Channels: []string{"email", "telegram"}},
@@ -92,7 +88,6 @@ func TestPreferencesStoreAndResolution(t *testing.T) {
 		t.Fatalf("SavePreferences failed: %v", err)
 	}
 
-	// Read back
 	prefs, err := GetPreferences(ctx, db, userID)
 	if err != nil {
 		t.Fatalf("GetPreferences failed: %v", err)
@@ -101,25 +96,21 @@ func TestPreferencesStoreAndResolution(t *testing.T) {
 		t.Fatalf("expected 3 preferences, got %d", len(prefs))
 	}
 
-	// Exact match wins
 	ch, err := ResolveChannels(ctx, db, userID, "security.critical")
 	if err != nil || len(ch) != 2 || ch[0] != "email" || ch[1] != "sms" {
 		t.Errorf("expected [email sms] for security.critical, got %v (err=%v)", ch, err)
 	}
 
-	// Prefix glob match wins over universal wildcard
 	ch, err = ResolveChannels(ctx, db, userID, "security.login_failed")
 	if err != nil || len(ch) != 2 || ch[0] != "email" || ch[1] != "telegram" {
 		t.Errorf("expected [email telegram] for security.login_failed, got %v (err=%v)", ch, err)
 	}
 
-	// Non-security event matches universal wildcard "*"
 	ch, err = ResolveChannels(ctx, db, userID, "cron.daily_backup")
 	if err != nil || len(ch) != 1 || ch[0] != "in_app" {
 		t.Errorf("expected [in_app] for cron event, got %v (err=%v)", ch, err)
 	}
 
-	// Update existing pattern
 	updateItems := []PreferenceItem{
 		{EventPattern: "security.*", Channels: []string{"in_app", "email", "slack"}},
 	}
@@ -132,7 +123,6 @@ func TestPreferencesStoreAndResolution(t *testing.T) {
 		t.Errorf("expected updated channels [in_app email slack], got %v", ch)
 	}
 
-	// Nil / empty checks
 	if _, err := GetPreferences(ctx, nil, userID); err == nil {
 		t.Error("expected error with nil db in GetPreferences")
 	}
@@ -184,7 +174,7 @@ func TestNewDispatcher(t *testing.T) {
 
 func TestDispatcher_RetryAndBackoff(t *testing.T) {
 	d := NewDispatcher()
-	d.SetBaseBackoff(1 * time.Millisecond) // fast for testing
+	d.SetBaseBackoff(1 * time.Millisecond)
 	d.SetMaxRetries(3)
 
 	var failures int32
@@ -196,14 +186,13 @@ func TestDispatcher_RetryAndBackoff(t *testing.T) {
 			if f < 3 {
 				return errors.New("transient network timeout")
 			}
-			return nil // succeed on attempt 3
+			return nil
 		},
 	}
 
 	rec := plugin.NotificationRecipient{UserID: "1", OrgID: "1"}
 	payload := plugin.NotificationPayload{EventType: "test.retry", Title: "Retry Test"}
 
-	// Synchronous delivery with retries
 	err := d.DispatchSync(context.Background(), mockCh, rec, payload)
 	if err != nil {
 		t.Fatalf("expected eventual success on 3rd attempt, got %v", err)
@@ -212,7 +201,6 @@ func TestDispatcher_RetryAndBackoff(t *testing.T) {
 		t.Errorf("expected 3 attempts, got %d", mockCh.sendCount)
 	}
 
-	// Test permanent failure callback
 	var permanentErr error
 	var failMu sync.Mutex
 	d.SetOnFailure(func(err error, ch plugin.NotificationChannel, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) {
@@ -241,7 +229,6 @@ func TestDispatcher_RetryAndBackoff(t *testing.T) {
 	}
 	failMu.Unlock()
 
-	// Test asynchronous Dispatch with Wait()
 	asyncCh := &mockChannel{name: "async"}
 	d.Dispatch(context.Background(), asyncCh, rec, payload)
 	d.Wait()
@@ -249,15 +236,13 @@ func TestDispatcher_RetryAndBackoff(t *testing.T) {
 		t.Errorf("expected 1 async delivery, got %d", asyncCh.sendCount)
 	}
 
-	// Dispatch with nil channel
 	d.Dispatch(context.Background(), nil, rec, payload)
 	if err := d.DispatchSync(context.Background(), nil, rec, payload); err == nil {
 		t.Error("expected error when dispatching to nil channel")
 	}
 
-	// Test context cancellation
 	cancellingCtx, cancel := context.WithCancel(context.Background())
-	cancel() // cancel immediately
+	cancel()
 	if err := d.DispatchSync(cancellingCtx, failingCh, rec, payload); !errors.Is(err, context.Canceled) {
 		t.Errorf("expected context.Canceled, got %v", err)
 	}
@@ -296,7 +281,6 @@ func TestInAppChannel(t *testing.T) {
 		t.Error("expected non-empty config schema")
 	}
 
-	// Subscribe to eventbus to verify SSE envelope publication
 	subCh, cancel := eventbus.Subscribe(eventbus.SubscribeOpts{
 		Keys: []string{"notification"},
 	})
@@ -318,7 +302,6 @@ func TestInAppChannel(t *testing.T) {
 		t.Fatalf("in_app send failed: %v", err)
 	}
 
-	// Verify database record
 	var notif models.Notification
 	if err := db.Where("user_id = ?", "user_100").First(&notif).Error; err != nil {
 		t.Fatalf("query notification from db failed: %v", err)
@@ -330,7 +313,6 @@ func TestInAppChannel(t *testing.T) {
 		t.Errorf("expected read_at to be nil initially, got %v", notif.ReadAt)
 	}
 
-	// Verify envelope received on eventbus
 	select {
 	case env := <-subCh:
 		if env.Key != "notification" {
@@ -343,7 +325,6 @@ func TestInAppChannel(t *testing.T) {
 		t.Fatal("timed out waiting for eventbus notification envelope")
 	}
 
-	// Test nil db error
 	nilDBCh := NewInAppChannel(nil)
 	if err := nilDBCh.Send(context.Background(), rec, payload); err == nil {
 		t.Error("expected error with nil db")

@@ -14,7 +14,6 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 )
 
-// setupField is one wizard prompt.
 type setupField struct {
 	key      string
 	label    string
@@ -110,7 +109,6 @@ func (m setupModel) View() string {
 	return b.String()
 }
 
-// generateSecret mints a 32-byte hex secret.
 func generateSecret() (string, error) {
 	var raw [32]byte
 	if _, err := rand.Read(raw[:]); err != nil {
@@ -119,9 +117,6 @@ func generateSecret() (string, error) {
 	return hex.EncodeToString(raw[:]), nil
 }
 
-// ValidateSetup applies wizard answers without touching disk: empty answers
-// fall back to defaults, then the layered loader enforces every Fail-Closed
-// rule (driver allowlist, secret floor, required password).
 func ValidateSetup(answers map[string]string) (map[string]string, error) {
 	resolved := map[string]string{}
 	for _, f := range setupFields() {
@@ -144,8 +139,6 @@ func ValidateSetup(answers map[string]string) (map[string]string, error) {
 	return resolved, nil
 }
 
-// WriteEnvFile writes resolved answers to path (0600). An existing non-empty
-// file fails closed unless force is set.
 func WriteEnvFile(path string, resolved map[string]string, force bool) error {
 	if info, err := os.Stat(path); err == nil && info.Size() > 0 {
 		if !force {
@@ -170,8 +163,6 @@ func WriteEnvFile(path string, resolved map[string]string, force bool) error {
 	return nil
 }
 
-// RunSetup drives the interactive wizard. It requires a TTY and refuses to
-// overwrite an existing .env without --force.
 func RunSetup(ctx context.Context, stdout io.Writer, envPath string, force bool) int {
 	if os.Getenv("CI") != "" || !isTTY(stdout) {
 		fmt.Fprintln(stdout, "setup: interactive wizard requires a TTY")

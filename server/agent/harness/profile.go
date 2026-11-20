@@ -5,25 +5,22 @@ import (
 	"strings"
 )
 
-// Step-count ceilings — design invariant #6 quantitative values.
 const (
 	MaxStepsNormal   = 8
-	MaxStepsReactor  = 3  // destructive reactor hard cap, cannot be relaxed
-	MaxStepsReadOnly = 5  // read-only reactor cap, ≤ Normal
-	MaxStepsWorker   = 64 // autonomous long-horizon task ceiling
+	MaxStepsReactor  = 3
+	MaxStepsReadOnly = 5
+	MaxStepsWorker   = 64
 )
 
-// Profile selects which step budget applies to a session.
 type Profile int
 
 const (
-	ProfileNormal          Profile = iota // interactive multi-turn session
-	ProfileReactor                        // event-driven unattended session
-	ProfileReactorReadOnly                // read-only reactor (no writes)
-	ProfileWorker                         // autonomous long-horizon task session
+	ProfileNormal Profile = iota
+	ProfileReactor
+	ProfileReactorReadOnly
+	ProfileWorker
 )
 
-// String returns the canonical profile name for tracing and audit logs.
 func (p Profile) String() string {
 	switch p {
 	case ProfileReactor:
@@ -37,19 +34,14 @@ func (p Profile) String() string {
 	}
 }
 
-// IsReactor reports whether the profile is an unattended event-driven reactor profile.
 func (p Profile) IsReactor() bool {
 	return p == ProfileReactor || p == ProfileReactorReadOnly
 }
 
-// valid reports whether p is a defined profile.
 func (p Profile) valid() bool {
 	return p >= ProfileNormal && p <= ProfileWorker
 }
 
-// MaxSteps returns the step ceiling for this profile. When hasDestructive is
-// true the reactor profile is locked to MaxStepsReactor regardless of the
-// read-only hint.
 func (p Profile) MaxSteps(hasDestructive bool) int {
 	switch p {
 	case ProfileReactor:
@@ -61,16 +53,13 @@ func (p Profile) MaxSteps(hasDestructive bool) int {
 		return MaxStepsReadOnly
 	case ProfileWorker:
 		return MaxStepsWorker
-	default: // ProfileNormal
+	default:
 		return MaxStepsNormal
 	}
 }
 
 var untrustedTagPattern = regexp.MustCompile(`(?i)<(/?)\s*untrusted`)
 
-// FenceUntrustedEvent wraps an external event or run payload inside an <untrusted>
-// XML fence, neutralizing any forged closing tags inside the payload so untrusted
-// event data cannot break out of the boundary.
 func FenceUntrustedEvent(source, content string) string {
 	src := strings.TrimSpace(source)
 	if src == "" {
@@ -86,12 +75,6 @@ func FenceUntrustedEvent(source, content string) string {
 	return `<untrusted source="` + src + `" safe_mode="true">` + "\n" + escaped + "\n</untrusted>"
 }
 
-// NewReactorRunner constructs a Runner locked to ProfileReactor (MaxStepsReactor = 3).
-// ProfileReactor is applied after caller options so the 3-step unattended ceiling
-// cannot be raised by an option override.
-//
-// A caller that asks for more than MaxStepsReactor steps receives
-// ErrMaxStepsExceedsProfile. The request is refused, never lowered.
 func NewReactorRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) (Runner, error) {
 	combined := make([]RunnerOption, 0, len(opts)+1)
 	combined = append(combined, opts...)

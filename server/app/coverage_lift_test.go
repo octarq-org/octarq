@@ -72,14 +72,12 @@ func TestCoverageLift_PluginContext_Branches(t *testing.T) {
 
 	ctx := context.Background()
 
-	// 1. Notification helpers with nil router
 	_ = pctx.Notify(ctx, "email", "pt", "txt")
 	_ = pctx.Emit(ctx, plugin.NotificationPayload{})
 	_ = pctx.EmitTo(ctx, plugin.NotificationRecipient{}, plugin.NotificationPayload{})
 	pctx.RegisterNotificationChannel(nil)
 	pctx.RegisterNotifier("typ", nil)
 
-	// 2. LLM, Task queue, Geo
 	pctx.SetLLMResolverForOrg(nil)
 	if err := pctx.Enqueue(ctx, "t", nil); err == nil {
 		t.Fatal("expected error from Enqueue when queue is nil")
@@ -89,7 +87,6 @@ func TestCoverageLift_PluginContext_Branches(t *testing.T) {
 		t.Fatalf("expected empty geo results when geo resolver is nil")
 	}
 
-	// 3. Static files, Endpoints, Cron, Spans
 	pctx.HandleStatic("/static", nil)
 	if capturedPrefix != "/static" {
 		t.Fatalf("expected static prefix /static, got %q", capturedPrefix)
@@ -105,7 +102,6 @@ func TestCoverageLift_PluginContext_Branches(t *testing.T) {
 		sp.End()
 	}
 
-	// 4. PluginActive and FeatureActive logic
 	if !pctx.PluginActive(1, testDummyCorePlugin{}) {
 		t.Fatal("expected core plugin to be active")
 	}
@@ -124,13 +120,11 @@ func TestCoverageLift_PluginContext_Branches(t *testing.T) {
 }
 
 func TestCoverageLift_Preflight_TableCollisionAndRoutes(t *testing.T) {
-	// 1. Invalid model type in table collisions
 	err := preflightTableCollisions(nil, []plugin.Plugin{testBadModelPlugin{}})
 	if err == nil {
 		t.Fatal("expected error from preflightTableCollisions with int model")
 	}
 
-	// 2. Multiple route collisions triggers line 251
 	routes := newRouteRegistry()
 	routes.claim("p1", "GET /api/dup1", false)
 	routes.claim("p2", "GET /api/dup1", false)
@@ -159,7 +153,6 @@ func TestCoverageLift_BuiltinCron_Handlers(t *testing.T) {
 
 	ctx := context.Background()
 
-	// 1. Session cleanup
 	if h, ok := cronHandlers["session_cleanup"]; ok {
 		if err := h(ctx); err != nil {
 			t.Fatalf("session_cleanup cron failed: %v", err)
@@ -168,7 +161,6 @@ func TestCoverageLift_BuiltinCron_Handlers(t *testing.T) {
 		t.Fatal("session_cleanup handler not registered")
 	}
 
-	// 2. Log rotation
 	if h, ok := cronHandlers["log_rotation"]; ok {
 		if err := h(ctx); err != nil {
 			t.Fatalf("log_rotation cron failed: %v", err)
@@ -216,7 +208,6 @@ func TestCoverageLift_GatedAdapter_AbortHandlerPanic(t *testing.T) {
 }
 
 func TestCoverageLift_NotificationConfigDecryptor(t *testing.T) {
-	// Missing VaultService when VaultItemID > 0 fails closed
 	_, err := notification.ResolveChannelConfigJSON(context.Background(), nil, models.NotificationChannel{
 		OrgID:       1,
 		VaultItemID: 1,
@@ -225,7 +216,6 @@ func TestCoverageLift_NotificationConfigDecryptor(t *testing.T) {
 		t.Fatal("expected error when vault service is nil for VaultItemID > 0")
 	}
 
-	// Metadata-only channel resolves cleanly
 	pt, err := notification.ResolveChannelConfigJSON(context.Background(), nil, models.NotificationChannel{
 		OrgID:  1,
 		Config: `{"chatId":"42"}`,
@@ -236,14 +226,12 @@ func TestCoverageLift_NotificationConfigDecryptor(t *testing.T) {
 }
 
 func TestCoverageLift_RunMCP_CorePluginAndValidatorFailure(t *testing.T) {
-	// 1. Core plugin mounting in RunMCP
 	a := bootApp(t)
 	a.Use(testDummyCorePlugin{})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_ = a.RunMCP(ctx)
 
-	// 2. Startup validation failure in RunMCP
 	aVal := bootApp(t)
 	aVal.Use(testFailingValidatorPlugin{})
 	err := aVal.RunMCP(context.Background())

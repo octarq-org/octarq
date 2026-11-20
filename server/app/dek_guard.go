@@ -8,17 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// verifyNoOrphanedPluginData stops a boot that generated a fresh DEK while a
-// plugin still holds ciphertext.
-//
-// crypto.EnableEnvelope checks the core tables before it generates a DEK. Plugin
-// tables are invisible to it: a plugin's encrypted column could hold values the
-// lost key sealed, and the boot would then serve an instance whose plugin data
-// no longer decrypts. The check runs after Mount because that is the first
-// moment the plugins exist to answer.
-//
-// The freshly created DEK is removed again so the next boot repeats this check
-// instead of keeping a key that can only produce unreadable values.
 func (a *App) verifyNoOrphanedPluginData() error {
 	if !a.cipher.DEKCreated() {
 		return nil

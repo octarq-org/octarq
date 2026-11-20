@@ -10,8 +10,6 @@ import (
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
-// argExecutor records the arguments of every call, so a test can assert on
-// what was executed rather than only on which tool was asked for.
 type argExecutor struct {
 	calls []struct{ Tool, Args string }
 }
@@ -21,8 +19,6 @@ func (e *argExecutor) Execute(_ context.Context, _ uint, name, argsJSON string) 
 	return "ok", nil
 }
 
-// argGuard refuses a call by its arguments. It exists to prove the guard sees
-// them: a rule about what a call would do cannot be written without them.
 type argGuard struct {
 	denySubstring string
 	seen          []string
@@ -59,7 +55,6 @@ func TestGuardReceivesTheCallArguments(t *testing.T) {
 	}
 }
 
-// TestPendingCallRecordsTheExactCall pins the record an operator decides on.
 func TestPendingCallRecordsTheExactCall(t *testing.T) {
 	exec := &argExecutor{}
 	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
@@ -88,9 +83,6 @@ func TestPendingCallRecordsTheExactCall(t *testing.T) {
 	}
 }
 
-// TestPendingCallHashIgnoresFormatting pins that one call has one hash: a model
-// that writes the same object with different spacing or key order is making the
-// same call, and an approval must not be sidestepped by re-rendering it.
 func TestPendingCallHashIgnoresFormatting(t *testing.T) {
 	a := newPendingCall(toolCall{Name: "t", ArgsJSON: json.RawMessage(`{"b":1,"a":2}`)})
 	b := newPendingCall(toolCall{Name: "t", ArgsJSON: json.RawMessage("{\n  \"a\": 2,\n  \"b\": 1\n}")})
@@ -103,8 +95,6 @@ func TestPendingCallHashIgnoresFormatting(t *testing.T) {
 		t.Fatal("different arguments produced the same hash")
 	}
 
-	// The tool name is part of the identity, and the separator stops one name's
-	// text from sliding into the other's arguments.
 	d := newPendingCall(toolCall{Name: "ab", ArgsJSON: json.RawMessage(`{}`)})
 	e := newPendingCall(toolCall{Name: "a", ArgsJSON: json.RawMessage(`{"b":{}}`)})
 	if d.Hash == e.Hash {
@@ -112,9 +102,6 @@ func TestPendingCallHashIgnoresFormatting(t *testing.T) {
 	}
 }
 
-// TestNewPendingCallMatchesTheRecordedOne pins the constructor a host uses to
-// rebuild a stored approval. What it builds must be the record the runner
-// wrote; otherwise the resumed call is not the one the operator saw.
 func TestNewPendingCallMatchesTheRecordedOne(t *testing.T) {
 	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
 	r := newTestRunner(t, comp, &argExecutor{}, WithGuard(&approvalGuard{tool: "delete_link"}))
@@ -132,21 +119,16 @@ func TestNewPendingCallMatchesTheRecordedOne(t *testing.T) {
 	if *rebuilt != *recorded {
 		t.Fatalf("rebuilt %+v, want the recorded %+v", *rebuilt, *recorded)
 	}
-	// A stored approval is read back as text; the formatting of that text is not
-	// part of the call.
 	if messy := NewPendingCall(recorded.Tool, "{\n  \"id\": \"42\"\n}"); *messy != *recorded {
 		t.Fatalf("re-rendered arguments changed the record: %+v", *messy)
 	}
 }
 
-// TestResumeRunsTheApprovedCallNotTheNextOne is the defect this exists for.
-// The model writes a different call when asked again; the approval belongs to
-// the first one, and that is the one that runs.
 func TestResumeRunsTheApprovedCallNotTheNextOne(t *testing.T) {
 	exec := &argExecutor{}
 	comp := &fakeCompleter{responses: []string{
 		toolCallBlock("delete_link", `{"id":"42"}`),
-		toolCallBlock("delete_link", `{"id":"99"}`), // what the model would say next
+		toolCallBlock("delete_link", `{"id":"99"}`),
 	}}
 	r := newTestRunner(t, comp, exec, WithGuard(&approvalGuard{tool: "delete_link"}))
 	s, turn := newBudgetTurn()
@@ -164,14 +146,11 @@ func TestResumeRunsTheApprovedCallNotTheNextOne(t *testing.T) {
 	if exec.calls[0].Args != `{"id":"42"}` {
 		t.Fatalf("executed %q, want the approved call {\"id\":\"42\"}", exec.calls[0].Args)
 	}
-	// The second round is a different call, so it waits for its own decision.
 	if turn.PendingCall == nil || turn.PendingCall.ArgsJSON != `{"id":"99"}` {
 		t.Fatalf("pending call = %+v, want the second call recorded separately", turn.PendingCall)
 	}
 }
 
-// TestResumeDoesNotAskTheGuardAgain pins that a decision answers the question
-// the guard asked. Asking again would only produce the same refusal.
 func TestResumeDoesNotAskTheGuardAgain(t *testing.T) {
 	g := &countingApprovalGuard{tool: "delete_link"}
 	exec := &argExecutor{}
@@ -204,7 +183,6 @@ func TestResumeDoesNotAskTheGuardAgain(t *testing.T) {
 	}
 }
 
-// countingApprovalGuard counts its consultations and refuses one tool.
 type countingApprovalGuard struct {
 	tool  string
 	calls int
@@ -218,8 +196,6 @@ func (g *countingApprovalGuard) Allow(_ context.Context, _ uint, tool, _ string)
 	return nil
 }
 
-// TestResumeDoesNotBuyAnotherRound pins the step budget across an approval: the
-// round that produced the call is spent, so a one-round turn ends on resume.
 func TestResumeDoesNotBuyAnotherRound(t *testing.T) {
 	exec := &argExecutor{}
 	comp := &fakeCompleter{responses: []string{toolCallBlock("delete_link", `{"id":"42"}`)}}
@@ -259,8 +235,6 @@ func TestResumeWithoutAPendingCallIsRefused(t *testing.T) {
 	}
 }
 
-// TestResumeStreamRunsTheApprovedCall keeps the streaming path honest: an
-// approval granted on a streamed turn runs the same call and streams on.
 func TestResumeStreamRunsTheApprovedCall(t *testing.T) {
 	exec := &argExecutor{}
 	comp := &fakeStreamCompleter{

@@ -14,12 +14,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// The GORM logger must stay chatty in development (default SQLite, no Redis):
-// a record-not-found line is ordinary control flow there and useful while
-// debugging. On provisioned infrastructure (external Postgres/MySQL/Redis —
-// the production posture) the same lines are noise plus schema/query-pattern
-// leakage into shipped logs, so ErrRecordNotFound is silenced there while
-// genuine SQL errors and slow-query warnings keep flowing.
 func TestDBLoggerConfig(t *testing.T) {
 	t.Run("development keeps record-not-found logging", func(t *testing.T) {
 		cfg := dbLoggerConfig(false)
@@ -81,7 +75,6 @@ func TestOpenSQLiteAppliesWALAndSingleConnPool(t *testing.T) {
 func TestDBOpenAndMigrate(t *testing.T) {
 	t.Parallel()
 
-	// 1. Open SQLite (valid)
 	cfg := &config.Config{
 		DBDriver: "sqlite",
 		DBDSN:    "file::memory:?cache=shared",
@@ -91,7 +84,6 @@ func TestDBOpenAndMigrate(t *testing.T) {
 		t.Fatalf("expected no error opening DB, got %v", err)
 	}
 
-	// 2. Open unsupported driver
 	badCfg := &config.Config{
 		DBDriver: "invalid",
 	}
@@ -99,15 +91,12 @@ func TestDBOpenAndMigrate(t *testing.T) {
 		t.Error("expected error for unsupported driver, got nil")
 	}
 
-	// 2b. Open MySQL driver (verifies dialctor creation)
 	mysqlCfg := &config.Config{
 		DBDriver: "mysql",
 		DBDSN:    "user:password@tcp(127.0.0.1:1)/nonexistent?timeout=100ms",
 	}
 	_, _ = Open(mysqlCfg)
 
-	// 3. Migrate with legacy data
-	// Seed legacy setting
 	gdb.AutoMigrate(&models.Setting{}, &models.WorkspaceSetting{}, &models.OrgMember{}, &models.User{}, &models.Session{})
 	gdb.Create(&models.Setting{Key: "catch_all", Value: "true"})
 	gdb.Create(&models.OrgMember{OrgID: 1, UserID: 42, Role: "owner"})
@@ -122,13 +111,11 @@ func TestDBOpenAndMigrate(t *testing.T) {
 		t.Errorf("expected no error migrating DB, got %v", err)
 	}
 
-	// Verify setting was migrated to WorkspaceSetting
 	var ws models.WorkspaceSetting
 	if err := gdb.Where("org_id = ? AND key = ?", 1, "catch_all").First(&ws).Error; err != nil {
 		t.Errorf("expected catch_all setting migrated to workspace 1, got error: %v", err)
 	}
 
-	// Verify user 42 is flagged as instance admin and email verified
 	var user models.User
 	if err := gdb.Where("id = ?", 42).First(&user).Error; err == nil {
 		if !user.IsInstanceAdmin {
@@ -139,7 +126,6 @@ func TestDBOpenAndMigrate(t *testing.T) {
 		}
 	}
 
-	// Verify orgID 0 session was cleaned up
 	var count int64
 	gdb.Model(&models.Session{}).Where("token = ?", "unscoped-session-token").Count(&count)
 	if count != 0 {
@@ -167,9 +153,6 @@ func assertDomainRow(t *testing.T, gdb *gorm.DB, name string, wantForLink bool, 
 	}
 }
 
-// Tenant-subdomain backfill: only rows whose name equals <org slug>.<base> (and
-// are for_link=false with no link hosts) become link hosts. Custom domains the
-// user added deliberately are never flipped, and a second run is a no-op.
 func TestBackfillTenantSubdomainLinkHosts(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -186,10 +169,8 @@ func TestBackfillTenantSubdomainLinkHosts(t *testing.T) {
 	gdb.Create(&models.Org{ID: 1, Name: "Acme", Slug: "acme9x"})
 	gdb.Create(&models.Org{ID: 2, Name: "Globex", Slug: "globex"})
 
-	// Old-style provisioned tenant subdomains: for_link=false, no link hosts.
 	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "acme9x.app.example.com"})
 	gdb.Create(&tenantDomainRow{OrgID: 2, Name: "globex.app.example.com"})
-	// Custom domain the user added deliberately and never enabled for links.
 	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "mail.example.com"})
 
 	backfillTenantSubdomainLinkHosts(gdb)
@@ -198,14 +179,11 @@ func TestBackfillTenantSubdomainLinkHosts(t *testing.T) {
 	assertDomainRow(t, gdb, "globex.app.example.com", true, "globex.app.example.com")
 	assertDomainRow(t, gdb, "mail.example.com", false, "")
 
-	// Idempotent: a second run must change nothing (the guard is structural).
 	backfillTenantSubdomainLinkHosts(gdb)
 	assertDomainRow(t, gdb, "acme9x.app.example.com", true, "acme9x.app.example.com")
 	assertDomainRow(t, gdb, "mail.example.com", false, "")
 }
 
-// No base domain configured → the backfill is skipped entirely. This mirrors
-// the handler guard: single-tenant self-hosted installs keep neutral-host links.
 func TestBackfillSkipsWithoutBase(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -244,25 +222,21 @@ func TestBackupAndRestoreEdgeCases(t *testing.T) {
 		t.Errorf("expected .db extension for sqlite backup, got %q", fnLite)
 	}
 
-	// Backup unsupported driver
 	badCfg := &config.Config{DBDriver: "unsupported"}
 	if err := Backup(badCfg, "out.db"); err == nil {
 		t.Error("expected Backup error for unsupported driver")
 	}
 
-	// Restore non-existent file
 	if err := Restore(&config.Config{DBDriver: "sqlite"}, "nonexistent.db"); err == nil {
 		t.Error("expected Restore error for non-existent file")
 	}
 
-	// Verify empty file
 	tmpFile := filepath.Join(t.TempDir(), "empty.db")
 	_ = os.WriteFile(tmpFile, []byte{}, 0644)
 	if err := VerifySQLiteIntegrity(tmpFile); err == nil {
 		t.Error("expected VerifySQLiteIntegrity error for empty file")
 	}
 
-	// Restore corrupted file
 	corruptFile := filepath.Join(t.TempDir(), "corrupt.db")
 	_ = os.WriteFile(corruptFile, []byte("not a sqlite database file"), 0644)
 	if err := Restore(&config.Config{DBDriver: "sqlite", DBDSN: tmpFile}, corruptFile); err == nil {
@@ -278,7 +252,6 @@ func TestBackupAndRestoreSQLiteSuccess(t *testing.T) {
 	backupPath := filepath.Join(dir, "backup.db")
 	restorePath := filepath.Join(dir, "restored.db")
 
-	// Create and populate original DB
 	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
@@ -288,7 +261,6 @@ func TestBackupAndRestoreSQLiteSuccess(t *testing.T) {
 	sqlDB, _ := gdb.DB()
 	sqlDB.Close()
 
-	// Backup
 	cfg := &config.Config{DBDriver: "sqlite", DBDSN: dbPath}
 	if err := Backup(cfg, backupPath); err != nil {
 		t.Fatalf("Backup failed: %v", err)
@@ -298,13 +270,11 @@ func TestBackupAndRestoreSQLiteSuccess(t *testing.T) {
 		t.Fatalf("VerifySQLiteIntegrity failed on valid backup: %v", err)
 	}
 
-	// Restore to target
 	cfgRestore := &config.Config{DBDriver: "sqlite", DBDSN: restorePath}
 	if err := Restore(cfgRestore, backupPath); err != nil {
 		t.Fatalf("Restore failed: %v", err)
 	}
 
-	// Verify restored DB contents
 	rdb, err := gorm.Open(sqlite.Open(restorePath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open restored db: %v", err)

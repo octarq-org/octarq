@@ -13,7 +13,6 @@ import (
 func TestBrandAndAppName(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 
-	// 1. Initial defaults
 	if name := h.AppName(); name != "octarq" {
 		t.Errorf("AppName() = %q, want octarq", name)
 	}
@@ -22,7 +21,6 @@ func TestBrandAndAppName(t *testing.T) {
 		t.Errorf("Brand() = %q, %q, %q, want empty", logo, c1, c2)
 	}
 
-	// 2. Set instance-level brand settings
 	db.Save(&models.Setting{Key: keyAppName, Value: "Custom Octarq"})
 	db.Save(&models.Setting{Key: keyBrandLogo, Value: "https://example.com/logo.png"})
 	db.Save(&models.Setting{Key: keyBrandColor, Value: "#112233"})
@@ -36,7 +34,6 @@ func TestBrandAndAppName(t *testing.T) {
 		t.Errorf("Brand() = (%q, %q, %q)", logo, c1, c2)
 	}
 
-	// 3. Workspace level overrides
 	h.SetWorkspaceSetting(10, keyAppName, "Workspace 10 App")
 	h.SetWorkspaceSetting(10, keyBrandLogo, "https://example.com/org10.png")
 	if name := h.AppNameFor(10); name != "Workspace 10 App" {
@@ -47,7 +44,6 @@ func TestBrandAndAppName(t *testing.T) {
 		t.Errorf("BrandFor(10) = (%q, %q, %q)", logo, c1, c2)
 	}
 
-	// 4. Global setting getters & setters
 	if err := h.SetGlobalSetting("test_key", "test_val"); err != nil {
 		t.Fatalf("SetGlobalSetting: %v", err)
 	}
@@ -55,7 +51,6 @@ func TestBrandAndAppName(t *testing.T) {
 		t.Errorf("GetGlobalSetting = %q, want test_val", val)
 	}
 
-	// 5. RequireEmailVerification and IsInstanceAdmin wrappers
 	if !h.RequireEmailVerification() {
 		t.Errorf("RequireEmailVerification() = false, want true")
 	}
@@ -68,12 +63,10 @@ func TestBrandAndAppName(t *testing.T) {
 func TestMetricsTokenAndRateLimits(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 
-	// 1. Unset metrics token
 	if tok := h.MetricsToken(); tok != "" {
 		t.Errorf("MetricsToken() = %q, want empty", tok)
 	}
 
-	// 2. Vault-backed metrics token
 	if err := h.setInstanceSecret(context.Background(), vaultKeyMetricsToken, "Metrics Bearer Token", "token", "my-secret-metrics-token", 1); err != nil {
 		t.Fatalf("setInstanceSecret metrics token: %v", err)
 	}
@@ -81,13 +74,11 @@ func TestMetricsTokenAndRateLimits(t *testing.T) {
 		t.Errorf("MetricsToken() = %q, want my-secret-metrics-token", tok)
 	}
 
-	// 3. Rate limits defaults
 	authRPM, apiRPM, redirRPM := h.RateLimits()
 	if authRPM != defaultAuthRPM || apiRPM != defaultAPIRPM || redirRPM != defaultRedirectRPM {
 		t.Errorf("RateLimits() = (%d, %d, %d)", authRPM, apiRPM, redirRPM)
 	}
 
-	// 4. Custom valid rate limits
 	db.Save(&models.Setting{Key: keyRatelimitAuthRPM, Value: "120"})
 	db.Save(&models.Setting{Key: keyRatelimitAPIRPM, Value: "600"})
 	db.Save(&models.Setting{Key: keyRatelimitRedirRPM, Value: "1200"})
@@ -96,7 +87,6 @@ func TestMetricsTokenAndRateLimits(t *testing.T) {
 		t.Errorf("custom RateLimits() = (%d, %d, %d)", authRPM, apiRPM, redirRPM)
 	}
 
-	// 5. Invalid string rate limits -> fallback to default
 	db.Save(&models.Setting{Key: keyRatelimitAuthRPM, Value: "not-a-number"})
 	if n := h.settingInt(keyRatelimitAuthRPM, 55); n != 55 {
 		t.Errorf("settingInt on invalid string = %d, want 55", n)
@@ -107,19 +97,16 @@ func TestInstanceAdminCheck(t *testing.T) {
 	srv, db := newTestHandler(t)
 	adminCookies := loginCookies(t, srv)
 
-	// Create non-admin user
 	nonAdminUser := models.User{Email: "member@example.com", IsInstanceAdmin: false}
 	db.Create(&nonAdminUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: nonAdminUser.ID, Role: "member"})
 	memberCookies := sessionCookies(t, nonAdminUser.ID, 1)
 
-	// 1. Non-admin accessing instance settings -> 403
 	rec := do(srv, "GET", "/api/instance-settings", memberCookies, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("non-admin GET /api/instance-settings: got %d, want 403", rec.Code)
 	}
 
-	// 2. Admin accessing instance settings -> 200
 	rec = do(srv, "GET", "/api/instance-settings", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("admin GET /api/instance-settings: got %d (%s)", rec.Code, rec.Body.String())
@@ -130,25 +117,21 @@ func TestUpdateSettingsAndInboundToken(t *testing.T) {
 	srv, db := newTestHandler(t)
 	adminCookies := loginCookies(t, srv)
 
-	// Create regular member
 	regularUser := models.User{Email: "regular@example.com"}
 	db.Create(&regularUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: regularUser.ID, Role: "member"})
 	memberCookies := sessionCookies(t, regularUser.ID, 1)
 
-	// 1. Regular member accessing inbound token -> 403
 	rec := do(srv, "GET", "/api/settings/inbound-token", memberCookies, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member GET inbound-token: got %d, want 403", rec.Code)
 	}
 
-	// 2. Regular member updating settings -> 403
 	rec = do(srv, "PUT", "/api/settings", memberCookies, `{"reservedMailboxes":"admin,support"}`)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member PUT /api/settings: got %d, want 403", rec.Code)
 	}
 
-	// 3. Admin updating all workspace settings fields
 	rec = do(srv, "PUT", "/api/settings", adminCookies, `{
 		"reservedMailboxes": "admin, billing, support",
 		"inboundToken": "custom-inbound-secret",
@@ -159,7 +142,6 @@ func TestUpdateSettingsAndInboundToken(t *testing.T) {
 		t.Fatalf("admin PUT /api/settings: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 4. Admin fetching inbound token -> 200
 	rec = do(srv, "GET", "/api/settings/inbound-token", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("admin GET inbound-token: got %d (%s)", rec.Code, rec.Body.String())
@@ -172,7 +154,6 @@ func TestUpdateSettingsAndInboundToken(t *testing.T) {
 		t.Errorf("inbound token: got %q, want custom-inbound-secret", inbOut.InboundToken)
 	}
 
-	// 5. Rotate inbound token with empty string
 	rec = do(srv, "PUT", "/api/settings", adminCookies, `{"inboundToken":""}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("rotate inbound token: got %d", rec.Code)
@@ -183,7 +164,6 @@ func TestUpdateSettingsAndInboundToken(t *testing.T) {
 		t.Errorf("expected rotated uuid token, got %q", inbOut.InboundToken)
 	}
 
-	// 6. Turn off catchAll and autoWrapLinks
 	rec = do(srv, "PUT", "/api/settings", adminCookies, `{"catchAll":false,"autoWrapLinks":false}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("turn off catchAll: got %d", rec.Code)
@@ -198,7 +178,6 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	adminCookies := loginCookies(t, srv)
 
-	// 1. Update all instance settings fields
 	body := `{
 		"reservedSlugs": "billing, support, status",
 		"googleClientId": "google-client-id-123",
@@ -223,7 +202,6 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 		t.Fatalf("PUT /api/instance-settings: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// Verify updated fields via GET
 	rec = do(srv, "GET", "/api/instance-settings", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /api/instance-settings: got %d", rec.Code)
@@ -248,7 +226,6 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 		t.Errorf("secrets flags mismatch: %+v", res)
 	}
 
-	// 2. Clear secrets with empty string and systemSenderId = 0
 	clearBody := `{
 		"googleClientSecret": "",
 		"githubClientSecret": "",
@@ -276,13 +253,11 @@ func TestDownloadBackup(t *testing.T) {
 	db.Create(&nonAdminUser)
 	userCookies := sessionCookies(t, nonAdminUser.ID, 1)
 
-	// 1. Non-admin -> 403
 	rec := do(srv, "GET", "/api/admin/backup", userCookies, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("non-admin backup: got %d, want 403", rec.Code)
 	}
 
-	// 2. Admin -> 200 attachment
 	req := httptest.NewRequest("GET", "/api/admin/backup", nil)
 	for _, c := range adminCookies {
 		req.AddCookie(c)

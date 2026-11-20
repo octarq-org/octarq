@@ -12,8 +12,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
-// TestHumaMiddlewareIdempotency verifies that huma operations wrapped with HumaMiddleware
-// de-duplicate requests and do not execute the underlying huma handler twice.
 func TestHumaMiddlewareIdempotency(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -47,7 +45,6 @@ func TestHumaMiddlewareIdempotency(t *testing.T) {
 		return out, nil
 	})
 
-	// First call with Idempotency-Key
 	r1 := httptest.NewRequest(http.MethodPost, "/api/emails/send", strings.NewReader(`{"to":["user@example.com"]}`))
 	r1.Header.Set("Content-Type", "application/json")
 	r1.Header.Set(HeaderKey, "idem-key-huma-1")
@@ -61,7 +58,6 @@ func TestHumaMiddlewareIdempotency(t *testing.T) {
 		t.Fatalf("handler calls = %d, want 1", calls.Load())
 	}
 
-	// Second call with same Idempotency-Key
 	r2 := httptest.NewRequest(http.MethodPost, "/api/emails/send", strings.NewReader(`{"to":["user@example.com"]}`))
 	r2.Header.Set("Content-Type", "application/json")
 	r2.Header.Set(HeaderKey, "idem-key-huma-1")

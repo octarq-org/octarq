@@ -43,23 +43,19 @@ func TestNotificationChannel_InterfaceAndRegistration(t *testing.T) {
 		t.Errorf("unexpected schema: %s", string(ch.ConfigSchema()))
 	}
 
-	// Register with nil channel -> error
 	if err := RegisterNotificationChannel(nil, nil); err == nil {
 		t.Error("expected error when registering nil channel")
 	}
 
-	// Register with empty name -> error
 	emptyNameCh := &dummyChannel{name: ""}
 	if err := RegisterNotificationChannel(nil, emptyNameCh); err == nil {
 		t.Error("expected error when registering channel with empty name")
 	}
 
-	// Register with nil context -> succeeds without panic
 	if err := RegisterNotificationChannel(nil, ch); err != nil {
 		t.Errorf("unexpected error with nil context: %v", err)
 	}
 
-	// Register with context where RegisterNotificationChannel is wired
 	var registered NotificationChannel
 	ctx := &Context{
 		RegisterNotificationChannel: func(c NotificationChannel) {
@@ -73,7 +69,6 @@ func TestNotificationChannel_InterfaceAndRegistration(t *testing.T) {
 		t.Errorf("expected registered channel to be ch, got %v", registered)
 	}
 
-	// Test Send
 	payload := NotificationPayload{
 		EventType: "cron.job_failed",
 		Title:     "Cron Job Failed",
@@ -99,7 +94,6 @@ func TestNotificationChannel_InterfaceAndRegistration(t *testing.T) {
 		t.Errorf("expected cron.job_failed, got %s", ch.sent[0].EventType)
 	}
 
-	// Test JSON serialization of payload and recipient
 	b, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal payload failed: %v", err)

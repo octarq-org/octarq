@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// loginEnv sets the minimum a Load needs, so a test can vary one login budget.
 func loginEnv(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
@@ -52,8 +51,6 @@ func TestLoginBudgetsFromEnvironment(t *testing.T) {
 	}
 }
 
-// A value nobody can read stops startup. Falling back to the default would
-// leave an operator with a lockout, and no sign of why the number did nothing.
 func TestLoginBudgetsRefuseAValueTheyCannotRead(t *testing.T) {
 	for _, tc := range []struct{ key, value string }{
 		{"OCTARQ_LOGIN_MAX_FAILS", "0"},

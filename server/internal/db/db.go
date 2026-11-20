@@ -1,6 +1,3 @@
-// Package db opens the configured database (SQLite or Postgres) through GORM
-// and runs migrations. SQLite uses the pure-Go glebarez driver so the final
-// binary needs no cgo.
 package db
 
 import (
@@ -27,13 +24,6 @@ import (
 	"gorm.io/plugin/opentelemetry/tracing"
 )
 
-// dbLoggerConfig returns the GORM logger configuration for a deployment
-// posture. Development (default SQLite, no Redis) keeps today's verbosity —
-// including record-not-found lines, which are ordinary control flow and useful
-// while debugging. Provisioned infrastructure silences exactly those lines:
-// shipped production logs should not carry per-statement schema/query-pattern
-// leakage for what is usually an expected empty result, while genuine SQL
-// errors and slow-query warnings still flow.
 func dbLoggerConfig(provisioned bool) logger.Config {
 	return logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
@@ -43,9 +33,6 @@ func dbLoggerConfig(provisioned bool) logger.Config {
 	}
 }
 
-// defaultSQLitePragmas defines mandatory WAL and concurrency pragmas for SQLite.
-// Setting these in the DSN ensures every connection opened by the pool has WAL,
-// normal sync, foreign keys, and a 5-second busy timeout configured.
 var defaultSQLitePragmas = []struct {
 	key   string
 	param string
@@ -56,10 +43,6 @@ var defaultSQLitePragmas = []struct {
 	{"foreign_keys", "foreign_keys(1)"},
 }
 
-// EnsureSQLiteWALDSN enriches a SQLite DSN with WAL mode and concurrency
-// pragmas: busy_timeout(5000), journal_mode(WAL), synchronous(NORMAL), and
-// foreign_keys(1). Existing query parameters are preserved and missing
-// pragmas are appended.
 func EnsureSQLiteWALDSN(dsn string) string {
 	base, query, found := strings.Cut(dsn, "?")
 	if !found {
@@ -158,10 +141,6 @@ func openSQLiteHandle(cfg *config.Config, meterScope string, maxConns int) (*gor
 	return gdb, nil
 }
 
-// Open connects to the database WITHOUT migrating. Migration is deferred to
-// Migrate so that plugin-contributed models (registered after Open) are
-// migrated together with the core schema in a single pass — see the plugin
-// package for why AutoMigrate must not run at open time.
 func Open(cfg *config.Config) (*gorm.DB, error) {
 	if cfg.DBDriver == "sqlite" {
 		return openSQLiteHandle(cfg, "github.com/octarq-org/octarq/server/db", 1)
@@ -193,9 +172,6 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("sql db: %w", err)
 	}
 
-	// Instrument GORM with OpenTelemetry tracing and pool metrics. Both are
-	// observability aids, not correctness gates — a failure here must not stop
-	// db open, but it must not be invisible either.
 	if err := gdb.Use(tracing.NewPlugin(tracing.WithoutQueryVariables())); err != nil {
 		slog.Warn("db: failed to install gorm tracing plugin", "err", err)
 	}
@@ -207,12 +183,6 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	return gdb, nil
 }
 
-// OpenDualPool opens dedicated write and read GORM database handles.
-// For SQLite, the writer pool is restricted to 1 connection (SetMaxOpenConns(1))
-// to serialize write transactions and prevent lock contention (database is locked),
-// while the reader pool is configured with max(4, runtime.NumCPU()) connections in
-// WAL mode with busy_timeout(5000), synchronous(NORMAL), and foreign_keys(1) pragmas.
-// For Postgres and MySQL, standard connection pools are opened.
 func OpenDualPool(cfg *config.Config) (writeDB *gorm.DB, readDB *gorm.DB, err error) {
 	switch cfg.DBDriver {
 	case "sqlite":
@@ -253,16 +223,12 @@ func OpenDualPool(cfg *config.Config) (writeDB *gorm.DB, readDB *gorm.DB, err er
 	}
 }
 
-// Migrate auto-migrates the core schema plus any extra (plugin) models, then
-// runs one-off data migrations. Call this once, after every plugin has been
-// registered, before serving traffic.
 func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	all := append(models.AllModels(), extraModels...)
 	if err := gdb.AutoMigrate(all...); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
-	// Data migration: move org-level settings from global settings to workspace_settings (for org 1)
 	targetKeys := []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"}
 	var settings []models.Setting
 	if err := gdb.Where("key IN ?", targetKeys).Find(&settings).Error; err == nil && len(settings) > 0 {
@@ -290,10 +256,6 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		}
 	}
 
-	// Data migration: backfill User.IsInstanceAdmin for existing installs by
-	// seeding the org-1 owner once. The guard on "no user already flagged"
-	// keeps it to exactly one run and leaves fresh installs — where the flag is
-	// set properly at first login — untouched.
 	{
 		var flagged int64
 		gdb.Model(&models.User{}).Where("is_instance_admin = ?", true).Count(&flagged)
@@ -309,19 +271,10 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		}
 	}
 
-	// Data migration: ensure all instance admin accounts have EmailVerified = true.
 	gdb.Model(&models.User{}).Where("is_instance_admin = ? AND email_verified = ?", true, false).Update("email_verified", true)
 
-	// Data migration: drop sessions that carry no org.
-	//
-	// Such a session resolves to org 0 and fails closed on every tenant-scoped
-	// request — authenticated, but on a screen that looks logged in. Deleting
-	// the row sends the user through the normal login flow instead. Nobody
-	// loses data, and on any install created after multi-tenancy this deletes
-	// nothing.
 	gdb.Where("org_id = 0").Delete(&models.Session{})
 
-	// Data migration: backfill owner_id = 1 for legacy rows created before multi-tenancy
 	m := gdb.Migrator()
 	if tables, err := m.GetTables(); err == nil {
 		gdb.Transaction(func(tx *gorm.DB) error {
@@ -334,15 +287,11 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		})
 	}
 
-	// Data migration: make existing tenant subdomains usable link hosts.
 	backfillTenantSubdomainLinkHosts(gdb)
 
 	return nil
 }
 
-// tenantDomainRow mirrors the dns plugin's Domain for the backfill below. Core
-// cannot import the plugin; this is the same bargain internal/tenancy already
-// makes for provisioning and origin makes for reads.
 type tenantDomainRow struct {
 	ID        uint   `gorm:"primaryKey"`
 	OrgID     uint   `gorm:"column:owner_id"`
@@ -353,22 +302,6 @@ type tenantDomainRow struct {
 
 func (tenantDomainRow) TableName() string { return "domains" }
 
-// backfillTenantSubdomainLinkHosts upgrades existing tenant-subdomain domain
-// rows into usable link hosts.
-//
-// Before Provision wrote ForLink + LinkHosts, every Cloud tenant subdomain row
-// was for_link=false with an empty host list — invisible to the links plugin,
-// so every tenant's host dropdown was empty and all short links fell into the
-// single shared host="" namespace (tenant A's slug blocking tenant B forever,
-// plus a 409 existence probe across tenants). This backfills exactly those
-// rows: for_link=true plus an enabled LinkHost for the subdomain itself.
-//
-// Only rows whose name equals <org slug>.<current base domain> are touched —
-// a custom domain the user added deliberately, and chose never to serve links
-// on, must never be flipped by a migration. When no base domain is configured
-// the whole migration is skipped, and the structural guard (for_link=false AND
-// no link host) keeps it to a single run: once upgraded a row no longer
-// matches the selection.
 func backfillTenantSubdomainLinkHosts(gdb *gorm.DB) {
 	gdb.Transaction(func(tx *gorm.DB) error {
 		base := models.BaseDomain(tx)

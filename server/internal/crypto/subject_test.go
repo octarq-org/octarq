@@ -211,8 +211,6 @@ func TestShredSubjectKey(t *testing.T) {
 	if _, err := revived.Decrypt(shreddedCT); err == nil {
 		t.Fatal("a shredded subject decrypted data sealed before the shred")
 	}
-	// A handle the caller kept across the shred must stop working too, not only
-	// a handle resolved afterwards.
 	if _, err := shredded.Decrypt(shreddedCT); err == nil {
 		t.Fatal("a vault handle kept across the shred decrypted data sealed before it")
 	}
@@ -322,8 +320,6 @@ func TestSubjectVaultReportsEntropyFailure(t *testing.T) {
 	}
 }
 
-// subjectFailStore fails subject-key writes and deletes while the instance DEK
-// still persists.
 type subjectFailStore struct {
 	memStore
 	failSet    bool
@@ -379,7 +375,6 @@ func TestSubjectDEKSettingKeyFormat(t *testing.T) {
 		t.Fatalf("SubjectDEKSettingKey = %q, want %q", got, want)
 	}
 
-	// The hash keeps the key length fixed for any subject string.
 	long := SubjectDEKSettingKey(42, strings.Repeat("x", 200))
 	if len(long) != len(want) {
 		t.Fatalf("key length for a long subject = %d, want %d", len(long), len(want))

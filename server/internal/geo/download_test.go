@@ -62,7 +62,6 @@ func TestHelpers(t *testing.T) {
 		t.Errorf("firstN failed: %s", s2)
 	}
 
-	// extractMMDB non-gzip error
 	if err := extractMMDB(bytes.NewReader([]byte("not gzip")), &bytes.Buffer{}); err == nil {
 		t.Error("expected error extracting non-gzip data")
 	}
@@ -71,7 +70,6 @@ func TestHelpers(t *testing.T) {
 func TestDownloadFlow(t *testing.T) {
 	t.Parallel()
 
-	// Create a dummy .tar.gz containing a dummy .mmdb file
 	var tarBuf bytes.Buffer
 	gw := gzip.NewWriter(&tarBuf)
 	tw := tar.NewWriter(gw)

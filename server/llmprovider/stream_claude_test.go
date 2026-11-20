@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-// Ensure Claude implements StreamProvider interface.
 var (
 	_ StreamProvider = (*Claude)(nil)
 )
@@ -59,7 +58,6 @@ func TestStreamOrderGuard(t *testing.T) {
 	t.Run("EmptyThinkingIgnored", func(t *testing.T) {
 		var g streamOrderGuard
 		g.OnText("text")
-		// Empty thinking delta does not cause an error even after text.
 		if err := g.OnThinking(""); err != nil {
 			t.Fatalf("empty thinking delta should not error, got %v", err)
 		}
@@ -272,7 +270,6 @@ func TestClaudeStreamOrderViolation(t *testing.T) {
 		writeSSEEvent(w, flusher, "content_block_start", `{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`)
 		writeSSEEvent(w, flusher, "content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Premature text"}}`)
 		writeSSEEvent(w, flusher, "content_block_stop", `{"type":"content_block_stop","index":0}`)
-		// Out of order: thinking block arrives after text block.
 		writeSSEEvent(w, flusher, "content_block_start", `{"type":"content_block_start","index":1,"content_block":{"type":"thinking","thinking":""}}`)
 		writeSSEEvent(w, flusher, "content_block_delta", `{"type":"content_block_delta","index":1,"delta":{"type":"thinking_delta","thinking":"Late thinking"}}`)
 		writeSSEEvent(w, flusher, "content_block_stop", `{"type":"content_block_stop","index":1}`)
@@ -372,7 +369,6 @@ func TestClaudeToolsMappingAndThinkingBudget(t *testing.T) {
 			t.Fatalf("Complete: %v", err)
 		}
 
-		// budget = max(1024, 250) = 1024; budget >= 500 -> maxTokens = 1024 + 1024 = 2048
 		thinking, ok := capturedBody["thinking"].(map[string]any)
 		if !ok {
 			t.Fatalf("thinking in body = %#v", capturedBody["thinking"])
@@ -399,7 +395,6 @@ func TestClaudeToolsMappingAndThinkingBudget(t *testing.T) {
 			t.Fatalf("Complete: %v", err)
 		}
 
-		// budget = max(1024, 2000) = 2000; budget < 4000 -> maxTokens = 4000
 		thinking, ok := capturedBody["thinking"].(map[string]any)
 		if !ok {
 			t.Fatalf("thinking in body = %#v", capturedBody["thinking"])

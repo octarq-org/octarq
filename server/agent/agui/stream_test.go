@@ -9,7 +9,6 @@ import (
 	agui "github.com/ag-ui-protocol/ag-ui/sdks/community/go/pkg/core/events"
 )
 
-// recorded collects the events a stream emits.
 type recorded struct {
 	events []agui.Event
 	types  []string

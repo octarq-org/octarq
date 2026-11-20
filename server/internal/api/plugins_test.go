@@ -20,7 +20,6 @@ func (fakePlugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{{ID: "fake", Label: "Fake", Path: "/fake", Category: "Operations"}}
 }
 
-// groupedPlugin is a member of a multi-plugin feature.
 type groupedPlugin struct {
 	name, group, path string
 }
@@ -33,7 +32,6 @@ func (g groupedPlugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{{ID: g.name, Label: g.name, Path: g.path, Category: "Commerce"}}
 }
 
-// corePlugin is always-on plumbing; the registry lists it locked on.
 type corePlugin struct{}
 
 func (corePlugin) Name() string                          { return "licensing" }
@@ -41,10 +39,6 @@ func (corePlugin) Models() []any                         { return nil }
 func (corePlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
 func (corePlugin) Describe() plugin.Info                 { return plugin.Info{Core: true} }
 
-// TestPluginGroupingAndCore verifies grouped plugins collapse into one feature
-// toggled together, and that core plumbing is listed as core-and-enabled rather
-// than omitted — absent and off are indistinguishable in the plugin manager, and
-// an always-on capability that shows up nowhere reads as disabled.
 func TestPluginGroupingAndCore(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{
@@ -54,7 +48,6 @@ func TestPluginGroupingAndCore(t *testing.T) {
 	})
 	cookies := loginCookies(t, srv)
 
-	// Registry: one "commerce" feature (not two), plus the core one.
 	rec := do(srv, "GET", "/api/plugins", cookies, "")
 	var feats []struct {
 		Key     string `json:"key"`
@@ -90,12 +83,10 @@ func TestPluginGroupingAndCore(t *testing.T) {
 		t.Fatalf("core plumbing must report core+enabled, got %+v", feats[core])
 	}
 
-	// Listing it does not make it writable: the switch is dead on the server too.
 	if rec := do(srv, "PUT", "/api/plugins/licensing", cookies, `{"enabled":false}`); rec.Code != http.StatusNotFound {
 		t.Fatalf("disabling core plumbing must 404, got %d", rec.Code)
 	}
 
-	// Enabling the group surfaces both members' menus at once.
 	if rec := do(srv, "PUT", "/api/plugins/commerce", cookies, `{"enabled":true}`); rec.Code != http.StatusOK {
 		t.Fatalf("enable commerce: got %d", rec.Code)
 	}
@@ -104,15 +95,11 @@ func TestPluginGroupingAndCore(t *testing.T) {
 	}
 }
 
-// TestPluginRegistryToggleAndMenuFilter verifies plugins are opt-in per
-// workspace: disabled by default, toggleable by an admin, and their menus only
-// appear in /api/menus once enabled.
 func TestPluginRegistryToggleAndMenuFilter(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{fakePlugin{}})
 	cookies := loginCookies(t, srv)
 
-	// Default: registered but disabled, and its menu is absent.
 	if got := pluginEnabled(t, srv, cookies, "fake"); got {
 		t.Fatal("plugin should be disabled by default")
 	}
@@ -130,14 +117,11 @@ func TestPluginRegistryToggleAndMenuFilter(t *testing.T) {
 		t.Fatal("enabled plugin menu should appear in /api/menus")
 	}
 
-	// Unknown plugin → 404.
 	if rec := do(srv, "PUT", "/api/plugins/nope", cookies, `{"enabled":true}`); rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown plugin: got %d, want 404", rec.Code)
 	}
 }
 
-// defaultOnPlugin is a user-toggleable feature that starts enabled (opt-out),
-// like the hello example — Info.EnabledByDefault, not Core.
 type defaultOnPlugin struct{}
 
 func (defaultOnPlugin) Name() string                          { return "demo" }
@@ -150,21 +134,14 @@ func (defaultOnPlugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{{ID: "demo", Label: "Demo", Path: "/demo", Category: "Operations"}}
 }
 
-// TestPluginEnabledByDefault verifies EnabledByDefault flips the pre-toggle
-// default to on while keeping the feature listed and toggleable off.
 func TestPluginEnabledByDefault(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{defaultOnPlugin{}})
 	cookies := loginCookies(t, srv)
 
-	// No toggle yet: on by default, listed in the manager, menu present.
 	if !pluginEnabled(t, srv, cookies, "demo") {
 		t.Fatal("EnabledByDefault plugin should be on before any toggle")
 	}
-	// orgID 0 means "no workspace in this session", not "a workspace that
-	// happens to have nothing configured" — it must fail closed regardless of
-	// the feature's default. Callers that legitimately have no workspace read
-	// FeatureDefaultEnabled directly.
 	if h.PluginEnabled(0, "demo") {
 		t.Fatal("PluginEnabled(0, key) must fail closed even for a default-on feature")
 	}
@@ -175,7 +152,6 @@ func TestPluginEnabledByDefault(t *testing.T) {
 		t.Fatal("default-on plugin menu should appear")
 	}
 
-	// Still toggleable off — the default only sets the pre-toggle state.
 	if rec := do(srv, "PUT", "/api/plugins/demo", cookies, `{"enabled":false}`); rec.Code != http.StatusOK {
 		t.Fatalf("disable demo: got %d", rec.Code)
 	}
@@ -187,10 +163,6 @@ func TestPluginEnabledByDefault(t *testing.T) {
 	}
 }
 
-// A feature split across two plugins that share a key: one half serves the
-// routes and menu and declares Core, the other only contributes content and
-// says nothing. This is octarq's own help feature (OSS plugins/help + the Pro
-// modules/help content provider).
 type coreHalfPlugin struct{}
 
 func (coreHalfPlugin) Name() string                          { return "help" }
@@ -208,17 +180,8 @@ func (contentHalfPlugin) Models() []any                         { return nil }
 func (contentHalfPlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
 func (contentHalfPlugin) Describe() plugin.Info                 { return plugin.Info{Title: "Help"} }
 
-// TestCoreIsStickyAcrossFeatureHalves pins that Core belongs to the feature, not
-// to the plugin that declared it. With the halves judged individually the
-// manager listed a Help toggle (from the silent half) that the Core half
-// ignored: flipping it off wrote a setting, changed nothing, and left the
-// sidebar entry up.
-//
-// The feature is listed — that is how an admin sees it is running — but it must
-// come back flagged core, which is what makes the UI render a dead switch.
 func TestCoreIsStickyAcrossFeatureHalves(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
-	// Non-core half first, so a per-plugin check would decide on it.
 	h.SetPlugins([]plugin.Plugin{contentHalfPlugin{}, coreHalfPlugin{}})
 	cookies := loginCookies(t, srv)
 
@@ -245,7 +208,6 @@ func TestCoreIsStickyAcrossFeatureHalves(t *testing.T) {
 		t.Fatalf("the help feature must be listed, got %+v", feats)
 	}
 
-	// And the toggle it never offered is not accepted through the back door.
 	if rec := do(srv, "PUT", "/api/plugins/help", cookies, `{"enabled":false}`); rec.Code != http.StatusNotFound {
 		t.Fatalf("disable core feature: got %d, want 404", rec.Code)
 	}
@@ -321,7 +283,6 @@ func TestPluginToggleSchemaNameNotLogout(t *testing.T) {
 		t.Fatalf("parse openapi: %v", err)
 	}
 
-	// Just for extraction:
 	var raw struct {
 		Paths map[string]struct {
 			Put struct {

@@ -32,7 +32,6 @@ func TestDBProvider_NilDB(t *testing.T) {
 		t.Errorf("expected 'database handle is nil', got %q", res.Message)
 	}
 
-	// Also test NewDBProviderWithSQLDB with nil
 	p2 := NewDBProviderWithSQLDB(nil)
 	res2 := p2.Check(context.Background())
 	if res2.Status != plugin.HealthError {
@@ -57,7 +56,6 @@ func TestDBProvider_HealthyAndSlowQueries(t *testing.T) {
 		t.Errorf("expected Message 'ok', got %q", res.Message)
 	}
 
-	// Check metrics
 	metrics := res.Metrics
 	for _, k := range []string{"open_connections", "in_use", "idle", "wait_count", "slow_queries"} {
 		if _, ok := metrics[k]; !ok {
@@ -68,7 +66,6 @@ func TestDBProvider_HealthyAndSlowQueries(t *testing.T) {
 		t.Errorf("expected slow_queries=0, got %v", metrics["slow_queries"])
 	}
 
-	// Record slow query
 	p.RecordSlowQuery()
 	if p.SlowQueries() != 1 {
 		t.Errorf("SlowQueries() = %d, want 1", p.SlowQueries())
@@ -89,7 +86,6 @@ func TestDBProvider_HealthyAndSlowQueries(t *testing.T) {
 		t.Errorf("expected slow_queries=4, got %v", resWarn.Metrics["slow_queries"])
 	}
 
-	// Reset slow queries
 	p.ResetSlowQueries()
 	if p.SlowQueries() != 0 {
 		t.Errorf("SlowQueries() after reset = %d, want 0", p.SlowQueries())
@@ -113,7 +109,6 @@ func TestDBProvider_PingFailed(t *testing.T) {
 
 	p := NewDBProviderWithSQLDB(sqlDB)
 
-	// Close database to force ping error
 	_ = sqlDB.Close()
 
 	res := p.Check(context.Background())
@@ -123,7 +118,6 @@ func TestDBProvider_PingFailed(t *testing.T) {
 }
 
 func TestDBProvider_GDBExtractFails(t *testing.T) {
-	// Create DBProvider with gdb whose sql.DB cannot be extracted or ping fails with canceled context
 	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open sqlite DB: %v", err)
@@ -136,7 +130,7 @@ func TestDBProvider_GDBExtractFails(t *testing.T) {
 
 	p := NewDBProvider(gdb)
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // canceled context
+	cancel()
 	res := p.Check(ctx)
 	if res.Status != plugin.HealthError {
 		t.Errorf("expected HealthError with canceled context, got %q", res.Status)

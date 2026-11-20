@@ -23,7 +23,6 @@ func strField(m map[string]any, keys ...string) string {
 	return ""
 }
 
-// testVaultItem verifies credentials or connection health without returning secrets.
 func (p *Plugin) testVaultItem(ctx context.Context, item VaultItem, payload map[string]any) (bool, string) {
 	switch item.ItemType {
 	case "ssh_key":

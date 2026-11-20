@@ -1,10 +1,5 @@
 package api
 
-// Guard tests for the security-audit fixes (F-seclow). Each test pins one
-// product-code guard and is designed so that short-circuiting the guard (e.g.
-// `if false && cond`) turns it red — see F-seclow-report.md for the mutation
-// trace.
-
 import (
 	"fmt"
 	"net/http"
@@ -14,9 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// Guard 1 (L-1): the raw invite token must never be stored — the DB keeps only
-// its SHA-256 hash — yet the raw token shown to the operator must still redeem
-// the invite.
 func TestInviteTokenStoredHashedAndRawStillAccepts(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	const orgID = uint(1)
@@ -44,7 +36,6 @@ func TestInviteTokenStoredHashedAndRawStillAccepts(t *testing.T) {
 		t.Fatalf("stored hash %q is not the SHA-256 of the raw token", user.InviteTokenHash)
 	}
 
-	// The raw token from the mailed link must still redeem the invite.
 	rec := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"teampass123"}`, rawToken))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("accept with raw token: got %d (%s), want 200", rec.Code, rec.Body.String())
@@ -59,8 +50,6 @@ func TestInviteTokenStoredHashedAndRawStillAccepts(t *testing.T) {
 	}
 }
 
-// Guard 2 (L-3): spamming the public reset-completion endpoint from one IP must
-// trip the recovery budget and answer 429 instead of processing forever.
 func TestResetPasswordRateLimited(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	body := `{"token":"garbage","password":"newpassword123"}`
@@ -77,8 +66,6 @@ func TestResetPasswordRateLimited(t *testing.T) {
 	}
 }
 
-// Guard 3 (L-8): a successful password change must land in audit_logs, and the
-// record must never carry the password — old or new.
 func TestChangePasswordAuditsWithoutStoringPassword(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := registerUser(t, srv, db, "owner@example.com", "originalpw1")

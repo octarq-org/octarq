@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// corsTestMW returns a middleware whose PublicGET recognizes the two public GET
-// paths the CORS tests exercise, with origins supplied per test.
 func corsTestMW(origins []string) *middleware {
 	return newMiddleware(RuntimeSettings{
 		PublicGET: func(path string) bool {
@@ -29,9 +27,6 @@ func corsGET(mw *middleware, path, origin string) *httptest.ResponseRecorder {
 	return rec
 }
 
-// TestCORSWhitelistedOriginGetsHeaders: the marketing site's origin, once
-// configured, gets Access-Control-Allow-Origin on public GET responses — and
-// never Access-Control-Allow-Credentials.
 func TestCORSWhitelistedOriginGetsHeaders(t *testing.T) {
 	mw := corsTestMW([]string{"https://octarq.org"})
 	rec := corsGET(mw, "/api/storefront", "https://octarq.org")
@@ -46,16 +41,14 @@ func TestCORSWhitelistedOriginGetsHeaders(t *testing.T) {
 	}
 }
 
-// TestCORSDisallowedOriginGetsNothing: an origin outside the whitelist must not
-// receive any CORS header, even though the endpoint is public GET.
 func TestCORSDisallowedOriginGetsNothing(t *testing.T) {
 	mw := corsTestMW([]string{"https://octarq.org"})
 	for _, evil := range []string{
 		"https://evil.example",
-		"https://octarq.org.evil.com",            // contains the host but is a different origin
-		"https://evil.com/?x=https://octarq.org", // origin header carrying a forged value
-		"http://octarq.org",                      // scheme mismatch
-		"https://octarq.org:8443",                // port mismatch
+		"https://octarq.org.evil.com",
+		"https://evil.com/?x=https://octarq.org",
+		"http://octarq.org",
+		"https://octarq.org:8443",
 	} {
 		rec := corsGET(mw, "/api/storefront", evil)
 		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
@@ -64,8 +57,6 @@ func TestCORSDisallowedOriginGetsNothing(t *testing.T) {
 	}
 }
 
-// TestCORSEmptyWhitelistSendsNothing: with no configured origins the server
-// behaves exactly as before this feature — no CORS headers at all.
 func TestCORSEmptyWhitelistSendsNothing(t *testing.T) {
 	mw := corsTestMW(nil)
 	rec := corsGET(mw, "/api/storefront", "https://octarq.org")
@@ -80,8 +71,6 @@ func TestCORSEmptyWhitelistSendsNothing(t *testing.T) {
 	}
 }
 
-// TestCORSNonPublicEndpointGetsNothing: only endpoints the auth gate lets
-// through unauthenticated are ever granted CORS, even for a whitelisted origin.
 func TestCORSNonPublicEndpointGetsNothing(t *testing.T) {
 	mw := corsTestMW([]string{"https://octarq.org"})
 	for _, path := range []string{"/api/auth/me", "/api/products", "/api/storefront/admin", "/admin/"} {
@@ -92,8 +81,6 @@ func TestCORSNonPublicEndpointGetsNothing(t *testing.T) {
 	}
 }
 
-// TestCORSNoOriginNoHeaders: a same-origin or non-browser request carries no
-// Origin header and needs nothing from CORS.
 func TestCORSNoOriginNoHeaders(t *testing.T) {
 	mw := corsTestMW([]string{"https://octarq.org"})
 	rec := corsGET(mw, "/api/storefront", "")
@@ -105,13 +92,9 @@ func TestCORSNoOriginNoHeaders(t *testing.T) {
 	}
 }
 
-// TestCORSPreflight covers the OPTIONS path: an approved preflight is answered
-// 204 with the right headers and short-circuits before the router; anything
-// else falls through unanswered so the browser blocks the follow-up.
 func TestCORSPreflight(t *testing.T) {
 	mw := corsTestMW([]string{"https://octarq.org"})
 
-	// Approved preflight.
 	req := httptest.NewRequest(http.MethodOptions, "/api/storefront", nil)
 	req.RemoteAddr = "10.0.0.1:1"
 	req.Header.Set("Origin", "https://octarq.org")
@@ -138,8 +121,6 @@ func TestCORSPreflight(t *testing.T) {
 		t.Fatal("preflight response must carry no body")
 	}
 
-	// Preflight asking for a method other than GET is not granted — the router
-	// sees it and answers 405/404 without CORS headers, so the browser blocks.
 	req = httptest.NewRequest(http.MethodOptions, "/api/storefront", nil)
 	req.RemoteAddr = "10.0.0.1:1"
 	req.Header.Set("Origin", "https://octarq.org")
@@ -153,7 +134,6 @@ func TestCORSPreflight(t *testing.T) {
 		t.Fatal("preflight for POST must not be granted CORS")
 	}
 
-	// Preflight from a disallowed origin is not granted.
 	req = httptest.NewRequest(http.MethodOptions, "/api/storefront", nil)
 	req.RemoteAddr = "10.0.0.1:1"
 	req.Header.Set("Origin", "https://evil.example")
@@ -167,8 +147,6 @@ func TestCORSPreflight(t *testing.T) {
 		t.Fatal("preflight from a disallowed origin must not be granted CORS")
 	}
 
-	// Preflight without Access-Control-Request-Method is not a preflight; pass
-	// through to the router.
 	req = httptest.NewRequest(http.MethodOptions, "/api/storefront", nil)
 	req.RemoteAddr = "10.0.0.1:1"
 	req.Header.Set("Origin", "https://octarq.org")
@@ -178,7 +156,6 @@ func TestCORSPreflight(t *testing.T) {
 		t.Fatal("plain OPTIONS with no requested method must not be treated as a preflight")
 	}
 
-	// Preflight to a non-public endpoint is not answered either.
 	req = httptest.NewRequest(http.MethodOptions, "/api/auth/me", nil)
 	req.RemoteAddr = "10.0.0.1:1"
 	req.Header.Set("Origin", "https://octarq.org")
@@ -190,8 +167,6 @@ func TestCORSPreflight(t *testing.T) {
 	}
 }
 
-// TestCORSDisabledWithoutPublicGET: if no PublicGET predicate is wired (no API
-// registration), CORS never engages even with a whitelist configured.
 func TestCORSDisabledWithoutPublicGET(t *testing.T) {
 	mw := newMiddleware(RuntimeSettings{CORSOrigins: func() []string { return []string{"https://octarq.org"} }})
 	rec := corsGET(mw, "/api/storefront", "https://octarq.org")

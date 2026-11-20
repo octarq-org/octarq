@@ -69,7 +69,6 @@ func TestApplyCreatesTableAndIsIdempotent(t *testing.T) {
 		}
 	}
 
-	// The second plan must be empty: an unchanged declaration never re-runs DDL.
 	steps, err := ontology.Plan(ctx, db, "sqlite", []ontology.Spec{spec})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
@@ -133,9 +132,6 @@ func TestApplyRefusesRequiredChange(t *testing.T) {
 	assertIssues(t, err, ontology.CodeRequiredChangeUnsupported)
 }
 
-// TestApplyRefusesRelaxingRequired is the other direction of the same rule: the
-// column keeps NOT NULL, so a write the new declaration permits would still be
-// rejected by the database while the bookkeeping said it was allowed.
 func TestApplyRefusesRelaxingRequired(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
@@ -149,9 +145,6 @@ func TestApplyRefusesRelaxingRequired(t *testing.T) {
 	assertIssues(t, err, ontology.CodeRequiredChangeUnsupported)
 }
 
-// TestApplyRefusesDefaultChange pins that a changed default is refused rather
-// than recorded. The column keeps its old DEFAULT, so a row inserted without the
-// field would get the old value while the declaration promised the new one.
 func TestApplyRefusesDefaultChange(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
@@ -265,8 +258,6 @@ func TestApplyRefusesDroppingField(t *testing.T) {
 		t.Fatalf("Apply v1: %v", err)
 	}
 
-	// Not even an empty table allows it: DROP COLUMN would leave the index it
-	// carried behind, and the bookkeeping row could not describe the result.
 	err := ontology.Apply(ctx, db, "sqlite", []ontology.Spec{ticketSpec(baseFields()[0])})
 	assertIssues(t, err, ontology.CodeColumnDropUnsupported)
 }
@@ -297,10 +288,6 @@ func TestApplyIndexesAddedField(t *testing.T) {
 	}
 }
 
-// TestApplyRepairsColumnDroppedByHand pins the drift repair. The declaration is
-// the truth, so a column someone dropped manually is re-added on the next boot:
-// otherwise every query against the entity fails at runtime, on a table the
-// platform reports as applied.
 func TestApplyRepairsColumnDroppedByHand(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
@@ -340,9 +327,6 @@ func TestApplyDoesNotRewriteUnchangedBookkeeping(t *testing.T) {
 	if err := db.Exec(`UPDATE `+ontology.AppliedSpecTable+` SET applied_at = ?`, fixed).Error; err != nil {
 		t.Fatalf("pin applied_at: %v", err)
 	}
-	// Read it back through the same path the assertion uses: the driver renders
-	// the stored timestamp its own way (sqlite returns RFC3339), and comparing
-	// against the literal would test the driver, not the skip.
 	readAppliedAt := func() string {
 		t.Helper()
 		var got string
@@ -381,7 +365,6 @@ func TestPlanLeavesDatabaseUntouchedWhenDeclarationIsInvalid(t *testing.T) {
 	if hash == "" {
 		t.Fatal("bookkeeping row lost")
 	}
-	// The stored declaration must still describe v1, not the refused v2.
 	var stored string
 	if err := db.Table(ontology.AppliedSpecTable).Select("spec_json").Where("slug = ?", "tickets").Row().Scan(&stored); err != nil {
 		t.Fatalf("read spec: %v", err)

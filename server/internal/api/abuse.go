@@ -46,8 +46,6 @@ type SubmitAbuseOutput struct {
 	Body SubmitAbuseOutputBody
 }
 
-// submitAbuse is a public (no auth) endpoint for reporting a short link.
-// POST /abuse  {"slug":"abc","reason":"phishing","description":"..."}
 func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*SubmitAbuseOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -70,17 +68,8 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 		description = description[:2000]
 	}
 
-	// Resolve the slug to get the current target and owning org for context.
 	var target string
 	var orgID uint
-	// The request Host decides which workspace's link this slug names — a
-	// report from victim.com must not be filed against another tenant that
-	// happens to hold the same slug. Host is safe here for the same reason it
-	// is safe in the redirect: it selects which public link is being reported,
-	// never what the caller may see. The endpoint is unauthenticated and
-	// returns no link data, so nothing crosses a tenant boundary either way.
-	// Absent resolver (links not in this build) degrades to an empty
-	// attribution; see plugin.LinkResolver.
 	if fn, ok := plugin.LookupServiceAs[plugin.LinkResolver](h.LookupService, plugin.ServiceLinkResolve); ok {
 		target, orgID, _ = fn(r.Host, slug)
 	}
@@ -100,7 +89,6 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 
 	h.abuseLimiter.recordFailure(ip)
 
-	// Best-effort notification to all enabled channels via task queue.
 	payload, _ := json.Marshal(rep)
 	if err := h.queue.Enqueue(r.Context(), "abuse.notify", payload); err != nil {
 		slog.Warn("failed to enqueue abuse notification", "reportId", rep.ID, "err", err)
@@ -117,8 +105,6 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 		"🚨 Abuse report #%d\nSlug: %s\nReason: %s\nTarget: %s\nDescription: %s",
 		rep.ID, rep.Slug, rep.Reason, rep.Target, rep.Description,
 	)
-	// A report whose slug resolved to no workspace has no recipient. The report
-	// remains stored and visible in the abuse queue.
 	orgID := rep.OrgID
 	if orgID == 0 {
 		return
@@ -159,8 +145,6 @@ type ListAbuseReportsOutput struct {
 	Body []models.AbuseReport
 }
 
-// listAbuseReports returns open reports (admin-only, session required).
-// GET /api/abuse?status=open
 func (h *Handler) listAbuseReports(ctx context.Context, input *ListAbuseReportsInput) (*ListAbuseReportsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -201,8 +185,6 @@ type UpdateAbuseReportOutput struct {
 	Body models.AbuseReport
 }
 
-// updateAbuseReport lets admins change the status of a report.
-// PUT /api/abuse/{id}  {"status":"reviewed"}
 func (h *Handler) updateAbuseReport(ctx context.Context, input *UpdateAbuseReportInput) (*UpdateAbuseReportOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")

@@ -17,7 +17,6 @@ import (
 func TestNewLocalStorageService(t *testing.T) {
 	tmp := t.TempDir()
 
-	// Valid creation
 	svc, err := NewLocalStorageService(tmp, nil, "https://example.com")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -29,13 +28,11 @@ func TestNewLocalStorageService(t *testing.T) {
 		t.Errorf("expected baseURL https://example.com, got %s", svc.baseURL)
 	}
 
-	// Empty baseDir
 	_, err = NewLocalStorageService("", nil, "")
 	if err == nil {
 		t.Fatal("expected error for empty baseDir")
 	}
 
-	// BaseDir creation failure (when baseDir points to a file, not a directory)
 	fileAsDir := filepath.Join(tmp, "existing-file")
 	if err := os.WriteFile(fileAsDir, []byte("not-a-dir"), 0644); err != nil {
 		t.Fatalf("write file: %v", err)
@@ -57,24 +54,20 @@ func TestLocalStorageService_PutGetDeleteStat(t *testing.T) {
 	key := "avatars/user-123.png"
 	content := []byte("fake-image-binary-data")
 
-	// Stat before put -> not found
 	_, err = svc.StatObject(ctx, key)
 	if err != ErrStorageObjectNotFound {
 		t.Fatalf("expected ErrStorageObjectNotFound, got %v", err)
 	}
 
-	// Get before put -> not found
 	_, err = svc.GetObject(ctx, key)
 	if err != ErrStorageObjectNotFound {
 		t.Fatalf("expected ErrStorageObjectNotFound, got %v", err)
 	}
 
-	// PutObject with size <= 0 (unbounded copy)
 	if err := svc.PutObject(ctx, key, bytes.NewReader(content), 0, "image/png"); err != nil {
 		t.Fatalf("PutObject failed: %v", err)
 	}
 
-	// StatObject
 	info, err := svc.StatObject(ctx, key)
 	if err != nil {
 		t.Fatalf("StatObject failed: %v", err)
@@ -89,7 +82,6 @@ func TestLocalStorageService_PutGetDeleteStat(t *testing.T) {
 		t.Error("expected non-zero last modified")
 	}
 
-	// GetObject
 	rc, err := svc.GetObject(ctx, key)
 	if err != nil {
 		t.Fatalf("GetObject failed: %v", err)
@@ -104,7 +96,6 @@ func TestLocalStorageService_PutGetDeleteStat(t *testing.T) {
 		t.Fatalf("content mismatch: got %s, want %s", readBack, content)
 	}
 
-	// PutObject with explicit size > 0
 	content2 := []byte("updated-image-binary-data-extra-bytes")
 	if err := svc.PutObject(ctx, key, bytes.NewReader(content2), int64(len(content2)), "image/png"); err != nil {
 		t.Fatalf("PutObject with size failed: %v", err)
@@ -114,18 +105,15 @@ func TestLocalStorageService_PutGetDeleteStat(t *testing.T) {
 		t.Fatalf("expected updated size %d, got %v (err=%v)", len(content2), info2, err)
 	}
 
-	// Nil reader error
 	if err := svc.PutObject(ctx, key, nil, 0, ""); err == nil {
 		t.Fatal("expected error for nil reader")
 	}
 
-	// Read error during PutObject
 	errReader := &failingReader{err: errors.New("read fault")}
 	if err := svc.PutObject(ctx, "fault.txt", errReader, 0, ""); err == nil {
 		t.Fatal("expected error for failing reader")
 	}
 
-	// MkdirAll failure when key directory collides with existing file
 	if err := os.WriteFile(filepath.Join(tmp, "blocker"), []byte("file"), 0644); err != nil {
 		t.Fatalf("write blocker: %v", err)
 	}
@@ -133,17 +121,14 @@ func TestLocalStorageService_PutGetDeleteStat(t *testing.T) {
 		t.Fatal("expected error when directory collides with file")
 	}
 
-	// DeleteObject
 	if err := svc.DeleteObject(ctx, key); err != nil {
 		t.Fatalf("DeleteObject failed: %v", err)
 	}
 
-	// Stat after delete -> not found
 	if _, err := svc.StatObject(ctx, key); err != ErrStorageObjectNotFound {
 		t.Fatalf("expected ErrStorageObjectNotFound after delete, got %v", err)
 	}
 
-	// Idempotent delete (deleting non-existent file should succeed)
 	if err := svc.DeleteObject(ctx, key); err != nil {
 		t.Fatalf("idempotent DeleteObject failed: %v", err)
 	}
@@ -203,7 +188,6 @@ func TestLocalStorageService_PresignedURLs(t *testing.T) {
 
 	key := "docs/contract.pdf"
 
-	// PresignPutURL with default expire (<= 0)
 	putURL, err := svc.PresignPutURL(ctx, key, 0)
 	if err != nil {
 		t.Fatalf("PresignPutURL failed: %v", err)
@@ -223,34 +207,28 @@ func TestLocalStorageService_PresignedURLs(t *testing.T) {
 	exp, _ := strconv.ParseInt(q.Get("expires"), 10, 64)
 	sig := q.Get("sig")
 
-	// Verify valid
 	if !svc.VerifyPresignedURL("put", key, exp, sig) {
 		t.Fatal("VerifyPresignedURL failed for valid put URL")
 	}
 
-	// Verify invalid action
 	if svc.VerifyPresignedURL("get", key, exp, sig) {
 		t.Fatal("VerifyPresignedURL should fail for wrong action")
 	}
 
-	// Verify invalid key
 	if svc.VerifyPresignedURL("put", "other-key", exp, sig) {
 		t.Fatal("VerifyPresignedURL should fail for wrong key")
 	}
 
-	// Verify tampered sig
 	if svc.VerifyPresignedURL("put", key, exp, sig+"bad") {
 		t.Fatal("VerifyPresignedURL should fail for tampered sig")
 	}
 
-	// Verify expired
 	pastExp := time.Now().Add(-1 * time.Minute).Unix()
 	pastSig := svc.sign("put", key, pastExp)
 	if svc.VerifyPresignedURL("put", key, pastExp, pastSig) {
 		t.Fatal("VerifyPresignedURL should fail for expired time")
 	}
 
-	// PresignGetURL with empty baseURL
 	svcNoBase, err := NewLocalStorageService(tmp, secret, "")
 	if err != nil {
 		t.Fatalf("create svc: %v", err)
@@ -265,12 +243,10 @@ func TestLocalStorageService_PresignedURLs(t *testing.T) {
 }
 
 func TestGetStorageService_ContextLookup(t *testing.T) {
-	// Nil context
 	if _, ok := GetStorageService(nil); ok {
 		t.Fatal("expected false for nil context")
 	}
 
-	// Empty registry
 	reg := NewRegistry()
 	ctx := &Context{
 		Provide: reg.Provide,
@@ -280,7 +256,6 @@ func TestGetStorageService_ContextLookup(t *testing.T) {
 		t.Fatal("expected false when service not registered")
 	}
 
-	// Registered service
 	tmp := t.TempDir()
 	svc, _ := NewLocalStorageService(tmp, nil, "")
 	ctx.Provide(ServiceStorage, StorageService(svc))

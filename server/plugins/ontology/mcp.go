@@ -11,13 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// MCPTier is the tier the whole plugin needs.
-//
-// MCPProvider declares one tier per plugin while a declaration declares one per
-// operation, so the highest declared tier wins: hiding the free operations of an
-// entity that also has a paid one is a coarser answer than licensing would
-// allow, but it is the only one that cannot leak a paid operation to a free
-// instance.
 func (p *Plugin) MCPTier() string {
 	tier := ""
 	for _, e := range p.entities {
@@ -34,8 +27,6 @@ func (p *Plugin) MCPTier() string {
 	return tier
 }
 
-// tierRank orders the self-hosted tiers. An unknown tier outranks every known
-// one, so a typo hides the group instead of exposing it.
 func tierRank(tier string) int {
 	switch tier {
 	case "":
@@ -49,10 +40,6 @@ func tierRank(tier string) int {
 	}
 }
 
-// RegisterMCP publishes one tool per MCP-exposed operation.
-//
-// It runs once per MCP connection, from several goroutines, so it only reads the
-// snapshot built at Mount: no DDL, no shared state, no lazy lookups.
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	for _, e := range p.entities {
 		for _, op := range core.Operations {
@@ -64,11 +51,8 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	}
 }
 
-// toolArgs is the argument object for one tool. The schema published with the
-// tool is the declaration's; this type only carries the values.
 type toolArgs map[string]any
 
-// listResult is the list tool's structured output.
 type listResult struct {
 	Items  []map[string]any `json:"items"`
 	Total  int64            `json:"total"`
@@ -76,7 +60,6 @@ type listResult struct {
 	Offset int              `json:"offset"`
 }
 
-// deleteResult is the delete tool's structured output.
 type deleteResult struct {
 	OK bool `json:"ok"`
 }
@@ -180,9 +163,6 @@ func (p *Plugin) mcpGet(ctx context.Context, e *entity, in toolArgs) (map[string
 	return core.FromRow(e.spec, row), nil
 }
 
-// mcpWrite creates or updates one record. The arguments are re-encoded and run
-// through the same decoder the HTTP surface uses, so both surfaces accept and
-// refuse exactly the same values.
 func (p *Plugin) mcpWrite(ctx context.Context, e *entity, in toolArgs, patch bool) (map[string]any, error) {
 	op := core.OpCreate
 	if patch {
@@ -241,9 +221,6 @@ func (p *Plugin) mcpDelete(ctx context.Context, e *entity, in toolArgs) error {
 	return (store{}).delete(ctx, tdb, e, argString(in, "id"))
 }
 
-// ready refuses a tool call the instance cannot serve: no database, schema never
-// applied, or a role outside the operation's ACL. Each answer is a refusal, not
-// an empty result.
 func (p *Plugin) ready(ctx context.Context, e *entity, op core.Operation) error {
 	if p.schemaErr != nil {
 		return p.schemaErr
@@ -251,9 +228,6 @@ func (p *Plugin) ready(ctx context.Context, e *entity, op core.Operation) error 
 	if p.db == nil {
 		return ErrNoDatabase
 	}
-	// The stdio composition stamps a workspace but no identity, so a tool called
-	// over `octarq mcp` has no role to compare. Saying so is the difference
-	// between "your token is too weak" and "this transport cannot carry a token".
 	role := plugin.RoleFromContext(ctx)
 	if role == "" {
 		return ErrNoRole
@@ -264,8 +238,6 @@ func (p *Plugin) ready(ctx context.Context, e *entity, op core.Operation) error 
 	return nil
 }
 
-// toolDescription tells an agent what the tool does and what it must send. One
-// sentence per line, active voice.
 func toolDescription(e *entity, op core.Operation) string {
 	plural := pluralLabel(e.spec)
 	switch op {
@@ -291,10 +263,6 @@ func argString(in toolArgs, key string) string {
 	return ""
 }
 
-// pageParams reads the paging arguments. The list tool publishes the same bounds
-// this enforces, and the HTTP surface declares them to huma, so a page outside
-// them is refused everywhere rather than served as a different page on one
-// surface.
 func pageParams(in toolArgs) (limit, offset int, err error) {
 	limit = defaultPageSize
 	if _, ok := in["limit"]; ok {
@@ -316,8 +284,6 @@ func pageParams(in toolArgs) (limit, offset int, err error) {
 	return limit, offset, nil
 }
 
-// argInt reads an integer argument. A value of another type is refused: reading
-// it as the default would run a request the caller did not make.
 func argInt(in toolArgs, key string) (int, error) {
 	v, ok := in[key]
 	if !ok {
@@ -328,9 +294,6 @@ func argInt(in toolArgs, key string) (int, error) {
 		if n != math.Trunc(n) {
 			return 0, fmt.Errorf("%w: %s must be a whole number", ErrInvalidArgument, key)
 		}
-		// The MCP SDK decodes arguments as float64. Beyond 2^53 a float64 can no
-		// longer tell two integers apart, so the value that arrives is already
-		// not the value the caller sent.
 		if math.Abs(n) > 1<<53 {
 			return 0, fmt.Errorf("%w: %s is out of range", ErrInvalidArgument, key)
 		}
@@ -349,8 +312,6 @@ func argInt(in toolArgs, key string) (int, error) {
 	return 0, fmt.Errorf("%w: %s must be an integer", ErrInvalidArgument, key)
 }
 
-// jsonResult renders a value as both text and structured output, so a client can
-// read either.
 func jsonResult(v any) (*mcp.CallToolResult, any, error) {
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

@@ -10,9 +10,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
-// TestGenerateTokenDerivesDeterministicHMAC pins the derived token: same inputs
-// yield the same value, a different session token or secret changes it, and the
-// result round-trips through hmac.Equal (not ==) client code.
 func TestGenerateTokenDerivesDeterministicHMAC(t *testing.T) {
 	a := GenerateToken("secret", "session-1")
 	if a == "" {
@@ -29,9 +26,6 @@ func TestGenerateTokenDerivesDeterministicHMAC(t *testing.T) {
 	}
 }
 
-// TestNewCookieAttributes pins the double-submit cookie shape: readable
-// (non-HttpOnly), same-site lax, session-length TTL, and the Secure flag passed
-// through by the caller (it must mirror the session cookie's).
 func TestNewCookieAttributes(t *testing.T) {
 	c := NewCookie("secret", "session-x", true)
 	if c.Name != CookieName {
@@ -59,7 +53,6 @@ func TestNewCookieAttributes(t *testing.T) {
 	}
 }
 
-// TestClearCookieExpires pins the logout cookie: empty value, negative MaxAge.
 func TestClearCookieExpires(t *testing.T) {
 	c := ClearCookie()
 	if c.Name != CookieName || c.Value != "" || c.MaxAge != -1 {
@@ -67,9 +60,6 @@ func TestClearCookieExpires(t *testing.T) {
 	}
 }
 
-// The CSRF token must be keyed by the CSRF subkey, not by the master secret:
-// the same secret also signs session cookies and the second-factor challenge,
-// and a token verifier in one use must not accept a signature from another.
 func TestGenerateTokenUsesTheCSRFSubkey(t *testing.T) {
 	const secret = "master-secret"
 	const session = "session-token"

@@ -18,9 +18,6 @@ import (
 	"testing"
 )
 
-// newGeoHandler builds an httptest handler that serves the given tar.gz bytes
-// with the matching sha256 checksum line, mimicking MaxMind's geoip_download
-// endpoint.
 func newGeoHandler(tarBytes []byte, shaHex string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Query().Get("suffix") {
@@ -34,7 +31,6 @@ func newGeoHandler(tarBytes []byte, shaHex string) http.HandlerFunc {
 	}
 }
 
-// makeTarGz builds a valid tar.gz stream whose first entry is a .mmdb file.
 func makeTarGz(t *testing.T, mmdbName string) []byte {
 	t.Helper()
 	var buf bytes.Buffer
@@ -118,7 +114,6 @@ func TestDownloadChecksumErrors(t *testing.T) {
 }
 
 func TestDownloadArchiveErrors(t *testing.T) {
-	// Non-200 on the tar.gz fetch (checksum fetch must succeed first).
 	_, err := downloadFrom(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Query().Get("suffix") {
 		case "tar.gz.sha256":
@@ -131,7 +126,6 @@ func TestDownloadArchiveErrors(t *testing.T) {
 		t.Fatalf("expected HTTP 404 error, got %v", err)
 	}
 
-	// Client-level failure (connection refused) surfaces as an error.
 	srv := httptest.NewServer(http.NotFoundHandler())
 	url := srv.URL
 	srv.Close()
@@ -145,14 +139,12 @@ func TestDownloadArchiveErrors(t *testing.T) {
 		return
 	}
 
-	// Gzip garbage in the archive stream.
 	tarBytes := []byte("this is not gzip")
 	_, err = downloadFrom(t, newGeoHandler(tarBytes, hashOf(tarBytes)))
 	if err == nil || !strings.Contains(err.Error(), "not a gzip archive") {
 		t.Fatalf("expected gzip error, got %v", err)
 	}
 
-	// Valid gzip but no .mmdb entry in the tar.
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
@@ -171,7 +163,6 @@ func TestDownloadArchiveErrors(t *testing.T) {
 		t.Fatalf("expected no-mmdb error, got %v", err)
 	}
 
-	// Truncated tar (the mmdb entry header is cut mid-stream).
 	truncated := makeTarGz(t, "GeoLite2-City.mmdb")
 	truncated = truncated[:len(truncated)/2]
 	_, err = downloadFrom(t, newGeoHandler(truncated, hashOf(truncated)))
@@ -188,8 +179,6 @@ func TestRedactKeyHelpers(t *testing.T) {
 	if err := redactKey(errors.New("boom"), ""); err == nil || err.Error() != "boom" {
 		t.Errorf("redactKey with empty key must pass through, got %v", err)
 	}
-	// The URL-escaped key form is scrubbed too (net/http errors embed the URL
-	// with QueryEscape applied), and keys with special characters use that form.
 	key := "my key"
 	escaped := url.QueryEscape(key)
 	err := redactKey(fmt.Errorf("url %s and raw %s", escaped, key), key)
@@ -241,17 +230,12 @@ func TestDecideModeCachedFile(t *testing.T) {
 	if m != modeCached || p != filepath.Join(dir, cachedFileName) {
 		t.Errorf("decideMode cached = (%q,%q), want (cached,%q)", m, p, filepath.Join(dir, cachedFileName))
 	}
-	// A manual path always wins over the cache.
 	m, p = decideMode("/manual.mmdb", dir, "")
 	if m != modeManual || p != "/manual.mmdb" {
 		t.Errorf("decideMode manual = (%q,%q), want (manual,/manual.mmdb)", m, p)
 	}
 }
 
-// TestDownloadLocalFailurePaths drives download into its filesystem failure
-// branches (temp-file creation and the final rename), none of which touch the
-// network. The responses are always cryptographically valid so the failure is
-// guaranteed to be the file operation under test.
 func TestDownloadLocalFailurePaths(t *testing.T) {
 	tarBytes := makeTarGz(t, "GeoLite2-City.mmdb")
 	goodSum := hashOf(tarBytes)
@@ -266,7 +250,6 @@ func TestDownloadLocalFailurePaths(t *testing.T) {
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
 
-	// CreateTemp fails when dir is actually a file.
 	filePath := filepath.Join(t.TempDir(), "not-a-dir")
 	if err := os.WriteFile(filePath, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -275,7 +258,6 @@ func TestDownloadLocalFailurePaths(t *testing.T) {
 		t.Error("expected error when download dir is a file")
 	}
 
-	// Rename fails when the destination name is taken by a directory.
 	blocked := t.TempDir()
 	if err := os.Mkdir(filepath.Join(blocked, cachedFileName), 0o755); err != nil {
 		t.Fatal(err)
@@ -285,8 +267,6 @@ func TestDownloadLocalFailurePaths(t *testing.T) {
 	}
 }
 
-// TestFetchRejectsMalformedURL covers the request-construction error path in
-// fetch, which requires a base URL that url.Parse rejects.
 func TestFetchRejectsMalformedURL(t *testing.T) {
 	client := &http.Client{}
 	_, err := fetch(context.Background(), client, "http://bad host name", "key", "tar.gz")

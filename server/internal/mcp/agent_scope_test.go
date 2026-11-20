@@ -122,7 +122,6 @@ func runToolCall(ctx context.Context, srv *mcpsdk.Server, toolName string, args 
 	})
 }
 
-// Test用例 1（正常放行）: 签发仅允许 octarq_network__list_links 的 Agent Token，调用成功返回。
 func TestAgentScope_TestCase1_AllowedToolPasses(t *testing.T) {
 	db, lp, testLink := setupAgentScopeTest(t)
 	srv := mcp_internal.NewNetworkedServerInstance(db, 1, []plugin.Plugin{lp}, nil)
@@ -155,8 +154,6 @@ func TestAgentScope_TestCase1_AllowedToolPasses(t *testing.T) {
 	}
 }
 
-// Test用例 2（越权拦截 Fail-Closed）: 尝试调用未在白名单中的 octarq_network__delete_link，
-// 必须严格 Fail-Closed 返回 403 FORBIDDEN_AGENT_TOOL_DISALLOWED，且数据库记录未发生任何变更。
 func TestAgentScope_TestCase2_DisallowedToolFailClosed(t *testing.T) {
 	db, lp, testLink := setupAgentScopeTest(t)
 	srv := mcp_internal.NewNetworkedServerInstance(db, 1, []plugin.Plugin{lp}, nil)
@@ -169,7 +166,6 @@ func TestAgentScope_TestCase2_DisallowedToolFailClosed(t *testing.T) {
 	ctx := auth.WithOrgID(context.Background(), 1)
 	ctx = auth.WithTokenAgent(ctx, agentTok.IsAgent, agentTok.AllowedTools)
 
-	// Attempt unauthorized tool invocation
 	res, err := runToolCall(ctx, srv, "octarq_network__delete_link", map[string]any{
 		"id": testLink.ID,
 	})
@@ -180,7 +176,6 @@ func TestAgentScope_TestCase2_DisallowedToolFailClosed(t *testing.T) {
 		t.Fatalf("expected tool call to be rejected with error, but got success: %+v", res)
 	}
 
-	// Verify error code in MCP response content
 	var contentText string
 	for _, c := range res.Content {
 		if tc, ok := c.(*mcpsdk.TextContent); ok {
@@ -194,7 +189,6 @@ func TestAgentScope_TestCase2_DisallowedToolFailClosed(t *testing.T) {
 		t.Errorf("expected descriptive authorization failure message, got: %s", contentText)
 	}
 
-	// Assert DB record unchanged: testLink MUST still exist in database
 	var remainingLink scopeLink
 	if err := db.First(&remainingLink, testLink.ID).Error; err != nil {
 		t.Fatalf("expected link %d to remain in database, but query returned: %v", testLink.ID, err)
@@ -204,7 +198,6 @@ func TestAgentScope_TestCase2_DisallowedToolFailClosed(t *testing.T) {
 	}
 }
 
-// Test用例 3（人类 Token 向后兼容）: 普通 Token (is_agent == false) 调用任意注册工具不受限制。
 func TestAgentScope_TestCase3_HumanTokenBackwardCompatible(t *testing.T) {
 	db, lp, testLink := setupAgentScopeTest(t)
 	srv := mcp_internal.NewNetworkedServerInstance(db, 1, []plugin.Plugin{lp}, nil)
@@ -217,7 +210,6 @@ func TestAgentScope_TestCase3_HumanTokenBackwardCompatible(t *testing.T) {
 	ctx := auth.WithOrgID(context.Background(), 1)
 	ctx = auth.WithTokenAgent(ctx, humanTok.IsAgent, humanTok.AllowedTools)
 
-	// 1. Human token can call octarq_network__list_links
 	resList, err := runToolCall(ctx, srv, "octarq_network__list_links", nil)
 	if err != nil {
 		t.Fatalf("unexpected error calling list links with human token: %v", err)
@@ -226,7 +218,6 @@ func TestAgentScope_TestCase3_HumanTokenBackwardCompatible(t *testing.T) {
 		t.Fatalf("expected list links to succeed for human token, got: %+v", resList)
 	}
 
-	// 2. Human token can call octarq_network__delete_link
 	resDelete, err := runToolCall(ctx, srv, "octarq_network__delete_link", map[string]any{
 		"id": testLink.ID,
 	})
@@ -237,14 +228,12 @@ func TestAgentScope_TestCase3_HumanTokenBackwardCompatible(t *testing.T) {
 		t.Fatalf("expected delete link to succeed for human token, got: %+v", resDelete)
 	}
 
-	// Assert DB record was actually deleted by human token
 	var deletedLink scopeLink
 	if err := db.First(&deletedLink, testLink.ID).Error; err == nil {
 		t.Errorf("expected link %d to be deleted from database by human token, but it still exists", testLink.ID)
 	}
 }
 
-// Test empty AllowedTools on Agent Token strictly fails closed on all tools.
 func TestAgentScope_EmptyAllowedTools_StrictFailClosed(t *testing.T) {
 	db, lp, _ := setupAgentScopeTest(t)
 	srv := mcp_internal.NewNetworkedServerInstance(db, 1, []plugin.Plugin{lp}, nil)

@@ -13,13 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// DefaultMaxBytes is the default maximum byte size of returned query results (1MB).
 const DefaultMaxBytes = 1024 * 1024
 
-// DefaultMaxRows is the default maximum rows returned (200).
 const DefaultMaxRows = 200
 
-// ExecMeta carries execution metadata returned by Execute.
 type ExecMeta struct {
 	RowCount  int           `json:"rowCount"`
 	Truncated bool          `json:"truncated"`
@@ -27,7 +24,6 @@ type ExecMeta struct {
 	Columns   []string      `json:"columns"`
 }
 
-// ExecOption configures execution parameters for Execute.
 type ExecOption func(*execOptions)
 
 type execOptions struct {
@@ -35,7 +31,6 @@ type execOptions struct {
 	maxBytes int
 }
 
-// WithMaxRows overrides the default maximum row limit (DefaultMaxRows = 200).
 func WithMaxRows(maxRows int) ExecOption {
 	return func(opts *execOptions) {
 		if maxRows > 0 {
@@ -44,7 +39,6 @@ func WithMaxRows(maxRows int) ExecOption {
 	}
 }
 
-// WithMaxBytes overrides the default maximum result size in bytes (1MB).
 func WithMaxBytes(maxBytes int) ExecOption {
 	return func(opts *execOptions) {
 		if maxBytes > 0 {
@@ -53,7 +47,6 @@ func WithMaxBytes(maxBytes int) ExecOption {
 	}
 }
 
-// RedactRow replaces the values of sensitive columns in a result row with RedactedValue.
 func RedactRow(columns []string, row map[string]any) {
 	for _, c := range columns {
 		if SensitiveColumns[strings.ToLower(c)] {
@@ -64,18 +57,9 @@ func RedactRow(columns []string, row map[string]any) {
 	}
 }
 
-// Execute validates and executes a tenant SQL query in a fail-closed pipeline:
-//  1. Validate caller orgID from context (reject if 0)
-//  2. Check database dialect (reject if not sqlite or postgres)
-//  3. Validate SQL against Parser and Registry whitelist
-//  4. Execute within a single transaction: create TEMP VIEWs, query, rollback
-//  5. Enforce MaxRows and MaxBytes limits
-//  6. Redact sensitive columns
-//  7. Record synchronous AuditLog entry
 func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, opts ...ExecOption) ([]map[string]any, ExecMeta, error) {
 	var meta ExecMeta
 
-	// 1. OrgID from context
 	orgID := OrgIDFromContext(ctx)
 	if orgID == 0 {
 		return nil, meta, errors.New("unauthorized: missing workspace context")
@@ -85,18 +69,15 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		return nil, meta, errors.New("database handle is nil")
 	}
 
-	// 2. Database Dialect check
 	dial := db.Name()
 	if dial != "sqlite" && dial != "postgres" {
 		return nil, meta, fmt.Errorf("dialect not supported: %s", dial)
 	}
 
-	// Resolve registry
 	if reg == nil {
 		reg = DefaultRegistry()
 	}
 
-	// Configure execution options
 	eOpts := &execOptions{
 		maxRows:  DefaultMaxRows,
 		maxBytes: DefaultMaxBytes,
@@ -107,7 +88,6 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		}
 	}
 
-	// 3. Parser validation
 	registeredViews := reg.List()
 	allowedViewNames := make([]string, len(registeredViews))
 	for i, v := range registeredViews {
@@ -138,18 +118,14 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		}
 	}
 
-	// 4. Materialization + Query + Rollback in single transaction
 	start := time.Now()
 
-	// In PostgreSQL, CREATE TEMP VIEW requires catalog writes in pg_temp and fails in ReadOnly transactions.
-	// Safety is guaranteed by AST validation (only SELECT allowed) and mandatory defer tx.Rollback().
 	tx := db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return nil, meta, fmt.Errorf("failed to begin transaction: %w", tx.Error)
 	}
 	defer tx.Rollback()
 
-	// Materialize referenced views
 	allowPersonal := AllowsPersonalScope(ctx)
 	for _, view := range referencedViews {
 		quotedViewName, err := quoteIdent(view.Name)
@@ -167,7 +143,6 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		}
 	}
 
-	// Execute SELECT query
 	rows, err := tx.Raw(querySQL).Rows()
 	if err != nil {
 		return nil, meta, fmt.Errorf("query execution failed: %w", err)
@@ -180,7 +155,6 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	}
 	meta.Columns = cols
 
-	// 5. Scan rows with limits
 	var result []map[string]any
 	totalBytes := 0
 	rowCount := 0
@@ -215,7 +189,6 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 			}
 		}
 
-		// 6. Sensitive column redaction
 		RedactRow(cols, row)
 		for col := range row {
 			if sensitiveSet[strings.ToLower(col)] {
@@ -242,7 +215,6 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	meta.RowCount = len(result)
 	meta.Duration = time.Since(start)
 
-	// 7. Audit log (synchronous write on root DB)
 	actorID := UserIDFromContext(ctx)
 	metaMap := map[string]any{
 		"sql":         querySQL,

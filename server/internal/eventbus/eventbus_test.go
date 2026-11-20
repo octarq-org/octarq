@@ -88,7 +88,6 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 
 	gotSig := sigHeader[len("sha256="):]
 
-	// v1 signature: HMAC over the body alone (unchanged, for existing receivers).
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(payload)
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
@@ -114,24 +113,20 @@ func TestDeliverErrors(t *testing.T) {
 		}, 1)
 	}
 
-	// 1. Invalid URL scheme — permanent, never retried.
 	if res := run("ftp://example.com/hook", 1); !errors.Is(res.Err, errPermanent) {
 		t.Errorf("bad scheme should be permanent, got %v", res.Err)
 	}
 
-	// 2. Vault service lookup failure — permanent.
 	SetVaultService(&testVaultService{err: errors.New("vault error")})
 	if res := run("http://example.com/hook", 1); !errors.Is(res.Err, errPermanent) {
 		t.Errorf("unresolvable secret should be permanent, got %v", res.Err)
 	}
 
-	// 3. No vault service registered — permanent.
 	SetVaultService(nil)
 	if res := run("http://example.com/hook", 1); !errors.Is(res.Err, errPermanent) {
 		t.Errorf("missing vault service should be permanent, got %v", res.Err)
 	}
 
-	// 4. Server returns HTTP 500 — retryable, and the status is reported.
 	allowSecrets(t)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -149,26 +144,22 @@ func TestDeliverErrors(t *testing.T) {
 
 func TestSigningSecret(t *testing.T) {
 	ctx := context.Background()
-	// 1. Zero VaultItemID
 	if _, err := signingSecret(ctx, 1, 0); err == nil {
 		t.Errorf("expected error for zero vaultItemID")
 	}
 
-	// 2. Nil vault service
 	SetVaultService(nil)
 	_, err := signingSecret(ctx, 1, 1)
 	if err == nil || !strings.Contains(err.Error(), "no vault service registered") {
 		t.Errorf("expected no vault service error, got %v", err)
 	}
 
-	// 3. Vault service failure
 	SetVaultService(&testVaultService{err: errors.New("boom")})
 	_, err = signingSecret(ctx, 1, 1)
 	if err == nil || !strings.Contains(err.Error(), "could not be resolved") {
 		t.Errorf("expected could not be resolved error, got %v", err)
 	}
 
-	// 4. Success
 	allowSecrets(t)
 	got, err := signingSecret(ctx, 1, 1)
 	if err != nil || got != "s" {
@@ -179,7 +170,6 @@ func TestSigningSecret(t *testing.T) {
 func TestPublish(t *testing.T) {
 	allowSecrets(t)
 
-	// Nil DB test
 	Init(nil)
 	Publish(1, "link.click", map[string]any{"ok": true})
 
@@ -194,10 +184,8 @@ func TestPublish(t *testing.T) {
 
 	Init(gdb)
 
-	// Publish with no hooks
 	Publish(999, "link.click", map[string]any{"ok": true})
 
-	// Publish with unmarshalable data
 	Publish(1, "link.click", make(chan int))
 
 	received := make(chan struct{}, 1)
@@ -207,7 +195,6 @@ func TestPublish(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Register webhook subscribed to link.click and another hook unsubscribed
 	gdb.Create(&models.Webhook{
 		OrgID:       1,
 		Name:        "Test Hook",

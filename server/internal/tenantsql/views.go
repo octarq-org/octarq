@@ -11,10 +11,8 @@ import (
 
 var validIdentPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// RedactedValue is what a sensitive column's value is replaced with.
 const RedactedValue = "[redacted]"
 
-// SensitiveColumns are result column names whose values are always redacted.
 var SensitiveColumns = map[string]bool{
 	"password":      true,
 	"password_hash": true,
@@ -35,29 +33,24 @@ var SensitiveColumns = map[string]bool{
 	"ciphertext":    true,
 }
 
-// TenantColumn describes a column in a tenant view schema.
 type TenantColumn struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
 	Description string `json:"description"`
 }
 
-// TenantView defines a tenant-isolated SQL view.
 type TenantView struct {
-	Name       string                  `json:"name"` // 强制 "tenant_" 前缀
+	Name       string                  `json:"name"`
 	Columns    []TenantColumn          `json:"columns"`
-	Sensitive  []string                `json:"sensitive"` // 出参二次脱敏列
+	Sensitive  []string                `json:"sensitive"`
 	Definition func(orgID uint) string `json:"-"`
 }
 
-// Registry manages registered tenant views in memory.
-// It is safe for concurrent use by multiple goroutines.
 type Registry struct {
 	mu    sync.RWMutex
 	views map[string]TenantView
 }
 
-// NewRegistry creates a new empty tenant view registry.
 func NewRegistry() *Registry {
 	return &Registry{
 		views: make(map[string]TenantView),
@@ -69,7 +62,6 @@ var (
 	defaultRegistry     *Registry
 )
 
-// DefaultRegistry returns the package-level default singleton Registry.
 func DefaultRegistry() *Registry {
 	defaultRegistryOnce.Do(func() {
 		defaultRegistry = NewRegistry()
@@ -77,10 +69,6 @@ func DefaultRegistry() *Registry {
 	return defaultRegistry
 }
 
-// Register adds a new TenantView to the registry.
-// It validates that the view has a non-empty name starting with DefaultViewPrefix ("tenant_"),
-// matches valid identifier pattern ^[A-Za-z_][A-Za-z0-9_]*$, has a non-nil Definition function,
-// and has not already been registered.
 func (r *Registry) Register(view TenantView) error {
 	name := strings.TrimSpace(view.Name)
 	if name == "" {
@@ -109,7 +97,6 @@ func (r *Registry) Register(view TenantView) error {
 	return nil
 }
 
-// Lookup finds a registered view by name (case-insensitive).
 func (r *Registry) Lookup(name string) (TenantView, bool) {
 	key := strings.ToLower(strings.TrimSpace(name))
 	r.mu.RLock()
@@ -119,7 +106,6 @@ func (r *Registry) Lookup(name string) (TenantView, bool) {
 	return view, ok
 }
 
-// List returns all registered views, sorted alphabetically by Name.
 func (r *Registry) List() []TenantView {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -136,15 +122,12 @@ func (r *Registry) List() []TenantView {
 	return views
 }
 
-// Reset clears all registered views in the registry (primarily for test teardown).
 func (r *Registry) Reset() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.views = make(map[string]TenantView)
 }
 
-// quoteIdent quotes an SQL identifier with double quotes after validating it
-// against the identifier pattern ^[A-Za-z_][A-Za-z0-9_]*$.
 func quoteIdent(ident string) (string, error) {
 	if !validIdentPattern.MatchString(ident) {
 		return "", fmt.Errorf("invalid SQL identifier %q: must match ^[A-Za-z_][A-Za-z0-9_]*$", ident)
@@ -152,7 +135,6 @@ func quoteIdent(ident string) (string, error) {
 	return `"` + ident + `"`, nil
 }
 
-// HasScopeColumn reports whether the view schema declares a scope_key column.
 func HasScopeColumn(view TenantView) bool {
 	for _, col := range view.Columns {
 		if strings.EqualFold(strings.TrimSpace(col.Name), "scope_key") {
@@ -162,9 +144,6 @@ func HasScopeColumn(view TenantView) bool {
 	return false
 }
 
-// wrapScopedRedactedViewSQL rewrites the view definition query to redact sensitive columns
-// and, when allowPersonal is false and the view contains a scope_key column, enforces
-// WHERE "scope_key" LIKE 'work:%' so personal:* records cannot leak.
 func wrapScopedRedactedViewSQL(view TenantView, inner string, allowPersonal bool) (string, error) {
 	scopeWhere := ""
 	if !allowPersonal && (HasScopeColumn(view) || strings.Contains(strings.ToLower(inner), "scope_key")) {

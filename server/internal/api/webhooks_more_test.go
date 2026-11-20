@@ -14,49 +14,41 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 	srv, db := newTestHandler(t)
 	adminCookies := loginCookies(t, srv)
 
-	// Create member
 	memberUser := models.User{Email: "memberwh@example.com"}
 	db.Create(&memberUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: memberUser.ID, Role: "member"})
 	memberCookies := sessionCookies(t, memberUser.ID, 1)
 
-	// 1. List Webhook Events unauth -> 401
 	rec := do(srv, "GET", "/api/webhooks/events", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth webhook events: got %d, want 401", rec.Code)
 	}
 
-	// 2. List Webhook Events auth -> 200
 	rec = do(srv, "GET", "/api/webhooks/events", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("auth webhook events: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 3. List Webhooks unauth -> 401
 	rec = do(srv, "GET", "/api/webhooks", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth list webhooks: got %d, want 401", rec.Code)
 	}
 
-	// 4. Member list webhooks -> 403
 	rec = do(srv, "GET", "/api/webhooks", memberCookies, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member list webhooks: got %d, want 403", rec.Code)
 	}
 
-	// 5. Create Webhook validation: empty URL -> 400
 	rec = do(srv, "POST", "/api/webhooks", adminCookies, `{"name":"test","url":""}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("create webhook empty url: got %d, want 400", rec.Code)
 	}
 
-	// Member create webhook -> 403
 	rec = do(srv, "POST", "/api/webhooks", memberCookies, `{"name":"test","url":"https://example.com/wh"}`)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member create webhook: got %d, want 403", rec.Code)
 	}
 
-	// Admin create webhook without secret -> auto generates secret
 	rec = do(srv, "POST", "/api/webhooks", adminCookies, `{
 		"name": "Audit Webhook",
 		"url": "https://example.com/audit-webhook",
@@ -77,7 +69,6 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Errorf("created webhook mismatch: %+v", created)
 	}
 
-	// 6. List webhooks -> secret is NOT returned in JSON, secretSet is true
 	rec = do(srv, "GET", "/api/webhooks", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list webhooks: got %d", rec.Code)
@@ -96,26 +87,21 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Errorf("list webhooks secretSet expected true, got %v", rawList[0]["secretSet"])
 	}
 
-	// 7. Update Webhook
-	// Unauth -> 401
 	rec = do(srv, "PUT", fmt.Sprintf("/api/webhooks/%d", created.ID), nil, `{"name":"test","url":"https://example.com"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth update webhook: got %d, want 401", rec.Code)
 	}
 
-	// Update empty name/url -> 400
 	rec = do(srv, "PUT", fmt.Sprintf("/api/webhooks/%d", created.ID), adminCookies, `{"name":"","url":""}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("empty name update webhook: got %d, want 400", rec.Code)
 	}
 
-	// Update not found -> 404
 	rec = do(srv, "PUT", "/api/webhooks/999999", adminCookies, `{"name":"test","url":"https://example.com"}`)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("update nonexistent webhook: got %d, want 404", rec.Code)
 	}
 
-	// Update name, events, custom secret
 	rec = do(srv, "PUT", fmt.Sprintf("/api/webhooks/%d", created.ID), adminCookies, `{
 		"name": "Renamed Webhook",
 		"url": "https://example.com/wh2",
@@ -136,7 +122,6 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Errorf("update webhook secretSet expected true, got %v", updateRaw["secretSet"])
 	}
 
-	// Verify updated webhook in list still omits secret
 	rec = do(srv, "GET", "/api/webhooks", adminCookies, "")
 	rawList = nil
 	_ = json.Unmarshal(rec.Body.Bytes(), &rawList)
@@ -147,14 +132,11 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Errorf("list webhooks after update must NOT return secret, got %v", sec)
 	}
 
-	// 8. Delete Webhook
-	// Unauth -> 401
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/webhooks/%d", created.ID), nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth delete webhook: got %d, want 401", rec.Code)
 	}
 
-	// Member -> 403
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/webhooks/%d", created.ID), memberCookies, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member delete webhook: got %d, want 403", rec.Code)
@@ -175,7 +157,6 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Errorf("webhook still exists after delete")
 	}
 
-	// 9. Vault secret persistence check
 	h, srv2, _ := newTestHandlerRaw(t)
 	adminCookies2 := loginCookies(t, srv2)
 	rec = do(srv2, "POST", "/api/webhooks", adminCookies2, `{"name":"Vault Hook","url":"https://example.com/vh","secret":"test-secret"}`)
@@ -192,7 +173,6 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 	if err != nil || sec.Payload["signingSecret"] != "test-secret" {
 		t.Errorf("vault GetSecret = (%+v, %v), want signingSecret=test-secret", sec, err)
 	}
-	// Orphaned VaultItemID -> update recreates vault item; VaultItemID == 0 -> update creates vault item
 	_ = h.vault().DeleteSecret(context.Background(), 1, dbHook.VaultItemID)
 	rec = do(srv2, "PUT", fmt.Sprintf("/api/webhooks/%d", vh.ID), adminCookies2, `{"name":"Vault Hook","url":"https://example.com/vh","secret":"recreated-sec"}`)
 	if rec.Code != http.StatusOK {
@@ -204,7 +184,6 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 		t.Fatalf("update zero vault hook: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 10. Nil Ctx calls
 	ctx := context.Background()
 	if _, err := h.listWebhookEvents(ctx, &ListWebhookEventsInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in listWebhookEvents")

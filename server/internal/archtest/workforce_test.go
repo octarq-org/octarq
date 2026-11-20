@@ -12,7 +12,6 @@ import (
 	"testing"
 )
 
-// findServerDir locates the server module root from this package's directory.
 func findServerDir(t *testing.T) string {
 	t.Helper()
 	candidates := []string{
@@ -28,7 +27,6 @@ func findServerDir(t *testing.T) string {
 	return ""
 }
 
-// coreGoFiles walks the server module and yields every non-test Go file.
 func coreGoFiles(t *testing.T, server string) []string {
 	t.Helper()
 	var files []string
@@ -38,7 +36,6 @@ func coreGoFiles(t *testing.T, server string) []string {
 		}
 		if entry.IsDir() {
 			name := entry.Name()
-			// Vendored and generated trees are not hand-written core code.
 			if name == "testdata" || name == "node_modules" || name == "webembed" {
 				return fs.SkipDir
 			}
@@ -59,19 +56,6 @@ func coreGoFiles(t *testing.T, server string) []string {
 	return files
 }
 
-// TestWorkforceTablesStayOutOfCore guards the split that moved the workforce
-// feature — agents, tasks, approvals, the spend ledger — into the Pro module.
-// Core keeps only the contract in server/plugin/workforce.go.
-//
-// The guard is about the two ways the feature creeps back:
-//
-//   - a gorm model returns a "workforce_*" table name, so core migrations start
-//     creating tables the Pro plugin also owns;
-//   - a handler mounts a "/api/workforce..." route, so core serves the feature
-//     again and the plugin's routes collide with it.
-//
-// Both would compile, both would pass every other test, and the second one
-// shows up as a 409 in a workspace that has the plugin installed.
 func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 	server := findServerDir(t)
 	fset := token.NewFileSet()
@@ -91,7 +75,6 @@ func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 			t.Fatalf("parse %s: %v", rel, err)
 		}
 
-		// 1. No workforce table names outside the contract file.
 		ast.Inspect(file, func(n ast.Node) bool {
 			fn, ok := n.(*ast.FuncDecl)
 			if !ok || fn.Name.Name != "TableName" || fn.Body == nil {
@@ -114,7 +97,6 @@ func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 			return true
 		})
 
-		// 2. No workforce routes.
 		ast.Inspect(file, func(n ast.Node) bool {
 			lit, ok := n.(*ast.BasicLit)
 			if !ok {
@@ -136,9 +118,6 @@ func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 	}
 }
 
-// TestNoWorkforcePackageInCore fails when the removed implementation package
-// reappears next to the other core plugins. The contract lives in plugin/, the
-// implementation lives in octarq-pro.
 func TestNoWorkforcePackageInCore(t *testing.T) {
 	server := findServerDir(t)
 	for _, dir := range []string{

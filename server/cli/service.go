@@ -9,13 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// OS system service lifecycle management.
-//
-// This file groups the kardianos/service integration, adapting the blocking
-// server boot loop into the OS service supervisor lifecycle (systemd / Windows
-// Services / macOS launchd) and handling install/start/stop/restart/status subcommands.
-
-// program adapts a blocking Boot func to the service.Interface lifecycle.
 type program struct {
 	boot   func(ctx context.Context) int
 	cancel context.CancelFunc
@@ -63,7 +56,6 @@ func newServiceCommand(d Deps) *cobra.Command {
 	return cmd
 }
 
-// serviceBackend abstracts kardianos/service for testability.
 type serviceBackend interface {
 	Install() error
 	Uninstall() error
@@ -73,8 +65,6 @@ type serviceBackend interface {
 	Status() (service.Status, error)
 }
 
-// newServiceBackend constructs the platform backend. It is a variable so
-// tests can inject a fake without touching the OS service manager.
 var newServiceBackend = func(prg *program, cfg *service.Config) (serviceBackend, error) {
 	return service.New(prg, cfg)
 }

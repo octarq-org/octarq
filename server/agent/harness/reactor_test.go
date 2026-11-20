@@ -85,9 +85,6 @@ func TestNewReactorRunnerEnforcesThreeStepCeiling(t *testing.T) {
 	}
 }
 
-// TestNewReactorRunnerRefusesABudgetAboveTheReactorCeiling pins the fail-closed
-// rule: ProfileReactor is applied after caller options, and a budget above its
-// ceiling is refused instead of being silently locked to 3.
 func TestNewReactorRunnerRefusesABudgetAboveTheReactorCeiling(t *testing.T) {
 	comp := &loopingCompleter{}
 	exec := &noopExec{}

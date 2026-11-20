@@ -13,22 +13,8 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ErrNoPendingCall is returned by Resume when the turn has no approved call to
-// run. Resume is not a way to start a turn; Run is.
 var ErrNoPendingCall = errors.New("harness: the turn has no pending call to resume")
 
-// NewPendingCall builds the record of a tool call an operator is asked to
-// approve.
-//
-// A host that stores an approval must rebuild this value when the decision
-// comes back. The identity of a call is this package's rule, so callers build
-// it here instead of copying the hash formula: a copy drifts the day the
-// formula changes, and the approval then binds to a call nobody decided on.
-//
-// The arguments are canonicalised first: the operator is shown these bytes, and
-// two renderings of one call must produce one hash, so re-spacing an object
-// cannot sidestep an approval. Pass the bytes that were stored: Resume executes
-// them unchanged.
 func NewPendingCall(tool, argsJSON string) *PendingCall {
 	args := canonicalArgs(json.RawMessage(argsJSON))
 	return &PendingCall{
@@ -38,16 +24,10 @@ func NewPendingCall(tool, argsJSON string) *PendingCall {
 	}
 }
 
-// newPendingCall records a call the guard refused for approval.
 func newPendingCall(tc toolCall) *PendingCall {
 	return NewPendingCall(tc.Name, string(tc.ArgsJSON))
 }
 
-// canonicalArgs renders argument bytes in one stable form.
-//
-// A document that does not parse is returned trimmed. It never reaches an
-// approval: the parser already refused it, so this is a guard against a caller
-// that built a toolCall by hand.
 func canonicalArgs(raw json.RawMessage) string {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" {
@@ -64,15 +44,11 @@ func canonicalArgs(raw json.RawMessage) string {
 	return string(out)
 }
 
-// callHash identifies a tool call by name and canonical arguments. The separator
-// is not a character that can appear in a tool name, so no pair of calls can
-// collide by moving text across the boundary.
 func callHash(tool, argsJSON string) string {
 	sum := sha256.Sum256([]byte(tool + "\x00" + argsJSON))
 	return hex.EncodeToString(sum[:])
 }
 
-// Resume runs the tool call an operator approved and continues the turn.
 func (r *defaultRunner) Resume(ctx context.Context, s *Session, t *Turn) error {
 	r.tracer.Event(ctx, TraceEvent{Kind: TraceKindTurnStart})
 	err := r.resumeApproved(ctx, s, t, nil)
@@ -89,17 +65,11 @@ func (r *defaultRunner) Resume(ctx context.Context, s *Session, t *Turn) error {
 	return err
 }
 
-// ResumeStream is Resume for a runner that streams its continuation.
-//
-// P3 前 API 易变.
 type ResumeStreamRunner interface {
 	StreamRunner
 	ResumeStream(ctx context.Context, s *Session, t *Turn, h llmprovider.StreamHandler) error
 }
 
-// ResumeStream runs the approved call and streams the rest of the turn. A
-// provider that cannot stream continues through Resume, exactly as Stream
-// continues through Run.
 func (r *defaultRunner) ResumeStream(ctx context.Context, s *Session, t *Turn, h llmprovider.StreamHandler) error {
 	sp, ok := r.extractStreamProvider()
 	if !ok {
@@ -121,7 +91,6 @@ func (r *defaultRunner) ResumeStream(ctx context.Context, s *Session, t *Turn, h
 	return err
 }
 
-// streamObserver returns the handler's step projection when it implements one.
 func streamObserver(h llmprovider.StreamHandler) StepObserver {
 	if o, ok := h.(StepObserver); ok {
 		return o
@@ -129,12 +98,6 @@ func streamObserver(h llmprovider.StreamHandler) StepObserver {
 	return nil
 }
 
-// resumeApproved executes the approved call and appends its result to the
-// history, leaving the turn ready for the next round.
-//
-// The guard does not run again. The operator's decision is the answer to the
-// question the guard asked, and asking again would only produce the same
-// refusal.
 func (r *defaultRunner) resumeApproved(ctx context.Context, s *Session, t *Turn, obs StepObserver) error {
 	if t.PendingCall == nil {
 		t.Status = TurnStatusFailed
@@ -143,9 +106,6 @@ func (r *defaultRunner) resumeApproved(ctx context.Context, s *Session, t *Turn,
 	call := *t.PendingCall
 	t.PendingCall = nil
 
-	// The approved call belongs to the round that produced it. Counting it here
-	// is what stops an approval from buying an extra round: the continuation
-	// starts at the round after this one.
 	step := t.Rounds
 	start := time.Now()
 	r.executeCall(ctx, s, t, step, toolCall{
@@ -153,18 +113,10 @@ func (r *defaultRunner) resumeApproved(ctx context.Context, s *Session, t *Turn,
 		ArgsJSON: json.RawMessage(call.ArgsJSON),
 	}, obs)
 	t.Rounds = step + 1
-	// Running the approved call is execution, so it counts for the wall clock.
-	// Waiting for the decision does not: it happened between Run and Resume.
 	t.Elapsed += time.Since(start)
 	return nil
 }
 
-// executeCall runs one accepted call, records the Step, traces it and appends
-// its fenced output to the history.
-//
-// It is the second half of executeSteps, split out so Resume can run an
-// approved call through the same path. A resumed call that took a different
-// route would fence or trace differently from a call that was never blocked.
 func (r *defaultRunner) executeCall(ctx context.Context, s *Session, t *Turn, step int, tc toolCall, obs StepObserver) {
 	st := Step{
 		ToolName: tc.Name,
@@ -182,14 +134,12 @@ func (r *defaultRunner) executeCall(ctx context.Context, s *Session, t *Turn, st
 	}
 
 	if execErr != nil {
-		// Preserve AgentError.AgentGuidance through the Step.
 		var ae *plugin.AgentError
 		if errors.As(execErr, &ae) {
-			st.Err = ae // keep the full AgentError
+			st.Err = ae
 		} else {
 			st.Err = execErr
 		}
-		// Use the error message as fenced output so the LLM sees it.
 		st.OutputFenced = wrapUntrustedFence(execErr.Error())
 	} else {
 		st.OutputFenced = wrapUntrustedFence(output)
@@ -205,7 +155,6 @@ func (r *defaultRunner) executeCall(ctx context.Context, s *Session, t *Turn, st
 		DurationMS: st.DurationMS,
 	})
 
-	// Append the tool output into history so the LLM can reason about results.
 	s.History = append(s.History, Message{
 		Role:    "tool",
 		Content: st.OutputFenced,

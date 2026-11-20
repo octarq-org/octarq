@@ -12,7 +12,6 @@ import (
 	"testing"
 )
 
-// listCall is one request the reader made.
 type listCall struct {
 	path  string
 	key   string
@@ -20,15 +19,11 @@ type listCall struct {
 	query string
 }
 
-// anthropicList is a stand-in for Anthropic's own model list. It pages, so the
-// test can prove every page is read and the cursor travels back.
 type anthropicList struct {
-	mu       sync.Mutex
-	pages    []string
-	requests []listCall
-	code     int
-	// repeatLastID answers with the cursor it was given, which models a server
-	// that repeats a page instead of advancing.
+	mu           sync.Mutex
+	pages        []string
+	requests     []listCall
+	code         int
 	repeatLastID bool
 }
 
@@ -59,9 +54,6 @@ func (a *anthropicList) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, a.pages[n])
 }
 
-// TestAnthropicModelsReadsEveryPage proves the list is complete rather than the
-// first page: a form that offered only the first models would hide the one the
-// operator wants, and the cursor is the API's own.
 func TestAnthropicModelsReadsEveryPage(t *testing.T) {
 	list := &anthropicList{pages: []string{
 		`{"data":[{"id":"claude-a","type":"model"},{"id":"claude-b"}],"has_more":true,"last_id":"claude-b"}`,
@@ -103,8 +95,6 @@ func TestAnthropicModelsReadsEveryPage(t *testing.T) {
 	}
 }
 
-// TestAnthropicModelsReportsARefusal keeps a bad key visible instead of an
-// empty list that reads as "this key offers nothing".
 func TestAnthropicModelsReportsARefusal(t *testing.T) {
 	list := &anthropicList{code: http.StatusUnauthorized, pages: []string{`{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}`}}
 	srv := httptest.NewServer(list)
@@ -119,8 +109,6 @@ func TestAnthropicModelsReportsARefusal(t *testing.T) {
 	}
 }
 
-// TestAnthropicModelsStopsOnARepeatingPage keeps a server that never advances
-// from looping: the same cursor twice ends the read.
 func TestAnthropicModelsStopsOnARepeatingPage(t *testing.T) {
 	list := &anthropicList{repeatLastID: true}
 	srv := httptest.NewServer(list)
@@ -140,8 +128,6 @@ func TestAnthropicModelsStopsOnARepeatingPage(t *testing.T) {
 	}
 }
 
-// TestAnthropicModelsRefusesAnEndlessList fails closed when the list never
-// ends, rather than returning a silently truncated catalogue.
 func TestAnthropicModelsRefusesAnEndlessList(t *testing.T) {
 	var mu sync.Mutex
 	calls := 0
@@ -164,8 +150,6 @@ func TestAnthropicModelsRefusesAnEndlessList(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	// A literal bound, not the constant: a test that compares the reader with
-	// its own limit cannot see the limit move.
 	if calls > 10 {
 		t.Fatalf("pages read = %d, want the reader to stop within ten", calls)
 	}
@@ -174,9 +158,6 @@ func TestAnthropicModelsRefusesAnEndlessList(t *testing.T) {
 	}
 }
 
-// TestDiscoveryResolutionReadsTheAnthropicAPI pins which wire format discovery
-// speaks for each backend. A claude row with no base URL is the only one that
-// reaches Anthropic itself; every other shape keeps the OpenAI path.
 func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	p := &Plugin{}
 	ctx := context.Background()
@@ -187,8 +168,6 @@ func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	if !ap.Anthropic || ap.BaseURL != anthropicBaseURL {
 		t.Fatalf("claude row resolved to %+v", ap)
 	}
-	// A claude row that names a gateway is read the OpenAI way: that URL is a
-	// proxy, and the proxy answers the OpenAI shape.
 	ap, err = p.discoveryProviderFromRow(ctx, &Provider{Backend: "claude", BaseURL: "https://proxy.example/v1"}, "sk-ant")
 	if err != nil {
 		t.Fatalf("claude row with a base URL: %v", err)
@@ -196,8 +175,6 @@ func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	if ap.Anthropic || ap.BaseURL != "https://proxy.example/v1" {
 		t.Fatalf("proxied claude row resolved to %+v", ap)
 	}
-	// The pasted form of Anthropic's own URL is the same API, so it is read the
-	// same way and the /v1 is not doubled.
 	ap, err = p.discoveryProviderFromRow(ctx, &Provider{Backend: "claude", BaseURL: "https://api.anthropic.com/v1"}, "sk-ant")
 	if err != nil {
 		t.Fatalf("pasted anthropic URL: %v", err)
@@ -205,7 +182,6 @@ func TestDiscoveryResolutionReadsTheAnthropicAPI(t *testing.T) {
 	if !ap.Anthropic || ap.BaseURL != anthropicBaseURL {
 		t.Fatalf("pasted anthropic URL resolved to %+v", ap)
 	}
-	// A backend with no list shape is still refused by name.
 	if _, err := p.discoveryProviderFromRow(ctx, &Provider{Backend: "gemini"}, "k"); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("gemini err = %v, want ErrInvalidProvider", err)
 	}

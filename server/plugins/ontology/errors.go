@@ -10,23 +10,12 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ErrForbidden is returned when the caller's role is not in an operation's ACL.
 var ErrForbidden = errors.New("ontology: insufficient role for this operation")
 
-// ErrFeatureOff is returned for an entity whose declaring plugin the workspace
-// has switched off. It is a 404 rather than a 403: the feature is not there to
-// be permitted, and the platform's other disabled-plugin routes answer the same
-// way.
 var ErrFeatureOff = errors.New("ontology: the plugin that declares this entity is off in this workspace")
 
-// ErrInvalidArgument is returned when a caller sends a value the platform does
-// not serve, such as a page size outside the declared bounds. Both surfaces
-// refuse it; neither substitutes a different value.
 var ErrInvalidArgument = errors.New("ontology: invalid argument")
 
-// failure is a domain error with the HTTP status it maps to. Both surfaces read
-// it, so an MCP caller and a REST caller are told the same thing about the same
-// mistake.
 type failure struct {
 	status     int
 	code       string
@@ -36,9 +25,6 @@ type failure struct {
 
 func (f *failure) Error() string { return f.message }
 
-// asFailure classifies an error. It is the single place a status is chosen,
-// which is what keeps a 409 from being reported as a 500 on one surface and a
-// 422 on the other.
 func asFailure(err error) *failure {
 	if err == nil {
 		return nil
@@ -126,25 +112,17 @@ func asFailure(err error) *failure {
 	return &failure{status: 500, code: "INTERNAL", message: "The request failed. Try again."}
 }
 
-// humaError converts a domain error into the response huma writes. Validation
-// issues are joined into the message because huma's own error shape carries one
-// message, and an operator fixing three fields should see all three at once.
 func humaError(err error) error {
 	f := asFailure(err)
 	if f == nil {
 		return nil
 	}
-	// A 5xx is the only case where the operator cannot see the cause from the
-	// client's side: the message is deliberately generic, so the underlying
-	// error — a driver error, a lost connection — goes to the log instead. It is
-	// not handed to huma, which would put it in the response body.
 	if f.status >= 500 {
 		slog.Error("ontology: request failed", "status", f.status, "code", f.code, "err", err)
 	}
 	return huma.NewError(f.status, f.message)
 }
 
-// agentError converts a domain error for an MCP tool result.
 func agentError(err error) error {
 	f := asFailure(err)
 	if f == nil {

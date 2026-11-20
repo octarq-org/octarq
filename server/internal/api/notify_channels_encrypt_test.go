@@ -21,7 +21,6 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 
 	plaintextConfig := `{"token":"my-super-secret-token","endpoint":"https://example.com"}`
 
-	// 1. Create a notification channel via API
 	jsonConfig, err := json.Marshal(plaintextConfig)
 	if err != nil {
 		t.Fatalf("json.Marshal failed: %v", err)
@@ -32,7 +31,6 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 		t.Fatalf("expected HTTP 200/201 on create, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// Verify response has secrets redacted
 	respStr := rec.Body.String()
 	if strings.Contains(respStr, "my-super-secret-token") {
 		t.Errorf("expected secret token to be redacted in API response, got: %s", respStr)
@@ -41,7 +39,6 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 		t.Errorf("expected [REDACTED] in API response, got: %s", respStr)
 	}
 
-	// 2. Query DB directly: verify config column holds non-secret metadata only and VaultItemID is set
 	var storedCh models.NotificationChannel
 	if err := db.Where("owner_id = ? AND name = ?", orgID, "Custom Channel").First(&storedCh).Error; err != nil {
 		t.Fatalf("failed to find channel in DB: %v", err)
@@ -53,7 +50,6 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 		t.Fatalf("expected VaultItemID > 0 for channel with secret token")
 	}
 
-	// 3. Register mock provider and verify resolved Vault + metadata config delivers full JSON
 	var receivedConfig string
 	notify.Register("custom", func(ctx context.Context, cfgJSON, text string) error {
 		receivedConfig = cfgJSON

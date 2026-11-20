@@ -8,7 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// DiskProvider monitors data directory disk usage, available space, and capacity utilization.
 type DiskProvider struct {
 	dataDir           string
 	warnThresholdPct  float64
@@ -16,10 +15,8 @@ type DiskProvider struct {
 	statFunc          func(path string) (total, free, avail uint64, err error)
 }
 
-// DiskProviderOption configures a DiskProvider.
 type DiskProviderOption func(*DiskProvider)
 
-// WithDiskThresholds configures warning and error usage percentage thresholds.
 func WithDiskThresholds(warnPct, errorPct float64) DiskProviderOption {
 	return func(p *DiskProvider) {
 		if warnPct > 0 {
@@ -31,14 +28,12 @@ func WithDiskThresholds(warnPct, errorPct float64) DiskProviderOption {
 	}
 }
 
-// WithDiskStatFunc overrides the underlying filesystem stat function (useful for tests).
 func WithDiskStatFunc(fn func(path string) (total, free, avail uint64, err error)) DiskProviderOption {
 	return func(p *DiskProvider) {
 		p.statFunc = fn
 	}
 }
 
-// NewDiskProvider creates a new DiskProvider for the given data directory.
 func NewDiskProvider(dataDir string, opts ...DiskProviderOption) *DiskProvider {
 	if dataDir == "" {
 		if cwd, err := os.Getwd(); err == nil {
@@ -62,12 +57,10 @@ func NewDiskProvider(dataDir string, opts ...DiskProviderOption) *DiskProvider {
 	return p
 }
 
-// Name returns the identifier of the disk provider.
 func (p *DiskProvider) Name() string {
 	return "disk"
 }
 
-// Metadata returns the classification and unit metadata for the disk provider.
 func (p *DiskProvider) Metadata() plugin.HealthMeta {
 	return plugin.HealthMeta{
 		Category: plugin.CategoryStorage,
@@ -75,7 +68,6 @@ func (p *DiskProvider) Metadata() plugin.HealthMeta {
 	}
 }
 
-// Check evaluates the filesystem usage on the configured directory.
 func (p *DiskProvider) Check(ctx context.Context) plugin.HealthResult {
 	statFn := p.statFunc
 	if statFn == nil {

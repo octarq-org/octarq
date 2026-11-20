@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// Setting keys and instance-scoped Vault key names.
 const (
 	keyReservedSlugs            = "reserved_slugs"
 	keyReservedMailboxes        = "reserved_mailboxes"
@@ -24,45 +23,30 @@ const (
 	vaultKeyGoogleClientSecret  = "instance.oauth.google"
 	keyGitHubClientID           = "oauth.github.client_id"
 	vaultKeyGitHubClientSecret  = "instance.oauth.github"
-	keyDataRetentionDays        = "data_retention_days" // 0 = disabled
+	keyDataRetentionDays        = "data_retention_days"
 	keyAutoWrapLinks            = "auto_wrap_links"
-	keyAllowRegistration        = "allow_registration"     // "false" disables public sign-up; default on
-	keyAppName                  = "app_name"               // UI product name; empty = config.DefaultAppName
-	keyBrandLogo                = "brand_logo"             // white-label logo (URL or data URI); empty = gradient initial
-	keyBrandColor               = "brand_color"            // white-label primary accent hex; empty = default indigo
-	keyBrandColor2              = "brand_color_2"          // white-label secondary accent hex; empty = default violet
-	vaultKeyMetricsToken        = "instance.metrics_token" // /metrics bearer in Vault; empty = loopback-only
+	keyAllowRegistration        = "allow_registration"
+	keyAppName                  = "app_name"
+	keyBrandLogo                = "brand_logo"
+	keyBrandColor               = "brand_color"
+	keyBrandColor2              = "brand_color_2"
+	vaultKeyMetricsToken        = "instance.metrics_token"
 	keyRatelimitAuthRPM         = "ratelimit_auth_rpm"
 	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
-	keyRequireEmailVerification = "require_email_verification" // "false" disables the email-verification requirement; default on
-	keyBaseDomain               = models.BaseDomainSetting     // shared tenant-subdomain base; empty = feature off
-	keySharedHosts              = models.SharedHostsSetting    // instance-wide shared hostnames; comma/newline-separated
-	keyPublicCORSOrigins        = "public_cors_origins"        // comma/newline-separated exact origins allowed to read public GET endpoints
-	keySystemSenderID           = "mail_system_sender_id"      // SMTPSender id for instance-level system mail; empty = unset (system mail fails closed)
+	keyRequireEmailVerification = "require_email_verification"
+	keyBaseDomain               = models.BaseDomainSetting
+	keySharedHosts              = models.SharedHostsSetting
+	keyPublicCORSOrigins        = "public_cors_origins"
+	keySystemSenderID           = "mail_system_sender_id"
 )
 
-// Rate-limit defaults (requests per minute per IP) when the setting is unset.
 const (
 	defaultAuthRPM     = 60
 	defaultAPIRPM      = 600
 	defaultRedirectRPM = 6000
 )
 
-// Branding resolution
-//
-// Branding is per-workspace, with an instance-wide default underneath it, so one
-// deployment can host many tenants that each look like their own product:
-//
-//	workspace setting (org) → instance setting → built-in default
-//
-// orgID 0 means "no workspace resolved" and skips straight to the instance
-// layer. That is the honest answer on a shared host like app.octarq.org, where
-// the login screen belongs to no tenant in particular.
-
-// brandSetting resolves one branding key through the org → instance chain.
-// A workspace that has never set the key inherits; a workspace that set it to
-// empty also inherits (there is no "explicitly blank" branding).
 func (h *Handler) brandSetting(orgID uint, key string) string {
 	if orgID != 0 {
 		if v := strings.TrimSpace(h.GetWorkspaceSetting(orgID, key)); v != "" {
@@ -72,13 +56,8 @@ func (h *Handler) brandSetting(orgID uint, key string) string {
 	return strings.TrimSpace(h.getSetting(key))
 }
 
-// AppName returns the instance-default product name. Equivalent to
-// AppNameFor(0); kept as the zero-argument form for callers with no workspace in
-// hand.
 func (h *Handler) AppName() string { return h.AppNameFor(0) }
 
-// AppNameFor returns the product name shown to the given workspace, falling back
-// to the instance name and then config.DefaultAppName.
 func (h *Handler) AppNameFor(orgID uint) string {
 	if v := h.brandSetting(orgID, keyAppName); v != "" {
 		return v
@@ -86,24 +65,14 @@ func (h *Handler) AppNameFor(orgID uint) string {
 	return config.DefaultAppName
 }
 
-// Brand returns the instance-default white-label branding. Equivalent to
-// BrandFor(0).
 func (h *Handler) Brand() (logo, color, color2 string) { return h.BrandFor(0) }
 
-// BrandFor returns the white-label branding (logo + accent colors) for the given
-// workspace, falling back to the instance defaults. These keys have no core
-// write path — they are set only by the Pro white-label plugin, so an OSS build
-// always returns the zero values (default look). The values are surfaced
-// publicly via GET /api/auth/config so the login screen and shell can theme
-// before authentication.
 func (h *Handler) BrandFor(orgID uint) (logo, color, color2 string) {
 	return h.brandSetting(orgID, keyBrandLogo),
 		h.brandSetting(orgID, keyBrandColor),
 		h.brandSetting(orgID, keyBrandColor2)
 }
 
-// MetricsToken returns the /metrics bearer token from VaultService; empty
-// means the endpoint is loopback-only. Consumed by the edge middleware via a TTL cache.
 func (h *Handler) MetricsToken() string {
 	if tok := h.resolveInstanceSecret(context.Background(), vaultKeyMetricsToken, "token", "value"); tok != "" {
 		return tok
@@ -166,9 +135,6 @@ func (h *Handler) setInstanceSecret(ctx context.Context, keyName, displayName, f
 	return err
 }
 
-// RateLimits returns the per-IP requests-per-minute budgets (auth, api,
-// redirect tiers) from settings, with defaults for unset/invalid values.
-// A stored 0 or negative disables that tier's limiting.
 func (h *Handler) RateLimits() (authRPM, apiRPM, redirectRPM int) {
 	defAuth := defaultAuthRPM
 	if v := os.Getenv("OCTARQ_RATELIMIT_AUTH_RPM"); v != "" {
@@ -205,11 +171,6 @@ func (h *Handler) settingInt(key string, def int) int {
 	return n
 }
 
-// CORSOrigins returns the exact origins allowed to read public GET API
-// endpoints cross-origin. The runtime settings table is the source of truth;
-// the OCTARQ_CORS_ORIGINS env var is only a bootstrap fallback for a fresh
-// instance that has not set the setting yet. An empty result means CORS is
-// disabled entirely — no cross-origin reader is served CORS headers.
 func (h *Handler) CORSOrigins() []string {
 	if v := h.getSetting(keyPublicCORSOrigins); v != "" {
 		return splitList(v)
@@ -217,30 +178,18 @@ func (h *Handler) CORSOrigins() []string {
 	return splitList(h.cfg.PublicCORSOrigins)
 }
 
-// registrationEnabled reports whether public email/password sign-up is allowed.
-// Absent setting → enabled (default on); only an explicit "false" disables it.
 func (h *Handler) registrationEnabled() bool {
 	return h.getSetting(keyAllowRegistration) != "false"
 }
 
-// requireEmailVerification reports whether sign-up and login demand a verified
-// email. Absent setting → required (default on); only an explicit "false"
-// disables it. Multi-tenant instances default to requiring verification because
-// unverified sign-ups are a mail-relay and abuse vector.
 func (h *Handler) requireEmailVerification() bool {
 	return h.getSetting(keyRequireEmailVerification) != "false"
 }
 
-// RequireEmailVerification is the public wrapper around requireEmailVerification,
-// exposed to the app package so the startup readiness report reads the same
-// setting the registration gate and the readiness API read.
 func (h *Handler) RequireEmailVerification() bool {
 	return h.requireEmailVerification()
 }
 
-// systemSenderID returns the instance setting naming which SMTPSender is the
-// system sender; 0 means "unset" — system mail then fails closed, because the
-// mail plugin no longer falls back to a lowest-id sender.
 func (h *Handler) systemSenderID() uint {
 	v := strings.TrimSpace(h.getSetting(keySystemSenderID))
 	if v == "" {
@@ -253,7 +202,6 @@ func (h *Handler) systemSenderID() uint {
 	return uint(n)
 }
 
-// DefaultRetentionDays is used when no retention setting is configured.
 const DefaultRetentionDays = 90
 
 func (h *Handler) getSetting(key string) string {
@@ -292,8 +240,6 @@ func (h *Handler) SetWorkspaceSetting(orgID uint, key, value string) error {
 	}).Create(&models.WorkspaceSetting{OrgID: orgID, Key: key, Value: value}).Error
 }
 
-// splitList parses a comma/newline/space-separated list into a normalized,
-// lowercased, de-duplicated slice.
 func splitList(s string) []string {
 	fields := strings.FieldsFunc(s, func(r rune) bool {
 		return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
@@ -310,16 +256,6 @@ func splitList(s string) []string {
 	return out
 }
 
-// isInstanceAdmin reports whether the current user is the bootstrap operator
-// account (the user created from OCTARQ_ADMIN_*), and thus holds instance-level
-// administrative privileges (/api/instance-settings).
-//
-// Privilege is bound to the stable User.IsInstanceAdmin flag — NOT to org_id
-// ordering. The old "owner of org 1" check was a privilege-assignment vuln: on
-// a fresh instance with registration/OAuth enabled, whoever registers first
-// gets org 1 and would inherit instance admin. The flag is set deterministically
-// for the configured admin account at first login (bootstrapUserID), so login
-// order can never grant it to an attacker.
 func (h *Handler) isInstanceAdmin(r *http.Request) bool {
 	uid := h.auth.UserID(r)
 	if uid == 0 {
@@ -334,10 +270,6 @@ func (h *Handler) isInstanceAdmin(r *http.Request) bool {
 	return isAdmin
 }
 
-// IsInstanceAdmin is the public wrapper around isInstanceAdmin, exposed to
-// plugins via plugin.Context.IsInstanceAdmin. Instance-wide plugin config (SSO,
-// the Pro license, instance branding defaults) must gate on this — on a
-// multi-tenant host "is logged in" grants every tenant the operator's reach.
 func (h *Handler) IsInstanceAdmin(r *http.Request) bool {
 	return h.isInstanceAdmin(r)
 }

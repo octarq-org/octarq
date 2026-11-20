@@ -13,7 +13,6 @@ import (
 func TestLogin(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 
-	// Create a user in the database
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), auth.BcryptCost)
 	user := models.User{
 		Email:         "test@example.com",
@@ -22,8 +21,6 @@ func TestLogin(t *testing.T) {
 	}
 	db.Create(&user)
 
-	// A password account signs in to the workspace it belongs to. Sign-in grants
-	// no membership, so the workspace is part of the fixture.
 	org := models.Org{Name: "test workspace", Slug: "test-workspace", InboundToken: "test-token"}
 	db.Create(&org)
 	db.Create(&models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "member"})

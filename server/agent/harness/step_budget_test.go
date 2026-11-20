@@ -7,9 +7,6 @@ import (
 	"testing"
 )
 
-// TestStepBudget pins the shared rule: a zero budget means the profile
-// decides, a budget within the ceiling is returned unchanged, and a budget
-// above the ceiling is refused. The helper never lowers a request.
 func TestStepBudget(t *testing.T) {
 	t.Parallel()
 
@@ -111,10 +108,6 @@ func TestNewRunner_ProfileDecidesWhenNoBudgetIsSet(t *testing.T) {
 	}
 }
 
-// TestRunner_PromptBudgetMatchesTheEnforcedLoop is the K1 regression test: a
-// worker spec that asks for 20 steps must state 20 in the prompt and must
-// actually run 20 rounds. Before this change the prompt said 20 and the loop
-// stopped at 8.
 func TestRunner_PromptBudgetMatchesTheEnforcedLoop(t *testing.T) {
 	t.Parallel()
 
@@ -129,7 +122,6 @@ func TestRunner_PromptBudgetMatchesTheEnforcedLoop(t *testing.T) {
 	}
 	spec = spec.WithMaxSteps(maxSteps)
 
-	// The prompt is built from the same value the runner is assembled with.
 	prompt := Catalog{}.SystemPrompt(spec)
 	if !strings.Contains(prompt, "at most 20 tool-calling steps") {
 		t.Fatalf("the prompt does not state the enforced budget:\n%s", prompt)
@@ -171,9 +163,6 @@ func TestRunner_PromptBudgetMatchesTheEnforcedLoop(t *testing.T) {
 	}
 }
 
-// TestMaxStepsFor_ReactorReadOnlyDestructiveLock pins the one profile-owned
-// reduction left: a destructive turn under ProfileReactorReadOnly runs at the
-// reactor hard cap even when the caller set the read-only ceiling.
 func TestMaxStepsFor_ReactorReadOnlyDestructiveLock(t *testing.T) {
 	t.Parallel()
 

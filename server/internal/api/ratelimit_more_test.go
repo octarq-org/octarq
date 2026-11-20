@@ -14,40 +14,32 @@ import (
 )
 
 func TestRateLimiterMore(t *testing.T) {
-	// 1. In-memory store
 	rl, err := newRateLimiter("", "test", 3, time.Minute)
 	if err != nil {
 		t.Fatalf("memory limiter: %v", err)
 	}
 
-	// Initial requests allowed
 	if !rl.allow("1.2.3.4") {
 		t.Error("expected allow initially")
 	}
 
-	// 2. Record 3 failures
 	rl.recordFailure("1.2.3.4")
 	rl.recordFailure("1.2.3.4")
 	rl.recordFailure("1.2.3.4")
 
-	// 3. Now rejected
 	if rl.allow("1.2.3.4") {
 		t.Error("expected reject after 3 failures")
 	}
 
-	// 4. Reset
 	rl.reset("1.2.3.4")
 	if !rl.allow("1.2.3.4") {
 		t.Error("expected allow after reset")
 	}
 
-	// 5. An unreachable store is an error, never a quiet fall back to memory:
-	// per-process counters would multiply every budget by the replica count.
 	if rlRedisFail, err := newRateLimiter("redis://127.0.0.1:65534", "test", 2, time.Minute); err == nil || rlRedisFail != nil {
 		t.Errorf("unreachable redis: limiter %v, err %v; want nil and an error", rlRedisFail, err)
 	}
 
-	// 6. An unparsable store URL is the same error.
 	if rlInvalidRedis, err := newRateLimiter("invalid://redis", "test", 5, time.Minute); err == nil || rlInvalidRedis != nil {
 		t.Errorf("invalid redis URL: limiter %v, err %v; want nil and an error", rlInvalidRedis, err)
 	}
@@ -57,7 +49,6 @@ func TestTokensMore(t *testing.T) {
 	h, _, _ := newTestHandlerRaw(t)
 	ctx := context.Background()
 
-	// 1. tokenPrefix helper
 	if p := tokenPrefix("oct_1234567890"); p != "oct_1234" {
 		t.Errorf("tokenPrefix = %q, want oct_1234", p)
 	}
@@ -65,13 +56,11 @@ func TestTokensMore(t *testing.T) {
 		t.Errorf("tokenPrefix(\"short\") = %q, want short", p)
 	}
 
-	// 2. newRawToken helper
 	tok := newRawToken()
 	if len(tok) < 10 || tok[:4] != "oct_" {
 		t.Errorf("newRawToken() = %q, want oct_ prefix", tok)
 	}
 
-	// 3. Nil Ctx guards on token methods
 	if _, err := h.listTokens(ctx, &ListTokensInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in listTokens")
 	}
@@ -85,7 +74,6 @@ func TestTokensMore(t *testing.T) {
 		t.Error("expected error for nil Ctx in deleteToken")
 	}
 
-	// 4. Direct unauthenticated calls (humaCtx with unauthenticated request)
 	req := httptest.NewRequest("GET", "/api/test", nil)
 	w := httptest.NewRecorder()
 	humaCtx := humago.NewContext(nil, req, w)
@@ -108,25 +96,21 @@ func TestTokensCRUDMore(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// 1. List tokens unauth -> 401
 	rec := do(srv, "GET", "/api/tokens", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth list tokens: got %d, want 401", rec.Code)
 	}
 
-	// 2. List tokens auth -> 200
 	rec = do(srv, "GET", "/api/tokens", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("auth list tokens: got %d", rec.Code)
 	}
 
-	// 3. Create token empty name -> 400
 	rec = do(srv, "POST", "/api/tokens", cookies, `{"name":""}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("create token empty name: got %d, want 400", rec.Code)
 	}
 
-	// 4. Create token valid -> 200/201
 	rec = do(srv, "POST", "/api/tokens", cookies, `{"name":"CLI Token","role":"admin","expiresInDays":30}`)
 	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
 		t.Fatalf("create token valid: got %d (%s)", rec.Code, rec.Body.String())
@@ -141,38 +125,31 @@ func TestTokensCRUDMore(t *testing.T) {
 		t.Fatalf("unexpected created token: %+v", created)
 	}
 
-	// 5. Update token
 	rec = do(srv, "PUT", fmt.Sprintf("/api/tokens/%d", created.ID), cookies, `{"name":"Renamed CLI Token","note":"updated note"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update token: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 6. Delete token
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/tokens/%d", created.ID), cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete token: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// Delete again -> 404
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/tokens/%d", created.ID), cookies, "")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("delete nonexistent token: got %d, want 404", rec.Code)
 	}
 
-	// 7. Token validation cases
-	// Negative expiresInDays -> 400
 	rec = do(srv, "POST", "/api/tokens", cookies, `{"name":"T","expiresInDays":-5}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("negative expiresInDays: got %d, want 400", rec.Code)
 	}
 
-	// Invalid role -> 400
 	rec = do(srv, "POST", "/api/tokens", cookies, `{"name":"T","role":"superadmin"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid role token: got %d, want 400", rec.Code)
 	}
 
-	// Member trying to mint owner token -> 403
 	memUser := models.User{Email: "tokenmember@example.com"}
 	db.Create(&memUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: memUser.ID, Role: "member"})
@@ -182,7 +159,6 @@ func TestTokensCRUDMore(t *testing.T) {
 		t.Fatalf("member mint owner token: got %d, want 403", rec.Code)
 	}
 
-	// validTokenRole helper
 	if !validTokenRole("member") || !validTokenRole("admin") || !validTokenRole("owner") {
 		t.Error("expected validTokenRole to return true for standard roles")
 	}

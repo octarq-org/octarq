@@ -110,7 +110,7 @@ func newCronMockS3() (*httptest.Server, *cronMockS3) {
 func TestRegisterBackupJob_UnconfiguredSkipsSilently(t *testing.T) {
 	registrar := &mockCronRegistrar{jobs: make(map[string]string)}
 	cfg := &config.Config{
-		BackupS3Bucket: "", // unconfigured
+		BackupS3Bucket: "",
 	}
 
 	err := cron.RegisterBackupJob(registrar, cfg)
@@ -151,7 +151,6 @@ func TestExecuteBackupWorkflow_EndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "cron_test.db")
 
-	// Create test DB
 	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite failed: %v", err)
@@ -186,7 +185,6 @@ func TestExecuteBackupWorkflow_EndToEnd(t *testing.T) {
 		t.Fatalf("ExecuteBackupWorkflow failed: %v", err)
 	}
 
-	// Verify object uploaded to S3
 	if len(mock.objects) != 1 {
 		t.Fatalf("expected 1 object in mock S3, got %d", len(mock.objects))
 	}

@@ -1,5 +1,3 @@
-// Package cleanup runs periodic maintenance: purging expired data
-// based on the retention window.
 package cleanup
 
 import (
@@ -11,9 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// PruneAuditLogs deletes audit_log rows older than the data_retention_days
-// retention window. Rows are deleted in small batches to avoid holding a long
-// lock on a potentially large table. A window of 0 or negative disables pruning.
 func PruneAuditLogs(db *gorm.DB, days int) (int64, error) {
 	if db == nil || days <= 0 {
 		return 0, nil
@@ -49,10 +44,6 @@ func pruneAuditLogs(db *gorm.DB, days int) {
 	}
 }
 
-// Start runs provided plugin cleanup functions (e.g. purging LinkEvents)
-// once at startup and then every 24 hours. retentionDays is called each cycle
-// so runtime changes to the setting take effect without a restart.
-// Pass 0 or a negative value to disable purging.
 func Start(ctx context.Context, retentionDays func() int, cleanups ...func(ctx context.Context, retentionDays int)) {
 	purge := func() {
 		days := retentionDays()
@@ -77,9 +68,6 @@ func Start(ctx context.Context, retentionDays func() int, cleanups ...func(ctx c
 	}
 }
 
-// StartSessionCleanup deletes expired sessions once at startup and every hour.
-// It additionally prunes audit_log rows older than the data_retention_days
-// instance setting (see pruneAuditLogs).
 func StartSessionCleanup(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 	purge := func() {
 		now := time.Now()

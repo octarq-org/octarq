@@ -56,7 +56,6 @@ func TestLookupAsSuccessAndTypeMismatch(t *testing.T) {
 		t.Fatalf("Greet() = %q, want %q", got, "hi")
 	}
 
-	// Same name, wrong type: must be (zero, false), not a panic.
 	if s, ok := LookupAs[string](ctx, "hello.greeter"); ok || s != "" {
 		t.Fatalf("LookupAs[string] = (%q, %v), want (\"\", false)", s, ok)
 	}
@@ -66,8 +65,6 @@ func TestLookupAsNilContextAndNilLookup(t *testing.T) {
 	if _, ok := LookupAs[testGreeter](nil, "x"); ok {
 		t.Fatal("LookupAs on nil Context returned true")
 	}
-	// A host that predates the registry leaves Lookup nil; consumers must
-	// see "absent", not a nil-func panic.
 	if _, ok := LookupAs[testGreeter](&Context{}, "x"); ok {
 		t.Fatal("LookupAs on Context without Lookup returned true")
 	}
@@ -89,7 +86,6 @@ func TestDuplicateProvideFailsLoudly(t *testing.T) {
 		t.Fatalf("Err() = %v, want it to name the colliding service", err)
 	}
 
-	// First registration wins; the duplicate must not overwrite it.
 	svc, ok := ctx.Lookup("hello.greeter")
 	if !ok {
 		t.Fatal("service vanished after duplicate Provide")
@@ -105,28 +101,21 @@ func TestLookupServiceAsAbsentMismatchAndSuccess(t *testing.T) {
 		return nil
 	}))
 
-	// Absent service: (zero, false).
 	if fn, ok := LookupServiceAs[MailSender](reg.Lookup, ServiceMailDispatcher); ok || fn != nil {
 		t.Fatalf("LookupServiceAs for absent service = (%v, %v), want (nil, false)", fn, ok)
 	}
-	// Service present under a different contract type: (zero, false), not a panic.
 	if fn, ok := LookupServiceAs[UsageMeter](reg.Lookup, ServiceMailSend); ok || fn != nil {
 		t.Fatalf("LookupServiceAs with mismatched type = (%v, %v), want (nil, false)", fn, ok)
 	}
-	// Matching named contract type: value returned.
 	fn, ok := LookupServiceAs[MailSender](reg.Lookup, ServiceMailSend)
 	if !ok || fn == nil {
 		t.Fatal("LookupServiceAs[MailSender] returned false for a MailSender-provided service")
 	}
-	// A nil lookup func reads as absent, not a panic.
 	if fn, ok := LookupServiceAs[MailSender](nil, ServiceMailSend); ok || fn != nil {
 		t.Fatalf("LookupServiceAs with nil lookup = (%v, %v), want (nil, false)", fn, ok)
 	}
 }
 
-// TestLookupAsMatchesLookupServiceAs pins that LookupAs delegates to
-// LookupServiceAs, so the two share one assertion implementation and one
-// behavior for absent / mismatched / present services.
 func TestLookupAsMatchesLookupServiceAs(t *testing.T) {
 	ctx := testContext(NewRegistry())
 	ctx.Provide(ServiceMailSend, MailSender(func(orgID uint, to, subject, htmlBody, textBody string) error {

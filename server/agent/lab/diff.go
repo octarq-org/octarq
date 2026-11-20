@@ -7,14 +7,12 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// StringFieldDiff represents a difference in a string-valued field.
 type StringFieldDiff struct {
 	Baseline  string `json:"baseline"`
 	Candidate string `json:"candidate"`
 	Changed   bool   `json:"changed"`
 }
 
-// SliceFieldDiff represents set differences in a string list field.
 type SliceFieldDiff struct {
 	Baseline  []string `json:"baseline"`
 	Candidate []string `json:"candidate"`
@@ -24,7 +22,6 @@ type SliceFieldDiff struct {
 	Changed   bool     `json:"changed"`
 }
 
-// StepsFieldDiff represents differences in MaxSteps and effective profile ceilings.
 type StepsFieldDiff struct {
 	Baseline           int  `json:"baseline"`
 	Candidate          int  `json:"candidate"`
@@ -33,7 +30,6 @@ type StepsFieldDiff struct {
 	Changed            bool `json:"changed"`
 }
 
-// SpecDiff holds the field-by-field differences between baseline and candidate specs.
 type SpecDiff struct {
 	BaselineName  string          `json:"baseline_name"`
 	CandidateName string          `json:"candidate_name"`
@@ -85,11 +81,6 @@ func diffSlice(base, cand []string) SliceFieldDiff {
 	}
 }
 
-// DiffSpecs computes the field-by-field delta between two HarnessSpec instances.
-//
-// Each spec's effective budget is resolved against its own declared profile.
-// A spec whose budget exceeds its profile ceiling is refused, so the report
-// never shows a budget the runner would refuse.
 func DiffSpecs(baseline, cand harness.HarnessSpec) (SpecDiff, error) {
 	effBase, err := baseline.EffectiveMaxSteps(false)
 	if err != nil {

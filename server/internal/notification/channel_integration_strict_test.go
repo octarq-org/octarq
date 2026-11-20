@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// openChannelDB seeds one local notification channel row and returns the DB.
 func openChannelDB(t *testing.T, row *models.NotificationChannel) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -31,8 +30,6 @@ func openChannelDB(t *testing.T, row *models.NotificationChannel) *gorm.DB {
 	return db
 }
 
-// newWebhookRecorder returns a server that records the last message body it
-// received, so a test can prove which destination was used.
 func newWebhookRecorder(t *testing.T, target *string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,11 +41,6 @@ func newWebhookRecorder(t *testing.T, target *string) *httptest.Server {
 	t.Cleanup(srv.Close)
 	return srv
 }
-
-// A recipient that names an integration is answered by the Hub alone. These
-// tests pin that a missing or broken integration never falls through to the
-// local notification_channels row: delivering through a credential the operator
-// did not select is worse than not delivering at all.
 
 func localSlackRow(t *testing.T) *models.NotificationChannel {
 	t.Helper()
@@ -107,8 +99,6 @@ func TestSlackChannel_NamedIntegrationNeverFallsBackToLocalRow(t *testing.T) {
 		ch.SetHost(tc.host)
 		err := ch.Send(context.Background(), plugin.NotificationRecipient{
 			OrgID: "1",
-			// The stale inline URL must not be used: the named integration owns
-			// the destination.
 			Config: map[string]any{
 				"integration_id": float64(7),
 				"webhook_url":    "https://hooks.slack.com/services/stale-inline",
@@ -201,7 +191,6 @@ func TestTelegramChannel_NamedIntegrationNeverFallsBackToLocalRow(t *testing.T) 
 		ch.SetHost(tc.host)
 		err := ch.Send(context.Background(), plugin.NotificationRecipient{
 			OrgID: "1",
-			// The stale inline token must not be used either.
 			Config: map[string]any{
 				"integrationId": 7,
 				"chatId":        "12345",
@@ -214,8 +203,6 @@ func TestTelegramChannel_NamedIntegrationNeverFallsBackToLocalRow(t *testing.T) 
 	}
 }
 
-// TestTelegramChannel_ConfigDecryptFailureIsReported pins that an unreadable
-// local row is an error, not a silent "no credentials configured".
 func TestTelegramChannel_ConfigDecryptFailureIsReported(t *testing.T) {
 	db := openChannelDB(t, &models.NotificationChannel{
 		OrgID: 1, Type: "telegram", Enabled: true, VaultItemID: 99, Config: `{"chatId":"12345"}`,

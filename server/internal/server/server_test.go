@@ -13,9 +13,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// testDomain mirrors the dns plugin's domains table, which is what now decides
-// where the dashboard is served (see dashboardAllowed). The server package
-// cannot import the plugin, and neither can this test.
 type testDomain struct {
 	ID        uint `gorm:"primaryKey"`
 	OrgID     uint `gorm:"column:owner_id"`
@@ -28,9 +25,6 @@ type testDomain struct {
 
 func (testDomain) TableName() string { return "domains" }
 
-// domainsDB returns a database whose domains table contains rows, or no
-// domains table at all when none are given (an instance composed without the
-// dns plugin).
 func domainsDB(t *testing.T, rows ...testDomain) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
@@ -64,8 +58,6 @@ func TestServer(t *testing.T) {
 		"asset.css":  &fstest.MapFile{Data: []byte("css style")},
 	}
 
-	// links.example.com serves this org's short links, so it must not serve the
-	// dashboard. admin.example.com is registered by nobody and therefore does.
 	db := domainsDB(t, testDomain{
 		OrgID:     1,
 		Name:      "example.com",
@@ -78,7 +70,6 @@ func TestServer(t *testing.T) {
 		t.Fatalf("expected no error building server, got %v", err)
 	}
 
-	// 1. API Route
 	reqAPI := httptest.NewRequest("GET", "/api/test", nil)
 	recAPI := httptest.NewRecorder()
 	srv.ServeHTTP(recAPI, reqAPI)
@@ -86,7 +77,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("api route failed: got %d %q", recAPI.Code, recAPI.Body.String())
 	}
 
-	// 1.25 OAuth Ingress Route (/auth/begin/google, /auth/callback/google)
 	reqOAuth := httptest.NewRequest("GET", "/auth/begin/google", nil)
 	recOAuth := httptest.NewRecorder()
 	srv.ServeHTTP(recOAuth, reqOAuth)
@@ -94,7 +84,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("oauth ingress route failed: got %d %q, want 200 api response", recOAuth.Code, recOAuth.Body.String())
 	}
 
-	// 1.26 OAuth Route on traffic host -> 404
 	reqOAuthBlocked := httptest.NewRequest("GET", "/auth/begin/google", nil)
 	reqOAuthBlocked.Host = "links.example.com"
 	recOAuthBlocked := httptest.NewRecorder()
@@ -103,16 +92,14 @@ func TestServer(t *testing.T) {
 		t.Errorf("oauth route on traffic host: got %d, want 404", recOAuthBlocked.Code)
 	}
 
-	// 2. Admin index fallback (when allowed)
 	reqAdmin := httptest.NewRequest("GET", "/admin/", nil)
-	reqAdmin.Host = "admin.example.com:8080" // test with port
+	reqAdmin.Host = "admin.example.com:8080"
 	recAdmin := httptest.NewRecorder()
 	srv.ServeHTTP(recAdmin, reqAdmin)
 	if recAdmin.Code != http.StatusOK || recAdmin.Body.String() != "index html" {
 		t.Errorf("admin index route failed: got %d %q", recAdmin.Code, recAdmin.Body.String())
 	}
 
-	// 3. Admin asset route (when allowed)
 	reqAsset := httptest.NewRequest("GET", "/admin/asset.css", nil)
 	reqAsset.Host = "admin.example.com"
 	recAsset := httptest.NewRecorder()
@@ -121,7 +108,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("admin asset route failed: got %d %q", recAsset.Code, recAsset.Body.String())
 	}
 
-	// 4. Admin not allowed
 	reqNotAllowed := httptest.NewRequest("GET", "/admin/", nil)
 	reqNotAllowed.Host = "links.example.com"
 	recNotAllowed := httptest.NewRecorder()
@@ -130,7 +116,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("expected 404 for disallowed admin, got %d", recNotAllowed.Code)
 	}
 
-	// 5. Root route redirects to /admin/ when allowed
 	reqRoot := httptest.NewRequest("GET", "/", nil)
 	reqRoot.Host = "admin.example.com"
 	recRoot := httptest.NewRecorder()
@@ -139,7 +124,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("expected 302 to /admin/, got %d Location %q", recRoot.Code, recRoot.Header().Get("Location"))
 	}
 
-	// 6. Root route returns 404 when not allowed
 	reqRoot404 := httptest.NewRequest("GET", "/", nil)
 	reqRoot404.Host = "links.example.com"
 	recRoot404 := httptest.NewRecorder()
@@ -148,7 +132,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("expected 404 for root when not allowed, got %d", recRoot404.Code)
 	}
 
-	// 7. Marketing-entry shortcuts redirect to the dashboard auth views (when allowed)
 	reqSignup := httptest.NewRequest("GET", "/signup", nil)
 	reqSignup.Host = "admin.example.com"
 	recSignup := httptest.NewRecorder()
@@ -165,9 +148,6 @@ func TestServer(t *testing.T) {
 		t.Errorf("GET /login: got %d Location %q, want 302 /admin/", recLogin.Code, recLogin.Header().Get("Location"))
 	}
 
-	// 8. The same shortcuts on a short-link/mail host must 404 like /admin —
-	// otherwise a host that hides the dashboard would still expose its login
-	// and register forms.
 	for _, path := range []string{"/signup", "/login"} {
 		req := httptest.NewRequest("GET", path, nil)
 		req.Host = "links.example.com"
@@ -178,7 +158,6 @@ func TestServer(t *testing.T) {
 		}
 	}
 
-	// 9. Robots.txt returns 200 and disallows all robots across any host
 	for _, host := range []string{"admin.example.com", "links.example.com", "anydomain.com"} {
 		reqRobots := httptest.NewRequest("GET", "/robots.txt", nil)
 		reqRobots.Host = host
@@ -197,8 +176,6 @@ func TestServer(t *testing.T) {
 	}
 }
 
-// TestMarketingEntryForwardsQueryString verifies campaign params on /signup and
-// /login survive the redirect so the client can read ?plan=pro etc.
 func TestMarketingEntryForwardsQueryString(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
 	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
@@ -221,9 +198,6 @@ func TestMarketingEntryForwardsQueryString(t *testing.T) {
 	}
 }
 
-// TestStaticMounts exercises the plugin.Context.HandleStatic seam: a mounted SPA
-// serves a real asset, falls back to its own index.html for unknown sub-paths
-// (client-side routing), and an unmounted prefix 404s.
 func TestStaticMounts(t *testing.T) {
 	webFS := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("dash index")},
@@ -242,10 +216,10 @@ func TestStaticMounts(t *testing.T) {
 		path, wantBody string
 		wantCode       int
 	}{
-		{"/portal", "portal index", http.StatusOK},               // prefix root → index
-		{"/portal/subscriptions", "portal index", http.StatusOK}, // SPA route → index fallback
-		{"/portal/assets/app.js", "portal js", http.StatusOK},    // real asset
-		{"/nope", "", http.StatusNotFound},                       // unmounted prefix
+		{"/portal", "portal index", http.StatusOK},
+		{"/portal/subscriptions", "portal index", http.StatusOK},
+		{"/portal/assets/app.js", "portal js", http.StatusOK},
+		{"/nope", "", http.StatusNotFound},
 	}
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
@@ -259,14 +233,6 @@ func TestStaticMounts(t *testing.T) {
 	}
 }
 
-// TestDashboardHostFollowsRegisteredDomains pins where the operator console is
-// served now that OCTARQ_ADMIN_HOST is gone.
-//
-// A hostname a workspace registered for short links or for mail exists to serve
-// that workspace's public traffic; putting a login form on it hands visitors an
-// unexpected credential prompt on a domain they associate with the tenant. Every
-// other hostname serves the dashboard, which is what the old variable's
-// documentation always claimed for its empty value but never did.
 func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
 
@@ -283,7 +249,6 @@ func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 			ForMail:   true,
 			MailHosts: `[{"host":"mx.mail.example","enabled":true}]`,
 		},
-		// Toggle on, no host list: the apex itself serves the short links.
 		testDomain{OrgID: 3, Name: "short.example", ForLink: true},
 	)
 	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
@@ -295,15 +260,15 @@ func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 		host  string
 		serve bool
 	}{
-		{host: "dashboard.example.net", serve: true}, // registered by nobody
-		{host: "app.acme.example", serve: true},      // a subdomain that serves nothing
-		{host: "old.acme.example", serve: true},      // link host, but disabled
-		{host: "go.acme.example", serve: false},      // serves short links
-		{host: "go.acme.example:8080", serve: false}, // ...port and case included
-		{host: "GO.Acme.Example", serve: false},      //
-		{host: "mx.mail.example", serve: false},      // receives mail
-		{host: "short.example", serve: false},        // apex serves its own links
-		{host: "sub.short.example", serve: true},     // but only the apex does
+		{host: "dashboard.example.net", serve: true},
+		{host: "app.acme.example", serve: true},
+		{host: "old.acme.example", serve: true},
+		{host: "go.acme.example", serve: false},
+		{host: "go.acme.example:8080", serve: false},
+		{host: "GO.Acme.Example", serve: false},
+		{host: "mx.mail.example", serve: false},
+		{host: "short.example", serve: false},
+		{host: "sub.short.example", serve: true},
 	}
 	for _, tc := range cases {
 		req := httptest.NewRequest("GET", "/admin/", nil)
@@ -318,8 +283,6 @@ func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 	}
 }
 
-// TestStatusPageServesIndex verifies that GET /status and GET /status/ return
-// the SPA index.html (200) on an allowed host — the fix for the /status 404.
 func TestStatusPageServesIndex(t *testing.T) {
 	const indexBody = "index html"
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(indexBody)}}
@@ -341,11 +304,6 @@ func TestStatusPageServesIndex(t *testing.T) {
 	}
 }
 
-// TestInstanceConsoleServesIndex verifies the operator console gets the SPA
-// index.html on every path under /instance. Without this route the paths fall
-// through to the root namespace, where they are looked up as short-link slugs
-// — so a missing route does not 404 cleanly, it hands the console's URLs to
-// the redirector.
 func TestInstanceConsoleServesIndex(t *testing.T) {
 	const indexBody = "index html"
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(indexBody)}}
@@ -367,8 +325,6 @@ func TestInstanceConsoleServesIndex(t *testing.T) {
 	}
 }
 
-// TestStatusPageDisallowedHost ensures /status returns 404 on a host that is
-// registered for short links (same gate as /admin).
 func TestStatusPageDisallowedHost(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
 	db := domainsDB(t, testDomain{
@@ -391,8 +347,6 @@ func TestStatusPageDisallowedHost(t *testing.T) {
 	}
 }
 
-// TestStatusTierFor verifies that /status is classified as tierAPI (not the
-// default tierRedirect that belongs to the short-link hot path).
 func TestStatusTierFor(t *testing.T) {
 	for _, path := range []string{"/status", "/status/"} {
 		req := httptest.NewRequest("GET", path, nil)
@@ -402,9 +356,6 @@ func TestStatusTierFor(t *testing.T) {
 	}
 }
 
-// TestAgentAPIPathReachesTheAPIMux guards the production wiring, not the
-// handler: /v1 sits outside /api/, and until the router forwarded it the agent
-// routes were reachable only from a test that mounted a bare mux.
 func TestAgentAPIPathReachesTheAPIMux(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
 	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})

@@ -15,7 +15,6 @@ func TestCoverageLift_EnvDefault(t *testing.T) {
 }
 
 func TestCoverageLift_LoadDotEnvDirectoryError(t *testing.T) {
-	// Opening a directory returns an error on os.Open
 	err := loadDotEnv(".")
 	if err == nil {
 		t.Fatal("expected error when loading directory as dotenv, got nil")
@@ -40,7 +39,6 @@ func TestCoverageLift_ResolveAndLoadWithOptionsDotEnvError(t *testing.T) {
 }
 
 func TestCoverageLift_BuildFromValuesValidation(t *testing.T) {
-	// 1. Short secret key with MySQL provisioned infrastructure triggers line 166 and provisionedBecause
 	valsShortSecretMySQL := map[string]string{
 		"OCTARQ_DB_DRIVER":      "mysql",
 		"OCTARQ_DB_DSN":         "mysql://localhost/octarq",
@@ -51,7 +49,6 @@ func TestCoverageLift_BuildFromValuesValidation(t *testing.T) {
 		t.Fatal("expected error for short secret key on provisioned mysql, got nil")
 	}
 
-	// 2. Failed auto secrets due to invalid directory triggers line 155-156
 	valsBadDir := map[string]string{
 		"OCTARQ_DB_DRIVER": "sqlite",
 		"OCTARQ_DB_DSN":    "/dev/null/impossible/octarq.db",
@@ -62,7 +59,6 @@ func TestCoverageLift_BuildFromValuesValidation(t *testing.T) {
 }
 
 func TestCoverageLift_LoadOrCreateErrors(t *testing.T) {
-	// 1. MkdirAll error
 	_, _, err := loadOrCreate("/dev/null/impossible", "key", func() (string, error) {
 		return "secret", nil
 	})
@@ -70,7 +66,6 @@ func TestCoverageLift_LoadOrCreateErrors(t *testing.T) {
 		t.Fatal("expected error from loadOrCreate when mkdir fails, got nil")
 	}
 
-	// 2. WriteFile error in read-only directory
 	roDir := filepath.Join(t.TempDir(), "ro")
 	if err := os.Mkdir(roDir, 0o500); err != nil {
 		t.Fatalf("failed to create dir: %v", err)

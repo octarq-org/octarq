@@ -12,62 +12,36 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// HandlerFunc is the unified business handler signature for dual endpoints.
-// The framework automatically handles input deserialization, validation,
-// and output/error wrapping across both HTTP and MCP transports.
 type HandlerFunc[In any, Out any] func(ctx context.Context, input In) (*Out, error)
 
-// EndpointSpec declaratively defines an endpoint.
-// The host automatically mounts it as a Huma REST API and/or an MCP AI Agent tool.
 type EndpointSpec[In any, Out any] struct {
-	// Base metadata
-	Name        string // Unique identifier, e.g. "create_link"
-	MCPToolName string // Optional override for MCP tool name (e.g. "octarq_network__create_link")
-	Summary     string // Short summary
-	Description string // Detailed description for OpenAPI and MCP Tool
+	Name        string
+	MCPToolName string
+	Summary     string
+	Description string
 
-	// HTTP routing
-	Method string // "GET", "POST", "PUT", "DELETE", "PATCH"
-	Path   string // e.g. "/api/links", "/api/links/{id}"
+	Method string
+	Path   string
 
-	// Auth & Access Control
-	RequireAuth bool     // Whether authentication is required (default true)
-	RequireRole []string // Required workspace roles (e.g. ["owner", "admin"])
+	RequireAuth bool
+	RequireRole []string
 
-	// Risk & Governance
-	RiskLevel       string // "read" | "write" | "destructive"; empty = inferred from Method
-	RequireApproval bool   // HITL: manual approval required before execution (destructive must be true)
+	RiskLevel       string
+	RequireApproval bool
 
-	// Agent-Native options
-	ExposeMCP bool // Whether to expose as MCP Tool (default true)
+	ExposeMCP bool
 
-	// Tier names the license tier this endpoint requires, in the same
-	// vocabulary route metadata uses ("" = free). Declare it once; both
-	// surfaces enforce it: RegisterHTTP copies it into the operation metadata
-	// the platform gate reads, and the MCP composition asks the injected
-	// TierGate before it exposes the tool.
 	Tier string
 
-	// Core business handler
 	Handler HandlerFunc[In, Out]
 }
 
-// EndpointDescriptor is a type alias for EndpointSpec.
 type EndpointDescriptor[In any, Out any] = EndpointSpec[In, Out]
 
-// MetadataTier is the huma.Operation metadata key that declares the license
-// tier a route requires. EndpointSpec.RegisterHTTP sets it from Tier; a module
-// that registers huma operations directly sets it too. The platform gate reads
-// it once for every operation, so tier judgement stays in one place.
 const MetadataTier = "tier"
 
-// TierGate reports whether the running instance may use a tier. A nil gate
-// means "this build has no tier model", so every tier is allowed; a licensed
-// build injects its own judge.
 type TierGate func(tier string) bool
 
-// Allows reports whether tier is available under this gate. An empty tier is
-// free and always allowed.
 func (g TierGate) Allows(tier string) bool {
 	if tier == "" || g == nil {
 		return true
@@ -75,15 +49,12 @@ func (g TierGate) Allows(tier string) bool {
 	return g(tier)
 }
 
-// Risk level constants.
 const (
 	RiskLevelRead        = "read"
 	RiskLevelWrite       = "write"
 	RiskLevelDestructive = "destructive"
 )
 
-// DefaultRiskLevel returns the inferred risk level based on the HTTP method.
-// GET -> "read", POST/PUT/PATCH/DELETE -> "write".
 func DefaultRiskLevel(method string) string {
 	switch strings.ToUpper(strings.TrimSpace(method)) {
 	case "GET", "HEAD":
@@ -95,12 +66,6 @@ func DefaultRiskLevel(method string) string {
 	}
 }
 
-// Endpoint is the untyped interface implemented by EndpointSpec[In, Out].
-//
-// EndpointRisk and EndpointInputSchema exist so an agent harness can compile
-// tool guidance straight from the endpoint registry instead of a second,
-// hand-maintained list of tools. Everything the model is told about a tool
-// therefore comes from the same declaration the HTTP and MCP surfaces use.
 type Endpoint interface {
 	EndpointName() string
 	EndpointSummary() string
@@ -112,31 +77,22 @@ type Endpoint interface {
 	EndpointExposeMCP() bool
 	EndpointTier() string
 	EndpointRequireApproval() bool
-	// EndpointRisk returns the effective risk tier: "read", "write" or
-	// "destructive". An endpoint with no inferable risk returns "".
 	EndpointRisk() string
-	// EndpointInputSchema returns the JSON Schema of the endpoint's input
-	// type, or nil when the endpoint takes no typed input. The document is
-	// schema-library agnostic on purpose: the harness renders it, and a
-	// plugin may produce it with any JSON Schema producer.
 	EndpointInputSchema() json.RawMessage
 	Execute(ctx context.Context, input any) (any, error)
 	ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error)
 	Spec() any
 }
 
-// HTTPOptions provides authentication and role checking hooks for HTTP endpoint execution.
 type HTTPOptions struct {
 	RequireAuth func(ctx context.Context) (uint, error)
 	RequireRole func(ctx context.Context, roles []string) error
 }
 
-// HTTPRegistrar enables automatic registration to a Huma API instance.
 type HTTPRegistrar interface {
 	RegisterHTTP(api huma.API, opts HTTPOptions) error
 }
 
-// MCPRegistrar enables automatic registration to an MCP server instance.
 type MCPRegistrar interface {
 	RegisterMCP(srv *mcp.Server) error
 }
@@ -158,17 +114,10 @@ func (s EndpointSpec[In, Out]) EndpointTier() string          { return s.Tier }
 func (s EndpointSpec[In, Out]) EndpointRequireApproval() bool { return s.RequireApproval }
 func (s EndpointSpec[In, Out]) Spec() any                     { return s }
 
-// EndpointRisk implements Endpoint.
 func (s EndpointSpec[In, Out]) EndpointRisk() string { return s.EffectiveRisk() }
 
-// endpointSchemaRegistry derives JSON schemas for endpoint input types. It is
-// the same registry shape Huma uses for OpenAPI components, so a schema that
-// describes an agent tool matches the schema that validates its HTTP twin.
 var endpointSchemaRegistry = huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)
 
-// EndpointInputSchema implements Endpoint. It returns nil for input types
-// that carry no object shape (interfaces, empty structs), because there is
-// nothing to tell a model about them.
 func (s EndpointSpec[In, Out]) EndpointInputSchema() json.RawMessage {
 	t := reflect.TypeOf((*In)(nil)).Elem()
 	if t == nil || t.Kind() != reflect.Struct {
@@ -181,9 +130,6 @@ func (s EndpointSpec[In, Out]) EndpointInputSchema() json.RawMessage {
 	return json.RawMessage(raw)
 }
 
-// EffectiveRisk returns the effective risk level of the endpoint.
-// Explicit valid RiskLevel takes precedence; otherwise it is inferred from Method.
-// If an invalid explicit RiskLevel is set, it returns an empty string.
 func (s EndpointSpec[In, Out]) EffectiveRisk() string {
 	if s.RiskLevel != "" {
 		switch s.RiskLevel {
@@ -196,8 +142,6 @@ func (s EndpointSpec[In, Out]) EffectiveRisk() string {
 	return DefaultRiskLevel(s.EndpointMethod())
 }
 
-// Validate verifies the declarative contract for the endpoint.
-// It checks that Name is non-empty and Path starts with "/api".
 func (s EndpointSpec[In, Out]) Validate() error {
 	if s.Name == "" {
 		return errors.New("endpoint name cannot be empty")
@@ -226,11 +170,6 @@ func (s EndpointSpec[In, Out]) Execute(ctx context.Context, input any) (any, err
 	return s.Handler(ctx, typed)
 }
 
-// ExecuteAgentJSON bridges raw JSON strings to the typed Handler, allowing
-// callers (e.g. ToolExecutor) that only have a JSON blob to invoke the
-// endpoint without knowing the concrete In type.
-//
-// P3 前 API 易变.
 func (s EndpointSpec[In, Out]) ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error) {
 	if s.Handler == nil {
 		return nil, fmt.Errorf("no handler configured for endpoint %q", s.Name)
@@ -390,13 +329,6 @@ func (s EndpointSpec[In, Out]) RegisterMCP(srv *mcp.Server) error {
 	return nil
 }
 
-// requireMCPRole enforces an endpoint's RequireRole list on the MCP surface.
-//
-// The HTTP twin gets the caller's workspace role through HTTPOptions.RequireRole,
-// which resolves a session against the workspace. The MCP surface has no such
-// hook, so it reads the role ceiling that internal/auth stamps when it admits a
-// bearer token. An empty role — a browser session, or the stdio transport — is
-// the least privileged and never satisfies a declared role.
 func requireMCPRole(ctx context.Context, roles []string) error {
 	if len(roles) == 0 {
 		return nil
@@ -416,7 +348,6 @@ func requireMCPRole(ctx context.Context, roles []string) error {
 	)
 }
 
-// RegisterEndpoint is a type-safe generic helper to register an EndpointSpec onto a Context.
 func RegisterEndpoint[In any, Out any](ctx *Context, spec EndpointSpec[In, Out]) error {
 	if spec.RiskLevel != "" {
 		if spec.RiskLevel != RiskLevelRead && spec.RiskLevel != RiskLevelWrite && spec.RiskLevel != RiskLevelDestructive {
@@ -427,7 +358,7 @@ func RegisterEndpoint[In any, Out any](ctx *Context, spec EndpointSpec[In, Out])
 		return fmt.Errorf("destructive endpoint %q must have RequireApproval set to true", spec.Name)
 	}
 	if ctx == nil || ctx.RegisterEndpoint == nil {
-		return nil // Backward compatibility on hosts that predate it
+		return nil
 	}
 	return ctx.RegisterEndpoint(spec)
 }

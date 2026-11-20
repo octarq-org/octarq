@@ -21,10 +21,6 @@ func TestSecure(t *testing.T) {
 	}
 }
 
-// TestResolverOwnerOfCaches pins that the storefront/portal question — the one
-// asked on every unauthenticated request — is answered from the cache, both when
-// the host is owned and when it is not. An uncached negative answer is a free
-// full-table scan for anyone spraying hostnames.
 func TestResolverOwnerOfCaches(t *testing.T) {
 	clearAllCache()
 	db := testDB(t, acme())
@@ -52,7 +48,6 @@ func TestResolverOwnerOfCaches(t *testing.T) {
 			t.Fatalf("cached OwnerOf returned (%d, %v); the cache must preserve the org", org, ok)
 		}
 		rv.OwnerOf("stranger.example")
-		// Port and case must land on the same cache key, not a fresh miss.
 		rv.OwnerOf("GO.Partner.Example:8443")
 	}
 	if queries != afterFirstPass {
@@ -60,10 +55,6 @@ func TestResolverOwnerOfCaches(t *testing.T) {
 	}
 }
 
-// TestResolverCaches pins that the cached forms answer the same as the direct
-// ones, and that a repeated question does not re-read the table — the endpoints
-// behind these are unauthenticated, so an attacker spraying Host headers would
-// otherwise be a free DB-query amplifier.
 func TestResolverCaches(t *testing.T) {
 	db := testDB(t, acme())
 	var queries int
@@ -101,9 +92,6 @@ func TestResolverCaches(t *testing.T) {
 	}
 }
 
-// seedSetting ensures the settings table exists and inserts the given key/value
-// row, the way the instance-settings API would. Needed by every reserved-zone
-// test: models.BaseDomain reads the base domain from here.
 func seedSetting(t *testing.T, db *gorm.DB, key, value string) {
 	t.Helper()
 	if err := db.AutoMigrate(&models.Setting{}); err != nil {
@@ -114,9 +102,6 @@ func seedSetting(t *testing.T, db *gorm.DB, key, value string) {
 	}
 }
 
-// TestReservedZoneHostListsNeverMatch pins the other half of the reserved-zone
-// guard: inside the base zone, another org's link/mail host list must not be
-// able to claim a label.
 func TestReservedZoneHostListsNeverMatch(t *testing.T) {
 	db := testDB(t,
 		testDomain{OrgID: 7, Name: "evil.com", LinkHosts: models.HostList{{Host: "victim7x.app.octarq.org", Enabled: true}}},
@@ -146,9 +131,6 @@ func TestReservedZoneHostListsNeverMatch(t *testing.T) {
 	}
 }
 
-// TestBaseDomainCacheInvalidation pins the base-domain cache: the reserved zone
-// is read once per ttl per database, survives until the setting actually
-// changes, and is invalidated explicitly when it does.
 func TestBaseDomainCacheInvalidation(t *testing.T) {
 	clearAllCache()
 	db := testDB(t)
@@ -178,7 +160,6 @@ func TestBaseDomainCacheInvalidation(t *testing.T) {
 	}
 }
 
-// TestReservedZoneStopsApexBubbling pins that unprovisioned subdomains do not bubble up to apex.
 func TestReservedZoneStopsApexBubbling(t *testing.T) {
 	db := testDB(t,
 		testDomain{OrgID: 1, Name: "octarq.org"},

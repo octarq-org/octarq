@@ -42,12 +42,10 @@ func TestSharedHosts(t *testing.T) {
 
 		t.Setenv(SharedHostsEnv, "env.example.com")
 
-		// No row in settings yet -> returns env
 		if got := SharedHosts(db); len(got) != 1 || got[0] != "env.example.com" {
 			t.Errorf("SharedHosts(db) before insert = %v, want [env.example.com]", got)
 		}
 
-		// Insert setting in DB
 		db.Create(&Setting{Key: SharedHostsSetting, Value: "db1.example.com\ndb2.example.com"})
 		got := SharedHosts(db)
 		if len(got) != 2 || got[0] != "db1.example.com" || got[1] != "db2.example.com" {

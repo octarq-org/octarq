@@ -12,7 +12,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Guard prevents concurrent or overlapping executions of the same job.
 type Guard interface {
 	Acquire(ctx context.Context, jobName string, ttl time.Duration) (release func(), ok bool, err error)
 }
@@ -36,14 +35,12 @@ type distGuard struct {
 	localLocks map[string]*sync.Mutex
 }
 
-// NewLocalGuard returns a Guard using in-process sync.Mutex locks only.
 func NewLocalGuard() Guard {
 	return &distGuard{
 		localLocks: make(map[string]*sync.Mutex),
 	}
 }
 
-// NewDistGuard returns a Guard backed by Redis SETNX with automatic fallback to local sync.Mutex.
 func NewDistGuard(client redis.UniversalClient) Guard {
 	return &distGuard{
 		client:     client,
@@ -51,10 +48,6 @@ func NewDistGuard(client redis.UniversalClient) Guard {
 	}
 }
 
-// NewGuard creates a Guard based on the provided redisURL.
-// If redisURL is empty, it returns NewLocalGuard for standalone deployments.
-// If redisURL is configured but invalid or fails to connect, it fails closed to prevent
-// concurrent multi-replica execution in cluster deployments.
 func NewGuard(redisURL string) Guard {
 	if redisURL == "" {
 		return NewLocalGuard()
@@ -101,11 +94,9 @@ func randomToken() string {
 func (g *distGuard) Acquire(ctx context.Context, jobName string, ttl time.Duration) (func(), bool, error) {
 	localLock := g.getLocalLock(jobName)
 	if !localLock.TryLock() {
-		// Already executing locally in this process
 		return nil, false, nil
 	}
 
-	// If no Redis client is configured, local lock is sufficient
 	if g.client == nil {
 		var once sync.Once
 		return func() {
@@ -128,7 +119,6 @@ func (g *distGuard) Acquire(ctx context.Context, jobName string, ttl time.Durati
 	}
 
 	if !acquired {
-		// Another cluster node holds the lock
 		localLock.Unlock()
 		return nil, false, nil
 	}

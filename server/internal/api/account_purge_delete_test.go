@@ -158,10 +158,6 @@ func seedOrgFullData(t *testing.T, h *Handler, orgID, userID uint, webhookSecret
 		t.Fatalf("seed session: %v", err)
 	}
 
-	// Per-workspace rows Pro plugins keep in the shared settings table, namespaced
-	// "org_<id>." — billing's and finance's Stripe secrets, ai's LLM credentials.
-	// Nothing else in the purge reaches these, so they are seeded here alongside an
-	// instance-level row that must survive.
 	settings := []models.Setting{
 		{Key: fmt.Sprintf("org_%d.pay.stripe.secret_key", orgID), Value: "sealed:" + webhookSecret},
 		{Key: fmt.Sprintf("org_%d.pay.stripe.webhook_secret", orgID), Value: "sealed:whsec"},
@@ -172,15 +168,11 @@ func seedOrgFullData(t *testing.T, h *Handler, orgID, userID uint, webhookSecret
 			t.Fatalf("seed setting %q: %v", s.Key, err)
 		}
 	}
-	// An instance-level row the sweep must not touch. Created once; the settings
-	// table is shared across the orgs a test seeds.
 	db.Where(models.Setting{Key: instanceSettingKey}).
 		Attrs(models.Setting{Value: "Instance"}).
 		FirstOrCreate(&models.Setting{})
 }
 
-// instanceSettingKey is a settings row that belongs to the instance, not to any
-// workspace — the control for the prefix-scoped purge sweep.
 const instanceSettingKey = "app_name"
 
 func TestPurgeAccount_DeletesEverythingForOrg(t *testing.T) {
@@ -197,7 +189,6 @@ func TestPurgeAccount_DeletesEverythingForOrg(t *testing.T) {
 		t.Fatalf("purge request failed: got status %d, body %s", rec.Code, rec.Body.String())
 	}
 
-	// Assert every single table for Org A has 0 rows
 	var (
 		tokenCount   int64
 		channelCount int64
@@ -253,18 +244,12 @@ func TestPurgeAccount_DeletesEverythingForOrg(t *testing.T) {
 		t.Errorf("Org count for Org A = %d, want 0", orgCount)
 	}
 
-	// The workspace's namespaced settings rows — its Stripe secret, webhook secret
-	// and LLM credentials. These live in the shared settings table and no plugin
-	// table owns them, so before the sweep they outlived the workspace entirely and
-	// a recycled org id would have inherited them.
 	var orgSettings int64
 	db.Model(&models.Setting{}).Where("key LIKE ?", fmt.Sprintf("org_%d.%%", orgA)).Count(&orgSettings)
 	if orgSettings != 0 {
 		t.Errorf("namespaced settings for Org A = %d, want 0 — the workspace's secrets survived its deletion", orgSettings)
 	}
 
-	// The instance-level setting seeded before the purge must be untouched: the
-	// sweep is prefix-scoped, not a blanket delete on the settings table.
 	var instance int64
 	db.Model(&models.Setting{}).Where("key = ?", instanceSettingKey).Count(&instance)
 	if instance != 1 {
@@ -291,7 +276,6 @@ func TestPurgeAccount_DoesNotAffectNeighborOrg(t *testing.T) {
 		t.Fatalf("purge request for Org A failed: got status %d, body %s", rec.Code, rec.Body.String())
 	}
 
-	// Assert every table for Org B still has its row intact (1 row)
 	var (
 		tokenCount   int64
 		channelCount int64

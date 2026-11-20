@@ -8,10 +8,6 @@ import (
 	"testing"
 )
 
-// The proposal file is a contract: the core's admin API imports exactly these
-// bytes. The golden file is that contract made visible — if the lab starts
-// writing a different shape, this test fails here instead of an operator
-// discovering it as a rejected import.
 func TestProposal_MatchesTheGoldenFile(t *testing.T) {
 	taskSet, err := LoadTaskSet(filepath.Join("testdata", "tasks.example.json"))
 	if err != nil {

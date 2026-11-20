@@ -17,16 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// httpFixture serves the plugin's routes the way the composition root does: a
-// huma API over a mux, with a middleware that stamps the caller's workspace and
-// role onto the request context — the part the platform's auth middleware plays.
 type httpFixture struct {
 	plugin *Plugin
 	db     *gorm.DB
 	server *httptest.Server
 
-	// audits collects what the handlers reported, so a test can assert that a
-	// write reached the ledger with the record id in its metadata.
 	mu     sync.Mutex
 	audits []string
 }
@@ -41,9 +36,6 @@ func newHTTPFixture(t *testing.T, role string, orgID uint) *httpFixture {
 	return newHTTPFixtureDoc(t, role, orgID, 0, ticketDoc)
 }
 
-// newHTTPFixtureDoc is newHTTPFixture with an authenticated member and another
-// declaration. userID 0 models a transport that stamps a workspace and no
-// identity, which is what stdio MCP does.
 func newHTTPFixtureDoc(t *testing.T, role string, orgID, userID uint, doc string) *httpFixture {
 	t.Helper()
 	db := openDocDB(t, doc)
@@ -52,8 +44,6 @@ func newHTTPFixtureDoc(t *testing.T, role string, orgID, userID uint, doc string
 
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test", "1.0"))
-	// Registered before the plugin mounts: huma bakes the chain into each
-	// operation when it is registered.
 	api.UseMiddleware(func(c huma.Context, next func(huma.Context)) {
 		ctx := plugin.WithOrgID(plugin.WithTokenRole(context.Background(), role), orgID)
 		if userID != 0 {
@@ -121,9 +111,6 @@ func (f *httpFixture) do(t *testing.T, method, path, body string) (int, map[stri
 	return resp.StatusCode, out
 }
 
-// TestHTTPRoutesServeOneRecordThroughItsLifecycle walks the six routes the page
-// and an API client use. Every one of them is registered from the declaration,
-// so a regression here is a declaration that no longer produces a working page.
 func TestHTTPRoutesServeOneRecordThroughItsLifecycle(t *testing.T) {
 	f := newHTTPFixture(t, "owner", 1)
 
@@ -144,7 +131,6 @@ func TestHTTPRoutesServeOneRecordThroughItsLifecycle(t *testing.T) {
 	if id == "" || created["status"] != "open" {
 		t.Fatalf("created = %v, want an id and the declared default", created)
 	}
-	// The server writes the platform columns and ignores nothing.
 	if created["created_at"] == nil || created["updated_at"] == nil {
 		t.Fatalf("created = %v, want platform timestamps", created)
 	}
@@ -172,17 +158,12 @@ func TestHTTPRoutesServeOneRecordThroughItsLifecycle(t *testing.T) {
 		t.Fatalf("get after delete = %d, want 404", status)
 	}
 
-	// Every write reached the ledger with the record id in its metadata: a UUID
-	// does not fit the ledger's numeric target.
 	want := []string{"data.create tickets " + id, "data.update tickets " + id, "data.delete tickets " + id}
 	if got := f.auditLog(); !slices.Equal(got, want) {
 		t.Fatalf("audit = %v, want %v", got, want)
 	}
 }
 
-// TestHTTPRoutesRefuseWhatTheDeclarationRefuses pins the status each refusal
-// carries. The numbers matter: a 500 where the caller made a mistake is a bug
-// report nobody can act on.
 func TestHTTPRoutesRefuseWhatTheDeclarationRefuses(t *testing.T) {
 	f := newHTTPFixture(t, "owner", 1)
 
@@ -218,8 +199,6 @@ func TestHTTPRoutesRefuseWhatTheDeclarationRefuses(t *testing.T) {
 	}
 }
 
-// TestHTTPCatalogHidesOperationsTheRoleCannotRun pins the page's buttons to the
-// ACL: the catalog is what decides whether a member sees Delete.
 func TestHTTPCatalogHidesOperationsTheRoleCannotRun(t *testing.T) {
 	member := newHTTPFixture(t, "member", 1)
 	status, catalog := member.do(t, http.MethodGet, "/api/data", "")
@@ -234,15 +213,11 @@ func TestHTTPCatalogHidesOperationsTheRoleCannotRun(t *testing.T) {
 		t.Fatalf("operations = %q, want list and create", ops)
 	}
 
-	// The refusal is the route's, not only the catalog's: delete is admin.
 	if status, body := member.do(t, http.MethodDelete, "/api/data/tickets/x", ""); status != http.StatusForbidden {
 		t.Fatalf("delete as member = %d %v, want 403", status, body)
 	}
 }
 
-// TestHTTPRoutesReportAFailedQueryAs500 pins the last line of the error map: a
-// database that cannot answer is the server's problem, and the caller is told so
-// without the driver's message.
 func TestHTTPRoutesReportAFailedQueryAs500(t *testing.T) {
 	f := newHTTPFixture(t, "owner", 1)
 	sqlDB, err := f.db.DB()
@@ -262,8 +237,6 @@ func TestHTTPRoutesReportAFailedQueryAs500(t *testing.T) {
 	}
 }
 
-// catalogOperations returns the operation list of the single entity in a
-// catalog response.
 func catalogOperations(t *testing.T, catalog map[string]any) string {
 	t.Helper()
 	entities, _ := catalog["entities"].([]any)

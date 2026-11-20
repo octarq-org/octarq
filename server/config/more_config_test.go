@@ -156,7 +156,6 @@ func TestRandHelpers(t *testing.T) {
 
 func TestLoadOrCreateReadError(t *testing.T) {
 	dir := t.TempDir()
-	// Create a subdirectory with the secret name, causing ReadFile to return an error (EISDIR)
 	subDirPath := filepath.Join(dir, "secret_is_dir")
 	if err := os.Mkdir(subDirPath, 0o700); err != nil {
 		t.Fatalf("mkdir failed: %v", err)
@@ -173,7 +172,6 @@ func TestLoadOrCreateReadError(t *testing.T) {
 
 func TestEnsureAutoSecretsError(t *testing.T) {
 	dir := t.TempDir()
-	// Place a directory with name autoSecretFile
 	if err := os.Mkdir(filepath.Join(dir, autoSecretFile), 0o700); err != nil {
 		t.Fatalf("mkdir failed: %v", err)
 	}
@@ -187,7 +185,6 @@ func TestEnsureAutoSecretsError(t *testing.T) {
 		return
 	}
 
-	// Now test admin password failure
 	dir2 := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir2, autoAdminPassFile), 0o700); err != nil {
 		t.Fatalf("mkdir failed: %v", err)
@@ -205,12 +202,8 @@ func TestEnsureAutoSecretsError(t *testing.T) {
 
 func TestLoadDotEnvOpenError(t *testing.T) {
 	dir := t.TempDir()
-	// Open a directory with loadDotEnv -> read error
 	err := loadDotEnv(dir)
-	// On Unix opening a directory succeeds for Open, but scanning or read might fail or open might succeed.
-	// But let's check non-existent file vs unreadable file.
 	if err != nil {
-		// If error is returned, verify it's not swallowed
 		t.Logf("loadDotEnv returned error as expected on directory: %v", err)
 	}
 }

@@ -10,12 +10,8 @@ import (
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 )
 
-// realtimePingInterval is the duration between keep-alive SSE ping comments.
 var realtimePingInterval = 15 * time.Second
 
-// realtimeStream handles GET /api/realtime/stream via Server-Sent Events (SSE).
-// It streams real-time events published onto the event spine (eventbus/spine.go),
-// strictly filtered by the caller's authenticated organization (orgID).
 func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		writeErr(w, r, http.StatusMethodNotAllowed, "", "Method not allowed; use GET to open event stream")
@@ -40,14 +36,12 @@ func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Prepare SSE response headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
-	// Parse optional event key filters (e.g. ?events=member.invite,link.click)
 	var keys []string
 	if raw := strings.TrimSpace(r.URL.Query().Get("events")); raw != "" {
 		for _, k := range strings.Split(raw, ",") {
@@ -58,13 +52,11 @@ func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Subscribe to the in-process event spine
 	ch, cancel := eventbus.Subscribe(eventbus.SubscribeOpts{
 		Keys: keys,
 	})
 	defer cancel()
 
-	// Initial handshake event confirming connection establishment
 	if err := writeRealtimeSSE(w, flusher, "connected", "", map[string]any{
 		"orgId": orgID,
 	}); err != nil {
@@ -87,7 +79,6 @@ func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			// Tenant boundary: never leak cross-tenant events
 			if env.OrgID != orgID {
 				continue
 			}
@@ -98,7 +89,6 @@ func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// writeRealtimeSSE formats and writes a W3C-compliant SSE frame to the response.
 func writeRealtimeSSE(w http.ResponseWriter, flusher http.Flusher, event, id string, data any) error {
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -114,7 +104,6 @@ func writeRealtimeSSE(w http.ResponseWriter, flusher http.Flusher, event, id str
 			return err
 		}
 	}
-	// Multi-line safe data emission
 	lines := strings.Split(string(b), "\n")
 	for _, line := range lines {
 		if _, err := fmt.Fprintf(w, "data: %s\n", line); err != nil {

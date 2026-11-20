@@ -14,11 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// maxStringChars is the width of a string column on Postgres and MySQL.
 const maxStringChars = 255
 
-// Value issue codes. They share the Issue shape with declaration codes so one
-// error type reaches the client for both.
 const (
 	CodeValueUnknown  = "VALUE_UNKNOWN"
 	CodeValueReserved = "VALUE_RESERVED"
@@ -35,15 +32,10 @@ func fieldIndex(spec Spec) map[string]Field {
 	return out
 }
 
-// DecodeValues parses a create body. Every declared field is checked; a missing
-// required field without a default is refused.
 func DecodeValues(spec Spec, raw []byte) (map[string]any, error) {
 	return decode(spec, raw, true)
 }
 
-// DecodePatch parses an update body. Omitted fields keep their current value, so
-// required fields are not demanded again; a field present but null is refused
-// when the declaration says required.
 func DecodePatch(spec Spec, raw []byte) (map[string]any, error) {
 	return decode(spec, raw, false)
 }
@@ -52,9 +44,6 @@ func decode(spec Spec, raw []byte, create bool) (map[string]any, error) {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, Errors{issue(CodeValueRequired, "body", "a JSON object is required")}
 	}
-	// encoding/json keeps the last of two keys with the same name and says
-	// nothing. The caller who sent both believes the first one applied, so the
-	// document is refused before it is decoded.
 	if key, dup := DuplicateKey(raw); dup {
 		return nil, Errors{issue(CodeValueInvalid, key, "%q is sent twice; send it once", key)}
 	}
@@ -64,9 +53,6 @@ func decode(spec Spec, raw []byte, create bool) (map[string]any, error) {
 	if err := dec.Decode(&in); err != nil {
 		return nil, Errors{issue(CodeValueType, "body", "body is not a JSON object: %v", err)}
 	}
-	// A second JSON value after the object is refused, not ignored: the operator
-	// sending it believes it was applied, and this package refuses the same shape
-	// in a declaration file.
 	var trailing json.RawMessage
 	if err := dec.Decode(&trailing); err != io.EOF {
 		return nil, Errors{issue(CodeValueType, "body", "body must contain exactly one JSON object")}
@@ -119,13 +105,6 @@ func decode(spec Spec, raw []byte, create bool) (map[string]any, error) {
 	return out, nil
 }
 
-// DuplicateKey reports the first key a JSON document declares twice, at any
-// depth. encoding/json resolves the collision silently by keeping the last
-// value, which is the one behaviour a declaration and a request body must not
-// have: the sender cannot tell which value was stored.
-//
-// A malformed document is left to the caller's own decode, which reports it with
-// a position; this scan only answers the duplicate question.
 func DuplicateKey(raw []byte) (string, bool) {
 	type frame struct {
 		object    bool
@@ -147,12 +126,11 @@ func DuplicateKey(raw []byte) (string, bool) {
 				stack = append(stack, frame{object: true, expectKey: true, seen: map[string]bool{}})
 			case '[':
 				stack = append(stack, frame{})
-			default: // '}' or ']'
+			default:
 				if len(stack) == 0 {
 					return "", false
 				}
 				stack = stack[:len(stack)-1]
-				// The container was its parent's value, which is now complete.
 				if n := len(stack); n > 0 && stack[n-1].object {
 					stack[n-1].expectKey = true
 				}
@@ -179,16 +157,10 @@ func DuplicateKey(raw []byte) (string, bool) {
 			top.expectKey = false
 			continue
 		}
-		// A scalar value just ended; the next token is this object's key.
 		top.expectKey = true
 	}
 }
 
-// coerceValue turns a decoded JSON value into the Go value the column expects.
-// encoding/json yields json.Number for numbers and string for everything with a
-// textual column; the database drivers are far less forgiving than they look —
-// Postgres rejects a float for BIGINT, and the SQLite driver rejects a map for
-// a JSON column.
 func coerceValue(f Field, v any) (any, error) {
 	switch f.Type {
 	case TypeString, TypeText:
@@ -196,9 +168,6 @@ func coerceValue(f Field, v any) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("%q must be a string", f.Name)
 		}
-		// A string column is VARCHAR(255) on Postgres and MySQL and TEXT on
-		// SQLite. Without this check the same body is accepted on one dialect and
-		// refused by the driver on the other two.
 		if f.Type == TypeString && utf8.RuneCountInString(s) > maxStringChars {
 			return nil, fmt.Errorf("%q is longer than %d characters", f.Name, maxStringChars)
 		}
@@ -212,10 +181,6 @@ func coerceValue(f Field, v any) (any, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%q is not a valid UUID", f.Name)
 		}
-		// Store the canonical form. uuid.Parse accepts a 32-character hex string,
-		// braces and upper case; storing the input verbatim would make two
-		// spellings of one id two different keys, so a unique index would not see
-		// the duplicate and the same record would differ across dialects.
 		return parsed.String(), nil
 	case TypeInteger:
 		return toInt64(f, v)
@@ -256,13 +221,10 @@ func toInt64(f Field, v any) (any, error) {
 			return nil, fmt.Errorf("%q must be a whole number", f.Name)
 		}
 		return i, nil
-	case float64: // MCP tool arguments arrive as decoded JSON, not json.Number.
+	case float64:
 		if n != math.Trunc(n) || math.IsInf(n, 0) || math.IsNaN(n) {
 			return nil, fmt.Errorf("%q must be a whole number", f.Name)
 		}
-		// A float64 holds every integer up to 2^53 and stops being able to tell
-		// them apart after that. Accepting the value would store a number the
-		// caller never sent.
 		if math.Abs(n) > 1<<53 {
 			return nil, fmt.Errorf("%q is out of range", f.Name)
 		}
@@ -289,10 +251,6 @@ func toFloat64(f Field, v any) (any, error) {
 	}
 }
 
-// FromRow renders a stored row for the API. The reserved columns are exposed as
-// id/created_at/updated_at; org_id is deliberately omitted, because the caller
-// is already scoped to one tenant and echoing it invites a client to send it
-// back.
 func FromRow(spec Spec, row map[string]any) map[string]any {
 	out := make(map[string]any, len(spec.Fields)+3)
 	if v, ok := row[ColumnID]; ok {

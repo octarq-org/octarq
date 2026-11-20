@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// stopRecorder is a plugin that records every lifecycle call it receives, so a
-// test can assert on order rather than on the mere occurrence of a call.
 type stopRecorder struct {
 	name   string
 	calls  *[]string
@@ -31,16 +29,12 @@ func (r stopRecorder) Stop(ctx context.Context) error {
 	return r.err
 }
 
-// noStopPlugin is the ordinary case — a plugin that never implements Stopper.
 type noStopPlugin struct{}
 
 func (noStopPlugin) Name() string                      { return "plain" }
 func (noStopPlugin) Models() []any                     { return nil }
 func (noStopPlugin) Mount(plugin.Mux, *plugin.Context) {}
 
-// TestStopPluginsRunsInReverseMountOrder pins the contract that makes drain
-// safe: a plugin mounted later may depend on a service provided by one mounted
-// earlier, so the later one has to stop first.
 func TestStopPluginsRunsInReverseMountOrder(t *testing.T) {
 	var calls []string
 	plugins := []plugin.Plugin{
@@ -58,9 +52,6 @@ func TestStopPluginsRunsInReverseMountOrder(t *testing.T) {
 	}
 }
 
-// TestStopPluginsCancelsStartContextFirst pins that Start goroutines are
-// signalled before any Stop runs. Without this a plugin can be draining while
-// its own Start goroutine is still enqueuing work behind it.
 func TestStopPluginsCancelsStartContextFirst(t *testing.T) {
 	startCtx, cancel := context.WithCancel(context.Background())
 	var cancelledWhenStopRan bool
@@ -81,8 +72,6 @@ func TestStopPluginsCancelsStartContextFirst(t *testing.T) {
 	}
 }
 
-// TestStopPluginsCollectsEveryError pins that one failing plugin does not skip
-// the plugins after it, and that the returned error names the plugin.
 func TestStopPluginsCollectsEveryError(t *testing.T) {
 	var calls []string
 	boom := errors.New("drain failed")
@@ -108,8 +97,6 @@ func TestStopPluginsCollectsEveryError(t *testing.T) {
 	}
 }
 
-// TestStopPluginsWithNoStopperIsNotAnError keeps the optional-interface
-// promise: a build whose plugins predate Stopper still shuts down cleanly.
 func TestStopPluginsWithNoStopperIsNotAnError(t *testing.T) {
 	plugins := []plugin.Plugin{noStopPlugin{}, noStopPlugin{}}
 	if err := stopPlugins(context.Background(), nil, plugins); err != nil {
@@ -117,10 +104,6 @@ func TestStopPluginsWithNoStopperIsNotAnError(t *testing.T) {
 	}
 }
 
-// shutdownProbe is a plugin whose Start blocks until its context is cancelled
-// and whose Stop records that it ran. It exercises the wiring — Run's mount
-// loop, the cancellable plugin context, serve's drain — rather than
-// stopPlugins in isolation.
 type shutdownProbe struct {
 	started chan context.Context
 	mu      sync.Mutex
@@ -146,18 +129,6 @@ func (p *shutdownProbe) Stop(context.Context) error {
 	return nil
 }
 
-// TestRunHandsPluginsACancellableContext is the end-to-end half of the drain
-// contract. Two things have to hold together, and this test and
-// TestStopPluginsCancelsStartContextFirst cover them as a pair:
-//
-//   - here: Run must NOT hand plugins the root context. main passes
-//     context.Background(), so a Start that waits on <-ctx.Done() — which is
-//     exactly what plugins/links does before closing its engine — would wait
-//     forever on SIGTERM.
-//   - there: the context Run does hand out is cancelled before any Stop runs.
-//
-// Identity is the assertion because it is the defect: the context is either a
-// derived, cancellable one or it is the root, and only the latter is broken.
 func TestRunHandsPluginsACancellableContext(t *testing.T) {
 	a := bootApp(t)
 	probe := &shutdownProbe{started: make(chan context.Context, 1)}

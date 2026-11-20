@@ -17,7 +17,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Descriptor describes a notification channel type (built-in or plugin-contributed).
 type Descriptor struct {
 	Type        string `json:"type"`
 	Title       string `json:"title"`
@@ -26,7 +25,6 @@ type Descriptor struct {
 	PluginName  string `json:"pluginName,omitempty"`
 }
 
-// Router routes notifications to registered channels based on event type and user preferences.
 type Router struct {
 	db          *gorm.DB
 	channels    map[string]plugin.NotificationChannel
@@ -37,10 +35,8 @@ type Router struct {
 	vault       plugin.VaultService
 }
 
-// RouterOption configures a Router instance.
 type RouterOption func(*Router)
 
-// WithDispatcher overrides the default asynchronous dispatcher.
 func WithDispatcher(d *Dispatcher) RouterOption {
 	return func(r *Router) {
 		if d != nil {
@@ -49,7 +45,6 @@ func WithDispatcher(d *Dispatcher) RouterOption {
 	}
 }
 
-// NewRouter constructs a notification Router with built-in channels (in_app, email, telegram, webhook).
 func NewRouter(db *gorm.DB, opts ...RouterOption) *Router {
 	r := &Router{
 		db:          db,
@@ -62,7 +57,6 @@ func NewRouter(db *gorm.DB, opts ...RouterOption) *Router {
 		opt(r)
 	}
 
-	// Register Core built-in channels with their metadata descriptors
 	for _, reg := range []struct {
 		ch   plugin.NotificationChannel
 		desc Descriptor
@@ -81,7 +75,6 @@ func NewRouter(db *gorm.DB, opts ...RouterOption) *Router {
 	return r
 }
 
-// RegisterChannel registers or replaces a notification channel SPI driver.
 func (r *Router) RegisterChannel(ch plugin.NotificationChannel) error {
 	if ch == nil {
 		return errors.New("notification: nil channel")
@@ -109,7 +102,6 @@ func (r *Router) RegisterChannel(ch plugin.NotificationChannel) error {
 	return r.RegisterChannelWithDescriptor(ch, desc)
 }
 
-// RegisterChannelWithDescriptor registers or replaces a notification channel along with its metadata descriptor.
 func (r *Router) RegisterChannelWithDescriptor(ch plugin.NotificationChannel, desc Descriptor) error {
 	if ch == nil {
 		return errors.New("notification: nil channel")
@@ -150,7 +142,6 @@ func (r *Router) RegisterChannelWithDescriptor(ch plugin.NotificationChannel, de
 	return nil
 }
 
-// SetHost injects the host into the router and propagates it to all registered channels.
 func (r *Router) SetHost(h plugin.Host) {
 	if r == nil {
 		return
@@ -165,7 +156,6 @@ func (r *Router) SetHost(h plugin.Host) {
 	}
 }
 
-// SetVaultService injects VaultService into the router and propagates it to all registered channels.
 func (r *Router) SetVaultService(vs plugin.VaultService) {
 	if r == nil {
 		return
@@ -180,7 +170,6 @@ func (r *Router) SetVaultService(vs plugin.VaultService) {
 	}
 }
 
-// GetChannel looks up a registered channel by identifier name.
 func (r *Router) GetChannel(name string) (plugin.NotificationChannel, bool) {
 	r.chMu.RLock()
 	defer r.chMu.RUnlock()
@@ -188,7 +177,6 @@ func (r *Router) GetChannel(name string) (plugin.NotificationChannel, bool) {
 	return ch, ok
 }
 
-// ListChannels returns all registered notification channels sorted by name.
 func (r *Router) ListChannels() []plugin.NotificationChannel {
 	r.chMu.RLock()
 	defer r.chMu.RUnlock()
@@ -202,7 +190,6 @@ func (r *Router) ListChannels() []plugin.NotificationChannel {
 	return list
 }
 
-// Descriptors returns all registered notification channel type descriptors sorted by type.
 func (r *Router) Descriptors() []Descriptor {
 	r.chMu.RLock()
 	defer r.chMu.RUnlock()
@@ -216,7 +203,6 @@ func (r *Router) Descriptors() []Descriptor {
 	return list
 }
 
-// GetDescriptor returns the descriptor for a registered channel type.
 func (r *Router) GetDescriptor(name string) (Descriptor, bool) {
 	r.chMu.RLock()
 	defer r.chMu.RUnlock()
@@ -224,9 +210,6 @@ func (r *Router) GetDescriptor(name string) (Descriptor, bool) {
 	return d, ok
 }
 
-// SendDirect delivers a notification directly via a specific channel type.
-// Tenant and user identities are resolved from ctx (or cfgJSON metadata) rather
-// than assuming a default tenant identity, preventing cross-tenant channel borrowing.
 func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) error {
 	typ = strings.ToLower(strings.TrimSpace(typ))
 	ch, ok := r.GetChannel(typ)
@@ -254,7 +237,6 @@ func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) erro
 		userIDStr = strconv.FormatUint(uint64(uid), 10)
 	}
 
-	// Fallback to explicit config fields if not set in ctx
 	if orgIDStr == "" {
 		if v, ok := cfgMap["orgId"].(float64); ok && v > 0 {
 			orgIDStr = strconv.FormatUint(uint64(v), 10)
@@ -300,7 +282,6 @@ func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) erro
 	return ch.Send(ctx, rec, payload)
 }
 
-// SendDirectWithTenant delivers a notification directly via a channel using an explicit tenant org ID.
 func (r *Router) SendDirectWithTenant(ctx context.Context, orgID uint, typ, cfgJSON, text string) error {
 	if orgID > 0 {
 		ctx = plugin.WithOrgID(ctx, orgID)
@@ -308,7 +289,6 @@ func (r *Router) SendDirectWithTenant(ctx context.Context, orgID uint, typ, cfgJ
 	return r.SendDirect(ctx, typ, cfgJSON, text)
 }
 
-// SendDirectTo delivers a notification directly to an explicit recipient.
 func (r *Router) SendDirectTo(ctx context.Context, typ string, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	typ = strings.ToLower(strings.TrimSpace(typ))
 	ch, ok := r.GetChannel(typ)
@@ -321,19 +301,16 @@ func (r *Router) SendDirectTo(ctx context.Context, typ string, recipient plugin.
 	return ch.Send(ctx, recipient, payload)
 }
 
-// Dispatcher returns the underlying delivery dispatcher.
 func (r *Router) Dispatcher() *Dispatcher {
 	return r.dispatcher
 }
 
-// Wait blocks until all asynchronous delivery tasks across all channels complete.
 func (r *Router) Wait() {
 	if r.dispatcher != nil {
 		r.dispatcher.Wait()
 	}
 }
 
-// ResolveChannels finds the matching channel identifiers for a user and eventType.
 func (r *Router) ResolveChannels(ctx context.Context, userID, eventType string) []string {
 	channels, err := ResolveChannels(ctx, r.db, userID, eventType)
 	if err != nil || len(channels) == 0 {
@@ -342,7 +319,6 @@ func (r *Router) ResolveChannels(ctx context.Context, userID, eventType string) 
 	return channels
 }
 
-// EmitTo delivers payload to a specific recipient, routing to their configured or fallback channels.
 func (r *Router) EmitTo(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	if strings.TrimSpace(payload.EventType) == "" {
 		return errors.New("notification: eventType cannot be empty")
@@ -367,14 +343,11 @@ func (r *Router) EmitTo(ctx context.Context, recipient plugin.NotificationRecipi
 	return nil
 }
 
-// Emit broadcasts or targets a notification event based on payload.UserID or payload.OrgID,
-// routing to each recipient's channels.
 func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) error {
 	if strings.TrimSpace(payload.EventType) == "" {
 		return errors.New("notification: eventType cannot be empty")
 	}
 
-	// 1. Resolve Target User
 	targetUser := strings.TrimSpace(payload.UserID)
 	if targetUser == "" && payload.Data != nil {
 		if u, ok := payload.Data["userId"].(string); ok {
@@ -387,7 +360,6 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		}
 	}
 
-	// 2. Resolve Target Org
 	targetOrg := strings.TrimSpace(payload.OrgID)
 	if targetOrg == "" && payload.Data != nil {
 		if o, ok := payload.Data["orgId"].(string); ok {
@@ -413,7 +385,6 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		return r.EmitTo(ctx, rec, payload)
 	}
 
-	// 3. Org-scoped target: notify all workspace members
 	if targetOrg != "" && r.db != nil {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var members []models.OrgMember
@@ -432,7 +403,6 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		}
 	}
 
-	// 4. Fallback: instance admins (preserving targetOrg if set)
 	if r.db != nil {
 		var admins []models.User
 		if err := r.db.WithContext(ctx).Where("is_instance_admin = ?", true).Find(&admins).Error; err == nil && len(admins) > 0 {
@@ -457,7 +427,6 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		}
 	}
 
-	// Single default recipient fallback (preserving targetOrg if set)
 	rec := plugin.NotificationRecipient{
 		UserID: "1",
 		OrgID:  targetOrg,

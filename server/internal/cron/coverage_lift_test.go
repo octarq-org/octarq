@@ -73,7 +73,6 @@ func TestCoverageLiftGuardRedisPingSuccess(t *testing.T) {
 }
 
 func TestCoverageLiftScheduleParsingErrors(t *testing.T) {
-	// 6-field parse errors
 	cases := []struct {
 		spec string
 		err  string
@@ -95,7 +94,6 @@ func TestCoverageLiftScheduleParsingErrors(t *testing.T) {
 		}
 	}
 
-	// Step without range (e.g. 10/2)
 	sched, err := ParseStandard("0 0 0 10/2 1 1")
 	if err != nil {
 		t.Fatalf("parse 10/2 step failed: %v", err)
@@ -104,7 +102,6 @@ func TestCoverageLiftScheduleParsingErrors(t *testing.T) {
 		t.Fatalf("expected non-nil schedule for 10/2")
 	}
 
-	// Next returning zero when schedule cannot match within 5 years (Feb 31st)
 	feb31, err := ParseStandard("0 0 0 31 2 ?")
 	if err != nil {
 		t.Fatalf("parse Feb 31: %v", err)
@@ -114,7 +111,6 @@ func TestCoverageLiftScheduleParsingErrors(t *testing.T) {
 		t.Errorf("expected zero time for impossible Feb 31, got %v", next)
 	}
 
-	// parseField empty string
 	_, err = parseField("", 0, 59, nil)
 	if err == nil || !strings.Contains(err.Error(), "empty field") {
 		t.Errorf("expected empty field error, got %v", err)

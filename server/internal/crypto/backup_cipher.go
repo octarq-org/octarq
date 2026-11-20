@@ -12,10 +12,6 @@ import (
 	"path/filepath"
 )
 
-// EncryptBackup encrypts the file at srcPath with AES-256-GCM using secretKey,
-// and saves the result to dstPath.
-// The output file format has a 12-byte random nonce as its prefix, followed by
-// the AES-GCM ciphertext and 16-byte authentication tag.
 func EncryptBackup(srcPath, dstPath, secretKey string) error {
 	if secretKey == "" {
 		return errors.New("crypto: secret key is required for backup encryption")
@@ -50,8 +46,6 @@ func EncryptBackup(srcPath, dstPath, secretKey string) error {
 	return nil
 }
 
-// DecryptBackup decrypts the AES-256-GCM encrypted backup file at srcPath using secretKey,
-// verifies its integrity tag, and writes the plaintext database to dstPath.
 func DecryptBackup(srcPath, dstPath, secretKey string) error {
 	if secretKey == "" {
 		return errors.New("crypto: secret key is required for backup decryption")
@@ -86,8 +80,6 @@ func DecryptBackup(srcPath, dstPath, secretKey string) error {
 	return nil
 }
 
-// EncryptBackupBytes encrypts plaintext with AES-256-GCM using secretKey.
-// The output byte slice starts with the 12-byte random nonce, followed by ciphertext and tag.
 func EncryptBackupBytes(plaintext []byte, secretKey string) ([]byte, error) {
 	if secretKey == "" {
 		return nil, errors.New("crypto: secret key is required for backup encryption")
@@ -108,11 +100,9 @@ func EncryptBackupBytes(plaintext []byte, secretKey string) ([]byte, error) {
 		return nil, fmt.Errorf("crypto: generate nonce: %w", err)
 	}
 
-	// gcm.Seal appends ciphertext and authentication tag onto nonce.
 	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-// DecryptBackupBytes decrypts data produced by EncryptBackupBytes using secretKey.
 func DecryptBackupBytes(data []byte, secretKey string) ([]byte, error) {
 	if secretKey == "" {
 		return nil, errors.New("crypto: secret key is required for backup decryption")

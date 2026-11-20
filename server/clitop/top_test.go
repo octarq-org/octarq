@@ -118,7 +118,6 @@ func TestWriteEnvFileRefusesOverwrite(t *testing.T) {
 		t.Errorf("env perm = %o, want 600", info.Mode().Perm())
 	}
 
-	// Check backup file
 	files, err := os.ReadDir(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
@@ -312,11 +311,10 @@ func TestWriteEnvFileBackupFailure(t *testing.T) {
 	if err := os.WriteFile(path, []byte("OCTARQ_LISTEN=:1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// Make directory read-only so backup file cannot be created
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(dir, 0o700) // cleanup
+	defer os.Chmod(dir, 0o700)
 
 	resolved := map[string]string{
 		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",
@@ -337,11 +335,10 @@ func TestWriteEnvFileReadFailure(t *testing.T) {
 	if err := os.WriteFile(path, []byte("OCTARQ_LISTEN=:1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// Make file write-only so it cannot be read
 	if err := os.Chmod(path, 0o200); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(path, 0o600) // cleanup
+	defer os.Chmod(path, 0o600)
 
 	resolved := map[string]string{
 		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "octarq-test-pw",

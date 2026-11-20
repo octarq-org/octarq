@@ -12,7 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// UploadFileInput handles file uploads via multipart/form-data or MD5 precheck via JSON.
 type UploadFileInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -22,7 +21,6 @@ func (i *UploadFileInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-// UploadPrecheckRequest represents an MD5 precheck payload.
 type UploadPrecheckRequest struct {
 	MD5         string `json:"md5"`
 	Name        string `json:"name,omitempty"`
@@ -30,14 +28,12 @@ type UploadPrecheckRequest struct {
 	ContentType string `json:"content_type,omitempty"`
 }
 
-// UploadFileResponse is the response returned when a file is uploaded or deduplicated.
 type UploadFileResponse struct {
 	File         models.File `json:"file"`
 	Deduplicated bool        `json:"deduplicated"`
 	Message      string      `json:"message,omitempty"`
 }
 
-// UploadFileOutput wraps UploadFileResponse for Huma.
 type UploadFileOutput struct {
 	Body UploadFileResponse
 }
@@ -62,7 +58,6 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 
 	contentType := r.Header.Get("Content-Type")
 
-	// 1. Check for JSON MD5 precheck request
 	if strings.Contains(strings.ToLower(contentType), "application/json") {
 		var req UploadPrecheckRequest
 		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
@@ -80,12 +75,8 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			return nil, huma.Error400BadRequest("Invalid MD5 checksum length; expected a 32-character hex string")
 		}
 
-		// Check database for existing file record with matching MD5 within the caller's organization.
-		// Cross-tenant deduplication based solely on client-provided MD5 is strictly prohibited to
-		// prevent data exfiltration and existence oracle attacks (SEC-02).
 		var existing models.File
 		if err := h.db.Where("md5 = ? AND owner_id = ?", cleanMD5, orgID).First(&existing).Error; err == nil {
-			// Found in caller's organization: instant dedup reuse within same tenant!
 			fileName := req.Name
 			if fileName == "" {
 				fileName = existing.Name
@@ -117,7 +108,6 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		return nil, huma.Error404NotFound("File hash not found in workspace; upload the complete file")
 	}
 
-	// 2. Multipart form upload
 	if strings.Contains(strings.ToLower(contentType), "multipart/form-data") {
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			return nil, huma.Error400BadRequest("Could not parse multipart form; check upload format and try again")
@@ -126,7 +116,6 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			defer r.MultipartForm.RemoveAll()
 		}
 
-		// Check if client passed an MD5 form hint for fast dedup precheck within caller's organization
 		formMD5 := strings.TrimSpace(strings.ToLower(r.FormValue("md5")))
 		if formMD5 != "" && len(formMD5) == 32 {
 			var existing models.File
@@ -156,10 +145,8 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			}
 		}
 
-		// Retrieve uploaded file
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			// If no file but md5 was provided and missed
 			if formMD5 != "" {
 				return nil, huma.Error404NotFound("File hash not found in workspace; upload the complete file")
 			}
@@ -180,7 +167,6 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			fileCT = "application/octet-stream"
 		}
 
-		// PutObjectByHash computes MD5 and atomically stores or dedups the file
 		key, md5Hash, sizeWritten, deduplicated, err := h.storage.PutObjectByHash(ctx, file, ext)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Could not save file content; retry the upload")
@@ -211,7 +197,6 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		}, nil
 	}
 
-	// 3. Raw stream upload
 	fileName := r.Header.Get("X-File-Name")
 	if fileName == "" {
 		fileName = "raw_upload"

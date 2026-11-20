@@ -10,22 +10,10 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
-// A plugin route reads its caller through humago.Unwrap. That call peels the
-// auth middleware's huma context override back off and hands back the adapter's
-// own http.Request, whose context is the anonymous one the server received.
-//
-// A cookie survived that: auth.UserID falls back to re-reading the session
-// cookie from the header. A bearer token had no such fallback, so the token
-// authenticated at the middleware and then read as user 0 inside every plugin
-// route — which is how POST /api/llm-gateway/models answered 401 to a valid
-// admin token while /api/auth/me answered 200 to the same token.
-
 type unwrapIdentityIn struct {
 	Ctx huma.Context `hidden:"true"`
 }
 
-// Resolve is how every plugin route receives the huma context; huma does not
-// fill a huma.Context field on its own.
 func (i *unwrapIdentityIn) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
 
 type unwrapIdentityOut struct {
@@ -35,10 +23,6 @@ type unwrapIdentityOut struct {
 	}
 }
 
-// TestPluginRouteSeesBearerIdentity registers the shape every plugin route
-// uses — huma.Context in, humago.Unwrap, then the host's session reads — and
-// proves a bearer token carries the same identity there as it does on a core
-// route.
 func TestPluginRouteSeesBearerIdentity(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
@@ -77,8 +61,6 @@ func TestPluginRouteSeesBearerIdentity(t *testing.T) {
 	}
 }
 
-// TestPluginRouteStillRefusesAnUnknownToken keeps the fail-closed direction:
-// stamping the request must not turn an invalid token into an identity.
 func TestPluginRouteStillRefusesAnUnknownToken(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
 

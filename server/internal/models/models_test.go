@@ -203,7 +203,6 @@ func TestAllModelsAndOrgDataIsolation(t *testing.T) {
 		t.Fatalf("create org2 error: %v", err)
 	}
 
-	// Create scoped data for Org 1 and Org 2
 	t1 := Token{OrgID: org1.ID, Name: "Org1 Token", Hash: HashToken("tok1"), Prefix: "oct_1", UserID: 1}
 	t2 := Token{OrgID: org2.ID, Name: "Org2 Token", Hash: HashToken("tok2"), Prefix: "oct_2", UserID: 2}
 	db.Create(&t1)
@@ -219,7 +218,6 @@ func TestAllModelsAndOrgDataIsolation(t *testing.T) {
 	db.Create(&a1)
 	db.Create(&a2)
 
-	// Cross-tenant data isolation assertions: Org 1 query MUST NOT return Org 2 data
 	var org1Tokens []Token
 	db.Where("owner_id = ?", org1.ID).Find(&org1Tokens)
 	if len(org1Tokens) != 1 || org1Tokens[0].Name != "Org1 Token" {
@@ -249,7 +247,6 @@ func TestNotificationModels(t *testing.T) {
 		t.Fatalf("automigrate: %v", err)
 	}
 
-	// Test Notification CRUD
 	n := Notification{
 		UserID:    "user_123",
 		OrgID:     "org_456",
@@ -270,7 +267,6 @@ func TestNotificationModels(t *testing.T) {
 		t.Errorf("unexpected table name: %s", n.TableName())
 	}
 
-	// Test NotificationPreference CRUD
 	pref := NotificationPreference{
 		UserID:       "user_123",
 		EventPattern: "cron.*",
@@ -288,7 +284,6 @@ func TestNotificationModels(t *testing.T) {
 		t.Errorf("unexpected table name: %s", pref.TableName())
 	}
 
-	// Query preference back
 	var loaded NotificationPreference
 	if err := db.First(&loaded, pref.ID).Error; err != nil {
 		t.Fatalf("load preference: %v", err)
@@ -301,7 +296,6 @@ func TestNotificationModels(t *testing.T) {
 func TestToken_AllowsTool(t *testing.T) {
 	t.Parallel()
 
-	// 1. Non-agent token: allows any tool
 	humanTok := Token{IsAgent: false}
 	if !humanTok.AllowsTool("octarq_network__list_links") {
 		t.Error("expected human token to allow octarq_network__list_links")
@@ -310,18 +304,15 @@ func TestToken_AllowsTool(t *testing.T) {
 		t.Error("expected human token to allow octarq_network__delete_link")
 	}
 
-	// 2. Agent token with empty AllowedTools: strictly fail-closed
 	emptyAgentTok := Token{IsAgent: true, AllowedTools: ""}
 	if emptyAgentTok.AllowsTool("octarq_network__list_links") {
 		t.Error("expected empty agent token to fail-closed on any tool")
 	}
 
-	// Empty tool name is rejected for agent token
 	if emptyAgentTok.AllowsTool("") {
 		t.Error("expected empty toolName to be disallowed")
 	}
 
-	// 3. Agent token with JSON array
 	jsonAgentTok := Token{
 		IsAgent:      true,
 		AllowedTools: `["octarq_network__list_links", "octarq_network__get_email_summary"]`,
@@ -336,7 +327,6 @@ func TestToken_AllowsTool(t *testing.T) {
 		t.Error("expected jsonAgentTok to reject octarq_network__delete_link")
 	}
 
-	// 4. Agent token with comma-separated list
 	csvAgentTok := Token{
 		IsAgent:      true,
 		AllowedTools: "octarq_network__list_links, octarq_infra__export_data",

@@ -7,8 +7,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// tieredPlugin is an MCPProvider whose tier and registration count are
-// observable.
 type tieredPlugin struct {
 	name  string
 	tier  string
@@ -21,10 +19,6 @@ func (p *tieredPlugin) Mount(plugin.Mux, *plugin.Context) {}
 func (p *tieredPlugin) MCPTier() string                   { return p.tier }
 func (p *tieredPlugin) RegisterMCP(*mcp.Server)           { p.calls++ }
 
-// TestRegisterMCPSkipsUncoveredTiers pins the MCP half of the license: a tool
-// declared above the operator's tier is never registered, so it cannot be
-// listed or called. Without this, an unlicensed binary served every Pro tool
-// over stdio even though the same routes answered 402.
 func TestRegisterMCPSkipsUncoveredTiers(t *testing.T) {
 	cases := []struct {
 		name string

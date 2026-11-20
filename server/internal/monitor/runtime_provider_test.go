@@ -30,7 +30,6 @@ func TestRuntimeProvider(t *testing.T) {
 		t.Errorf("Check().Message = %q, want 'ok'", res.Message)
 	}
 
-	// Verify required metrics
 	expectedMetrics := []string{
 		"goroutines",
 		"heap_alloc_bytes",

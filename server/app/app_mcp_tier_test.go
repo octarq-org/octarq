@@ -8,8 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// tierMCPPlugin is an MCPProvider that records whether the composition reached
-// it, so the app-level test can see the gate's decision.
 type tierMCPPlugin struct {
 	tier       string
 	registered bool
@@ -21,10 +19,6 @@ func (p *tierMCPPlugin) Mount(plugin.Mux, *plugin.Context) {}
 func (p *tierMCPPlugin) MCPTier() string                   { return p.tier }
 func (p *tierMCPPlugin) RegisterMCP(*mcp.Server)           { p.registered = true }
 
-// TestRunMCPAppliesTierGate pins the wiring: the gate set on the App reaches
-// the stdio composition, so a tool above the operator's tier is never
-// registered. A broken wire here is invisible until an unlicensed build serves
-// the tool.
 func TestRunMCPAppliesTierGate(t *testing.T) {
 	cases := []struct {
 		name       string

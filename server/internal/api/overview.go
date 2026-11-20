@@ -24,9 +24,6 @@ type OverviewOutput struct {
 	Body map[string]any
 }
 
-// overview returns aggregate dashboard statistics for the home page.
-// Query param: includeBot=true — when present, bot clicks are counted alongside
-// human clicks so the caller can compare bot vs human traffic.
 func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*OverviewOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -59,15 +56,10 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 		"includeBot": includeBot,
 	}
 
-	// Plugin statistics merge flat into outMap; a duplicate key is overwritten
-	// by the later registration (warned, not refused — the flat protocol is kept
-	// for compatibility).
 	for _, p := range h.plugins {
 		if !h.pluginActive(org, p) {
 			continue
 		}
-		// Plugins that don't provide an overview service are skipped; the
-		// rest flat-merge their statistics. See plugin.OverviewFunc.
 		if fn, ok := plugin.LookupServiceAs[plugin.OverviewFunc](h.LookupService, plugin.OverviewServiceName(p.Name())); ok {
 			for k, val := range fn(org, includeBot) {
 				if _, exists := outMap[k]; exists {

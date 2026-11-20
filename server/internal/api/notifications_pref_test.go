@@ -14,13 +14,11 @@ func TestNotificationPreferencesAPI(t *testing.T) {
 	user1Cookies := sessionCookies(t, 1, 1)
 	user2Cookies := sessionCookies(t, 2, 1)
 
-	// 1. Unauthorized GET
 	recGetUnauth := do(srv, http.MethodGet, "/api/notification-preferences", nil, "")
 	if recGetUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthorized, got %d", recGetUnauth.Code)
 	}
 
-	// 2. GET empty preferences for user 1
 	recGetEmpty := do(srv, http.MethodGet, "/api/notification-preferences", user1Cookies, "")
 	if recGetEmpty.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recGetEmpty.Code)
@@ -31,13 +29,11 @@ func TestNotificationPreferencesAPI(t *testing.T) {
 		t.Fatalf("expected empty preferences, got %d", len(emptyList))
 	}
 
-	// 3. Unauthorized PUT
 	recPutUnauth := do(srv, http.MethodPut, "/api/notification-preferences", nil, `{"preferences":[]}`)
 	if recPutUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthorized, got %d", recPutUnauth.Code)
 	}
 
-	// 4. PUT batch preferences for user 1
 	putBody := `{
 		"preferences": [
 			{"eventPattern": "security.*", "channels": ["email", "in_app"]},
@@ -56,7 +52,6 @@ func TestNotificationPreferencesAPI(t *testing.T) {
 		t.Fatalf("expected 2 preferences, got %d", len(putResp))
 	}
 
-	// 5. GET preferences for user 1
 	recGet := do(srv, http.MethodGet, "/api/notification-preferences", user1Cookies, "")
 	if recGet.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recGet.Code)
@@ -67,7 +62,6 @@ func TestNotificationPreferencesAPI(t *testing.T) {
 		t.Fatalf("expected 2 preferences, got %d", len(getResp))
 	}
 
-	// 6. User 2 has empty preferences (isolation)
 	recUser2 := do(srv, http.MethodGet, "/api/notification-preferences", user2Cookies, "")
 	if recUser2.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recUser2.Code)
@@ -78,7 +72,6 @@ func TestNotificationPreferencesAPI(t *testing.T) {
 		t.Fatalf("expected user 2 to have 0 preferences, got %d", len(user2Resp))
 	}
 
-	// 7. PUT single legacy format
 	putSingle := `{
 		"eventPattern": "backup.*",
 		"channels": ["email"]

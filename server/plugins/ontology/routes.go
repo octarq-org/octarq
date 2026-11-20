@@ -12,13 +12,8 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// maxBodyBytes bounds a write body. A declaration carries no size limits of its
-// own, so the platform supplies one.
 const maxBodyBytes = 1 << 20
 
-// requestCtx is embedded in every input. huma fills it before the handler runs,
-// and the role check needs the request it carries: the huma middleware
-// authenticates, but the ACL is judged here, from the session on that request.
 type requestCtx struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -39,9 +34,6 @@ type getInput struct {
 	ID string `path:"id" doc:"Record id."`
 }
 
-// createInput carries the body verbatim. The fields are runtime data, so huma
-// cannot bind them to a struct: core.DecodeValues is the only validator, and it
-// needs the exact bytes to keep integer precision and to reject unknown keys.
 type createInput struct {
 	requestCtx
 	Body json.RawMessage
@@ -78,11 +70,6 @@ type listOutput struct{ Body listBody }
 type recordOutput struct{ Body map[string]any }
 type okOutput struct{ Body okBody }
 
-// registerRoutes publishes the catalog and one resource per entity.
-//
-// Paths are literal per entity rather than one wildcard route: the platform's
-// route registry refuses two declarations of the same METHOD+path, and a literal
-// path also lets each operation carry its own tier metadata.
 func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 	if ctx == nil || ctx.Huma == nil {
 		return
@@ -177,15 +164,10 @@ func (p *Plugin) registerEntityRoutes(api huma.API, e *entity) {
 	})
 }
 
-// bodySchema is the OpenAPI shape of a write body. It is an open object on
-// purpose: the fields are runtime data, and every value is checked by
-// core.DecodeValues, which is the one place that produces a 422 for this plugin.
 func bodySchema() *huma.Schema {
 	return &huma.Schema{Type: "object", AdditionalProperties: true}
 }
 
-// tierMetadata declares the operation's license tier where the platform gate
-// reads it. An empty tier is free and needs no metadata.
 func tierMetadata(acl core.OperationACL) map[string]any {
 	if acl.Tier == "" {
 		return nil
@@ -202,8 +184,6 @@ func (p *Plugin) catalog(ctx context.Context, in *catalogInput) (*catalogOutput,
 	orgID := p.orgForRequest(ctx, r)
 	out := &catalogOutput{Body: catalogBody{Entities: make([]catalogEntry, 0, len(p.entities))}}
 	for _, e := range p.entities {
-		// An entity whose plugin is switched off has no page to open, so the
-		// page it would be listed on must not offer it.
 		if e.featureOff(orgID) {
 			continue
 		}
@@ -308,18 +288,11 @@ func (p *Plugin) delete(ctx context.Context, e *entity, in *deleteInput) (*okOut
 	return &okOutput{Body: okBody{OK: true}}, nil
 }
 
-// httpRole is the caller's effective role in the active workspace. The huma
-// middleware has already authenticated the request; a caller without a role here
-// is authenticated but not a member of the workspace it addressed.
 func (p *Plugin) httpRole(ctx context.Context, c huma.Context) (string, error) {
 	r, _ := humago.Unwrap(c)
 	return p.roleForRequest(ctx, r)
 }
 
-// orgForRequest reads the workspace the request resolved to. It goes through the
-// session for the same reason roleForRequest does: the *http.Request the huma
-// adapter hands back still carries the context it arrived with, so a bearer
-// token has nothing else to read.
 func (p *Plugin) orgForRequest(ctx context.Context, r *http.Request) uint {
 	if r == nil || p.host == nil {
 		return 0
@@ -327,15 +300,6 @@ func (p *Plugin) orgForRequest(ctx context.Context, r *http.Request) uint {
 	return p.host.Session().OrgID(r.WithContext(ctx))
 }
 
-// roleForRequest asks the host about a request the middleware already resolved.
-//
-// The auth middleware authenticates the request and hands the resulting context
-// to the handler as its first argument; the *http.Request the adapter returns
-// still carries the context it arrived with. A cookie session hides that,
-// because the auth manager falls back to reading the cookie itself — but a
-// bearer token has no cookie to fall back to, so an agent calling these routes
-// with an API token would read as holding no role and be refused on every one.
-// The context has to travel with the request for both.
 func (p *Plugin) roleForRequest(ctx context.Context, r *http.Request) (string, error) {
 	if r == nil || p.host == nil {
 		return "", ErrForbidden
@@ -347,7 +311,6 @@ func (p *Plugin) roleForRequest(ctx context.Context, r *http.Request) (string, e
 	return role, nil
 }
 
-// authorize judges one operation's ACL for this request.
 func (p *Plugin) authorize(ctx context.Context, c huma.Context, e *entity, op core.Operation) (string, error) {
 	role, err := p.httpRole(ctx, c)
 	if err != nil {
@@ -359,8 +322,6 @@ func (p *Plugin) authorize(ctx context.Context, c huma.Context, e *entity, op co
 	return role, nil
 }
 
-// tenantDB is the scoped handle every read and write goes through. The org comes
-// from the authenticated context, never from the request body.
 func (p *Plugin) tenantDB(ctx context.Context) (*plugin.TenantDB, error) {
 	orgID := plugin.OrgIDFromContext(ctx)
 	if orgID == 0 || p.db == nil {
@@ -369,8 +330,6 @@ func (p *Plugin) tenantDB(ctx context.Context) (*plugin.TenantDB, error) {
 	return plugin.NewTenantDB(p.db, orgID)
 }
 
-// audit records a write. Generated ids are UUIDs, which the audit ledger's
-// numeric target does not carry, so the id travels in the metadata instead.
 func (p *Plugin) audit(ctx context.Context, c huma.Context, action string, e *entity, id string) {
 	if p.ctx == nil || p.ctx.Audit == nil {
 		return
@@ -382,7 +341,6 @@ func (p *Plugin) audit(ctx context.Context, c huma.Context, action string, e *en
 	p.ctx.Audit(r.WithContext(ctx), action, e.spec.Slug, 0, map[string]any{"id": id})
 }
 
-// rowID reads the id out of a stored row.
 func rowID(row map[string]any) string {
 	if v, ok := row[core.ColumnID]; ok {
 		return fmt.Sprint(v)

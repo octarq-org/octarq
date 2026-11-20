@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// TestMessagesRefusesAnUnreadableTurn covers the shapes a client can get wrong.
 func TestMessagesRefusesAnUnreadableTurn(t *testing.T) {
 	cases := []struct{ name, body string }{
 		{"system is not text", `{"model":"m","max_tokens":8,"system":7,"messages":[]}`},
@@ -27,8 +26,6 @@ func TestMessagesRefusesAnUnreadableTurn(t *testing.T) {
 	}
 }
 
-// TestMessagesDefaultsWhatMayBeOmitted covers the optional fields: an empty
-// user turn, a tool without a schema, and a tool call without arguments.
 func TestMessagesDefaultsWhatMayBeOmitted(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c","model":"m","choices":[{"message":{"content":"",
 		"tool_calls":[{"id":"call_1","type":"function","function":{"name":"read"}}]},"finish_reason":"tool_calls"}]}`}
@@ -63,7 +60,6 @@ func TestMessagesDefaultsWhatMayBeOmitted(t *testing.T) {
 	if params, _ := tf["parameters"].(map[string]any); params["type"] != "object" {
 		t.Fatalf("parameters = %v", tf["parameters"])
 	}
-	// The answer keeps the tool call even when it carries no arguments.
 	blocks, _ := out["content"].([]any)
 	use, _ := blocks[0].(map[string]any)
 	input, _ := use["input"].(map[string]any)
@@ -72,8 +68,6 @@ func TestMessagesDefaultsWhatMayBeOmitted(t *testing.T) {
 	}
 }
 
-// TestMessagesAnswersAProviderWithNoChoices covers a provider that returns an
-// empty answer: the client still gets a message it can render.
 func TestMessagesAnswersAProviderWithNoChoices(t *testing.T) {
 	f := messagesFixture(t, &upstream{chatBody: `{"id":"c","model":"m","choices":[]}`})
 	status, body := f.do(t, http.MethodPost, "/v1/messages",
@@ -94,7 +88,6 @@ func TestMessagesAnswersAProviderWithNoChoices(t *testing.T) {
 	}
 }
 
-// TestMessagesWithoutAProvider is the fail-closed state.
 func TestMessagesWithoutAProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	status, body := f.do(t, http.MethodPost, "/v1/messages",
@@ -108,7 +101,6 @@ func TestMessagesWithoutAProvider(t *testing.T) {
 	}
 }
 
-// TestMessagesReportsAnUnbuildableCall covers a base URL no request can use.
 func TestMessagesReportsAnUnbuildableCall(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "bad", Backend: "openai", APIKey: "k",
@@ -120,7 +112,6 @@ func TestMessagesReportsAnUnbuildableCall(t *testing.T) {
 	}
 }
 
-// TestMessagesReportsAnUnreachableProvider covers a provider that is not there.
 func TestMessagesReportsAnUnreachableProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "gone", Backend: "openai", APIKey: "k",
@@ -131,8 +122,6 @@ func TestMessagesReportsAnUnreachableProvider(t *testing.T) {
 	}
 }
 
-// TestMessagesStreamReportsFailures covers a stream whose provider fails before
-// any event is written.
 func TestMessagesStreamReportsFailures(t *testing.T) {
 	t.Run("unreachable", func(t *testing.T) {
 		f := newHTTPFixture(t, 1, 1, "member")
@@ -159,8 +148,6 @@ func TestMessagesStreamReportsFailures(t *testing.T) {
 	})
 }
 
-// TestMessagesStreamSkipsNoise proves a malformed frame or an orphan fragment
-// does not end the stream.
 func TestMessagesStreamSkipsNoise(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{}}]}`,
@@ -195,7 +182,6 @@ func TestMessagesStreamSkipsNoise(t *testing.T) {
 	if !strings.Contains(text, "still here") {
 		t.Fatalf("the stream ended early:\n%s", text)
 	}
-	// No finish_reason arrived, so the answer closes as a normal turn.
 	if !strings.Contains(text, `"stop_reason":"end_turn"`) {
 		t.Fatalf("no end_turn:\n%s", text)
 	}
@@ -204,7 +190,6 @@ func TestMessagesStreamSkipsNoise(t *testing.T) {
 	}
 }
 
-// TestCountTokensNeedsAWorkspaceAndANumber covers the route's guards.
 func TestCountTokensNeedsAWorkspaceAndANumber(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -213,8 +198,6 @@ func TestCountTokensNeedsAWorkspaceAndANumber(t *testing.T) {
 	}
 }
 
-// TestEstimateRequestTokensCountsEveryBlock covers the block types a real turn
-// carries.
 func TestEstimateRequestTokensCountsEveryBlock(t *testing.T) {
 	n := estimateRequestTokens(&anthRequest{
 		Messages: []anthMessage{

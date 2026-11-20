@@ -13,18 +13,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// DefaultChannels is the fallback channel list when no user preference matches.
 var DefaultChannels = []string{"in_app", "email"}
 
-// PreferenceItem represents an event pattern to channels routing mapping.
 type PreferenceItem struct {
 	EventPattern string   `json:"eventPattern"`
 	Channels     []string `json:"channels"`
 }
 
-// MatchEventPattern reports whether eventType matches pattern.
-// Supports exact matches ("security.login_failed"), wildcard globs ("security.*", "cron.*"),
-// and universal wildcard ("*").
 func MatchEventPattern(pattern, eventType string) bool {
 	pattern = strings.TrimSpace(pattern)
 	eventType = strings.TrimSpace(eventType)
@@ -34,18 +29,15 @@ func MatchEventPattern(pattern, eventType string) bool {
 	if pattern == "*" || pattern == eventType {
 		return true
 	}
-	// Try standard path.Match
 	if matched, err := path.Match(pattern, eventType); err == nil && matched {
 		return true
 	}
-	// Check trailing wildcard like "security.*"
 	if strings.HasSuffix(pattern, ".*") {
 		prefix := strings.TrimSuffix(pattern, ".*")
 		if eventType == prefix || strings.HasPrefix(eventType, prefix+".") {
 			return true
 		}
 	}
-	// Check prefix wildcard like "*.failed"
 	if strings.HasPrefix(pattern, "*.") {
 		suffix := strings.TrimPrefix(pattern, "*.")
 		if eventType == suffix || strings.HasSuffix(eventType, "."+suffix) {
@@ -55,8 +47,6 @@ func MatchEventPattern(pattern, eventType string) bool {
 	return false
 }
 
-// ResolveChannels finds the matching channels for a given user and eventType.
-// If the user has no matching preferences, DefaultChannels is returned.
 func ResolveChannels(ctx context.Context, db *gorm.DB, userID, eventType string) ([]string, error) {
 	if db == nil || strings.TrimSpace(userID) == "" {
 		return DefaultChannels, nil
@@ -69,10 +59,6 @@ func ResolveChannels(ctx context.Context, db *gorm.DB, userID, eventType string)
 		return DefaultChannels, nil
 	}
 
-	// Score matches:
-	// Exact match: score 1000 + len(pattern)
-	// Glob match: score 100 + len(pattern)
-	// Universal "*": score 1
 	type scoredMatch struct {
 		score    int
 		channels []string
@@ -112,7 +98,6 @@ func ResolveChannels(ctx context.Context, db *gorm.DB, userID, eventType string)
 	return res, nil
 }
 
-// GetPreferences returns all notification preferences configured for a user.
 func GetPreferences(ctx context.Context, db *gorm.DB, userID string) ([]models.NotificationPreference, error) {
 	if db == nil {
 		return nil, errors.New("notification: nil db")
@@ -122,11 +107,6 @@ func GetPreferences(ctx context.Context, db *gorm.DB, userID string) ([]models.N
 	return prefs, err
 }
 
-// SavePreferences upserts the specified preference items for a user.
-//
-// It only writes the items it receives: a pattern that is absent from items
-// keeps its stored routing. Use ReplacePreferences when the caller holds the
-// user's whole routing table.
 func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []PreferenceItem) error {
 	if db == nil {
 		return errors.New("notification: nil db")
@@ -137,13 +117,6 @@ func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []Pr
 	return upsertPreferences(db.WithContext(ctx), userID, items)
 }
 
-// ReplacePreferences writes items as the user's complete routing table: stored
-// rows whose pattern is absent from items are deleted.
-//
-// The preferences page saves the whole matrix at once, and a custom rule
-// removed there has to disappear from the server too. Through SavePreferences
-// alone the deletion was dropped on the floor: the page reported success and
-// the rule routed events again after a reload.
 func ReplacePreferences(ctx context.Context, db *gorm.DB, userID string, items []PreferenceItem) error {
 	if db == nil {
 		return errors.New("notification: nil db")
@@ -178,7 +151,6 @@ func ReplacePreferences(ctx context.Context, db *gorm.DB, userID string, items [
 	return tx.Commit().Error
 }
 
-// upsertPreferences writes items through db, which may be an open transaction.
 func upsertPreferences(db *gorm.DB, userID string, items []PreferenceItem) error {
 	if len(items) == 0 {
 		return nil
@@ -214,7 +186,6 @@ func upsertPreferences(db *gorm.DB, userID string, items []PreferenceItem) error
 	}).Create(&prefs).Error
 
 	if err != nil {
-		// Fallback if clause.OnConflict unsupported
 		return db.Transaction(func(tx *gorm.DB) error {
 			for _, pref := range prefs {
 				var existing models.NotificationPreference
@@ -238,7 +209,6 @@ func upsertPreferences(db *gorm.DB, userID string, items []PreferenceItem) error
 	return nil
 }
 
-// ResetPreferences deletes all custom preferences for a user, reverting to system defaults.
 func ResetPreferences(ctx context.Context, db *gorm.DB, userID string) error {
 	if db == nil {
 		return errors.New("notification: nil db")

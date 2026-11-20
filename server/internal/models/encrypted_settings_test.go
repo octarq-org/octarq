@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// encryptedValueDB opens an isolated in-memory database for the probe tests.
 func encryptedValueDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -33,7 +32,6 @@ func TestHasEncryptedValues(t *testing.T) {
 		t.Fatalf("empty database: found=%v err=%v", found, err)
 	}
 
-	// Plain settings and vault-backed metadata rows do not depend on the instance DEK.
 	if err := db.Create(&Setting{Key: "app_name", Value: "Octarq"}).Error; err != nil {
 		t.Fatalf("create setting: %v", err)
 	}
@@ -47,7 +45,6 @@ func TestHasEncryptedValues(t *testing.T) {
 		t.Fatalf("non-DEK rows: found=%v err=%v", found, err)
 	}
 
-	// User TOTP secret is still sealed under the instance envelope DEK.
 	if err := db.Create(&User{Email: "ops@example.com", PasswordHash: "hash", TOTPSecret: "ciphertext"}).Error; err != nil {
 		t.Fatalf("create user: %v", err)
 	}

@@ -60,7 +60,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Fatalf("Register endpoint: %v", err)
 	}
 
-	// --- 1. Test HTTP (Huma) endpoint ---
 	mux := http.NewServeMux()
 	humaAPI := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
 
@@ -84,7 +83,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Fatalf("MountHTTP: %v", err)
 	}
 
-	// 1a. Unauthenticated HTTP request -> 401
 	body, _ := json.Marshal(map[string]any{"title": "Test", "count": 5})
 	req := httptest.NewRequest("POST", "/api/items", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -94,7 +92,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Errorf("expected 401 for unauthenticated HTTP request, got %d", w.Code)
 	}
 
-	// 1b. Authenticated HTTP request -> 200 OK
 	reqAuth := httptest.NewRequest("POST", "/api/items", bytes.NewReader(body))
 	reqAuth.Header.Set("Content-Type", "application/json")
 	reqAuth = reqAuth.WithContext(plugin.WithOrgID(reqAuth.Context(), 42))
@@ -116,7 +113,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Errorf("unexpected HTTP response: %+v", httpResp)
 	}
 
-	// 1c. HTTP error mapping (AgentError -> HTTP Status)
 	errBody, _ := json.Marshal(map[string]any{"title": "error", "count": 1})
 	reqErr := httptest.NewRequest("POST", "/api/items", bytes.NewReader(errBody))
 	reqErr.Header.Set("Content-Type", "application/json")
@@ -127,7 +123,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Errorf("expected 400 for AgentError BAD_TITLE, got %d", wErr.Code)
 	}
 
-	// 1d. HTTP schema validation (minimum: 1)
 	invalidBody, _ := json.Marshal(map[string]any{"title": "Test", "count": 0})
 	reqInvalid := httptest.NewRequest("POST", "/api/items", bytes.NewReader(invalidBody))
 	reqInvalid.Header.Set("Content-Type", "application/json")
@@ -138,7 +133,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Errorf("expected 422 for invalid count=0, got %d", wInvalid.Code)
 	}
 
-	// --- 2. Test MCP Tool endpoint ---
 	mcpImpl := &mcp.Implementation{Name: "test-mcp", Version: "1.0.0"}
 	mcpServer := mcp.NewServer(mcpImpl, nil)
 
@@ -146,7 +140,6 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 		t.Fatalf("MountMCP: %v", err)
 	}
 
-	// Verify tool registration
 	endpoints := eng.Endpoints()
 	if len(endpoints) != 1 {
 		t.Fatalf("expected 1 endpoint, got %d", len(endpoints))
@@ -179,7 +172,6 @@ func TestEngine_RoleGating_HTTP(t *testing.T) {
 			return 1, nil
 		},
 		RequireRole: func(ctx context.Context, roles []string) error {
-			// Member is refused
 			return huma.Error403Forbidden("role superadmin required")
 		},
 	}

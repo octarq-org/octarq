@@ -11,9 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ResolveChannelConfig merges non-secret routing metadata from ch.Config with
-// any secret payload stored in VaultService under ch.VaultItemID.
-// When ch.VaultItemID > 0, a missing or failing VaultService fails closed.
 func ResolveChannelConfig(ctx context.Context, vs plugin.VaultService, ch models.NotificationChannel) (map[string]any, error) {
 	cfg := make(map[string]any)
 	if raw := strings.TrimSpace(ch.Config); raw != "" && raw != "{}" {
@@ -36,7 +33,6 @@ func ResolveChannelConfig(ctx context.Context, vs plugin.VaultService, ch models
 	return cfg, nil
 }
 
-// ResolveChannelConfigJSON resolves ch's merged config and serializes it as JSON.
 func ResolveChannelConfigJSON(ctx context.Context, vs plugin.VaultService, ch models.NotificationChannel) (string, error) {
 	cfg, err := ResolveChannelConfig(ctx, vs, ch)
 	if err != nil {

@@ -11,12 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// captureInviteMail installs a system mail sender on h that records the text
-// body of every mail the handlers send, and returns the recording.
-//
-// Every invite test goes through here now: the raw invite token is delivered to
-// the invited mailbox and nowhere else, so reading the mail is the only way to
-// obtain it — which is exactly the property the tests should be exercising.
 func captureInviteMail(t *testing.T, h *Handler) *[]string {
 	t.Helper()
 	var sent []string
@@ -33,8 +27,6 @@ func captureInviteMail(t *testing.T, h *Handler) *[]string {
 	return &sent
 }
 
-// tokenFromInviteMail pulls the raw token out of the accept link in the most
-// recently mailed invite.
 func tokenFromInviteMail(t *testing.T, sent *[]string) string {
 	t.Helper()
 	if len(*sent) == 0 {
@@ -48,8 +40,6 @@ func tokenFromInviteMail(t *testing.T, sent *[]string) string {
 	return strings.TrimSpace(strings.Fields(after)[0])
 }
 
-// inviteAndReadToken posts an invite for email and returns the raw token the
-// invited mailbox received.
 func inviteAndReadToken(t *testing.T, srv http.Handler, sent *[]string, cookies []*http.Cookie, email string) string {
 	t.Helper()
 	rec := do(srv, "POST", "/api/org/members", cookies, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
@@ -59,18 +49,6 @@ func inviteAndReadToken(t *testing.T, srv http.Handler, sent *[]string, cookies 
 	return tokenFromInviteMail(t, sent)
 }
 
-// TestInviteResponseNeverCarriesTheToken is the guard for the escalation this
-// endpoint used to allow.
-//
-// Redeeming an invite token sets a password AND marks the address verified
-// (acceptInvite), so returning the raw token to the INVITER handed them a
-// working credential for a mailbox they do not control. On Cloud every
-// self-serve signup is an org admin, which made that "invite the victim, keep
-// the token, own the account" for anyone who can sign up — while the real owner
-// gets a 409 on registration and a dead-ended SSO login.
-//
-// The response must therefore carry no invite material at all: not the token,
-// not a URL containing it, not under any other key.
 func TestInviteResponseNeverCarriesTheToken(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	const orgID = uint(1)
@@ -84,7 +62,6 @@ func TestInviteResponseNeverCarriesTheToken(t *testing.T) {
 		t.Fatalf("addOrgMember: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// The token that actually exists, recovered from the mail the invitee got.
 	raw := tokenFromInviteMail(t, sent)
 	if raw == "" {
 		t.Fatal("no token in the invite mail — test cannot prove anything")
@@ -103,17 +80,11 @@ func TestInviteResponseNeverCarriesTheToken(t *testing.T) {
 			t.Fatalf("invite response still carries %q = %v", k, v)
 		}
 	}
-	// Delivery status is reported, so the UI can tell the operator to configure
-	// mail rather than silently dropping invites.
 	if v, ok := m["emailSent"].(bool); !ok || !v {
 		t.Fatalf("expected emailSent=true, got %v", m["emailSent"])
 	}
 }
 
-// TestInviteResponseOmitsTokenWhenMailUnconfigured pins the same rule for the
-// case that used to justify returning the token: no mail sender mounted. The
-// invite still succeeds (a 500 here would break inviting on a fresh instance),
-// but the answer is emailSent=false, never the secret.
 func TestInviteResponseOmitsTokenWhenMailUnconfigured(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const orgID = uint(1)
@@ -149,7 +120,6 @@ func TestResendOrgMemberInvite(t *testing.T) {
 	memberSession := sessionCookies(t, memberUID, orgID)
 	sent := captureInviteMail(t, h)
 
-	// 1. Invite a new user
 	email := "pending_invitee@example.com"
 	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
 	if rec.Code != http.StatusOK {
@@ -164,19 +134,16 @@ func TestResendOrgMemberInvite(t *testing.T) {
 		t.Fatal("expected initial invite token in email")
 	}
 
-	// 2. Member (non-admin) forbidden to resend
 	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), memberSession, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 for member resend, got %d", rec.Code)
 	}
 
-	// 3. Nonexistent user -> 404
 	rec = do(srv, "POST", "/api/org/members/99999/resend", adminSession, "")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for nonexistent user resend, got %d", rec.Code)
 	}
 
-	// 4. Rate limit check: first resend succeeds
 	h.resendInviteLimits.Delete(uint64(invitedUser.ID))
 	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), adminSession, "")
 	if rec.Code != http.StatusOK {
@@ -187,13 +154,11 @@ func TestResendOrgMemberInvite(t *testing.T) {
 		t.Fatalf("expected newly generated token, got initial=%q, new=%q", initialToken, newToken)
 	}
 
-	// 5. Immediate resend within 30s rate limited -> 429
 	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), adminSession, "")
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 for rapid resend, got %d", rec.Code)
 	}
 
-	// 6. Already accepted user cannot be resent
 	var userRecord models.User
 	db.First(&userRecord, invitedUser.ID)
 	userRecord.InviteTokenHash = ""

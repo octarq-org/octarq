@@ -7,9 +7,6 @@ import (
 	"testing"
 )
 
-// TestInstanceBuildRequiresAuth pins that the build-info endpoint is gated by
-// the dashboard session. version + commit fingerprint a self-hosted instance
-// for CVE-version scanning, so an anonymous caller must never get an answer.
 func TestInstanceBuildRequiresAuth(t *testing.T) {
 	_, srv, _ := newTestHandlerRaw(t)
 
@@ -22,12 +19,6 @@ func TestInstanceBuildRequiresAuth(t *testing.T) {
 	}
 }
 
-// TestInstanceBuildNotPublicPinned guards the allowlist in public_endpoints.go
-// DIRECTLY — reading the product's own map, not a copy of it. If anyone ever
-// adds /api/instance/build to publicExactPaths, this test goes red on the next
-// run. The registry test in public_endpoints_test.go would also fail, but an
-// explicit pin fails with a message that says why this route in particular
-// must stay private.
 func TestInstanceBuildNotPublicPinned(t *testing.T) {
 	if publicExactPaths["/api/instance/build"] {
 		t.Fatal("/api/instance/build must NOT be in publicExactPaths: build info " +
@@ -39,10 +30,6 @@ func TestInstanceBuildNotPublicPinned(t *testing.T) {
 	}
 }
 
-// TestInstanceBuildRequiresInstanceAdmin pins the audit finding: build info
-// used to be readable by any logged-in tenant member, which fingerprints a
-// self-hosted instance for CVE-version scanning just one login further in than
-// the anonymous case. A plain member gets 403; the bootstrap admin gets 200.
 func TestInstanceBuildRequiresInstanceAdmin(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 
@@ -59,9 +46,6 @@ func TestInstanceBuildRequiresInstanceAdmin(t *testing.T) {
 	}
 }
 
-// TestInstanceBuildAuthenticated verifies the route serves its payload to a
-// logged-in caller. The values themselves are build-time injection, so the
-// test pins shape and non-empty fields, not specific strings.
 func TestInstanceBuildAuthenticated(t *testing.T) {
 	_, srv, _ := newTestHandlerRaw(t)
 

@@ -23,23 +23,23 @@ func TestDisallowedIP(t *testing.T) {
 		{"::1", true},
 		{"0.0.0.0", true},
 		{"::", true},
-		{"169.254.169.254", true},       // Link-local IPv4
-		{"fe80::1", true},               // Link-local IPv6
-		{"224.0.0.1", true},             // Multicast
-		{"ff02::1", true},               // Multicast IPv6
-		{"10.0.0.1", true},              // Private RFC1918
-		{"172.16.0.1", true},            // Private RFC1918
-		{"192.168.1.1", true},           // Private RFC1918
-		{"fc00::1", true},               // IPv6 ULA
-		{"fd00::1", true},               // IPv6 ULA
-		{"100.64.0.1", true},            // CGNAT
-		{"100.127.255.255", true},       // CGNAT boundary
-		{"100.63.255.255", false},       // Outside CGNAT
-		{"100.128.0.0", false},          // Outside CGNAT
-		{"8.8.8.8", false},              // Public IPv4
-		{"1.1.1.1", false},              // Public IPv4
-		{"93.184.216.34", false},        // Public IPv4
-		{"2606:4700:4700::1111", false}, // Public IPv6
+		{"169.254.169.254", true},
+		{"fe80::1", true},
+		{"224.0.0.1", true},
+		{"ff02::1", true},
+		{"10.0.0.1", true},
+		{"172.16.0.1", true},
+		{"192.168.1.1", true},
+		{"fc00::1", true},
+		{"fd00::1", true},
+		{"100.64.0.1", true},
+		{"100.127.255.255", true},
+		{"100.63.255.255", false},
+		{"100.128.0.0", false},
+		{"8.8.8.8", false},
+		{"1.1.1.1", false},
+		{"93.184.216.34", false},
+		{"2606:4700:4700::1111", false},
 	}
 
 	for _, tt := range tests {
@@ -199,9 +199,6 @@ func TestGetInvalidSchemeAndBadURL(t *testing.T) {
 	}
 }
 
-// TestClientBlocksLoopbackAtDial is the load-bearing test: the URL is
-// well-formed http with a hostname the caller never gets to inspect, and the
-// server is real and listening. Only the dial-time Control hook can stop it.
 func TestClientBlocksLoopbackAtDial(t *testing.T) {
 	t.Parallel()
 
@@ -220,10 +217,6 @@ func TestClientBlocksLoopbackAtDial(t *testing.T) {
 	}
 }
 
-// TestClientBlocksRedirectToBlockedTarget proves the guard is per-hop, not
-// per-URL. The first hop is deliberately let through (a public origin can not
-// be simulated locally); the redirect target - the cloud metadata service - is
-// checked by the same Control on its own dial.
 func TestClientBlocksRedirectToBlockedTarget(t *testing.T) {
 	t.Parallel()
 
@@ -239,7 +232,7 @@ func TestClientBlocksRedirectToBlockedTarget(t *testing.T) {
 		dialed = append(dialed, address)
 		if host, _, err := net.SplitHostPort(address); err == nil {
 			if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
-				return nil // stand in for a public origin
+				return nil
 			}
 		}
 		return Control(network, address, rc)
@@ -258,8 +251,6 @@ func TestClientBlocksRedirectToBlockedTarget(t *testing.T) {
 	}
 }
 
-// TestClientBlocksRedirectToNonHTTPScheme covers the hop the dialer never sees:
-// a scheme with no TCP dial of its own.
 func TestClientBlocksRedirectToNonHTTPScheme(t *testing.T) {
 	SetAllowPrivateWebhooks(true)
 	t.Cleanup(func() { SetAllowPrivateWebhooks(false) })

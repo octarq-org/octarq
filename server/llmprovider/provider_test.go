@@ -45,9 +45,6 @@ func TestClaudeModelOverrides(t *testing.T) {
 	}
 }
 
-// TestClaudeComplete exercises the full request/response path against a stub
-// server that mimics the Anthropic Messages API, so the SDK wiring (params,
-// system prompt, content/usage parsing) is verified without a live key.
 func TestClaudeComplete(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +79,6 @@ func TestClaudeComplete(t *testing.T) {
 	if resp.InputTokens != 11 || resp.OutputTokens != 3 {
 		t.Errorf("usage = %d/%d", resp.InputTokens, resp.OutputTokens)
 	}
-	// The request must NOT carry sampling params (they 400 on Opus 4.8).
 	for _, banned := range []string{"temperature", "top_p", "top_k"} {
 		if _, ok := gotBody[banned]; ok {
 			t.Errorf("request unexpectedly carried %q (rejected by Opus 4.8)", banned)
@@ -93,9 +89,6 @@ func TestClaudeComplete(t *testing.T) {
 	}
 }
 
-// TestVendorsRegistered confirms the multi-vendor backends are wired and
-// construct without a live server/key (langchaingo clients connect lazily, at
-// call time, not at New).
 func TestVendorsRegistered(t *testing.T) {
 	for _, name := range []string{"openai", "gemini", "mistral", "cohere", "ollama"} {
 		p, err := New(Options{Provider: name, APIKey: "test-key"})

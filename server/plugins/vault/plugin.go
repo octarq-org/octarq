@@ -21,21 +21,16 @@ var (
 	_ plugin.MCPProvider           = (*Plugin)(nil)
 )
 
-// Plugin implements the unified Core Credential & Secrets Vault.
 type Plugin struct {
 	db    *gorm.DB
 	host  plugin.Host
 	audit func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
 }
 
-// New constructs an unmounted vault plugin instance.
 func New() *Plugin { return &Plugin{} }
 
-// Name returns the unique core plugin identifier.
 func (p *Plugin) Name() string { return "vault" }
 
-// Describe marks the vault as core infrastructure: every service and module
-// resolves credentials through it, so it stays mounted and enabled by default.
 func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
 		Title:            "Credential & Secrets Vault",
@@ -48,7 +43,6 @@ func (p *Plugin) Describe() plugin.Info {
 	}
 }
 
-// Models returns the GORM models owned by the vault plugin.
 func (p *Plugin) Models() []any {
 	return []any{
 		&VaultCollection{},
@@ -58,10 +52,8 @@ func (p *Plugin) Models() []any {
 	}
 }
 
-// HelpDocsFS exposes the embedded bilingual help documentation.
 func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
-// Mount registers services, HTTP/Huma routes, and purge/export hooks.
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx == nil {
 		return

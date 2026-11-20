@@ -1,18 +1,3 @@
-// Command octarq is a single-binary domain / short-link / email management
-// service (link · email · domain). It serves an embedded React dashboard,
-// a JSON API, and a short-link redirector from one process.
-//
-// This is the open-core binary: it runs the app with no extra plugins. A
-// downstream distribution reuses the same app package and
-// registers additional plugins before Run — see the plugin package.
-//
-// Subcommands:
-//
-//	octarq          run the HTTP server (default)
-//	octarq mcp      run the Model Context Protocol server over stdio, exposing
-//	             workspace-scoped read-only short-link / email / domain tools to
-//	             AI clients such as Claude Code, Claude Desktop and Cursor.
-//	             See internal/mcp.
 package main
 
 import (
@@ -39,9 +24,6 @@ import (
 )
 
 func main() {
-	// Structured JSON logging for the whole process. Edge access logs and the
-	// app lifecycle logs both flow through this default logger. The severity
-	// threshold is operator-configurable via OCTARQ_LOG_LEVEL.
 	level, err := config.LogLevel()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -53,11 +35,6 @@ func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// run dispatches every subcommand through the shared Cobra tree
-// (server/cli) and returns the process exit code; main() only sets up
-// logging and os.Exit's the code. ctx and writers are passed in so the
-// dispatch logic and the default server boot stay unit-testable without
-// forking a process.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	return cli.Execute(ctx, args, stdout, stderr, cli.Deps{
 		Name: "octarq",
@@ -80,8 +57,6 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	})
 }
 
-// applyServerFlags maps `server` flag values onto process config before boot.
-// Explicit flags win over the environment; a bad --config path fails closed.
 func applyServerFlags(port, host, configPath string) error {
 	if configPath != "" {
 		if err := config.LoadDotEnv(configPath); err != nil {
@@ -120,36 +95,20 @@ func splitListen(listen string) (host, port string) {
 	return listen, ""
 }
 
-// composePluginsForCLI is the plugin set the non-serving commands describe:
-// the Core builtins plus any plugins wired in at build time. It keeps `openapi`
-// and `mcp` reporting the binary the operator actually built.
 func composePluginsForCLI() []plugin.Plugin {
 	plugins := builtin.Default()
 	return append(plugins, customPlugins()...)
 }
 
-// runMCPServer composes the mounted plugins so their MCP tools (export_data,
-// notify, and whatever the composed plugins register) are exposed on the stdio
-// server.
 func runMCPServer(ctx context.Context) int {
 	return runMCPServerWith(ctx, composePluginsForCLI())
 }
 
-// runMCPServerWith is runMCPServer over a given plugin set, so the boot order
-// is testable without a build-time manifest.
 func runMCPServerWith(ctx context.Context, plugins []plugin.Plugin) int {
-	// config.Load applies .env to the process environment, and the stdio mount
-	// loads it again a moment later. A validator reads the environment for the
-	// credentials its plugin will use, so it has to see the same values the mount
-	// will; validating first would refuse a plugin the mount can serve.
 	if _, err := config.Load(); err != nil {
 		slog.Error("mcp failed", "err", err)
 		return 1
 	}
-	// Validate before the stdio mount registers any tool. The mount serves no
-	// HTTP and has no host behind it, so validators see the same no-op host
-	// their tools will: a plugin that needs a runtime service refuses the boot
-	// here instead of failing on first use.
 	if err := plugin.ValidateAll(ctx, plugins, plugin.EnsureHost(nil)); err != nil {
 		slog.Error("mcp failed", "err", err)
 		return 1
@@ -161,11 +120,6 @@ func runMCPServerWith(ctx context.Context, plugins []plugin.Plugin) int {
 	return 0
 }
 
-// runOpenAPI prints the published specification. It describes the same
-// composition the server boots — Core plugins and the build-time composed ones —
-// so the document is read off the live handler registrations rather than
-// described alongside them. Passing the builtins alone would emit a spec
-// missing every composed plugin's routes.
 func runOpenAPI(stdout io.Writer) int {
 	if err := openapi.Generate(stdout, composePluginsForCLI()); err != nil {
 		slog.Error("openapi generation failed", "err", err)
@@ -180,23 +134,10 @@ func bootServer(ctx context.Context) int {
 		slog.Error("init failed", "err", err)
 		return 1
 	}
-	// Compose the OSS Core feature set. This is the composition root — Core
-	// plugins are mounted the same way Pro plugins are (a.Use), and a trimmed
-	// edition would build its own main that Uses a subset.
 	for _, p := range builtin.Default() {
 		a.Use(p)
 	}
-	// Compose the full-stack example plugin so the OSS demo binary ships a
-	// complete, toggleable feature end-to-end: its Go half (hello.Plugin) pairs
-	// with the @acme/octarq-plugin-hello UI half from the frontend manifest. It
-	// implements plugin.Describer with EnabledByDefault, so the feature is on
-	// for a fresh workspace yet stays user-toggleable (it is not Core) from
-	// Settings → Plugins; the app's feature gate 404s its route and the host
-	// drops its menu while the feature is turned off.
 	a.Use(hello.Plugin{})
-	// Compose any third-party plugins wired in at build time via the
-	// OCTARQ_PLUGINS manifest (see custom_plugins.go + cmd/octarq-build). The
-	// committed default is empty, so a plain build is unaffected.
 	for _, p := range customPlugins() {
 		a.Use(p)
 	}
@@ -208,9 +149,6 @@ func bootServer(ctx context.Context) int {
 	return 0
 }
 
-// startIPCDaemon serves the Connect-RPC control plane on the Unix socket in
-// the background. It is best-effort: a socket failure is logged and the
-// server keeps running, because observability must never take down serving.
 func startIPCDaemon(ctx context.Context, version string, collector func() *monitor.Collector) {
 	socketPath := ipc.SocketPath()
 	lis, err := ipc.Listen(socketPath)
@@ -226,9 +164,6 @@ func startIPCDaemon(ctx context.Context, version string, collector func() *monit
 	}()
 }
 
-// newIPCDaemon wires daemon state into the control plane: version and start
-// time are static, reload re-validates config and re-applies the log level,
-// metrics reads the health collector (unknown when it has not started).
 func newIPCDaemon(version string, collector func() *monitor.Collector) *ipc.Daemon {
 	started := time.Now()
 	return &ipc.Daemon{

@@ -12,7 +12,6 @@ import (
 func TestAdminBackupEndpoint(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// 1. Unauthenticated request -> 401 Unauthorized
 	req := httptest.NewRequest("GET", "/api/admin/backup", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -20,7 +19,6 @@ func TestAdminBackupEndpoint(t *testing.T) {
 		t.Fatalf("unauthenticated /api/admin/backup: got %d, want 401", rec.Code)
 	}
 
-	// 2. Non-instance admin user -> 403 Forbidden
 	disableEmailVerification(t, db)
 	enableMail(t, db)
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"regular@user.com","password":"password123"}`)
@@ -40,7 +38,6 @@ func TestAdminBackupEndpoint(t *testing.T) {
 		t.Fatalf("non-admin /api/admin/backup: got %d, want 403", rec.Code)
 	}
 
-	// 3. Mark user as IsInstanceAdmin -> 200 OK with attachment header
 	if err := db.Model(&models.User{}).Where("email = ?", "regular@user.com").Update("is_instance_admin", true).Error; err != nil {
 		t.Fatalf("failed to promote user to instance admin: %v", err)
 	}

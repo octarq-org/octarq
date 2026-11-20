@@ -47,7 +47,6 @@ func TestFileModel(t *testing.T) {
 		t.Fatalf("create file2: %v", err)
 	}
 
-	// Multi-tenant check
 	var org1Files []File
 	if err := db.Where("owner_id = ?", 1).Find(&org1Files).Error; err != nil {
 		t.Fatalf("query org1 files: %v", err)
@@ -56,7 +55,6 @@ func TestFileModel(t *testing.T) {
 		t.Fatalf("expected org1 file avatar.png, got %+v", org1Files)
 	}
 
-	// MD5 lookup
 	var found File
 	if err := db.Where("md5 = ?", "098f6bcd4621d373cade4e832627b4f6").First(&found).Error; err != nil {
 		t.Fatalf("find by md5: %v", err)

@@ -17,8 +17,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/help"
 )
 
-// covLLM is a sentinel provider: LLMProviderForOrg must return the exact value
-// the injected resolver chose for the requested org.
 type covLLM struct{ name string }
 
 func (l covLLM) Name() string         { return l.name }
@@ -28,16 +26,6 @@ func (l covLLM) Complete(context.Context, llmprovider.Request) (llmprovider.Resp
 	return llmprovider.Response{}, nil
 }
 
-// ctxAssertPlugin mounts during Run's and RunMCP's plugin loops and asserts the
-// plugin Context wiring with real observable round-trips: settings written via
-// Set*Setting must read back through Get*Setting, a registered notifier must
-// receive the Notify, the cache must round-trip, Guard must admit only an
-// authenticated request, and UserID/OrgID/OrgRole must come back from the
-// request. A broken wire (say SetGlobalSetting pointing at a no-op) turns the
-// boot tests red. httpMode selects the surface Run wires (it adds PluginActive,
-// which gates routes) versus the MCP path that serves none. FeatureActive and
-// ActivePlugins are wired in both, because an entity a module declares resolves
-// its owner through them at Mount.
 type ctxAssertPlugin struct {
 	t        *testing.T
 	name     string
@@ -69,10 +57,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	t := p.t
 	t.Helper()
 
-	// The stdio MCP server re-mounts every plugin with a minimal Context (only
-	// DB/OrgID/Provide/Lookup — see mcp.buildServerInstance). That surface is
-	// pinned by TestMCPRemountUsesMinimalContext; here we just confirm the
-	// remount kept the minimal subset and defer the full assertions.
 	if ctx.Guard == nil {
 		p.present("DB", ctx.DB != nil)
 		p.present("Provide", ctx.Provide != nil)
@@ -80,7 +64,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		return
 	}
 
-	// The whole surface must be wired.
 	p.present("Guard", ctx.Guard != nil)
 	p.present("Audit", ctx.Audit != nil)
 	p.present("Notify", ctx.Notify != nil)
@@ -110,8 +93,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("Host.Settings", ctx.Host != nil && ctx.Host.Settings() != nil)
 	p.present("Host.Events", ctx.Host != nil && ctx.Host.Events() != nil)
 
-	// LLMProviderForOrg must read the resolver the core assists use: inject one
-	// and assert each org gets exactly the provider chosen for it.
 	wantA := covLLM{name: "cov-a"}
 	wantB := covLLM{name: "cov-b"}
 	ctx.SetLLMResolverForOrg(func(orgID uint) (llmprovider.Provider, error) {
@@ -141,9 +122,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		p.present("HandleRoot", ctx.HandleRoot != nil)
 		p.present("HandleStatic", ctx.HandleStatic != nil)
 	} else {
-		// PluginActive gates HTTP routes, and this process serves none. The
-		// other two are not HTTP-specific: an entity a module declares resolves
-		// its owner through them at Mount, so the MCP process needs them too.
 		if !isNilFunc(ctxField(ctx, "PluginActive")) {
 			t.Errorf("plugin.Context.PluginActive must stay nil in the MCP path")
 		}
@@ -151,7 +129,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		p.present("ActivePlugins", ctx.ActivePlugins != nil)
 	}
 
-	// Global setting round-trip.
 	if err := ctx.Host.Settings().SetGlobalSetting("cov.g"+p.name, "gv"); err != nil {
 		t.Fatalf("SetGlobalSetting: %v", err)
 	}
@@ -159,9 +136,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("GetGlobalSetting after Set = %q, want gv", got)
 	}
 
-	// Workspace setting round-trip + cross-org isolation. A fixed org id far
-	// from the auto-increment range keeps the isolation check unambiguous; the
-	// key is per-probe so the two instances never overwrite each other.
 	wsOrg := uint(4242)
 	if err := ctx.Host.Settings().SetWorkspaceSetting(wsOrg, "cov.ws"+p.name, "wv"); err != nil {
 		t.Fatalf("SetWorkspaceSetting: %v", err)
@@ -173,7 +147,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("GetWorkspaceSetting crossed org boundaries: %q", got)
 	}
 
-	// A registered notifier must receive the Notify.
 	var gotText string
 	ctx.RegisterNotifier("cov.notify."+p.name, func(_ context.Context, _, text string) error {
 		gotText = text
@@ -186,12 +159,10 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	if gotText != "hello "+p.name {
 		t.Errorf("notifier received %q, want %q", gotText, "hello "+p.name)
 	}
-	// ctx.Notify error on invalid config JSON
 	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, "undecryptable-garbage", "hello"); err == nil {
 		t.Errorf("expected ctx.Notify error on invalid config JSON, got nil")
 	}
 
-	// Cache round-trips through the real in-memory cache.
 	ck := "cov:cache:" + p.name
 	if err := ctx.CacheSet(context.Background(), ck, "cacheval", time.Minute); err != nil {
 		t.Fatalf("CacheSet: %v", err)
@@ -208,7 +179,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("CacheGet after delete = %q, want a miss", after)
 	}
 
-	// ScopedCache round-trip.
 	if err := ctx.Cache.Set(context.Background(), "scoped_k", "scoped_v", time.Minute); err != nil {
 		t.Fatalf("ScopedCache Set: %v", err)
 	}
@@ -223,9 +193,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("ScopedCache Get after delete returned found=true")
 	}
 
-	// Guard admits only an authenticated request. The identity rows are built
-	// through the wired DB so the authenticated path is self-contained; the
-	// generated user/org IDs feed the identity assertions below.
 	u := models.User{Email: p.name + "@cov.example", EmailVerified: true}
 	if err := ctx.DB.Create(&u).Error; err != nil {
 		t.Fatalf("create user: %v", err)
@@ -262,7 +229,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("Guard blocked an authenticated request: %d", authed.Code)
 	}
 
-	// Identity extraction returns the request's user/org/role.
 	if got := ctx.Host.Session().UserID(authedReq); got != u.ID {
 		t.Errorf("UserID = %d, want %d", got, u.ID)
 	}
@@ -282,7 +248,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Error("owner failed RequirePerm(min member)")
 	}
 
-	// Encrypt/Decrypt round-trip.
 	enc, err := ctx.Host.Crypto().Encrypt([]byte("cov secret"))
 	if err != nil {
 		t.Fatalf("Encrypt: %v", err)
@@ -291,13 +256,11 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("Decrypt(Encrypt(x)) = %q, %v; want cov secret", dec, err)
 	}
 
-	// ParseUA actually parses a desktop Chrome UA.
 	dev, browser, osName := ctx.ParseUA("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 	if dev == "" && browser == "" && osName == "" {
 		t.Error("ParseUA returned no fields for a desktop Chrome UA")
 	}
 
-	// RegisterAuthMethod surfaces the method to auth.List.
 	ctx.RegisterAuthMethod(plugin.AuthMethod{ID: "cov.method." + p.name})
 	var methodFound bool
 	for _, m := range auth.List() {
@@ -309,7 +272,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Error("RegisterAuthMethod did not surface in auth.List")
 	}
 
-	// RegisterWebhookEvent surfaces the event to the eventbus registry.
 	ctx.Host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "cov.event." + p.name, Group: "cov", Title: "t", Description: "d"})
 	var eventFound bool
 	for _, g := range eventbus.EventGroups() {
@@ -323,13 +285,11 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Error("RegisterWebhookEvent did not surface in eventbus.EventGroups")
 	}
 
-	// RecordUsage reaches the usage-meter service.
 	ctx.RecordUsage(o.ID, "clicks", 5)
 	if p.cap.usageMetric != "clicks" || p.cap.usageN != 5 {
 		t.Errorf("usage meter got %q/%d, want clicks/5", p.cap.usageMetric, p.cap.usageN)
 	}
 
-	// SendMail reaches the mail-send service.
 	if err := ctx.SendMail(o.ID, "to@cov.example", "sub", "<p>h</p>", "h"); err != nil {
 		t.Fatalf("SendMail: %v", err)
 	}
@@ -337,19 +297,14 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("mail service got to=%q, want to@cov.example", p.cap.mailTo)
 	}
 
-	// OnEmail must hand the handler to the dispatcher (immediate for the probe
-	// mounted after it, deferred-and-flushed for the one before it; the boot
-	// test asserts the captured count).
 	ctx.Host.Events().OnEmail(func(plugin.EmailEvent) {})
 
-	// Provide/Lookup round-trip.
 	svc := "cov.svc." + p.name
 	ctx.Provide(svc, "svcval")
 	if v, ok := ctx.Lookup(svc); !ok || v != "svcval" {
 		t.Errorf("Lookup after Provide = %v (ok=%v), want svcval", v, ok)
 	}
 
-	// Exercise Tracer, Meter, GeoLookup, Enqueue, RegisterTask, RegisterReactor, RegisterTenantView, RegisterEndpoint
 	if ctx.Tracer != nil {
 		_ = ctx.Tracer("test-tracer")
 	}
@@ -382,8 +337,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		})
 	}
 
-	// ActivePlugins answers the composed set in both processes, so a module's
-	// declaration can resolve its owner wherever it boots.
 	names := map[string]bool{}
 	for _, pl := range ctx.ActivePlugins() {
 		names[pl.Name()] = true
@@ -392,7 +345,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("ActivePlugins missing %s (have %v)", p.name, names)
 	}
 
-	// HTTP-only enablement behavior.
 	if p.httpMode {
 		if !ctx.PluginActive(1, help.New()) {
 			t.Error("core help plugin reported inactive")
@@ -411,7 +363,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		}
 	}
 
-	// LoginByEmail provisions a real account through the wired auth manager.
 	rec := httptest.NewRecorder()
 	uid, err := ctx.LoginByEmail(rec, httptest.NewRequest(http.MethodGet, "/", nil), "cov-login-"+p.name+"@example.com")
 	if err != nil {
@@ -424,7 +375,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Error("LoginByEmail issued no session cookie")
 	}
 
-	// LoginByIdentity provisions a JIT account through the wired resolver.
 	recID := httptest.NewRecorder()
 	uid, err = ctx.LoginByIdentity(recID, httptest.NewRequest(http.MethodGet, "/", nil), plugin.ExternalIdentity{
 		Provider: "oidc", Issuer: "https://cov.example", Subject: p.name + "-s",
@@ -437,7 +387,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Error("LoginByIdentity returned user 0")
 	}
 
-	// RevokeUserOrgSessions removes the guard session minted above.
 	if n := ctx.Host.Session().RevokeUserOrgSessions(u.ID, o.ID); n < 1 {
 		t.Errorf("revoked %d session(s), want >= 1", n)
 	}

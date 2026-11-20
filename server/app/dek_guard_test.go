@@ -9,7 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// dekProbePlugin answers EncryptedDataReporter for the guard's test.
 type dekProbePlugin struct {
 	testDummyPlugin
 	has   bool
@@ -21,9 +20,6 @@ func (p *dekProbePlugin) HasEncryptedData() (bool, error) {
 	return p.has, nil
 }
 
-// A boot that had to create a fresh DEK while a plugin still holds ciphertext
-// must stop. Continuing would serve an instance whose plugin data no longer
-// decrypts, and the fresh key would hide the fact on every later boot.
 func TestBootRefusesAFreshDEKWhenAPluginHoldsCiphertext(t *testing.T) {
 	a := bootApp(t)
 	probe := &dekProbePlugin{testDummyPlugin: testDummyPlugin{name: "sealed-plugin"}, has: true}
@@ -48,8 +44,6 @@ func TestBootRefusesAFreshDEKWhenAPluginHoldsCiphertext(t *testing.T) {
 	}
 }
 
-// A plugin with nothing sealed must not stop a boot that legitimately creates
-// the first DEK on a fresh instance.
 func TestBootCreatesTheFirstDEKWhenNoPluginHoldsCiphertext(t *testing.T) {
 	a := bootApp(t)
 	probe := &dekProbePlugin{testDummyPlugin: testDummyPlugin{name: "empty-plugin"}, has: false}

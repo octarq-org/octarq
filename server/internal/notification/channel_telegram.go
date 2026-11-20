@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TelegramChannel delivers notifications via Telegram bot.
 type TelegramChannel struct {
 	db    *gorm.DB
 	host  plugin.Host
@@ -24,17 +23,14 @@ type TelegramChannel struct {
 
 var _ plugin.NotificationChannel = (*TelegramChannel)(nil)
 
-// SetHost injects the host runtime SPI for credential resolution.
 func (c *TelegramChannel) SetHost(h plugin.Host) {
 	c.host = h
 }
 
-// SetVaultService injects VaultService for resolving local channel secrets.
 func (c *TelegramChannel) SetVaultService(vs plugin.VaultService) {
 	c.vault = vs
 }
 
-// NewTelegramChannel constructs a Telegram notification channel driver.
 func NewTelegramChannel(db ...*gorm.DB) *TelegramChannel {
 	var gdb *gorm.DB
 	if len(db) > 0 {
@@ -43,17 +39,14 @@ func NewTelegramChannel(db ...*gorm.DB) *TelegramChannel {
 	return &TelegramChannel{db: gdb}
 }
 
-// Name returns the channel identifier "telegram".
 func (c *TelegramChannel) Name() string {
 	return "telegram"
 }
 
-// DisplayName returns the human-readable channel name.
 func (c *TelegramChannel) DisplayName() string {
 	return "Telegram"
 }
 
-// ConfigSchema returns the JSON Schema for user configuration.
 func (c *TelegramChannel) ConfigSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"$schema": "http://json-schema.org/draft-07/schema#",
@@ -73,7 +66,6 @@ func (c *TelegramChannel) ConfigSchema() json.RawMessage {
 	}`)
 }
 
-// Send delivers a notification via Telegram.
 func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	var botToken, chatIDStr string
 	var reqIntegID uint
@@ -151,10 +143,6 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		targetOrg = strings.TrimSpace(payload.OrgID)
 	}
 
-	// 1. Resolve botToken via Host SPI (Centralized Integrations Hub). A config
-	// that names an integration is answered by the Hub alone: falling back to
-	// the local row would send through a credential the operator did not select.
-	// A token left in a stale row must not shadow it either.
 	if reqIntegID > 0 {
 		botToken = ""
 	}
@@ -196,7 +184,6 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		}
 	}
 
-	// 2. Local channel config, only when no integration was named.
 	if (botToken == "" || chatIDStr == "") && reqIntegID == 0 && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel

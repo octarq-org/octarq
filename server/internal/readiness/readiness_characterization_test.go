@@ -29,7 +29,6 @@ func TestReadinessCharacterizationBlockedRegistration(t *testing.T) {
 		SecretKey: "01234567890123456789012345678901",
 	}
 
-	// When requireEmailVerification=true but mailReady=false -> Registration MUST be StatusBlocked
 	checks := readiness.Evaluate(cfg, false, false, true)
 	var foundReg bool
 	for _, c := range checks {

@@ -24,7 +24,6 @@ func migrated(t *testing.T) *gorm.DB {
 	return db
 }
 
-// goodMirror declares a subset of org_members, which is what a real mirror does.
 type goodMirror struct {
 	OrgID  uint   `gorm:"column:org_id"`
 	UserID uint   `gorm:"column:user_id"`
@@ -33,8 +32,6 @@ type goodMirror struct {
 
 func (goodMirror) TableName() string { return "org_members" }
 
-// driftedMirror names a column org_members does not have — the shape a mirror
-// takes after core renames something under it.
 type driftedMirror struct {
 	OrgID uint   `gorm:"column:org_id"`
 	Role  string `gorm:"column:member_role"`
@@ -50,8 +47,6 @@ func (goneMirror) TableName() string { return "table_that_never_existed" }
 
 func TestModelsMigrate(t *testing.T) {
 	db := migrated(t)
-	// The tables plugins actually mirror. If core stops shipping one of these,
-	// every mirror of it is dead and this is where that shows up first.
 	for _, table := range []string{"orgs", "org_members", "settings", "workspace_settings", "audit_logs", "notification_channels"} {
 		if !db.Migrator().HasTable(table) {
 			t.Errorf("core schema has no table %q", table)
@@ -86,8 +81,6 @@ func TestCheckMirrorRejectsDrift(t *testing.T) {
 		t.Fatal("a mirror naming a column the table does not have must fail")
 		return
 	}
-	// The message has to name the offending column: "schema drift" alone sends
-	// the reader back to diffing two structs by eye.
 	if !strings.Contains(err.Error(), "member_role") {
 		t.Errorf("error should name the missing column, got: %v", err)
 	}

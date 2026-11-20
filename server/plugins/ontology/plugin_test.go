@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ticketDoc is the acceptance declaration: a ticket with a unique title, a
-// status, a priority and a due date.
 const ticketDoc = `{"entities":[{
   "slug":"tickets","label":"Ticket","pluralLabel":"Tickets","icon":"ticket",
   "fields":[
@@ -35,15 +33,10 @@ func mount(t *testing.T, doc string) *Plugin {
 	t.Setenv(EntitiesEnv, doc)
 	t.Setenv(EntitiesFileEnv, "")
 	p := New()
-	// A mounted plugin publishes menus only when it has a database to apply the
-	// declaration to, so the fixture supplies the one a booted server has.
 	p.Mount(nil, &plugin.Context{DB: openDB(t)})
 	return p
 }
 
-// TestMountWithoutDeclarationsPublishesNothing pins the off switch: an
-// installation with no declaration file is valid, and nothing appears in the
-// sidebar or on the API.
 func TestMountWithoutDeclarationsPublishesNothing(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv(EntitiesEnv, "")
@@ -79,9 +72,6 @@ func TestMountRefusesUnknownIcon(t *testing.T) {
 	}
 }
 
-// TestToolNamesFitProtocolLimit pins the arithmetic behind toolPrefix. MCP
-// clients reject a tool name longer than 64 bytes, and the longest name comes
-// from the longest slug the pattern allows.
 func TestToolNamesFitProtocolLimit(t *testing.T) {
 	longest := "a" + strings.Repeat("0", 40)
 	if !core.SlugPattern.MatchString(longest) || len(longest) != 41 {
@@ -108,7 +98,6 @@ func TestMenusPublishOneEntryPerEntity(t *testing.T) {
 	if got.Category != "Workspace" || got.Area != "operations" {
 		t.Fatalf("menu placement = %+v", got)
 	}
-	// Every operation but delete grants member, so the entry stays visible.
 	if got.RequiredRole != "" {
 		t.Fatalf("RequiredRole = %q, want empty for a member-visible entity", got.RequiredRole)
 	}
@@ -161,8 +150,6 @@ func TestMCPTierTakesTheHighestDeclared(t *testing.T) {
 	}
 }
 
-// TestMCPTierIgnoresOperationsNotExposed pins that a tier on a hidden operation
-// does not license-gate the visible ones.
 func TestMCPTierIgnoresOperationsNotExposed(t *testing.T) {
 	doc := strings.Replace(ticketDoc, `"delete":{"roles":["admin"],"exposeMcp":true}`, `"delete":{"roles":["admin"],"exposeMcp":false,"tier":"elite"}`, 1)
 	p := mount(t, doc)
@@ -226,10 +213,6 @@ func TestInputSchemaDefaultsAreTyped(t *testing.T) {
 	}
 }
 
-// TestValidateReadsTheDeclarationBeforeAnyMount pins the order `octarq mcp`
-// uses: it validates first, then mounts. A declaration only Mount read would
-// never be checked on that path, and the CLI would start with no tool, no
-// message and exit status 0.
 func TestValidateReadsTheDeclarationBeforeAnyMount(t *testing.T) {
 	t.Setenv(EntitiesEnv, `{"entities":[{"slug":"tickets","label":"Ticket","fields":[{"name":"title","type":"strin"}]}]}`)
 	t.Setenv(EntitiesFileEnv, "")
@@ -240,9 +223,6 @@ func TestValidateReadsTheDeclarationBeforeAnyMount(t *testing.T) {
 	}
 }
 
-// TestMenusStayHiddenWhenTheSchemaWasNotApplied pins the sidebar to the routes:
-// a composition that applied nothing publishes no menu, because the page the
-// entry opens does not exist.
 func TestMenusStayHiddenWhenTheSchemaWasNotApplied(t *testing.T) {
 	t.Setenv(EntitiesEnv, ticketDoc)
 	t.Setenv(EntitiesFileEnv, "")
@@ -257,9 +237,6 @@ func TestMenusStayHiddenWhenTheSchemaWasNotApplied(t *testing.T) {
 	}
 }
 
-// TestExampleDeclarationLoads keeps the shipped example honest. It is the file
-// an operator copies, so a key the loader refuses would be a broken first step
-// that no other test would notice.
 func TestExampleDeclarationLoads(t *testing.T) {
 	specs, err := core.Load("", filepath.Join("..", "..", "..", "octarq.entities.example.json"))
 	if err != nil {
@@ -268,8 +245,6 @@ func TestExampleDeclarationLoads(t *testing.T) {
 	if len(specs) != 2 || specs[0].Slug != "tickets" || specs[1].Slug != "notes" {
 		t.Fatalf("example declares %d entities, want the tickets and notes entities", len(specs))
 	}
-	// The example must show both scopes: a workspace table and one that belongs
-	// to a member.
 	if core.ScopeOf(specs[0]) != core.ScopeOrg || core.ScopeOf(specs[1]) != core.ScopeUser {
 		t.Fatalf("example scopes = %q, %q, want org then user",
 			core.ScopeOf(specs[0]), core.ScopeOf(specs[1]))

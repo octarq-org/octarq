@@ -73,7 +73,6 @@ func verifyAppGoUsesUnifiedConstructor(t *testing.T) {
 		t.Fatalf("failed to parse app.go: %v", err)
 	}
 
-	// 1. Ensure no raw &plugin.Context composite literals remain in app.go
 	pctxInAppGo := 0
 	ast.Inspect(node, func(n ast.Node) bool {
 		compLit, ok := n.(*ast.CompositeLit)
@@ -91,7 +90,6 @@ func verifyAppGoUsesUnifiedConstructor(t *testing.T) {
 		t.Fatalf("expected 0 direct plugin.Context literals in app.go (must use unified constructor), found %d", pctxInAppGo)
 	}
 
-	// 2. Ensure both Run and RunMCP call buildPluginContext
 	buildPluginContextCalls := 0
 	ast.Inspect(node, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
@@ -126,28 +124,22 @@ func TestRecordUsageLazyResolution(t *testing.T) {
 	var capturedN int64
 
 	recordUsageFn := func(orgID uint, metric string, n int64) {
-		// Lazily resolved: the same LookupServiceAs path app.go's RecordUsage
-		// closure uses, through the named contract type.
 		if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](reg.Lookup, plugin.ServiceCloudUsage); ok {
 			fn(orgID, metric, n)
 		}
 	}
 
-	// 1. Call before provide -> no-op, no panic
 	recordUsageFn(1, "links", 1)
 	if capturedOrgID != 0 {
 		t.Fatal("expected no-op when cloud.usage is not provided")
 	}
 
-	// 2. Register service after plugin mount, converted to the named contract
-	// type exactly as the Pro cloud module provider does.
 	reg.Provide(plugin.ServiceCloudUsage, plugin.UsageMeter(func(orgID uint, metric string, n int64) {
 		capturedOrgID = orgID
 		capturedMetric = metric
 		capturedN = n
 	}))
 
-	// 3. Call after provide -> resolves lazily and invokes target
 	recordUsageFn(42, "links", 5)
 	if capturedOrgID != 42 || capturedMetric != "links" || capturedN != 5 {
 		t.Fatalf("lazy resolution failed: got org=%d metric=%s n=%d", capturedOrgID, capturedMetric, capturedN)
@@ -212,7 +204,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	var emailMu sync.Mutex
 	var deferredEmail []func(plugin.EmailEvent)
 
-	// Test 1: HTTP mode
 	httpCtx := a.BuildPluginContext(app.PluginContextTestParams{
 		Cipher:          c,
 		Services:        plugin.NewRegistry(),
@@ -246,7 +237,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	if httpCtx.LLMProviderForOrg == nil {
 		t.Fatal("expected httpCtx.LLMProviderForOrg to be non-nil")
 	}
-	// With no api handler the getter must fail closed, never (nil, nil).
 	if p, err := httpCtx.LLMProviderForOrg(1); err == nil || p != nil {
 		t.Fatalf("httpCtx.LLMProviderForOrg(1) = (%v, %v), want (nil, error)", p, err)
 	}
@@ -260,7 +250,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatal("expected plugin/feature active closures to be non-nil in HTTP mode")
 	}
 
-	// Verify crypto facade delegation
 	ciphertext, err := httpCtx.Host.Crypto().Encrypt([]byte("secret-token"))
 	if err != nil {
 		t.Fatalf("Encrypt failed: %v", err)
@@ -270,7 +259,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatalf("Decrypt via Host.Crypto failed: got %q, %v", string(plaintext), err)
 	}
 
-	// Verify Session contracts with nil auth/api
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	if httpCtx.Host.Session().UserID(req) != 0 {
 		t.Fatal("expected UserID 0 with nil auth")
@@ -294,7 +282,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatal("expected RevokeUserOrgSessions 0 with nil auth")
 	}
 
-	// Verify Settings contracts with nil apiHandler
 	if httpCtx.Host.Settings().GetWorkspaceSetting(1, "key") != "" {
 		t.Fatal("expected empty workspace setting with nil api")
 	}
@@ -308,7 +295,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatal("expected error setting global setting with nil api")
 	}
 
-	// Verify Events contracts
 	httpCtx.Host.Events().PublishEvent(1, "test.event", map[string]any{"ok": true})
 	httpCtx.Host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{
 		Key:         "user.created",
@@ -316,7 +302,7 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		Title:       "User Created",
 		Description: "Triggered on user creation",
 	})
-	httpCtx.Host.Events().OnEmail(nil) // nil handler no-op
+	httpCtx.Host.Events().OnEmail(nil)
 	var receivedEmail bool
 	httpCtx.Host.Events().OnEmail(func(e plugin.EmailEvent) {
 		receivedEmail = true
@@ -329,7 +315,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatal("expected deferred email handler invocation")
 	}
 
-	// Verify OnEmail through services registry
 	servicesWithMail := plugin.NewRegistry()
 	var dispatchedEmail bool
 	servicesWithMail.Provide(plugin.ServiceMailDispatcher, plugin.EmailDispatcher(func(handler func(plugin.EmailEvent)) {
@@ -344,7 +329,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatal("expected OnEmail to dispatch via ServiceMailDispatcher")
 	}
 
-	// Verify Crypto with nil cipher returns error
 	ctxNoCipher := a.BuildPluginContext(app.PluginContextTestParams{})
 	if _, err := ctxNoCipher.Host.Crypto().Encrypt([]byte("test")); err == nil {
 		t.Fatal("expected error encrypting with nil cipher")
@@ -353,7 +337,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		t.Fatal("expected error decrypting with nil cipher")
 	}
 
-	// Test 2: MCP mode
 	mcpCtx := a.BuildPluginContext(app.PluginContextTestParams{
 		Cipher:          c,
 		Services:        plugin.NewRegistry(),
@@ -380,9 +363,6 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	if mcpCtx.RegisterNotificationChannel == nil {
 		t.Fatal("expected mcpCtx.RegisterNotificationChannel to be non-nil")
 	}
-	// MCP mode contract: PluginActive gates routes and this process serves none.
-	// FeatureActive and ActivePlugins are wired in both processes, because an
-	// entity a module declares resolves its owner through them at Mount.
 	if mcpCtx.PluginActive != nil {
 		t.Fatal("expected PluginActive to stay nil in MCP mode")
 	}

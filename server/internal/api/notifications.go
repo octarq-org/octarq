@@ -13,8 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// --- In-App Notifications API ---
-
 type ListNotificationsInput struct {
 	Ctx        huma.Context `hidden:"true"`
 	UnreadOnly bool         `query:"unread_only" doc:"Filter only unread notifications"`
@@ -192,8 +190,6 @@ func (h *Handler) deleteNotification(ctx context.Context, input *DeleteNotificat
 	return &DeleteNotificationOutput{Body: SimpleOKOutputBody{OK: true}}, nil
 }
 
-// --- Notification Preferences API ---
-
 type GetNotificationPreferencesInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -269,8 +265,6 @@ func (h *Handler) updateNotificationPreferences(ctx context.Context, input *Upda
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 
 	if len(input.Body.Preferences) > 0 {
-		// A full matrix save: the submitted rows are the user's whole routing
-		// table, so a rule the user deleted in the page must disappear here too.
 		if err := notification.ReplacePreferences(ctx, h.db, uidStr, input.Body.Preferences); err != nil {
 			return nil, huma.Error500InternalServerError("Could not save notification preferences; retry the request")
 		}
@@ -332,8 +326,6 @@ func (h *Handler) resetNotificationPreferences(ctx context.Context, input *Reset
 
 	return &ResetNotificationPreferencesOutput{Body: SimpleOKOutputBody{OK: true}}, nil
 }
-
-// --- Registered Notification Channels API ---
 
 type RegisteredChannelInfo struct {
 	Name         string          `json:"name"`

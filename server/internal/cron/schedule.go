@@ -7,12 +7,10 @@ import (
 	"time"
 )
 
-// Schedule defines when a cron job should run next.
 type Schedule interface {
 	Next(from time.Time) time.Time
 }
 
-// EverySchedule runs a task repeatedly at fixed duration intervals.
 type EverySchedule struct {
 	Duration time.Duration
 }
@@ -24,14 +22,13 @@ func (s EverySchedule) Next(from time.Time) time.Time {
 	return from.Add(s.Duration)
 }
 
-// CronSchedule represents a parsed standard 5-field or 6-field (with seconds) cron expression.
 type CronSchedule struct {
-	seconds       uint64 // bits 0-59
-	minutes       uint64 // bits 0-59
-	hours         uint64 // bits 0-23
-	daysOfMonth   uint64 // bits 1-31
-	months        uint64 // bits 1-12
-	daysOfWeek    uint64 // bits 0-6 (0=Sun, 6=Sat)
+	seconds       uint64
+	minutes       uint64
+	hours         uint64
+	daysOfMonth   uint64
+	months        uint64
+	daysOfWeek    uint64
 	domRestricted bool
 	dowRestricted bool
 }
@@ -45,14 +42,12 @@ var dayOfWeekNames = map[string]int{
 	"SUN": 0, "MON": 1, "TUE": 2, "WED": 3, "THU": 4, "FRI": 5, "SAT": 6,
 }
 
-// ParseStandard parses a cron expression (5 fields, 6 fields with seconds, or descriptors).
 func ParseStandard(spec string) (Schedule, error) {
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
 		return nil, fmt.Errorf("cron: empty spec")
 	}
 
-	// Handle descriptors
 	if strings.HasPrefix(spec, "@") {
 		lower := strings.ToLower(spec)
 		if strings.HasPrefix(lower, "@every ") {
@@ -93,8 +88,6 @@ func ParseStandard(spec string) (Schedule, error) {
 }
 
 func parseFields(fields []string) (*CronSchedule, error) {
-	// 5 fields: minute hour dom month dow
-	// seconds defaults to bit 0 set (second = 0)
 	sched := &CronSchedule{
 		seconds: 1 << 0,
 	}
@@ -135,7 +128,6 @@ func parseFields(fields []string) (*CronSchedule, error) {
 }
 
 func parseFields6(fields []string) (*CronSchedule, error) {
-	// 6 fields: second minute hour dom month dow
 	sched := &CronSchedule{}
 
 	sec, err := parseField(fields[0], 0, 59, nil)
@@ -258,7 +250,6 @@ func parseDayOfWeekField(expr string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	// Day 7 is also Sunday (0)
 	if (bits & (1 << 7)) != 0 {
 		bits |= (1 << 0)
 		bits &^= (1 << 7)
@@ -303,8 +294,6 @@ func daysInMonth(year int, month time.Month) int {
 	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }
 
-// Next returns the earliest time after `from` that satisfies the cron schedule.
-// If no match is found within 5 years, returns zero time.
 func (s *CronSchedule) Next(from time.Time) time.Time {
 	t := from.Truncate(time.Second).Add(time.Second)
 	loc := from.Location()
@@ -316,31 +305,26 @@ func (s *CronSchedule) Next(from time.Time) time.Time {
 	limitYear := t.Year() + 5
 
 	for t.Year() <= limitYear {
-		// Month match
 		if (s.months & (1 << uint(t.Month()))) == 0 {
 			t = time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, loc)
 			continue
 		}
 
-		// Day match
 		if t.Day() > daysInMonth(t.Year(), t.Month()) || !s.matchDay(t) {
 			t = time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, loc)
 			continue
 		}
 
-		// Hour match
 		if (s.hours & (1 << uint(t.Hour()))) == 0 {
 			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour()+1, 0, 0, 0, loc)
 			continue
 		}
 
-		// Minute match
 		if (s.minutes & (1 << uint(t.Minute()))) == 0 {
 			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute()+1, 0, 0, loc)
 			continue
 		}
 
-		// Second match
 		if (s.seconds & (1 << uint(t.Second()))) == 0 {
 			t = t.Add(time.Second)
 			continue

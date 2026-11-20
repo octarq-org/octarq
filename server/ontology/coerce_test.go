@@ -87,10 +87,6 @@ func TestDecodeValuesRefusesWrongTypes(t *testing.T) {
 	}
 }
 
-// TestDecodeValuesBoundsStringWidth pins the one limit the column type carries.
-// A string column is VARCHAR(255) on Postgres and MySQL and TEXT on SQLite, so
-// without this check the same body is accepted on SQLite and refused by the
-// driver on the other two — a 500 instead of a 422.
 func TestDecodeValuesBoundsStringWidth(t *testing.T) {
 	atLimit := strings.Repeat("a", 255)
 	if _, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"`+atLimit+`"}`)); err != nil {
@@ -100,7 +96,6 @@ func TestDecodeValuesBoundsStringWidth(t *testing.T) {
 	if _, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"`+overLimit+`"}`)); err == nil {
 		t.Fatal("a value wider than the column was accepted")
 	}
-	// Text is unbounded on every dialect, so the same width passes there.
 	textSpec := valueSpec()
 	textSpec.Fields = append(textSpec.Fields, ontology.Field{Name: "body", Type: ontology.TypeText})
 	if _, err := ontology.DecodeValues(textSpec, []byte(`{"title":"x","body":"`+overLimit+`"}`)); err != nil {
@@ -154,9 +149,6 @@ func TestFromRowRendersColumns(t *testing.T) {
 	}
 }
 
-// TestDecodeValuesRefusesADuplicateKey pins the refusal of a body that names a
-// field twice. encoding/json keeps the last value and reports nothing, so the
-// caller would believe the first one was applied.
 func TestDecodeValuesRefusesADuplicateKey(t *testing.T) {
 	_, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"a","title":"b"}`))
 	if err == nil || !strings.Contains(err.Error(), "sent twice") {
@@ -164,8 +156,6 @@ func TestDecodeValuesRefusesADuplicateKey(t *testing.T) {
 	}
 }
 
-// TestDecodeValuesRefusesADuplicateKeyAtAnyDepth covers the nested case: a json
-// field carries its own object, and a duplicate inside it is just as silent.
 func TestDecodeValuesRefusesADuplicateKeyAtAnyDepth(t *testing.T) {
 	_, err := ontology.DecodeValues(valueSpec(), []byte(`{"title":"a","extra":{"a":1,"a":2}}`))
 	if err == nil || !strings.Contains(err.Error(), `"a"`) {

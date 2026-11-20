@@ -24,7 +24,6 @@ func testAuth(org uint64) AuthFunc {
 	}
 }
 
-// readStream consumes SSE frames until ctx ends, collecting data chunks delimited by double newline.
 func readStream(t *testing.T, ctx context.Context, body io.Reader, out chan<- string) {
 	t.Helper()
 	buf := make([]byte, 0, 4096)
@@ -79,7 +78,7 @@ func TestRegisterUnregister(t *testing.T) {
 		t.Fatalf("connections = %d", h.Connections(1))
 	}
 	h.Unregister(a)
-	h.Unregister(a) // idempotent
+	h.Unregister(a)
 	if h.Connections(1) != 1 {
 		t.Fatalf("connections = %d, want 1", h.Connections(1))
 	}
@@ -87,11 +86,9 @@ func TestRegisterUnregister(t *testing.T) {
 	if h.Connections(1) != 0 {
 		t.Fatalf("connections = %d, want 0", h.Connections(1))
 	}
-	h.Unregister(nil) // no panic
+	h.Unregister(nil)
 }
 
-// TestNonBlockingDrops satisfies:
-// Saturate a slow subscriber channel and verify dropped.Load() > 0 without blocking the publisher.
 func TestNonBlockingDrops(t *testing.T) {
 	h := New(WithBuffer(2))
 	c, err := h.Register(1)
@@ -100,7 +97,6 @@ func TestNonBlockingDrops(t *testing.T) {
 	}
 	defer h.Unregister(c)
 
-	// Publish more events than buffer capacity (2) without reading from subscriber channel.
 	start := time.Now()
 	for i := 0; i < 10; i++ {
 		if err := h.Broadcast(1, fmt.Sprintf("evt-%d", i)); err != nil {
@@ -125,10 +121,8 @@ func TestNonBlockingDrops(t *testing.T) {
 	}
 }
 
-// TestPerTenantConnectionLimit satisfies:
-// Register 32 connections for one tenant, verify 33rd returns ErrTenantFull.
 func TestPerTenantConnectionLimit(t *testing.T) {
-	h := New() // DefaultTenantCap = 32
+	h := New()
 	conns := make([]*Conn, 0, DefaultTenantCap)
 	for i := 0; i < DefaultTenantCap; i++ {
 		c, err := h.Register(1)
@@ -143,15 +137,12 @@ func TestPerTenantConnectionLimit(t *testing.T) {
 		}
 	}()
 
-	// 33rd connection must fail with ErrTenantFull
 	_, err := h.Register(1)
 	if !errors.Is(err, ErrTenantFull) {
 		t.Fatalf("33rd connection error = %v, want ErrTenantFull", err)
 	}
 }
 
-// TestCrossTenantIsolation satisfies:
-// Broadcast to Org 1 does not reach Org 2.
 func TestCrossTenantIsolation(t *testing.T) {
 	h := New()
 	c1, err := h.Register(1)
@@ -183,12 +174,9 @@ func TestCrossTenantIsolation(t *testing.T) {
 	case id := <-c2.queue:
 		t.Fatalf("cross-tenant leak: org 2 received event %q", id)
 	case <-time.After(100 * time.Millisecond):
-		// Expected: nothing received by org 2
 	}
 }
 
-// TestHeartbeatEmitsPingComments satisfies:
-// Test heartbeat emitting ping comments.
 func TestHeartbeatEmitsPingComments(t *testing.T) {
 	h := New(WithAuth(testAuth(1)), WithHeartbeat(25*time.Millisecond))
 	srv := httptest.NewServer(h)
@@ -338,14 +326,12 @@ func TestStreamCarriesIdentifiersOnly(t *testing.T) {
 func TestUnauthenticatedAndCSRFRejected(t *testing.T) {
 	h := New(WithOrigins(".example.com"))
 
-	// No authenticator at all.
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/events", nil))
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", rec.Code)
 	}
 
-	// Authenticator that rejects.
 	h2 := New(WithAuth(testAuth(0)))
 	rec = httptest.NewRecorder()
 	h2.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/events", nil))
@@ -353,7 +339,6 @@ func TestUnauthenticatedAndCSRFRejected(t *testing.T) {
 		t.Fatalf("status = %d, want 401", rec.Code)
 	}
 
-	// Authenticated with CSRF hook failure.
 	csrfErr := errors.New("csrf mismatch")
 	hCSRF := New(WithAuth(testAuth(1)), WithCSRFVerify(func(r *http.Request, orgID uint64) error {
 		return csrfErr
@@ -364,7 +349,6 @@ func TestUnauthenticatedAndCSRFRejected(t *testing.T) {
 		t.Fatalf("status = %d, want 403 on CSRF failure", rec.Code)
 	}
 
-	// Authenticated but cross-site origin.
 	h3 := New(WithAuth(testAuth(1)), WithOrigins(".example.com"))
 	req := httptest.NewRequest(http.MethodGet, "/api/events", nil)
 	req.Header.Set("Origin", "https://evil.test")
@@ -374,7 +358,6 @@ func TestUnauthenticatedAndCSRFRejected(t *testing.T) {
 		t.Fatalf("status = %d, want 403", rec.Code)
 	}
 
-	// Allowlisted origin passes the gate.
 	req = httptest.NewRequest(http.MethodGet, "/api/events", nil)
 	req.Header.Set("Origin", "https://app.example.com")
 	ctx, cancel := context.WithCancel(req.Context())
@@ -452,7 +435,6 @@ func TestTenantCapAndBackpressure(t *testing.T) {
 		t.Fatalf("connections = %d, want 2", h.Connections(1))
 	}
 
-	// Third connection is refused with 429.
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/events", nil))
 	if rec.Code != http.StatusTooManyRequests {
@@ -611,7 +593,6 @@ func TestConnClose(t *testing.T) {
 	default:
 		t.Fatal("c.Done() not closed after c.Close()")
 	}
-	// idempotent
 	c.Close()
 	if !c.closed.Load() {
 		t.Fatal("c.closed is not true")
@@ -672,7 +653,6 @@ func TestHubDroppedAggregates(t *testing.T) {
 			t.Fatalf("Broadcast: %v", err)
 		}
 	}
-	// buffer 1: one queued, two overflow.
 	if got := h.Dropped(); got != 2 {
 		t.Fatalf("hub dropped = %d, want 2", got)
 	}

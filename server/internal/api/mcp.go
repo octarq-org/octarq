@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
 )
 
-// mcpAuth is a middleware that authenticates MCP requests. An authenticated
-// session passes; otherwise a valid ?token= query parameter is accepted.
 func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h.auth.OrgID(r) != 0 {
@@ -24,16 +22,7 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 		if strings.HasPrefix(token, "oct_") {
 			hash := models.HashToken(token)
 			var tok models.Token
-			// tok.OrgID != 0 is a deliberate fail-closed guard: the networked MCP
-			// tools default an unresolved org to 1 (the stdio-CLI single-tenant
-			// default), so a token that somehow carries owner_id 0 must never be
-			// admitted here — it would read tenant 1's data. Legitimate tokens can't
-			// have owner_id 0 (the column defaults to 1), so this only rejects
-			// corrupt rows.
 			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() && tok.OrgID != 0 {
-				// Stamp the token identity, not just the org: without it an
-				// MCP-driven mutation lands in the audit log with actor 0 and no
-				// tokenId, i.e. attributable to nobody at all.
 				ctx := auth.WithOrgID(r.Context(), tok.OrgID)
 				ctx = auth.WithUserID(ctx, tok.UserID)
 				ctx = h.auth.WithTokenIdentity(ctx, tok)
@@ -46,12 +35,9 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 	})
 }
 
-// mcpSSEHandler returns an http.Handler that handles MCP over SSE (Server-Sent Events).
 func (h *Handler) mcpSSEHandler() http.Handler {
 	handler := mcp.NewSSEHandler(func(r *http.Request) *mcp.Server {
 		orgID := h.orgID(r)
-		// The caller here is one tenant among many, so only the tenant-scoped
-		// tools exist — there is no raw-SQL tool on any transport to withhold.
 		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.activePlugins(orgID), h.LookupService)
 	}, &mcp.SSEOptions{
 		DisableLocalhostProtection: true,
@@ -64,12 +50,9 @@ func (h *Handler) mcpSSEHandler() http.Handler {
 	})
 }
 
-// mcpStreamHandler returns an http.Handler that handles MCP over Streamable HTTP.
 func (h *Handler) mcpStreamHandler() http.Handler {
 	handler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		orgID := h.orgID(r)
-		// The caller here is one tenant among many, so only the tenant-scoped
-		// tools exist — there is no raw-SQL tool on any transport to withhold.
 		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.activePlugins(orgID), h.LookupService)
 	}, &mcp.StreamableHTTPOptions{
 		DisableLocalhostProtection: true,

@@ -8,13 +8,11 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// EnvEntry represents one parsed key-value pair from a .env payload.
 type EnvEntry struct {
 	Key   string
 	Value string
 }
 
-// parseDotEnv parses standard KEY=VALUE dotenv text, ignoring blank lines and # comments.
 func parseDotEnv(raw string) ([]EnvEntry, error) {
 	lines := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
 	var out []EnvEntry
@@ -54,7 +52,6 @@ func parseDotEnv(raw string) ([]EnvEntry, error) {
 	return out, nil
 }
 
-// formatDotEnv renders decrypted vault items into deterministic KEY=VALUE dotenv lines.
 func formatDotEnv(secrets []plugin.VaultSecret) string {
 	type pair struct {
 		key string

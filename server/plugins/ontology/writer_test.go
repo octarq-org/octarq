@@ -11,16 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// writerHarness boots a plugin whose only entity is declared in Go and returns
-// the writer the plugin published, so the test exercises the seam a module
-// actually looks up rather than the store underneath it.
 func writerHarness(t *testing.T, specs ...core.Spec) (core.RecordWriter, *gorm.DB) {
 	t.Helper()
 	return writerHarnessOn(t, true, specs...)
 }
 
-// writerHarnessOn is writerHarness with the workspace's switch for the declaring
-// plugin set explicitly.
 func writerHarnessOn(t *testing.T, on bool, specs ...core.Spec) (core.RecordWriter, *gorm.DB) {
 	t.Helper()
 	p := registryPlugin(t, specs...)
@@ -54,9 +49,6 @@ func writerHarnessOn(t *testing.T, on bool, specs ...core.Spec) (core.RecordWrit
 	return got, db
 }
 
-// TestTheWriterRoundTripsARow pins the module path end to end: a declaration in
-// Go, a row written through the service, and the row read back in the shape the
-// REST surface renders.
 func TestTheWriterRoundTripsARow(t *testing.T) {
 	w, _ := writerHarness(t, codeSpec())
 	ctx := context.Background()
@@ -85,8 +77,6 @@ func TestTheWriterRoundTripsARow(t *testing.T) {
 	}
 }
 
-// TestTheWriterRefusesKeysTheDeclarationDoesNotOwn pins that the declaration
-// still owns the column set: a body key cannot become a column.
 func TestTheWriterRefusesKeysTheDeclarationDoesNotOwn(t *testing.T) {
 	w, _ := writerHarness(t, codeSpec())
 	ctx := context.Background()
@@ -109,8 +99,6 @@ func TestTheWriterRefusesKeysTheDeclarationDoesNotOwn(t *testing.T) {
 	}
 }
 
-// TestTheWriterKeepsOtherWorkspacesOut pins the tenant predicate on every
-// method, including Find.
 func TestTheWriterKeepsOtherWorkspacesOut(t *testing.T) {
 	w, _ := writerHarness(t, codeSpec())
 	ctx := context.Background()
@@ -136,8 +124,6 @@ func TestTheWriterKeepsOtherWorkspacesOut(t *testing.T) {
 	}
 }
 
-// TestTheWriterFindsByADeclaredField pins that the lookup column is checked
-// against the declaration before SQL is built.
 func TestTheWriterFindsByADeclaredField(t *testing.T) {
 	w, _ := writerHarness(t, codeSpec())
 	ctx := context.Background()
@@ -161,9 +147,6 @@ func TestTheWriterFindsByADeclaredField(t *testing.T) {
 	}
 }
 
-// TestAUserScopedEntityBindsTheMember pins the member-scope contract: a call
-// with no member is refused rather than widened to the workspace, and one
-// member cannot read another's rows.
 func TestAUserScopedEntityBindsTheMember(t *testing.T) {
 	spec := codeSpec()
 	spec.Slug = "mynotes"
@@ -193,9 +176,6 @@ func TestAUserScopedEntityBindsTheMember(t *testing.T) {
 	}
 }
 
-// TestTheWriterRefusesAnEntityWhosePluginIsOff pins the switch on the module
-// write seam. A module that keeps writing through the service while its page is
-// gone would be a second, invisible switch.
 func TestTheWriterRefusesAnEntityWhosePluginIsOff(t *testing.T) {
 	w, _ := writerHarnessOn(t, false, codeSpec())
 	ctx := context.Background()

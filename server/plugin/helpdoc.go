@@ -7,16 +7,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// HelpCategory is a sidebar group of help docs. The set is closed and lives
-// here so a doc only has to name its category — labels never live in the shell.
 type HelpCategory struct {
-	Key    string            `json:"key"`    // "start", "access", …
-	Order  int               `json:"order"`  // group ordering
-	Icon   string            `json:"icon"`   // lucide key, e.g. "book-open"
-	Labels map[string]string `json:"labels"` // lang → label; "en" is required
+	Key    string            `json:"key"`
+	Order  int               `json:"order"`
+	Icon   string            `json:"icon"`
+	Labels map[string]string `json:"labels"`
 }
 
-// HelpCategories returns the closed set of 6 help categories.
 func HelpCategories() []HelpCategory {
 	return []HelpCategory{
 		{
@@ -102,7 +99,6 @@ var helpCategoryMap = func() map[string]HelpCategory {
 	return m
 }()
 
-// CompareHelpDocs orders HelpDocs first by category order, then doc Order, then Title.
 func CompareHelpDocs(a, b HelpDoc) bool {
 	catAOrder := 9999
 	if c, ok := helpCategoryMap[a.Category]; ok {
@@ -122,14 +118,12 @@ func CompareHelpDocs(a, b HelpDoc) bool {
 	return a.Title < b.Title
 }
 
-// HelpDocTranslation provides localized strings for a HelpDoc.
 type HelpDocTranslation struct {
 	Title    string `yaml:"title" json:"title,omitempty"`
 	Category string `yaml:"category" json:"category,omitempty"`
 	Markdown string `yaml:"markdown" json:"markdown,omitempty"`
 }
 
-// HelpDoc is one page of in-app documentation contributed by a plugin.
 type HelpDoc struct {
 	Slug         string                        `yaml:"slug" json:"slug"`
 	Title        string                        `yaml:"title" json:"title"`
@@ -140,8 +134,6 @@ type HelpDoc struct {
 	Translations map[string]HelpDocTranslation `yaml:"translations" json:"translations,omitempty"`
 }
 
-// WithTranslation parses translation content (which can also contain YAML frontmatter or raw markdown)
-// and adds/updates the translation for the specified language key (e.g. "zh").
 func (h HelpDoc) WithTranslation(lang, raw string) HelpDoc {
 	if h.Translations == nil {
 		h.Translations = make(map[string]HelpDocTranslation)
@@ -163,7 +155,6 @@ func (h HelpDoc) WithTranslation(lang, raw string) HelpDoc {
 	return h
 }
 
-// ParseHelpDoc parses an MDX/MD string with optional YAML frontmatter.
 func ParseHelpDoc(content string) (HelpDoc, error) {
 	var doc HelpDoc
 	trimmed := strings.TrimSpace(content)
@@ -193,7 +184,6 @@ func ParseHelpDoc(content string) (HelpDoc, error) {
 	return doc, nil
 }
 
-// ParseHelpDocSafe parses an MDX/MD string and returns a fallback doc with markdown body on error without panic.
 func ParseHelpDocSafe(content string) HelpDoc {
 	doc, err := ParseHelpDoc(content)
 	if err != nil {
@@ -205,7 +195,6 @@ func ParseHelpDocSafe(content string) HelpDoc {
 	return doc
 }
 
-// FillDefaults automatically populates Category based on taxonomy defaults if missing or invalid.
 func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	if h.Category == "" {
 		if pluginCategory != "" {
@@ -216,7 +205,6 @@ func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	}
 	h.Category = strings.ToLower(h.Category)
 
-	// Remap known legacy categories or validate against closed set
 	switch h.Category {
 	case "getting-started", "start", "general", "platform", "core":
 		h.Category = "start"
@@ -238,7 +226,6 @@ func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	}
 }
 
-// MustParseHelpDoc calls ParseHelpDoc and panics if an error occurs.
 func MustParseHelpDoc(content string) HelpDoc {
 	doc, err := ParseHelpDoc(content)
 	if err != nil {

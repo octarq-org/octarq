@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// overCeilingCandidate returns a candidate whose budget is valid for the
-// format but above its profile's ceiling (ProfileNormal allows 8).
 func overCeilingCandidate() lab.Candidate {
 	spec := harness.DefaultHarnessSpec()
 	spec.Name = "greedy"
@@ -33,8 +31,6 @@ func scriptedTaskSet() *lab.TaskSet {
 	}
 }
 
-// TestLab_RefusesASpecAboveItsProfileCeiling pins the fail-closed rule: the
-// lab never rewrites an over-ceiling budget down to the profile ceiling.
 func TestLab_RefusesASpecAboveItsProfileCeiling(t *testing.T) {
 	t.Parallel()
 
@@ -63,9 +59,6 @@ func TestLab_RefusesASpecAboveItsProfileCeiling(t *testing.T) {
 	require.ErrorIs(t, err, harness.ErrMaxStepsExceedsProfile)
 }
 
-// TestLab_AcceptsASpecAtTheWorkerCeiling pins the positive path: a spec that
-// declares ProfileWorker and asks within its ceiling runs and is proposed with
-// that same budget.
 func TestLab_AcceptsASpecAtTheWorkerCeiling(t *testing.T) {
 	t.Parallel()
 

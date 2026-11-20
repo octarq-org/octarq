@@ -1,11 +1,5 @@
 package api
 
-// Per-workspace branding resolved from the request Host.
-//
-// The login screen has to be branded before anyone authenticates, so the only
-// tenant signal available is the hostname. Host is client-controlled, which is
-// exactly why these tests pin that it selects presentation and nothing else.
-
 import (
 	"encoding/json"
 	"net/http"
@@ -40,7 +34,6 @@ func TestHostCandidatesMostSpecificFirst(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("hostCandidates = %v, want %v", got, want)
 	}
-	// Things that are nobody's branded domain.
 	for _, h := range []string{"localhost", "[::1]", "127.0.0.1", "192.168.1.10", ""} {
 		if c := hostCandidates(h); len(c) != 0 {
 			t.Errorf("hostCandidates(%q) = %v, want none", h, c)
@@ -60,13 +53,13 @@ func TestOrgIDForHostPrefersMostSpecificDomain(t *testing.T) {
 	}
 
 	cases := map[string]uint{
-		"app.acme.com":      subOrg,  // exact match wins over the apex
-		"app.acme.com:8443": subOrg,  // port is irrelevant
-		"APP.ACME.COM":      subOrg,  // case is irrelevant
-		"acme.com":          apexOrg, // apex itself
-		"mail.acme.com":     apexOrg, // unregistered subdomain falls up to the apex
-		"someone-else.com":  0,       // unknown host is unbranded
-		"127.0.0.1":         0,       // an IP is nobody's domain
+		"app.acme.com":      subOrg,
+		"app.acme.com:8443": subOrg,
+		"APP.ACME.COM":      subOrg,
+		"acme.com":          apexOrg,
+		"mail.acme.com":     apexOrg,
+		"someone-else.com":  0,
+		"127.0.0.1":         0,
 		"localhost":         0,
 	}
 	for host, want := range cases {
@@ -80,7 +73,6 @@ func TestBrandingFallbackChain(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 	const org = uint(5201)
 
-	// Instance defaults only.
 	if err := db.Save(&models.Setting{Key: keyAppName, Value: "Instance Co"}).Error; err != nil {
 		t.Fatalf("seed instance name: %v", err)
 	}
@@ -95,7 +87,6 @@ func TestBrandingFallbackChain(t *testing.T) {
 		t.Errorf("workspace with no branding should inherit the instance name, got %q", got)
 	}
 
-	// Workspace overrides the name but not the color.
 	if err := h.SetWorkspaceSetting(org, keyAppName, "Acme Links"); err != nil {
 		t.Fatalf("set workspace name: %v", err)
 	}
@@ -109,16 +100,12 @@ func TestBrandingFallbackChain(t *testing.T) {
 		t.Errorf("unset workspace key should inherit instance color, got %q", color)
 	}
 
-	// No instance value either → built-in default.
 	db.Where("key = ?", keyAppName).Delete(&models.Setting{})
 	if got := h.AppNameFor(0); got == "" || got == "Instance Co" {
 		t.Errorf("AppNameFor(0) with nothing set = %q, want the built-in default", got)
 	}
 }
 
-// The pre-auth config endpoint is the whole point of host resolution: it must
-// serve the tenant's brand on the tenant's domain and the instance brand on the
-// shared host.
 func TestAuthConfigBrandsByHost(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const org = uint(5301)

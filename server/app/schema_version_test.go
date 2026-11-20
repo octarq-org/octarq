@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// Every successful pass records the version this binary writes, so a later
-// binary can tell whether it already knows the schema.
 func TestPrepareMigrationRecordsTheSchemaVersion(t *testing.T) {
 	a := bootApp(t)
 	if err := a.prepareMigrationAndCipher(); err != nil {
@@ -27,8 +25,6 @@ func TestPrepareMigrationRecordsTheSchemaVersion(t *testing.T) {
 	}
 }
 
-// A database migrated by a newer release must not serve an older binary: the
-// older binary does not know the columns and would fail mid-request instead.
 func TestPrepareMigrationRefusesANewerSchema(t *testing.T) {
 	a := bootApp(t)
 	if err := a.prepareMigrationAndCipher(); err != nil {
@@ -47,9 +43,6 @@ func TestPrepareMigrationRefusesANewerSchema(t *testing.T) {
 	}
 }
 
-// AutoMigrate has no downgrade path, so an upgrade of an existing schema writes
-// a snapshot first. A database that predates the version table takes this path
-// on the first boot with this binary.
 func TestPrepareMigrationBacksUpBeforeAnUpgrade(t *testing.T) {
 	backupRoot := t.TempDir()
 	t.Setenv("OCTARQ_STORAGE_DIR", filepath.Join(backupRoot, "storage"))
@@ -58,8 +51,6 @@ func TestPrepareMigrationBacksUpBeforeAnUpgrade(t *testing.T) {
 		t.Fatalf("first prepare: %v", err)
 	}
 
-	// Simulate a database that predates the version table: the schema exists,
-	// no version is recorded.
 	if err := a.gdb.Where("1 = 1").Delete(&models.SchemaMigration{}).Error; err != nil {
 		t.Fatalf("clear version rows: %v", err)
 	}

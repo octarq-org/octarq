@@ -32,7 +32,6 @@ func TestHelpCharacterization_MetadataAndContracts(t *testing.T) {
 		t.Errorf("unexpected menus: %+v", menus)
 	}
 
-	// Verify HelpDocsFS
 	docFS := p.HelpDocsFS()
 	if docFS == nil {
 		t.Fatal("HelpDocsFS returned nil")

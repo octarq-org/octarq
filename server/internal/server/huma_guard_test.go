@@ -7,18 +7,11 @@ import (
 	"testing"
 )
 
-// TestHumaGuard_NoDirectAPIRegistration ensures that no plugin or API code
-// bypasses Huma for /api/* routes. All /api/* registrations must go through
-// huma.Register via plugin.Context.Huma.
-//
-// This guards the Stage 2 decision: keep stdlib + Huma as the single API
-// surface so OpenAPI never drifts.
 func TestHumaGuard_NoDirectAPIRegistration(t *testing.T) {
 	root, err := repoRoot()
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
-	// Directories that may contain HTTP registrations.
 	dirs := []string{
 		filepath.Join(root, "plugin"),
 		filepath.Join(root, "plugins"),
@@ -39,7 +32,6 @@ func TestHumaGuard_NoDirectAPIRegistration(t *testing.T) {
 			if !strings.HasSuffix(path, ".go") {
 				return nil
 			}
-			// Skip generated / test files.
 			if strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
@@ -51,38 +43,22 @@ func TestHumaGuard_NoDirectAPIRegistration(t *testing.T) {
 			lines := strings.Split(content, "\n")
 			for i, line := range lines {
 				trim := strings.TrimSpace(line)
-				// Ignore comments.
 				if strings.HasPrefix(trim, "//") {
 					continue
 				}
-				// Detect direct mux.Handle / HandleFunc with /api/ prefix.
-				// Allow-list: huma.Register, endpoint.Engine, and gated wrappers
-				// which are infrastructure, not business routes.
 				if strings.Contains(line, "/api/") && (strings.Contains(line, "Handle(") || strings.Contains(line, "HandleFunc(")) {
-					// Skip if line is part of huma operation definition (Path field)
-					// or specPaths constant, or is inside a comment/string that is not a registration.
-					// Heuristic: if the file also contains "huma.Register" nearby, it's likely legit.
-					// But a direct mux.Handle("/api/...") without huma is a violation.
-					// We allow server.go specPaths and internal/server dispatch.
 					if strings.Contains(path, "internal/server/server.go") && strings.Contains(line, "specPaths") {
 						continue
 					}
 					if strings.Contains(content, "huma.Register") && strings.Contains(trim, "Path:") {
-						// This is a huma.Operation definition, not a direct handle.
 						continue
 					}
-					// If the trimmed line itself contains Handle and /api/ and is not inside huma.Operation, flag.
-					// Exclude HandleRoot / HandleStatic which are for "/" and plugin SPA prefixes.
 					if strings.Contains(trim, "HandleRoot") || strings.Contains(trim, "HandleStatic") {
 						continue
 					}
-					// Allow-list: infrastructure routes that intentionally bypass Huma
-					// (MCP SSE/stream are stdlib handlers).
 					if strings.Contains(path, "internal/api/") && strings.Contains(trim, "/api/mcp/") {
 						continue
 					}
-					// Only flag if the literal "/api/" appears inside the Handle call's pattern argument.
-					// Simple check: Handle(".../api/..." or HandleFunc(".../api/..."
 					if strings.Contains(trim, `"/api/`) || strings.Contains(trim, "'/api/") || strings.Contains(trim, "`/api/") {
 						rel, _ := filepath.Rel(root, path)
 						violations = append(violations, rel+":"+itoa(i+1)+": "+trim)
@@ -100,7 +76,6 @@ func TestHumaGuard_NoDirectAPIRegistration(t *testing.T) {
 }
 
 func repoRoot() (string, error) {
-	// Walk up from this file's directory to find go.mod
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -118,7 +93,6 @@ func repoRoot() (string, error) {
 }
 
 func itoa(n int) string {
-	// avoid importing strconv just for test helper
 	const digits = "0123456789"
 	if n < 10 {
 		return string(digits[n])

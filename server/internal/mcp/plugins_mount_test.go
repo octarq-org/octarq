@@ -6,12 +6,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
-// TestNewServerInstanceMountsBuiltins pins the stdio composition contract: the
-// built-in plugin set mounts with no HTTP surface, because this path wants MCP
-// tools, not HTTP routes. A plugin that registers huma operations
-// unconditionally panics there — which crashed `octarq-pro mcp` (and every
-// MCP-SSE connection) at startup. A panic here is that crash, caught before
-// release.
 func TestNewServerInstanceMountsBuiltins(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -51,13 +51,11 @@ func TestGenerate_CustomVersionAndTrimSpace(t *testing.T) {
 
 func TestGenerate_MkdirAllError(t *testing.T) {
 	tmp := t.TempDir()
-	// Create a regular file where a directory is expected
 	blockingFile := filepath.Join(tmp, "blocker")
 	if err := os.WriteFile(blockingFile, []byte("file"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Try generating inside the blocking file (as if it were a directory)
 	targetDir := filepath.Join(blockingFile, "invalid-dir")
 	_, err := Generate(Options{
 		Name: "test-err",

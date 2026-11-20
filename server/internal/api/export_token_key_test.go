@@ -15,8 +15,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 )
 
-// Export tokens must be signed with the export subkey, not the raw master
-// secret the session cookies and CSRF tokens also use.
 func TestExportTokenUsesItsOwnSubkey(t *testing.T) {
 	const secret = "master-secret"
 	h := &Handler{cfg: &config.Config{SecretKey: secret}}

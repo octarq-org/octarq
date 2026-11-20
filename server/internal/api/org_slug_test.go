@@ -11,8 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// orgSlugFixture sets up two workspaces so "taken" and "another org's slug" are
-// distinguishable, and returns a request helper.
 func orgSlugFixture(t *testing.T) (*gorm.DB, func(method, path string, cookies []*http.Cookie, body string) *httptest.ResponseRecorder, []*http.Cookie, []*http.Cookie, []*http.Cookie) {
 	t.Helper()
 	_, srv, db := newTestHandlerRaw(t)
@@ -44,8 +42,6 @@ func orgSlugFixture(t *testing.T) (*gorm.DB, func(method, path string, cookies [
 	return db, do, sessionCookies(t, 1, 1), sessionCookies(t, 2, 1), sessionCookies(t, 3, 1)
 }
 
-// Changing the slug invalidates addresses held by Stripe and by the org's IdP,
-// so it is the owner's call — not something the workspace-rename role can do.
 func TestUpdateOrgSlugIsOwnerOnly(t *testing.T) {
 	db, do, owner, admin, member := orgSlugFixture(t)
 
@@ -100,7 +96,6 @@ func TestUpdateOrgSlugValidation(t *testing.T) {
 		}
 	}
 
-	// The other workspace is untouched by any of the above.
 	var other models.Org
 	db.First(&other, 2)
 	if other.Slug != "othertaken" {
@@ -123,7 +118,6 @@ func TestOrgSlugRead(t *testing.T) {
 		t.Fatalf("view = %+v, want the workspace's own slug", view)
 	}
 
-	// Reading the workspace's address is still workspace administration.
 	if code := do("GET", "/api/org/slug", member, "").Code; code != 403 {
 		t.Errorf("member GET /api/org/slug = %d, want 403", code)
 	}
@@ -136,12 +130,10 @@ func TestUpdateOrgSlugRetiredHistory(t *testing.T) {
 	db.Create(&models.OrgMember{OrgID: 2, UserID: 4, Role: "owner"})
 	owner2 := sessionCookies(t, 4, 2)
 
-	// 1. Org 1 renames "owner-example-com" to "acme-inc" -> 200
 	if code := do("PUT", "/api/org/slug", owner1, `{"slug":"acme-inc"}`).Code; code != 200 {
 		t.Fatalf("owner1 PUT /api/org/slug acme-inc = %d, want 200", code)
 	}
 
-	// Direct DB query: verify org_slug_histories has "owner-example-com" for Org 1
 	var history models.OrgSlugHistory
 	if err := db.Where("slug = ?", "owner-example-com").First(&history).Error; err != nil {
 		t.Fatalf("expected history record for owner-example-com, got err: %v", err)
@@ -150,24 +142,20 @@ func TestUpdateOrgSlugRetiredHistory(t *testing.T) {
 		t.Fatalf("history.OrgID = %d, want 1", history.OrgID)
 	}
 
-	// 2. Org 2 tries to rename to "owner-example-com" -> 409
 	if code := do("PUT", "/api/org/slug", owner2, `{"slug":"owner-example-com"}`).Code; code != 409 {
 		t.Fatalf("owner2 PUT /api/org/slug owner-example-com = %d, want 409", code)
 	}
 
-	// 3. Org 1 renames back to "owner-example-com" -> 200
 	if code := do("PUT", "/api/org/slug", owner1, `{"slug":"owner-example-com"}`).Code; code != 200 {
 		t.Fatalf("owner1 PUT /api/org/slug back to owner-example-com = %d, want 200", code)
 	}
 
-	// Direct DB query: verify history for "owner-example-com" was deleted
 	var count int64
 	db.Model(&models.OrgSlugHistory{}).Where("slug = ?", "owner-example-com").Count(&count)
 	if count != 0 {
 		t.Fatalf("history record for owner-example-com should be deleted, got count = %d", count)
 	}
 
-	// Direct DB query: verify history now contains "acme-inc" for Org 1
 	var history2 models.OrgSlugHistory
 	if err := db.Where("slug = ?", "acme-inc").First(&history2).Error; err != nil {
 		t.Fatalf("expected history record for acme-inc, got err: %v", err)

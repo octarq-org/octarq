@@ -6,19 +6,16 @@ import (
 	"fmt"
 )
 
-// Engine runs the complete offline evaluation workflow: Propose → Probe → Compose.
 type Engine struct {
 	PreferredBaseline string
 }
 
-// NewEngine constructs an Engine instance.
 func NewEngine(preferredBaseline string) *Engine {
 	return &Engine{
 		PreferredBaseline: preferredBaseline,
 	}
 }
 
-// Run executes the evaluation of candidates against the task set and writes reports to outDir.
 func (e *Engine) Run(ctx context.Context, ts *TaskSet, candidates []Candidate, outDir string) (*LabReport, error) {
 	if ts == nil {
 		return nil, errors.New("task set must not be nil")

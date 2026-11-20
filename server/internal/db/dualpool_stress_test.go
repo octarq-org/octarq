@@ -81,7 +81,7 @@ func TestDualPool_SQLiteMaxConns(t *testing.T) {
 		var syncMode int
 		if err := sqlDB.QueryRow("PRAGMA synchronous").Scan(&syncMode); err != nil {
 			t.Errorf("%s PRAGMA synchronous: %v", name, err)
-		} else if syncMode != 1 { // 1 = NORMAL
+		} else if syncMode != 1 {
 			t.Errorf("%s PRAGMA synchronous = %d, want 1 (NORMAL)", name, syncMode)
 		}
 
@@ -185,12 +185,10 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 		t.Fatalf("OpenDualPool failed: %v", err)
 	}
 
-	// AutoMigrate on the write handle
 	if err := writeDB.AutoMigrate(&StressModel{}); err != nil {
 		t.Fatalf("AutoMigrate failed: %v", err)
 	}
 
-	// Pre-seed records so readers have data immediately
 	const initialRecords = 20
 	for i := 1; i <= initialRecords; i++ {
 		item := StressModel{
@@ -205,7 +203,6 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 		}
 	}
 
-	// Run stress test under race detector for 2 seconds
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -229,7 +226,6 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 	var wg sync.WaitGroup
 	startCh := make(chan struct{})
 
-	// 1 Writer goroutine continuously inserting/updating data in a loop
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -256,7 +252,6 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 					return err
 				}
 
-				// Update an existing row in the same transaction
 				targetID := (iter % initialRecords) + 1
 				return tx.Model(&StressModel{}).
 					Where("id = ?", targetID).
@@ -274,7 +269,6 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 		}
 	}()
 
-	// 20 Reader goroutines continuously selecting data
 	for i := 0; i < readerCount; i++ {
 		wg.Add(1)
 		readerID := i
@@ -324,10 +318,8 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 		}(readerID)
 	}
 
-	// Release all goroutines simultaneously
 	close(startCh)
 
-	// Wait for context to expire and all goroutines to finish
 	wg.Wait()
 
 	totalWrites := writerSuccess.Load()
@@ -335,7 +327,6 @@ func TestDualPool_ConcurrentReadWriteStress(t *testing.T) {
 
 	t.Logf("Stress test finished: %d writer transactions succeeded, %d reader queries succeeded", totalWrites, totalReads)
 
-	// Assert 100% success and 0 errors
 	errMu.Lock()
 	errCount := len(errList)
 	var firstFewErrors []string

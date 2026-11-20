@@ -66,8 +66,6 @@ func comprehensiveTestSettings(t *testing.T, srv http.Handler, cookies []*http.C
 		t.Errorf("put instance settings failed: got %d (%s)", recPutInst.Code, recPutInst.Body.String())
 	}
 
-	// 2.5 MCP API tests
-	// GET /api/mcp/sse without auth -> 401
 	reqMcpUnauth := httptest.NewRequest(http.MethodGet, "/api/mcp/sse", nil)
 	recMcpUnauth := httptest.NewRecorder()
 	srv.ServeHTTP(recMcpUnauth, reqMcpUnauth)
@@ -75,7 +73,6 @@ func comprehensiveTestSettings(t *testing.T, srv http.Handler, cookies []*http.C
 		t.Errorf("expected 401 for unauth mcp, got %d", recMcpUnauth.Code)
 	}
 
-	// GET /api/mcp/sse with auth (cancel via context to avoid blocking)
 	ctxMcp, cancelMcp := context.WithCancel(context.Background())
 	reqMcpAuth := httptest.NewRequest(http.MethodGet, "/api/mcp/sse", nil).WithContext(ctxMcp)
 	for _, c := range cookies {

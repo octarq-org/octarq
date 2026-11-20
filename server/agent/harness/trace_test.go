@@ -9,10 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// The trace is the evidence layer: without it a turn is an opaque stream of
-// text. These tests pin the events the runner emits and the recorder that
-// collects them.
-
 func TestRecordingTracer_CollectsEvents(t *testing.T) {
 	tr := NewRecordingTracer()
 

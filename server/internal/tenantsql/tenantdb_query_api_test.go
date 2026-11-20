@@ -9,10 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// The query-builder methods on TenantDB are the surface plugins call. Each one
-// must keep the tenant predicate, including the ones that look like pure
-// pass-throughs: a dropped WHERE here is a cross-tenant read.
-
 func seedTenantRows(t *testing.T, db *gorm.DB) (own, foreign mockLegacyModel) {
 	t.Helper()
 	own = mockLegacyModel{OwnerID: 1, Name: "own"}
@@ -186,8 +182,6 @@ func TestTenantDB_ResolveColumnBranches(t *testing.T) {
 	}
 }
 
-// withContextValueKey is this test's own key type; a bare struct{} key would
-// collide with any other package value stored the same way.
 type withContextValueKey struct{}
 
 func TestTenantDB_WithColumnAndWithContext(t *testing.T) {
@@ -213,8 +207,6 @@ func TestTenantDB_WithColumnAndWithContext(t *testing.T) {
 		t.Fatal("WithContext returned the same handle")
 	}
 
-	// A zero-value handle has no *gorm.DB; WithContext must still copy it
-	// without panicking.
 	empty := (&TenantDB{}).WithContext(ctx)
 	if empty.OrgID() != 0 {
 		t.Fatalf("zero-value WithContext produced org %d", empty.OrgID())

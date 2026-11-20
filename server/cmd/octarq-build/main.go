@@ -1,31 +1,3 @@
-// Command octarq-build wires third-party plugins into a custom Octarq binary at
-// build time — the xcaddy model: pick plugins, build a binary. It is driven by
-// `make plugin-build` (or a Docker build) and is not something end users run
-// directly.
-//
-// It reads the OCTARQ_PLUGINS manifest from the environment: a JSON array where
-// each entry describes one plugin,
-//
-//	[
-//	  {
-//	    "go":   "github.com/you/octarq-plugin-foo",          // Go import path of the package exporting Plugin (backend half)
-//	    "gomod":"github.com/you/octarq-plugin-foo@v1.2.0",   // optional; module@version for `go get` (default: <go>@latest)
-//	    "npm":  "@you/octarq-plugin-foo"                     // optional; npm specifier of the UI half (frontend)
-//	  }
-//	]
-//
-// and then:
-//
-//  1. runs `go get` for each backend module (so go.mod resolves it),
-//  2. regenerates ./custom_plugins.go with an aliased import + `&Plugin{}` entry
-//     per backend plugin (relies on the convention that every Octarq plugin
-//     package exports a `Plugin` type), and
-//  3. writes ./.octarq-frontend-plugins.json — the JSON array of npm specifiers
-//     the frontend build consumes via its own OCTARQ_PLUGINS manifest.
-//
-// Reset a working tree afterwards with:
-//
-//	git checkout custom_plugins.go go.mod go.sum && rm -f .octarq-frontend-plugins.json
 package main
 
 import (
@@ -78,7 +50,6 @@ func run() error {
 		}
 	}
 
-	// 1. Resolve each backend module into go.mod.
 	for _, e := range backend {
 		target := e.GoMod
 		if target == "" {
@@ -92,12 +63,10 @@ func run() error {
 		}
 	}
 
-	// 2. Regenerate custom_plugins.go.
 	if err := writeBackend(backend); err != nil {
 		return err
 	}
 
-	// 3. Emit the frontend manifest (always valid JSON, even if empty).
 	if frontend == nil {
 		frontend = []string{}
 	}

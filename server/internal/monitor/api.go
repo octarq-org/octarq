@@ -11,23 +11,19 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// HealthInput represents the input for GET /api/monitor/health.
 type HealthInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
 
-// Resolve binds the huma.Context into HealthInput.
 func (i *HealthInput) Resolve(ctx huma.Context) []error {
 	i.Ctx = ctx
 	return nil
 }
 
-// HealthOutput represents the response payload for GET /api/monitor/health.
 type HealthOutput struct {
 	Body HealthReport
 }
 
-// RegisterRoutes registers the GET /api/monitor/health operation onto huma.API.
 func RegisterRoutes(api huma.API, collector *Collector) {
 	huma.Register(api, huma.Operation{
 		OperationID: "getMonitorHealth",
@@ -54,7 +50,6 @@ func RegisterRoutes(api huma.API, collector *Collector) {
 	})
 }
 
-// Handler returns a standard http.Handler that executes the health monitor endpoint.
 func Handler(collector *Collector) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		report := collector.LatestReport(r.Context())
@@ -70,7 +65,6 @@ func Handler(collector *Collector) http.Handler {
 	})
 }
 
-// RegisterHTTP registers the GET /api/monitor/health endpoint directly onto an http.ServeMux.
 func RegisterHTTP(mux *http.ServeMux, collector *Collector) {
 	mux.Handle("GET /api/monitor/health", Handler(collector))
 }

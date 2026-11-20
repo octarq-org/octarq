@@ -1,19 +1,5 @@
 package api
 
-// POST /api/auth/forgot must not mint a local password for an account whose
-// only credential lives at an identity provider.
-//
-// changePassword and changeEmail already refuse an account with an empty
-// PasswordHash. The emailed reset did not, which made it the one door around
-// the IdP: issue a reset for an SSO-only address, and whoever redeems the link
-// has a local password on an account whose sign-in policy — MFA, device trust,
-// deprovisioning — the IdP is supposed to own.
-//
-// The refusal has to be invisible. This endpoint is unauthenticated and already
-// returns 200 {ok:true} for addresses that do not exist at all; if the SSO case
-// answered differently it would become an oracle for "is this an SSO account"
-// and, worse, for "does this account exist".
-
 import (
 	"net/http"
 	"testing"
@@ -22,16 +8,12 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// forgotFor fires the public reset request for one address.
 func forgotFor(t *testing.T, srv http.Handler, email string) (int, string) {
 	t.Helper()
 	rec := do(srv, "POST", "/api/auth/forgot", nil, `{"email":"`+email+`"}`)
 	return rec.Code, rec.Body.String()
 }
 
-// TestForgotPasswordRefusesSSOOnlyAccount: an account with no stored password
-// gets no reset token and no mail — while a password account still does, which
-// is what proves the endpoint was not simply broken.
 func TestForgotPasswordRefusesSSOOnlyAccount(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
@@ -75,8 +57,6 @@ func TestForgotPasswordRefusesSSOOnlyAccount(t *testing.T) {
 		}
 	}
 
-	// The ordinary path must still work — otherwise the guard above would pass
-	// just as well with password reset deleted entirely.
 	if code, body := forgotFor(t, srv, pwEmail); code != http.StatusOK {
 		t.Fatalf("forgot for password account: got %d (%s), want 200", code, body)
 	}
@@ -98,10 +78,6 @@ func TestForgotPasswordRefusesSSOOnlyAccount(t *testing.T) {
 	}
 }
 
-// TestForgotPasswordIsNotAnSSOOracle: the refusal must be indistinguishable
-// from every other outcome to an unauthenticated caller. Three inputs — an
-// SSO-only address, a password address, and an address with no account at all —
-// must produce the same status and the same body.
 func TestForgotPasswordIsNotAnSSOOracle(t *testing.T) {
 	srv, db := newTestHandler(t)
 

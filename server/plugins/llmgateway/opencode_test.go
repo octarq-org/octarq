@@ -8,8 +8,6 @@ import (
 	"testing"
 )
 
-// doWithHeaders is the fixture request with headers, needed because the
-// discovery document is addressed over a proxy in production.
 func doWithHeaders(t *testing.T, f *httpFixture, method, path string, headers map[string]string) (int, map[string]any) {
 	t.Helper()
 	req, err := http.NewRequest(method, f.server.URL+path, nil)
@@ -33,9 +31,6 @@ func doWithHeaders(t *testing.T, f *httpFixture, method, path string, headers ma
 	return resp.StatusCode, out
 }
 
-// opencode fetches the manifest before it holds a token, so the document must
-// answer without one — and it must name no workspace data, or the discovery
-// step would leak what the workspace spends.
 func TestOpencodeManifestAnswersWithoutAToken(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	status, doc := doWithHeaders(t, f, http.MethodGet, AgentWellKnownPath, nil)
@@ -59,7 +54,6 @@ func TestOpencodeManifestAnswersWithoutAToken(t *testing.T) {
 	if headers["Authorization"] != "Bearer {env:"+opencodeTokenEnv+"}" {
 		t.Fatalf("remote_config.headers = %v, want the token sent as a bearer", headers)
 	}
-	// The provider, its models and its key stay out of the public document.
 	for _, leak := range []string{"provider", "models", "baseURL"} {
 		if _, found := doc[leak]; found {
 			t.Fatalf("the public manifest must not carry %q", leak)
@@ -67,8 +61,6 @@ func TestOpencodeManifestAnswersWithoutAToken(t *testing.T) {
 	}
 }
 
-// The whole point of the config route: the model list is the provider's, so a
-// model added in the console appears in opencode with no second edit.
 func TestOpencodeConfigListsTheProviderModels(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test",
@@ -104,8 +96,6 @@ func TestOpencodeConfigListsTheProviderModels(t *testing.T) {
 	}
 }
 
-// A workspace with no provider cannot serve an agent. Saying so beats handing
-// opencode an empty provider it would show as usable.
 func TestOpencodeConfigRefusesWithoutAProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	status, body := f.do(t, http.MethodGet, AgentOpencodeConfigPath, "")
@@ -117,8 +107,6 @@ func TestOpencodeConfigRefusesWithoutAProvider(t *testing.T) {
 	}
 }
 
-// A provider that refuses the list is reported, not papered over with names
-// someone typed once.
 func TestOpencodeConfigReportsAProviderRefusal(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test",
@@ -132,8 +120,6 @@ func TestOpencodeConfigReportsAProviderRefusal(t *testing.T) {
 	}
 }
 
-// Behind a TLS-terminating proxy r.TLS is nil, so the document would advertise
-// http and opencode would fail to reach the config. The forwarded scheme wins.
 func TestOpencodeConfigUsesTheForwardedScheme(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test",

@@ -12,13 +12,10 @@ import (
 )
 
 const (
-	// ResourceURITrafficMetrics is the canonical MCP resource URI for workspace traffic metrics.
 	ResourceURITrafficMetrics = "octarq://metrics/traffic"
-	// ResourceURIDomainsHealth is the canonical MCP resource URI for workspace domain health status.
-	ResourceURIDomainsHealth = "octarq://domains/health"
+	ResourceURIDomainsHealth  = "octarq://domains/health"
 )
 
-// TrafficMetricsResource represents the traffic metrics returned by octarq://metrics/traffic.
 type TrafficMetricsResource struct {
 	OrgID       uint            `json:"org_id"`
 	TotalLinks  int64           `json:"total_links"`
@@ -30,7 +27,6 @@ type TrafficMetricsResource struct {
 	GeneratedAt time.Time       `json:"generated_at"`
 }
 
-// TopLinkMetric represents a top-performing short link.
 type TopLinkMetric struct {
 	ID     uint   `json:"id"`
 	Host   string `json:"host,omitempty"`
@@ -39,7 +35,6 @@ type TopLinkMetric struct {
 	Clicks int64  `json:"clicks"`
 }
 
-// DomainsHealthResource represents the domain health overview returned by octarq://domains/health.
 type DomainsHealthResource struct {
 	OrgID             uint                 `json:"org_id"`
 	TotalDomains      int                  `json:"total_domains"`
@@ -49,11 +44,10 @@ type DomainsHealthResource struct {
 	GeneratedAt       time.Time            `json:"generated_at"`
 }
 
-// DomainHealthDetail represents health and routing status for one domain.
 type DomainHealthDetail struct {
 	ID                uint            `json:"id"`
 	Name              string          `json:"name"`
-	Status            string          `json:"status"` // "healthy", "pending_provider", "pending_zone", "configured"
+	Status            string          `json:"status"`
 	ForMail           bool            `json:"for_mail"`
 	ForLink           bool            `json:"for_link"`
 	ProviderAccountID uint            `json:"provider_account_id"`
@@ -64,7 +58,6 @@ type DomainHealthDetail struct {
 	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
-// domainQueryRow holds internal query projection from the domains table.
 type domainQueryRow struct {
 	ID                uint            `gorm:"primaryKey"`
 	OrgID             uint            `gorm:"column:owner_id"`
@@ -79,7 +72,6 @@ type domainQueryRow struct {
 	UpdatedAt         time.Time       `gorm:"column:updated_at"`
 }
 
-// registerResources wires standard read-only MCP resources onto the server.
 func (s *server) registerResources(srv *mcp.Server) {
 	srv.AddResource(&mcp.Resource{
 		URI:         ResourceURITrafficMetrics,

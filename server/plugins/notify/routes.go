@@ -11,16 +11,12 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// NotifyInput is the input for the notify tool. Message is required; Channel
-// optionally narrows delivery to one channel type (telegram, slack, webhook,
-// email, …) instead of every enabled channel.
 type NotifyInput struct {
 	Message string `json:"message"`
 	Title   string `json:"title,omitempty"`
 	Channel string `json:"channel,omitempty"`
 }
 
-// NotifyOutput reports how many channels accepted the message and which.
 type NotifyOutput struct {
 	Delivered int      `json:"delivered"`
 	Channels  []string `json:"channels"`

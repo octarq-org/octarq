@@ -21,7 +21,6 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 )
 
-// BackupObject represents metadata for a remote backup object stored in S3/R2.
 type BackupObject struct {
 	Key          string
 	Size         int64
@@ -29,7 +28,6 @@ type BackupObject struct {
 	ETag         string
 }
 
-// S3Uploader manages uploading, downloading, listing, and pruning backups in S3/R2.
 type S3Uploader struct {
 	client *s3.Client
 	bucket string
@@ -37,8 +35,6 @@ type S3Uploader struct {
 	keyID  string
 }
 
-// NewS3Uploader initializes an S3 client configured with AWS SDK v2, supporting AWS S3,
-// Cloudflare R2, MinIO, and OSS S3-compatible endpoints.
 func NewS3Uploader(cfg *config.Config, optFns ...func(*s3.Options)) (*S3Uploader, error) {
 	if cfg == nil {
 		return nil, errors.New("s3: nil configuration")
@@ -91,8 +87,6 @@ func NewS3Uploader(cfg *config.Config, optFns ...func(*s3.Options)) (*S3Uploader
 	}, nil
 }
 
-// Upload uploads the local file at localPath to S3 using the base filename as the remote key.
-// It enforces checksum verification against the remote ETag or SHA-256 header.
 func (u *S3Uploader) Upload(ctx context.Context, localPath string) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
@@ -118,10 +112,8 @@ func (u *S3Uploader) Upload(ctx context.Context, localPath string) error {
 		return u.sanitize(fmt.Errorf("s3: put object %q to bucket %q: %w", remoteKey, u.bucket, err))
 	}
 
-	// Verify remote checksum (ETag or SHA-256)
 	if output.ETag != nil {
 		remoteETag := strings.Trim(aws.ToString(output.ETag), "\"")
-		// Standard non-multipart S3 ETag matches MD5
 		if !strings.Contains(remoteETag, "-") && !strings.EqualFold(remoteETag, localMD5Hex) {
 			return fmt.Errorf("s3: backup checksum mismatch: remote ETag %s != local MD5 %s", remoteETag, localMD5Hex)
 		}
@@ -136,7 +128,6 @@ func (u *S3Uploader) Upload(ctx context.Context, localPath string) error {
 	return nil
 }
 
-// Download fetches remoteKey from S3 and writes it to localPath atomically.
 func (u *S3Uploader) Download(ctx context.Context, remoteKey, localPath string) error {
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(u.bucket),
@@ -184,7 +175,6 @@ func (u *S3Uploader) Download(ctx context.Context, remoteKey, localPath string) 
 	return nil
 }
 
-// ListBackups lists all backup objects in the bucket prefixed with 'octarq-backup-', sorted newest first.
 func (u *S3Uploader) ListBackups(ctx context.Context) ([]BackupObject, error) {
 	input := &s3.ListObjectsV2Input{
 		Bucket: aws.String(u.bucket),
@@ -218,7 +208,6 @@ func (u *S3Uploader) ListBackups(ctx context.Context) ([]BackupObject, error) {
 	return results, nil
 }
 
-// LatestBackup returns the newest backup object from S3 based on LastModified timestamp.
 func (u *S3Uploader) LatestBackup(ctx context.Context) (*BackupObject, error) {
 	backups, err := u.ListBackups(ctx)
 	if err != nil {
@@ -230,7 +219,6 @@ func (u *S3Uploader) LatestBackup(ctx context.Context) (*BackupObject, error) {
 	return &backups[0], nil
 }
 
-// LatestBackupKey returns the key of the newest backup object in S3.
 func (u *S3Uploader) LatestBackupKey(ctx context.Context) (string, error) {
 	obj, err := u.LatestBackup(ctx)
 	if err != nil {
@@ -239,8 +227,6 @@ func (u *S3Uploader) LatestBackupKey(ctx context.Context) (string, error) {
 	return obj.Key, nil
 }
 
-// PruneOlderThan deletes backup objects in the bucket that are older than retentionDays.
-// Returns the count of deleted objects.
 func (u *S3Uploader) PruneOlderThan(ctx context.Context, retentionDays int) (int, error) {
 	if retentionDays <= 0 {
 		return 0, nil

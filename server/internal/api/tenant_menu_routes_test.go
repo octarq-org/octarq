@@ -17,10 +17,8 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
 	cookies := loginCookies(t, srv)
 
-	// 1. sendInviteEmail when no mail plugin mounted -> logs and swallowed
 	h.sendInviteEmail("test@example.com", "https://example.com/accept")
 
-	// 2. sendInviteEmail when system mail sender is mounted
 	var sentTo, sentSubj string
 	reg := plugin.NewRegistry()
 	reg.Provide(plugin.ServiceMailSendSystem, plugin.SystemMailSender(func(to, subject, html, text string) error {
@@ -34,7 +32,6 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 		t.Errorf("sendInviteEmail did not send: to=%q subj=%q", sentTo, sentSubj)
 	}
 
-	// 3. listMenus & listActions
 	rec := do(srv, "GET", "/api/menus", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("listMenus: got %d (%s)", rec.Code, rec.Body.String())
@@ -57,7 +54,6 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 		t.Fatalf("listActions: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 4. Test nil Ctx direct calls on tenant_menu handler methods
 	ctx := context.Background()
 	if _, err := h.listOrgs(ctx, &ListOrgsInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in listOrgs")
@@ -130,36 +126,30 @@ func TestSwitchOrgAndInstanceMenus(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	adminCookies := loginCookies(t, srv)
 
-	// Create second org and user
 	org2 := models.Org{Name: "Org 2", Slug: "org2"}
 	db.Create(&org2)
 	db.Create(&models.OrgMember{OrgID: org2.ID, UserID: 1, Role: "owner"})
 
-	// Create member-only user
 	memUser := models.User{Email: "memonly@example.com"}
 	db.Create(&memUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: memUser.ID, Role: "member"})
 	memCookies := sessionCookies(t, memUser.ID, 1)
 
-	// 1. switchOrg unauth -> 401
 	rec := do(srv, "POST", "/api/auth/switch-org", nil, fmt.Sprintf(`{"orgId":%d}`, org2.ID))
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth switch-org: got %d, want 401", rec.Code)
 	}
 
-	// 2. switchOrg not member -> 403
 	rec = do(srv, "POST", "/api/auth/switch-org", memCookies, fmt.Sprintf(`{"orgId":%d}`, org2.ID))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("not member switch-org: got %d, want 403", rec.Code)
 	}
 
-	// 3. switchOrg success -> 200
 	rec = do(srv, "POST", "/api/auth/switch-org", adminCookies, fmt.Sprintf(`{"orgId":%d}`, org2.ID))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("auth switch-org: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 4. listInstanceMenus, listMenus, listActions with plugin
 	h.plugins = []plugin.Plugin{dummyInstanceMenuPlugin{}}
 	rec = do(srv, "GET", "/api/instance/menus", nil, "")
 	if rec.Code != http.StatusUnauthorized {
@@ -183,7 +173,6 @@ func TestSwitchOrgAndInstanceMenus(t *testing.T) {
 		t.Errorf("instance menus sorting mismatch: %+v", menus)
 	}
 
-	// Test listMenus and listActions with active plugin
 	rec = do(srv, "GET", "/api/menus", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("listMenus with plugin: got %d", rec.Code)
@@ -193,7 +182,6 @@ func TestSwitchOrgAndInstanceMenus(t *testing.T) {
 		t.Fatalf("listActions with plugin: got %d", rec.Code)
 	}
 
-	// 5. OrgRole helper
 	req, _ := http.NewRequest("GET", "/api/orgs", nil)
 	for _, c := range adminCookies {
 		req.AddCookie(c)

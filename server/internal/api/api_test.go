@@ -35,13 +35,6 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	return srv, db
 }
 
-// disableEmailVerification turns the (default-on) require_email_verification
-// setting off so tests exercising register-then-login against a fresh handler
-// keep the pre-gate behavior. Explicit opt-out: nothing may rely on the
-// verification default being off.
-//
-// It no longer makes registration work: sign-up always ends in the mailbox,
-// so a test that registers needs enableMail as well.
 func disableEmailVerification(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "false"}).Error; err != nil {
@@ -49,10 +42,6 @@ func disableEmailVerification(t *testing.T, db *gorm.DB) {
 	}
 }
 
-// enableMail seeds an SMTP sender so the instance can deliver system mail.
-// Registration answers "a message is on its way" whatever it finds, so an
-// instance that cannot send mail refuses sign-ups outright (503) rather than
-// promising a message that never arrives.
 func enableMail(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	sender := testSMTPSender{
@@ -62,8 +51,6 @@ func enableMail(t *testing.T, db *gorm.DB) {
 	if err := db.Create(&sender).Error; err != nil {
 		t.Fatalf("seed smtp sender: %v", err)
 	}
-	// System mail reads the explicitly selected sender only; readiness must
-	// answer for that same row or sign-ups are promised mail that never sends.
 	if err := db.Save(&models.Setting{Key: "mail_system_sender_id", Value: strconv.FormatUint(uint64(sender.ID), 10)}).Error; err != nil {
 		t.Fatalf("set mail_system_sender_id: %v", err)
 	}
@@ -144,20 +131,14 @@ func newTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// newTestHandlerRaw is newTestHandler plus the *Handler itself, for tests that
-// exercise handler methods directly rather than over HTTP.
 func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
 	return newTestHandlerRawCfg(t, &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"})
 }
 
-// newTestHandlerRawCfg is newTestHandlerRaw with an explicit config, for tests
-// that need sentinel values (e.g. proving a response omits secrets) or a
-// specific driver/DSN the default handler cannot express.
 func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
 	db := newTestDB(t)
-	// Isolate from other tests sharing the cache.
 	db.Where("1 = 1").Delete(&models.Token{})
 	db.Where("1 = 1").Delete(&testLink{})
 
@@ -169,9 +150,6 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 
-	// The chat resolves the published harness through the plugin host. A host
-	// with no harness provider means the workspace published nothing, which
-	// uses the built-in default.
 	h.SetHost(&plugin.TestHost{})
 
 	plugins := builtin.Default()
@@ -304,13 +282,11 @@ func apiTestCrypto(cipher *crypto.Cipher) *plugin.TestCrypto {
 	}
 }
 
-// newTestHandlerWithoutMail builds a test handler without mail plugin.
 func newTestHandlerWithoutMail(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
 	return newTestHandlerRawCfg(t, &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"})
 }
 
-// apiEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
 type apiEnvStore struct{ db *gorm.DB }
 
 func (s apiEnvStore) Get(key string) (string, bool) {
@@ -336,7 +312,6 @@ func (s apiEnvStore) HasEncryptedValues() (bool, error) {
 func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 	srv, _ := newTestHandler(t)
 
-	// Unauthenticated create is rejected.
 	req := httptest.NewRequest(http.MethodPost, "/api/tokens", strings.NewReader(`{"name":"ci"}`))
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -366,7 +341,6 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 		t.Fatalf("raw token not returned: %q", created.Token)
 	}
 
-	// The list endpoint must never expose the raw token or hash.
 	req = httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
 	for _, c := range cookies {
 		req.AddCookie(c)
@@ -383,7 +357,6 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 		t.Error("token list leaked the hash field")
 	}
 
-	// Use the bearer token against a protected data endpoint.
 	req = httptest.NewRequest(http.MethodGet, "/api/overview", nil)
 	req.Header.Set("Authorization", "Bearer "+created.Token)
 	rec = httptest.NewRecorder()
@@ -392,7 +365,6 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 		t.Fatalf("bearer-authed /api/overview: got %d want 200", rec.Code)
 	}
 
-	// A bad bearer token is rejected.
 	req = httptest.NewRequest(http.MethodGet, "/api/overview", nil)
 	req.Header.Set("Authorization", "Bearer oct_totallybogus0000000000000000000000")
 	rec = httptest.NewRecorder()

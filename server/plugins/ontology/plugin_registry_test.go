@@ -12,8 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// codeSpec is a valid declaration a module would register at init. It is
-// deliberately not the acceptance entity: the store tests already own tickets.
 func codeSpec() core.Spec {
 	return core.Spec{
 		Slug:  "notes",
@@ -25,9 +23,6 @@ func codeSpec() core.Spec {
 	}
 }
 
-// notesOwner is the plugin that declares codeSpec, standing in for a real module.
-// The composition must answer to the name the declaration carries, or the
-// entity would have no switch and boot would refuse it.
 type notesOwner struct{}
 
 func (notesOwner) Name() string                      { return "notes" }
@@ -35,8 +30,6 @@ func (notesOwner) Describe() plugin.Info             { return plugin.Info{Title:
 func (notesOwner) Models() []any                     { return nil }
 func (notesOwner) Mount(plugin.Mux, *plugin.Context) {}
 
-// wiring is the context a composition root provides: the composed plugins, so a
-// declaration's owner resolves to a feature, and the workspace's switch.
 func wiring(db *gorm.DB, on bool) *plugin.Context {
 	return &plugin.Context{
 		DB:            db,
@@ -45,8 +38,6 @@ func wiring(db *gorm.DB, on bool) *plugin.Context {
 	}
 }
 
-// registryPlugin returns a plugin reading its own registry, with no declaration
-// file in the environment.
 func registryPlugin(t *testing.T, specs ...core.Spec) *Plugin {
 	t.Helper()
 	t.Chdir(t.TempDir())
@@ -62,8 +53,6 @@ func registryPlugin(t *testing.T, specs ...core.Spec) *Plugin {
 	return NewWithRegistry(r)
 }
 
-// openBookkeepingDB returns a database with the bookkeeping table and nothing
-// else, so a code-declared entity is the only one it can hold.
 func openBookkeepingDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -76,17 +65,12 @@ func openBookkeepingDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// TestNewReadsTheProcessWideRegistry pins the wiring a module depends on: it
-// registers into ontology.Default(), and builtin.Default()'s ontology.New() must
-// be the reader. Nothing else carries the declarations across.
 func TestNewReadsTheProcessWideRegistry(t *testing.T) {
 	if got := New().registry; got != core.Default() {
 		t.Fatal("New() does not read the process-wide registry")
 	}
 }
 
-// TestCodeDeclaredEntityIsApplied pins the module path end to end at boot: a
-// declaration that exists only in Go still produces a table and a sidebar entry.
 func TestCodeDeclaredEntityIsApplied(t *testing.T) {
 	p := registryPlugin(t, codeSpec())
 	db := openBookkeepingDB(t)
@@ -104,8 +88,6 @@ func TestCodeDeclaredEntityIsApplied(t *testing.T) {
 	}
 }
 
-// TestCodeAndFileDeclarationsAreMerged pins that the two sources are additive:
-// an installation can declare entities and a build can ship more.
 func TestCodeAndFileDeclarationsAreMerged(t *testing.T) {
 	p := registryPlugin(t, codeSpec())
 	t.Setenv(EntitiesEnv, ticketDoc)
@@ -125,9 +107,6 @@ func TestCodeAndFileDeclarationsAreMerged(t *testing.T) {
 	}
 }
 
-// TestASlugDeclaredInBothSourcesRefusesBoot pins the merge rule. Applying one of
-// the two would leave the operator and the module believing different things
-// about the same table.
 func TestASlugDeclaredInBothSourcesRefusesBoot(t *testing.T) {
 	spec := codeSpec()
 	spec.Slug = "tickets"
@@ -145,9 +124,6 @@ func TestASlugDeclaredInBothSourcesRefusesBoot(t *testing.T) {
 	}
 }
 
-// TestAMissingRegistryRefusesBoot pins fail-closed construction: without a
-// registry the plugin cannot see any module's entities, and applying only the
-// file would be half of what the binary declares.
 func TestAMissingRegistryRefusesBoot(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv(EntitiesEnv, "")
@@ -161,8 +137,6 @@ func TestAMissingRegistryRefusesBoot(t *testing.T) {
 	}
 }
 
-// TestAnEmptyRegistryWithNoFileIsOff pins that a build with no module
-// declarations and no file is still a valid installation.
 func TestAnEmptyRegistryWithNoFileIsOff(t *testing.T) {
 	p := registryPlugin(t)
 	p.Mount(nil, wiring(nil, true))
@@ -184,9 +158,6 @@ func contains(items []string, want string) bool {
 	return false
 }
 
-// TestAnOwnedEntityIsRefusedWithoutTheComposedPlugins pins fail-closed boot: an
-// entity whose owner cannot be resolved has no switch, and a host that cannot
-// name its plugins cannot resolve one.
 func TestAnOwnedEntityIsRefusedWithoutTheComposedPlugins(t *testing.T) {
 	p := registryPlugin(t, codeSpec())
 	p.Mount(nil, &plugin.Context{DB: openBookkeepingDB(t)})
@@ -197,9 +168,6 @@ func TestAnOwnedEntityIsRefusedWithoutTheComposedPlugins(t *testing.T) {
 	}
 }
 
-// TestAnEntityWhoseOwnerIsNotComposedIsRefused pins the other half: a
-// declaration naming a plugin this build does not mount would exist with a
-// switch nothing can flip, so it is refused at boot instead.
 func TestAnEntityWhoseOwnerIsNotComposedIsRefused(t *testing.T) {
 	p := registryPlugin(t, codeSpec())
 	p.Mount(nil, &plugin.Context{
@@ -214,14 +182,10 @@ func TestAnEntityWhoseOwnerIsNotComposedIsRefused(t *testing.T) {
 	}
 }
 
-// TestAnOperatorDeclaredEntityHasNoSwitch pins that the declaration file keeps
-// its meaning: an operator who declares an entity gets it in every workspace,
-// and no plugin toggle can hide it.
 func TestAnOperatorDeclaredEntityHasNoSwitch(t *testing.T) {
 	p := registryPlugin(t)
 	t.Setenv(EntitiesEnv, ticketDoc)
 
-	// Every feature is off; the operator's entity must not care.
 	p.Mount(nil, &plugin.Context{
 		DB:            openBookkeepingDB(t),
 		ActivePlugins: func() []plugin.Plugin { return []plugin.Plugin{notesOwner{}} },
@@ -242,9 +206,6 @@ func TestAnOperatorDeclaredEntityHasNoSwitch(t *testing.T) {
 	}
 }
 
-// TestAnOwnedEntityIsRefusedWithoutTheFeatureHook pins the second half of the
-// wiring: a host that can name its plugins but cannot answer whether a feature
-// is on would leave the entity switched off forever.
 func TestAnOwnedEntityIsRefusedWithoutTheFeatureHook(t *testing.T) {
 	p := registryPlugin(t, codeSpec())
 	p.Mount(nil, &plugin.Context{

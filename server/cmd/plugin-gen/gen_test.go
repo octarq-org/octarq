@@ -20,7 +20,6 @@ func TestScaffold_CreatesFiles(t *testing.T) {
 
 	pluginDir := filepath.Join(tmpDir, name)
 
-	// Check plugin.go
 	pluginGoPath := filepath.Join(pluginDir, "plugin.go")
 	pluginGoBytes, err := os.ReadFile(pluginGoPath)
 	if err != nil {
@@ -37,7 +36,6 @@ func TestScaffold_CreatesFiles(t *testing.T) {
 		t.Errorf("plugin.go missing Plugin contract assertion: %s", pluginGoContent)
 	}
 
-	// Check go.mod
 	goModPath := filepath.Join(pluginDir, "go.mod")
 	goModBytes, err := os.ReadFile(goModPath)
 	if err != nil {
@@ -48,7 +46,6 @@ func TestScaffold_CreatesFiles(t *testing.T) {
 		t.Errorf("go.mod missing expected module: %s", goModContent)
 	}
 
-	// Check README.md
 	readmePath := filepath.Join(pluginDir, "README.md")
 	readmeBytes, err := os.ReadFile(readmePath)
 	if err != nil {
@@ -62,7 +59,6 @@ func TestScaffold_CreatesFiles(t *testing.T) {
 		t.Errorf("README.md missing Mount description: %s", readmeContent)
 	}
 
-	// Assert duplicate scaffold fails
 	if err := Scaffold(tmpDir, name, desc); err == nil {
 		t.Errorf("expected error when scaffolding into existing directory")
 	}
@@ -110,7 +106,6 @@ func TestScaffold_EmptyRootAndDesc(t *testing.T) {
 		t.Errorf("expected auto description in README.md, got: %s", string(readme))
 	}
 
-	// Test mkdir failure
 	if err := Scaffold("/dev/null/impossible", "sub-plugin", ""); err == nil {
 		t.Errorf("expected error when target directory cannot be created")
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-// stubModel is a scripted llms.Model for the langchain adapter.
 type stubModel struct {
 	resp *llms.ContentResponse
 	err  error
@@ -27,9 +26,6 @@ func (s *stubModel) GenerateContent(_ context.Context, messages []llms.MessageCo
 
 func (s *stubModel) Call(context.Context, string, ...llms.CallOption) (string, error) { return "", nil }
 
-// TestLangchainCompleteBuildsMessages verifies the adapter folds the system
-// prompt in first and maps user/assistant roles onto langchaingo's message
-// types, then surfaces content/usage/stop fields.
 func TestLangchainCompleteBuildsMessages(t *testing.T) {
 	stub := &stubModel{resp: &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{{
@@ -64,8 +60,6 @@ func TestLangchainCompleteBuildsMessages(t *testing.T) {
 	}
 }
 
-// TestLangchainCompleteDefaultsAndErrors covers default model fallback, the
-// model request override, empty-choice and transport errors.
 func TestLangchainCompleteDefaultsAndErrors(t *testing.T) {
 	ok := &stubModel{resp: &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{{Content: "c", StopReason: "stop", GenerationInfo: map[string]any{}}},
@@ -101,7 +95,6 @@ func TestLangchainCompleteDefaultsAndErrors(t *testing.T) {
 	}
 }
 
-// TestLangchainModelNames asserts the per-vendor defaults land and overrides win.
 func TestLangchainModelNames(t *testing.T) {
 	p := newLangchain("gemini", &stubModel{}, "cust", "cheap2")
 	if p.Name() != "gemini" || p.DefaultModel() != "cust" || p.CheapModel() != "cheap2" {
@@ -113,8 +106,6 @@ func TestLangchainModelNames(t *testing.T) {
 	}
 }
 
-// TestTokensFromInfoTypes covers the numeric-type normalization and the
-// fallback to zero when no recognized key is present.
 func TestTokensFromInfoTypes(t *testing.T) {
 	in, out := tokensFromInfo(map[string]any{
 		"input_tokens":  float64(12),
@@ -128,8 +119,6 @@ func TestTokensFromInfoTypes(t *testing.T) {
 	}
 }
 
-// TestVendorFactoriesWithOptions constructs each vendor with every option so
-// the option branches in the factories are exercised (clients connect lazily).
 func TestVendorFactoriesWithOptions(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer srv.Close()
@@ -157,7 +146,6 @@ func TestVendorFactoriesWithOptions(t *testing.T) {
 	}
 }
 
-// TestFromEnv loads the full OCTARQ_LLM_* surface.
 func TestFromEnv(t *testing.T) {
 	t.Setenv("OCTARQ_LLM_PROVIDER", "openai")
 	t.Setenv("OCTARQ_LLM_API_KEY", "env-key")
@@ -176,9 +164,6 @@ func TestFromEnv(t *testing.T) {
 	}
 }
 
-// TestClaudeJSONNudge asserts the JSON request steers the model via the system
-// prompt: a bare JSON request gets the nudge alone, and an existing system
-// prompt gets it appended, never in prose or markdown fences.
 func TestClaudeJSONNudge(t *testing.T) {
 	var gotBodies []map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -220,8 +205,6 @@ func TestClaudeJSONNudge(t *testing.T) {
 	}
 }
 
-// systemText flattens the Messages-API system block (an array of text blocks)
-// into one string for assertion.
 func systemText(t *testing.T, v any) string {
 	t.Helper()
 	blocks, ok := v.([]any)

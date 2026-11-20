@@ -146,7 +146,7 @@ func TestNotify_DeliversToEnabledChannel(t *testing.T) {
 
 	var got string
 	if err := notification.DefaultRouter().RegisterChannel(
-		notification.NewLegacyNotifierAdapter("testnotify", "", func(_ context.Context, _ /*cfg*/, text string) error {
+		notification.NewLegacyNotifierAdapter("testnotify", "", func(_ context.Context, _, text string) error {
 			got = text
 			return nil
 		}),
@@ -177,8 +177,6 @@ func TestNotify_DisabledChannelSkipped(t *testing.T) {
 	if err := db.Create(ch).Error; err != nil {
 		t.Fatalf("seed channel: %v", err)
 	}
-	// The column defaults to true, so a create with false would be coerced back;
-	// disable it explicitly.
 	if err := db.Model(ch).Update("enabled", false).Error; err != nil {
 		t.Fatalf("disable channel: %v", err)
 	}

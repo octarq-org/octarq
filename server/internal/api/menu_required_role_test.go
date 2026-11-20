@@ -8,8 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// roleGatedPlugin's menu entry is admin-only, the shape a plugin uses when
-// every route behind the entry is role-gated.
 type roleGatedPlugin struct{}
 
 func (roleGatedPlugin) Name() string                          { return "gated" }
@@ -22,11 +20,6 @@ func (roleGatedPlugin) Menus() []plugin.MenuItem {
 	}
 }
 
-// The frontend has filtered the sidebar on MenuItem.requiredRole since it was
-// written, but neither plugin.MenuItem nor the wire DTO carried the field, so
-// the filter matched undefined every time and hid nothing. This asserts the
-// value survives the whole path — plugin declaration → /api/menus JSON — which
-// is the half that was missing.
 func TestMenusCarryRequiredRole(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{roleGatedPlugin{}})
@@ -58,8 +51,6 @@ func TestMenusCarryRequiredRole(t *testing.T) {
 	if got["gated"] != "admin" {
 		t.Errorf("gated requiredRole = %q, want \"admin\"", got["gated"])
 	}
-	// An entry that declares nothing must stay unrestricted rather than
-	// inheriting a neighbour's role — omitempty means absent, not "admin".
 	if got["open"] != "" {
 		t.Errorf("open requiredRole = %q, want empty", got["open"])
 	}

@@ -16,7 +16,6 @@ func TestAuthMethodsPublicEndpoint(t *testing.T) {
 	h, _ := newHandlerForAdminTest(t)
 	mux := h.Routes()
 
-	// 1. Unauthenticated request when registry is empty -> 200 OK and []
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/auth/methods", nil))
 	if rec.Code != http.StatusOK {
@@ -31,7 +30,6 @@ func TestAuthMethodsPublicEndpoint(t *testing.T) {
 		t.Fatalf("expected empty list, got %#v", res1)
 	}
 
-	// 2. Register a method, test public endpoint again
 	auth.Register(auth.AuthMethod{
 		ID:       "sso",
 		Label:    "Sign in with SSO",

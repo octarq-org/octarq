@@ -28,7 +28,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 	}
 	h.SetStorage(storage)
 
-	// 1. Precheck with existing hash and empty name/content-type
 	f1 := models.File{
 		OrgID:       orgID,
 		Name:        "default-name.txt",
@@ -58,7 +57,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Errorf("expected inherited name/ct, got %s / %s", precheckResp.File.Name, precheckResp.File.ContentType)
 	}
 
-	// 2. Invalid JSON body
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader("{invalid json"))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: token})
@@ -68,7 +66,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 400 for invalid json, got %d", rec.Code)
 	}
 
-	// 3. Multipart missing file and no MD5
 	var bodyEmpty bytes.Buffer
 	writerEmpty := multipart.NewWriter(&bodyEmpty)
 	_ = writerEmpty.WriteField("name", "nofile.txt")
@@ -82,7 +79,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 400 for multipart missing file, got %d", rec.Code)
 	}
 
-	// 4. Multipart missing file but has unknown MD5 -> 404
 	var bodyUnknownMD5 bytes.Buffer
 	writerUnknown := multipart.NewWriter(&bodyUnknownMD5)
 	_ = writerUnknown.WriteField("md5", "99998888777766665555444433332222")
@@ -96,7 +92,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 404 for multipart unknown MD5 without file, got %d", rec.Code)
 	}
 
-	// 5. Download: object not found in storage (DB record exists but storage missing)
 	fMissing := models.File{
 		OrgID:       orgID,
 		Name:        "missing-on-disk.bin",
@@ -116,7 +111,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 404 for missing storage object, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 6. TempToken unauthenticated -> 401
 	req = httptest.NewRequest("POST", "/api/files/temp-token", strings.NewReader(`{"file_id": 1}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
@@ -125,7 +119,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
 
-	// 7. GetFile unauthenticated -> 401
 	req = httptest.NewRequest("GET", "/api/files/1", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -133,7 +126,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
 
-	// 8. Form hint dedup without name field (falls back to existing.Name)
 	var bodyHintNoName bytes.Buffer
 	writerHintNoName := multipart.NewWriter(&bodyHintNoName)
 	_ = writerHintNoName.WriteField("md5", f1.MD5)
@@ -147,7 +139,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
-	// 9. Raw stream upload with empty X-File-Name and Content-Type
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader("raw stream test"))
 	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: token})
 	rec = httptest.NewRecorder()
@@ -156,7 +147,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 200 for raw stream without headers, got %d", rec.Code)
 	}
 
-	// 10. Multipart upload without name field (falls back to header filename)
 	var bodyEmptyName bytes.Buffer
 	writerEmptyName := multipart.NewWriter(&bodyEmptyName)
 	partEmpty, err := writerEmptyName.CreateFormFile("file", "blob.bin")
@@ -174,9 +164,7 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 200 for blob.bin multipart, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 11. Storage nil branches
 	h.SetStorage(nil)
-	// upload with storage nil -> 500
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader(`{"md5": "11112222333344445555666677778888"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: token})
@@ -186,7 +174,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 500 when storage nil, got %d", rec.Code)
 	}
 
-	// temp-token with storage nil -> 500
 	req = httptest.NewRequest("POST", "/api/files/temp-token", strings.NewReader(fmt.Sprintf(`{"file_id": %d}`, f1.ID)))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: token})
@@ -196,7 +183,6 @@ func TestFiles_EdgeCases(t *testing.T) {
 		t.Fatalf("expected 500 when storage nil, got %d", rec.Code)
 	}
 
-	// download with storage nil -> 500
 	req = httptest.NewRequest("GET", fmt.Sprintf("/api/files/%d/download", f1.ID), nil)
 	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: token})
 	rec = httptest.NewRecorder()
@@ -222,7 +208,6 @@ func TestFiles_DirectSafeguards(t *testing.T) {
 		t.Error("expected error for nil ctx in getFile")
 	}
 
-	// Unauthenticated context direct calls
 	req := httptest.NewRequest("GET", "/api/files/1", nil)
 	rec := httptest.NewRecorder()
 	ctx := humago.NewContext(&huma.Operation{}, req, rec)

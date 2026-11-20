@@ -4,9 +4,6 @@ import (
 	"testing"
 )
 
-// TestToInt64RefusesAFloatThatLostPrecision pins the 2^53 bound. A float64
-// cannot tell two integers apart past that point, so a value arriving there is
-// not the value the caller sent and must not be stored as if it were.
 func TestToInt64RefusesAFloatThatLostPrecision(t *testing.T) {
 	f := Field{Name: "seats", Type: TypeInteger}
 

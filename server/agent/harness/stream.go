@@ -11,9 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
-// extractStreamProvider attempts to retrieve an llmprovider.StreamProvider
-// from the runner's completer, supporting direct implementation or
-// *CompleterAdapter wrapping a StreamProvider.
 func (r *defaultRunner) extractStreamProvider() (llmprovider.StreamProvider, bool) {
 	if ca, ok := r.completer.(*CompleterAdapter); ok {
 		if sp, ok := ca.Provider.(llmprovider.StreamProvider); ok {
@@ -27,8 +24,6 @@ func (r *defaultRunner) extractStreamProvider() (llmprovider.StreamProvider, boo
 	return nil, false
 }
 
-// Stream executes the agent loop using a streaming provider if available.
-// If the underlying completer does not support streaming, it falls back to Run.
 func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmprovider.StreamHandler) error {
 	sp, ok := r.extractStreamProvider()
 	if !ok {
@@ -47,28 +42,20 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 	return err
 }
 
-// streamLoop is the streaming agent loop. It always leaves t.Status set to
-// the terminal state of the turn.
 func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler) error {
-	// A new turn carries no approval from an earlier one and starts its round
-	// count at zero. See the non-streaming loop.
 	t.PendingCall = nil
 	t.Rounds = 0
 	t.Elapsed = 0
 
-	// Seed history with the user's input.
 	s.History = append(s.History, Message{Role: "user", Content: t.Input})
 
 	return r.streamRounds(ctx, s, t, sp, h, time.Now())
 }
 
-// streamRounds is the streaming round loop. It assumes the history is seeded,
-// so a resumed turn re-enters it with the history the approved call belongs to.
 func (r *defaultRunner) streamRounds(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler, started time.Time) (err error) {
 	maxSteps := r.MaxStepsFor(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
-	// See runRounds: the time this call spends counts for the turn.
 	defer func() { t.Elapsed += time.Since(started) }()
 
 	for step := t.Rounds; ; step++ {
@@ -78,7 +65,6 @@ func (r *defaultRunner) streamRounds(ctx context.Context, s *Session, t *Turn, s
 			return ErrMaxStepsExceeded
 		}
 
-		// Budget is checked before the round, not during it. See Budget.
 		if err := r.checkBudget(t, started); err != nil {
 			t.Status = TurnStatusFailed
 			return err
@@ -111,19 +97,14 @@ func (r *defaultRunner) streamRounds(ctx context.Context, s *Session, t *Turn, s
 		calls, remaining, invalid := collector.parsePlan()
 		if len(calls) == 0 {
 			if len(invalid) > 0 {
-				// The model tried to call a tool and got the format wrong.
-				// Tell it so instead of ending the turn on a call it
-				// believes it made. The non-streaming path does the same.
 				reportInvalidCalls(s, collector.fullText(), invalid)
 				continue
 			}
-			// No tool calls — the turn is done.
 			s.History = append(s.History, Message{Role: "assistant", Content: collector.fullText()})
 			t.Status = TurnStatusDone
 			return nil
 		}
 
-		// Execute each tool call.
 		var obs StepObserver
 		if o, ok := h.(StepObserver); ok {
 			obs = o
@@ -220,14 +201,6 @@ func (c *streamCollector) fullText() string {
 	return c.text.String()
 }
 
-// parsePlan reads the accumulated stream into the calls to run, the text to
-// keep in the history, and the calls the model wrote wrongly.
-//
-// A provider that streams tool calls natively is the only source of calls.
-// The fenced block is read only when the provider streamed no call, so a call
-// is never run twice. The arguments of a native call go through the same
-// normalization as a fenced call: a call whose arguments are not an object
-// is a call the model wrote wrongly, not a call that runs.
 func (c *streamCollector) parsePlan() ([]toolCall, string, []string) {
 	calls, invalid := c.extractToolCalls()
 	if len(calls) > 0 || len(invalid) > 0 {
@@ -237,9 +210,6 @@ func (c *streamCollector) parsePlan() ([]toolCall, string, []string) {
 	return calls, remaining, invalid
 }
 
-// extractToolCalls returns the calls the provider streamed, and the calls it
-// streamed wrongly. A call without a name, or with arguments that are not a
-// JSON object, is reported instead of run.
 func (c *streamCollector) extractToolCalls() ([]toolCall, []string) {
 	if len(c.toolCalls) == 0 {
 		return nil, nil
@@ -252,8 +222,6 @@ func (c *streamCollector) extractToolCalls() ([]toolCall, []string) {
 			invalid = append(invalid, rejectedCallLine("", tc.argsJSON.String()))
 			continue
 		}
-		// The provider streams the arguments as a JSON object; a tool
-		// without arguments arrives as an empty string.
 		args, ok := normalizeToolArgs(json.RawMessage(tc.argsJSON.String()))
 		if !ok {
 			invalid = append(invalid, rejectedCallLine(tc.name, tc.argsJSON.String()))
@@ -267,8 +235,6 @@ func (c *streamCollector) extractToolCalls() ([]toolCall, []string) {
 	return calls, invalid
 }
 
-// rejectedCallLine renders a call the model wrote wrongly, in the shape the
-// notice quotes back to it.
 func rejectedCallLine(name, args string) string {
 	trimmed := strings.TrimSpace(args)
 	if trimmed == "" {

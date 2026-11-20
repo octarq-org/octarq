@@ -92,7 +92,6 @@ func TestStatusEndpoint(t *testing.T) {
 
 func TestStatusEndpointRateLimiting(t *testing.T) {
 	h, srv := newTestStatusHandler(t)
-	// Artificially lower limit for testing
 	h.statusLimiter = mustRateLimiter(t, "", "test_status", 2, time.Minute)
 
 	for i := 0; i < 2; i++ {
@@ -104,7 +103,6 @@ func TestStatusEndpointRateLimiting(t *testing.T) {
 		}
 	}
 
-	// 3rd request should hit rate limit
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)

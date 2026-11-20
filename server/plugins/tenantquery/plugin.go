@@ -6,7 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Plugin provides the tenant SQL view describe and query tools.
 type Plugin struct {
 	db       *gorm.DB
 	registry *tenantsql.Registry
@@ -17,7 +16,6 @@ var (
 	_ plugin.Describer = (*Plugin)(nil)
 )
 
-// New creates a new tenantquery Plugin.
 func New() *Plugin {
 	return &Plugin{}
 }

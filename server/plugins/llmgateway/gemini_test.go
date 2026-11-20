@@ -8,8 +8,6 @@ import (
 	"testing"
 )
 
-// geminiFixture points one workspace provider at a stand-in upstream. The
-// provider names a model, because a Gemini turn runs on the workspace's model.
 func geminiFixture(t *testing.T, u *upstream) *httpFixture {
 	t.Helper()
 	f := newHTTPFixture(t, 1, 1, "member")
@@ -19,8 +17,6 @@ func geminiFixture(t *testing.T, u *upstream) *httpFixture {
 	return f
 }
 
-// TestGeminiModelsComesFromTheProvider proves the names a Gemini client shows
-// are the provider's own list, in the Gemini shape.
 func TestGeminiModelsComesFromTheProvider(t *testing.T) {
 	u := &upstream{listBody: `{"data":[{"id":"m-one"},{"id":"m-two"}]}`}
 	f := geminiFixture(t, u)
@@ -43,9 +39,6 @@ func TestGeminiModelsComesFromTheProvider(t *testing.T) {
 	}
 }
 
-// TestGeminiGeneratesContentTranslatesTheTurn walks a request with a system
-// prompt, tools and a JSON output request to the OpenAI shape the provider
-// reads, and the answer back into a GenerateContentResponse.
 func TestGeminiGeneratesContentTranslatesTheTurn(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"hello"},
 		"finish_reason":"stop"}],"usage":{"prompt_tokens":11,"completion_tokens":3}}`}
@@ -113,9 +106,6 @@ func TestGeminiGeneratesContentTranslatesTheTurn(t *testing.T) {
 	}
 }
 
-// TestGeminiPairsFunctionCallsWithTheirResponses keeps a tool turn intact: a
-// Gemini history names the function it answers, and OpenAI pairs by id, so the
-// two ids must match.
 func TestGeminiPairsFunctionCallsWithTheirResponses(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":""},
 		"finish_reason":"stop"}]}`}
@@ -150,7 +140,6 @@ func TestGeminiPairsFunctionCallsWithTheirResponses(t *testing.T) {
 	if secondCall["id"] != "call_1" {
 		t.Fatalf("second call id = %v", secondCall["id"])
 	}
-	// The results answer in the order the calls were made.
 	for i, want := range []struct{ id, output string }{{"call_0", "package a"}, {"call_1", "package b"}} {
 		msg, _ := msgs[3+i].(map[string]any)
 		if msg["role"] != "tool" || msg["tool_call_id"] != want.id {
@@ -163,8 +152,6 @@ func TestGeminiPairsFunctionCallsWithTheirResponses(t *testing.T) {
 	}
 }
 
-// TestGeminiStreamsFrames walks the frame sequence Gemini CLI parses: text as it
-// arrives, then the whole function call, then the closing frame with usage.
 func TestGeminiStreamsFrames(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{"content":"Hel"}}]}`,
@@ -204,8 +191,6 @@ func TestGeminiStreamsFrames(t *testing.T) {
 			t.Fatalf("missing %q in:\n%s", want, text)
 		}
 	}
-	// Every frame is valid JSON, and every candidate carries parts as a list:
-	// the client reads its length, so a null there breaks the turn.
 	for _, line := range strings.Split(text, "\r\n\r\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -229,8 +214,6 @@ func TestGeminiStreamsFrames(t *testing.T) {
 	}
 }
 
-// A workspace whose provider names no model cannot answer a Gemini turn, and it
-// says so instead of calling the provider with an empty model.
 func TestGeminiRefusesAProviderWithoutAModel(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test",
@@ -247,8 +230,6 @@ func TestGeminiRefusesAProviderWithoutAModel(t *testing.T) {
 	}
 }
 
-// TestGeminiModelSelectorNamesAnotherModel lets a workspace run a model other
-// than its default for one call.
 func TestGeminiModelSelectorNamesAnotherModel(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -263,8 +244,6 @@ func TestGeminiModelSelectorNamesAnotherModel(t *testing.T) {
 	}
 }
 
-// TestGeminiTreatsAMissingRoleAsUser: the protocol leaves the role out on a
-// plain user turn, and a client that omits it must still be understood.
 func TestGeminiTreatsAMissingRoleAsUser(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -284,7 +263,6 @@ func TestGeminiTreatsAMissingRoleAsUser(t *testing.T) {
 	}
 }
 
-// TestGeminiCountTokens answers the context meter without calling the provider.
 func TestGeminiCountTokens(t *testing.T) {
 	u := &upstream{}
 	f := geminiFixture(t, u)
@@ -302,7 +280,6 @@ func TestGeminiCountTokens(t *testing.T) {
 	}
 }
 
-// TestGeminiRefusesAnUnknownAction keeps the action list closed.
 func TestGeminiRefusesAnUnknownAction(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 

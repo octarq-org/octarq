@@ -4,31 +4,19 @@ import (
 	core "github.com/octarq-org/octarq/server/ontology"
 )
 
-// entity is one declared spec together with the values derived from it once at
-// load time. Deriving them here keeps the request path free of string building
-// and keeps the route, the table and the catalog entry from disagreeing.
 type entity struct {
-	spec  core.Spec
-	table string
-	// featureKey is the feature switch that governs this entity, resolved from
-	// the declaring plugin at boot. Empty for an operator-declared entity, which
-	// no switch turns off.
+	spec       core.Spec
+	table      string
 	featureKey string
-	// active answers whether a feature is on for a workspace. It is the host's
-	// hook, stamped at Mount; nil means the host gave the plugin no way to ask,
-	// which leaves an owned entity switched off.
-	active func(orgID uint, featureKey string) bool
+	active     func(orgID uint, featureKey string) bool
 }
 
 func newEntity(spec core.Spec) *entity {
 	return &entity{spec: spec, table: core.TableName(spec.Slug)}
 }
 
-// owned reports whether a plugin's feature switch governs this entity.
 func (e *entity) owned() bool { return e.spec.Owner != "" }
 
-// featureOff reports whether the plugin that declared this entity is switched
-// off for the workspace. An operator-declared entity has no owner and no switch.
 func (e *entity) featureOff(orgID uint) bool {
 	if !e.owned() {
 		return false
@@ -39,17 +27,10 @@ func (e *entity) featureOff(orgID uint) bool {
 	return !e.active(orgID, e.featureKey)
 }
 
-// validate refuses the part of a declaration only this package can judge: the
-// icon the sidebar must render. core.Validate has already accepted the rest.
 func (e *entity) validate() error { return validateIcon(e.spec) }
 
-// acl returns the declaration for one operation. Load-time validation guarantees
-// every operation is present, so a missing entry is a programming error rather
-// than a tenant condition.
 func (e *entity) acl(op core.Operation) core.OperationACL { return e.spec.Operations[op] }
 
-// declares reports whether name is a field of this declaration. The writer uses
-// it to keep a caller-supplied lookup column inside the declared set.
 func (e *entity) declares(name string) bool {
 	for _, f := range e.spec.Fields {
 		if f.Name == name {
@@ -59,11 +40,6 @@ func (e *entity) declares(name string) bool {
 	return false
 }
 
-// sortable reports whether name is a column the list endpoint may sort by.
-// Declared fields qualify, and so do the two platform timestamps: they exist on
-// every generated table and the default order already uses created_at, so
-// refusing them would be a surprise. org_id and user_id are excluded — they are
-// the same value on every row the caller can see, and id is a UUID.
 func (e *entity) sortable(name string) bool {
 	if name == core.ColumnCreatedAt || name == core.ColumnUpdatedAt {
 		return true
@@ -76,24 +52,15 @@ func (e *entity) sortable(name string) bool {
 	return false
 }
 
-// catalogEntry is what GET /api/data serves: the declaration as data, stripped
-// of everything the caller cannot use. It is the input the generic admin page
-// builds its table and form from, and the contract an agent reads before calling
-// a data tool.
 type catalogEntry struct {
 	Slug        string         `json:"slug"`
 	Label       string         `json:"label"`
 	PluralLabel string         `json:"pluralLabel"`
 	Icon        string         `json:"icon,omitempty"`
 	Scope       core.ScopeKind `json:"scope"`
-	// Tier is what the page needs to open, in the self-hosted vocabulary
-	// ("" = free). It is the list operation's tier, because listing is the
-	// request the generic page makes first and therefore the one that answers
-	// 402. Without it the upsell mask can only say "locked feature", and would
-	// label an elite-only entity as Pro.
-	Tier       string         `json:"tier,omitempty"`
-	Fields     []catalogField `json:"fields"`
-	Operations []string       `json:"operations"`
+	Tier        string         `json:"tier,omitempty"`
+	Fields      []catalogField `json:"fields"`
+	Operations  []string       `json:"operations"`
 }
 
 type catalogField struct {
@@ -106,8 +73,6 @@ type catalogField struct {
 	ListColumn bool           `json:"listColumn"`
 }
 
-// catalog renders the entity for a caller who holds role. Operations the caller
-// cannot perform are omitted, so the page never draws a button that answers 403.
 func (e *entity) catalog(can func(op core.Operation) bool) catalogEntry {
 	out := catalogEntry{
 		Slug:        e.spec.Slug,
@@ -145,9 +110,6 @@ func fieldLabel(f core.Field) string {
 	return f.Name
 }
 
-// pluralLabel is the display name for a collection. A declaration that names one
-// gets it; otherwise the label is used as-is rather than guessed at, because an
-// "+s" that is wrong reads worse than no plural.
 func pluralLabel(spec core.Spec) string {
 	if spec.PluralLabel != "" {
 		return spec.PluralLabel
@@ -155,9 +117,6 @@ func pluralLabel(spec core.Spec) string {
 	return spec.Label
 }
 
-// fieldWidget is the declared widget, or the one the type implies. The default
-// lives here rather than in the frontend so an older page and a newer
-// declaration cannot disagree about how a json field renders.
 func fieldWidget(f core.Field) core.Widget {
 	if f.Widget != "" {
 		return f.Widget

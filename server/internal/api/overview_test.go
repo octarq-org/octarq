@@ -61,14 +61,12 @@ func TestOverviewPluginAbsent(t *testing.T) {
 		t.Fatalf("invalid json output: %v", err)
 	}
 
-	// Keys owned by plugins should be absent when plugins are not mounted
 	for _, absentKey := range []string{"mailboxes", "emails", "domains", "links"} {
 		if _, exists := res[absentKey]; exists {
 			t.Errorf("expected absent key %q when plugins are not mounted", absentKey)
 		}
 	}
 
-	// Core keys must be present
 	if _, exists := res["tokens"]; !exists {
 		t.Errorf("expected core key 'tokens' to be present")
 	}
@@ -108,7 +106,6 @@ func TestOverviewPluginDisabled(t *testing.T) {
 	srv := handler.Routes()
 	cookies := loginCookies(t, srv)
 
-	// Disable links plugin for org 1
 	if err := gdb.Create(&models.PluginSetting{OrgID: 1, Plugin: "links", Enabled: false}).Error; err != nil {
 		t.Fatalf("create PluginSetting: %v", err)
 	}

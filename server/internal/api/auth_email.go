@@ -41,8 +41,6 @@ type ChangeEmailOutput struct {
 	Body ChangeEmailOutputBody
 }
 
-// changeEmail updates the authenticated user's email address.
-// PUT /api/auth/email
 func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*ChangeEmailOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -92,7 +90,6 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 
 	var existing models.User
 	if h.db.Where("LOWER(email) = ? AND id <> ?", newEmail, user.ID).First(&existing).Error == nil {
-		// Same code as the register path so one client check covers both.
 		return nil, apierror.New(http.StatusConflict, apierror.CodeEmailInUse, "That email address is already in use. Use a different address.")
 	}
 
@@ -130,7 +127,6 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 		"newEmail": newEmail,
 	})
 
-	// Revoke every session except the one making this request.
 	currentID := h.auth.SessionID(r)
 	var sessions []models.Session
 	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Find(&sessions)

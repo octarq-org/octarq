@@ -15,11 +15,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// sendInviteEmail best-effort delivers the invite accept link to the invited
-// address through the instance's system sender, reporting whether it went out.
-// It never returns an error: a missing sender or a send failure is logged and
-// swallowed so the invite itself still succeeds. The caller surfaces the false
-// case as emailSent, because the link is no longer recoverable any other way.
 func (h *Handler) sendInviteEmail(to, acceptURL string) bool {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("You've been invited to join a workspace on Octarq.\n\n"+
@@ -52,9 +47,6 @@ type ResendOrgMemberInviteOutput struct {
 	}
 }
 
-// resendOrgMemberInvite re-generates an invite token and delivers a new invite
-// email to a pending workspace member who hasn't accepted yet.
-// POST /api/org/members/{userId}/resend
 func (h *Handler) resendOrgMemberInvite(ctx context.Context, input *ResendOrgMemberInviteInput) (*ResendOrgMemberInviteOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -74,7 +66,6 @@ func (h *Handler) resendOrgMemberInvite(ctx context.Context, input *ResendOrgMem
 		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to manage members")
 	}
 
-	// Rate limit check: 30 seconds cooldown per user ID
 	if last, ok := h.resendInviteLimits.Load(input.UserID); ok {
 		if t, isTime := last.(time.Time); isTime && time.Since(t) < 30*time.Second {
 			return nil, huma.Error429TooManyRequests("Too many invitation requests; wait 30 seconds before trying again")

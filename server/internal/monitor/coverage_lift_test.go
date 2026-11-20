@@ -37,7 +37,6 @@ func TestCoverageLift_DBProvider_LazyInitAndDBError(t *testing.T) {
 		t.Fatalf("failed to open sqlite DB: %v", err)
 	}
 
-	// 1. Lazy init when sqlDB is nil on DBProvider
 	pLazy := &DBProvider{db: gdb}
 	res := pLazy.Check(context.Background())
 	if res.Status != plugin.HealthOK {
@@ -47,8 +46,6 @@ func TestCoverageLift_DBProvider_LazyInitAndDBError(t *testing.T) {
 		t.Fatal("expected sqlDB to be populated after Check")
 	}
 
-	// 2. Error when db.DB() fails (Statement.ConnPool is a *sql.Tx).
-	// Clone via Session so no lock-bearing gorm structs are copied (copylocks).
 	badGdb := gdb.Session(&gorm.Session{NewDB: true})
 	badGdb.Statement.ConnPool = &sql.Tx{}
 	pBroken := &DBProvider{db: badGdb}

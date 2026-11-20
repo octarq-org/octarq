@@ -17,8 +17,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
-// New loads configuration and opens the database (without migrating). Call
-// Use to register plugins, then Run.
 func New() (*App, error) {
 	cfg, err := config.Load()
 	if err != nil {
@@ -31,8 +29,6 @@ func New() (*App, error) {
 	}
 
 	eventbus.Init(gdb)
-	// Opt webhook/notification delivery into private targets only when the operator
-	// has explicitly allowed it (trusted internal receivers); default stays strict.
 	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
 	safehttp.SetAllowPrivateSMTP(cfg.AllowPrivateSMTP)
 
@@ -59,10 +55,5 @@ func New() (*App, error) {
 		geo:       geoResolver,
 		telemetry: tel,
 	}
-	// Composition is the caller's job: New() mounts no feature plugins. Each
-	// entry point (octarq/main.go, a downstream distribution's main, a trimmed edition) Uses the
-	// plugins it wants — Core plugins the same way extra plugins are added, via
-	// a.Use. The OSS default set is plugins/builtin.Default(); see
-	// website/src/content/docs/architecture/overview.md.
 	return a, nil
 }

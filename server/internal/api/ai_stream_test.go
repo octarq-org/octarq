@@ -70,8 +70,6 @@ func newAIStreamTestHandlerWithEndpointSource(t *testing.T, p llmprovider.Provid
 	return srv, db
 }
 
-// newAIStreamTestHandlerFull also hands back the handler, for tests that need
-// to wire a collaborator the request path resolves.
 func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harness.EndpointSource) (http.Handler, *gorm.DB, *Handler) {
 	t.Helper()
 	db := newTestDB(t)
@@ -83,9 +81,6 @@ func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harnes
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
-	// The app installs the plugin host; the chat resolves the published harness
-	// through it. A host with no HarnessSpecFn means the workspace published
-	// nothing, which uses the built-in default.
 	h.SetHost(&plugin.TestHost{})
 	if p != nil {
 		h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) { return p, nil })
@@ -101,7 +96,6 @@ func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harnes
 	return srv, db, h
 }
 
-// hostWithPublishedHarness returns a host whose workspace published spec.
 func hostWithPublishedHarness(t *testing.T, spec harness.HarnessSpec) *plugin.TestHost {
 	t.Helper()
 	raw, err := json.Marshal(spec)
@@ -186,7 +180,6 @@ func TestAIChatStream_Unconfigured(t *testing.T) {
 	}
 }
 
-// aguiEvents decodes the AG-UI frames of a streamed response.
 func aguiEvents(t *testing.T, body string) []map[string]any {
 	t.Helper()
 	var events []map[string]any
@@ -204,7 +197,6 @@ func aguiEvents(t *testing.T, body string) []map[string]any {
 	return events
 }
 
-// findAGUI returns the first event of the given type.
 func findAGUI(events []map[string]any, typ string) (map[string]any, bool) {
 	for _, ev := range events {
 		if ev["type"] == typ {
@@ -342,9 +334,6 @@ func TestAIChatStream_ToolStream(t *testing.T) {
 	}
 }
 
-// TestAIChatStream_RefusesUnsupportedRunInput pins the fields the server
-// would otherwise drop. A client that sends them must learn they have no
-// effect, not run with a false belief about the turn.
 func TestAIChatStream_RefusesUnsupportedRunInput(t *testing.T) {
 	user := `{"role":"user","content":"hi"}`
 	cases := []struct {
@@ -378,8 +367,6 @@ func TestAIChatStream_RefusesUnsupportedRunInput(t *testing.T) {
 	}
 }
 
-// TestAIChatStream_EmptyRunInputIsAccepted pins the standard shape: an AG-UI
-// client sends null or empty containers for fields it does not use.
 func TestAIChatStream_EmptyRunInputIsAccepted(t *testing.T) {
 	srv, _ := newAIStreamTestHandler(t, &fakeStreamingLLM{texts: []string{"ok"}})
 	body := `{"threadId":"t-1","runId":"r-1","messages":[{"role":"user","content":"hi"}],"tools":[],"state":null,"context":[],"forwardedProps":{}}`
@@ -402,7 +389,7 @@ func TestAIChatStream_EmptyRunInputIsAccepted(t *testing.T) {
 
 func TestAIChatStream_ClientCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
+	cancel()
 
 	fake := &fakeStreamingLLM{
 		texts: []string{"some text"},
@@ -418,7 +405,6 @@ func TestAIChatStream_ClientCancellation(t *testing.T) {
 	}
 	rec := httptest.NewRecorder()
 
-	// Should execute without hanging
 	srv.ServeHTTP(rec, req)
 }
 
@@ -445,8 +431,6 @@ func TestAIChatStream_IgnoresClientSystemPrompt(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// The client prompt is ignored; the server sends the prompt it compiled
-	// from the endpoint registry.
 	if strings.Contains(fake.lastReq.System, "malicious system jailbreak") {
 		t.Fatalf("expected client system prompt to be ignored, got %q", fake.lastReq.System)
 	}
@@ -455,10 +439,6 @@ func TestAIChatStream_IgnoresClientSystemPrompt(t *testing.T) {
 	}
 }
 
-// TestAIChatStream_WireFraming locks the SSE shape a client parses: each
-// frame is an optional "id:" line and one "data: <json>" line, frames end
-// with a blank line, and the stream carries no named "event:" lines. A
-// keep-alive comment is the one other frame a client can receive.
 func TestAIChatStream_WireFraming(t *testing.T) {
 	fake := &fakeStreamingLLM{texts: []string{"ok"}, resp: llmprovider.Response{StopReason: "end_turn"}}
 	srv, _ := newAIStreamTestHandler(t, fake)

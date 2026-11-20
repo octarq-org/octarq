@@ -11,10 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// registerUser signs up a real (non-bootstrap) account and returns its session
-// cookies. The bootstrap admin can't be used here: its credentials come from
-// the environment and its user row has an empty PasswordHash, which the change
-// endpoint deliberately refuses.
 func registerUser(t *testing.T, srv http.Handler, db *gorm.DB, email, password string) []*http.Cookie {
 	t.Helper()
 	disableEmailVerification(t, db)
@@ -23,9 +19,6 @@ func registerUser(t *testing.T, srv http.Handler, db *gorm.DB, email, password s
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register %s: got %d (%s)", email, rec.Code, rec.Body.String())
 	}
-	// Sign-up no longer hands out a session — the account is activated from
-	// the mailbox, and the answer must not say whether the address was free.
-	// The tests that need a session sign in for it.
 	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"`+email+`","password":"`+password+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login %s: got %d (%s)", email, rec.Code, rec.Body.String())
@@ -48,10 +41,6 @@ func TestChangePasswordReplacesHashAndKeepsCallerSignedIn(t *testing.T) {
 		t.Fatalf("change password: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// The stored hash actually changed, and it verifies against the NEW secret.
-	// Checking bcrypt rather than just "the row is different" is the point: the
-	// bug this endpoint replaces was a handler that reported success without
-	// touching anything at all.
 	var after models.User
 	db.First(&after, before.ID)
 	if after.PasswordHash == before.PasswordHash {
@@ -61,13 +50,10 @@ func TestChangePasswordReplacesHashAndKeepsCallerSignedIn(t *testing.T) {
 		t.Fatal("stored hash does not verify against the new password")
 	}
 
-	// The caller keeps working — changing your password must not sign you out
-	// of the page you changed it on.
 	if rec := do(srv, "GET", "/api/auth/me", cookies, ""); rec.Code != http.StatusOK {
 		t.Fatalf("me after change: got %d, want 200", rec.Code)
 	}
 
-	// And the new password is the one that logs in.
 	if rec := do(srv, "POST", "/api/auth/login", nil,
 		`{"email":"owner@example.com","password":"replacementpw2"}`); rec.Code != http.StatusOK {
 		t.Fatalf("login with new password: got %d (%s)", rec.Code, rec.Body.String())
@@ -78,10 +64,6 @@ func TestChangePasswordReplacesHashAndKeepsCallerSignedIn(t *testing.T) {
 	}
 }
 
-// doUA is do() with a User-Agent. Sessions are keyed on
-// (user, ip, user_agent) — a second login with the same fingerprint refreshes
-// the existing row and rotates its token rather than creating a second session
-// — so two concurrent sessions in a test require two distinct agents.
 func doUA(srv http.Handler, method, path string, cookies []*http.Cookie, body, ua string) *httptest.ResponseRecorder {
 	var bodyReader *strings.Reader
 	if body != "" {
@@ -114,9 +96,6 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
 	}
-	// Sign-up no longer hands out a session (the account is activated from the
-	// mailbox, and the answer must not say whether the address was free), so
-	// the tests that need a session sign in for it.
 	rec = doUA(srv, "POST", "/api/auth/login", nil,
 		`{"email":"owner@example.com","password":"originalpw1"}`, agentA)
 	if rec.Code != http.StatusOK {
@@ -124,7 +103,6 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 	}
 	first := rec.Result().Cookies()
 
-	// A second sign-in from another device.
 	rec = doUA(srv, "POST", "/api/auth/login", nil,
 		`{"email":"owner@example.com","password":"originalpw1"}`, agentB)
 	if rec.Code != http.StatusOK {
@@ -140,8 +118,6 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 		t.Fatalf("change password: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// Locking out the other sessions is half the reason to change a password in
-	// a hurry, so it is asserted rather than assumed.
 	if rec := doUA(srv, "GET", "/api/auth/me", second, "", agentB); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("other session after change: got %d, want 401", rec.Code)
 	}
@@ -197,9 +173,6 @@ func TestChangePasswordRequiresASession(t *testing.T) {
 	}
 }
 
-// The bootstrap admin authenticates against OCTARQ_ADMIN_PASSWORD, checked
-// before any stored hash, so writing one for that account would leave the env
-// password working and report a change that changed nothing.
 func TestChangePasswordRefusesAccountWithNoStoredPassword(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
@@ -219,17 +192,10 @@ func TestChangePasswordRefusesAccountWithNoStoredPassword(t *testing.T) {
 	}
 }
 
-// Deliberately changing your password has to end any reset link that is already
-// out there. The sequence this protects against is ordinary: someone triggers
-// "forgot password" against your address, you see the mail, you do the thing a
-// careful person does — sign in and change your password. If the token survives,
-// whoever asked for it still holds a link that overwrites the password you just
-// chose and deletes every one of your sessions, for the rest of its hour.
 func TestChangePasswordInvalidatesAnOutstandingResetToken(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := registerUser(t, srv, db, "target@example.com", "originalpw1")
 
-	// An attacker requests a reset for the account.
 	if rec := do(srv, "POST", "/api/auth/forgot", nil,
 		`{"email":"target@example.com"}`); rec.Code != http.StatusOK {
 		t.Fatalf("forgot: got %d (%s)", rec.Code, rec.Body.String())
@@ -243,7 +209,6 @@ func TestChangePasswordInvalidatesAnOutstandingResetToken(t *testing.T) {
 		t.Fatal("no reset token was issued — this test would pass without proving anything")
 	}
 
-	// The account owner reacts by changing their password from inside the app.
 	if rec := do(srv, "POST", "/api/auth/password", cookies,
 		`{"currentPassword":"originalpw1","newPassword":"chosenbyowner2"}`); rec.Code != http.StatusOK {
 		t.Fatalf("change password: got %d (%s)", rec.Code, rec.Body.String())
@@ -258,7 +223,6 @@ func TestChangePasswordInvalidatesAnOutstandingResetToken(t *testing.T) {
 		t.Error("reset token expiry survived the password change")
 	}
 
-	// The password the owner chose is still the password.
 	if bcrypt.CompareHashAndPassword([]byte(after.PasswordHash), []byte("chosenbyowner2")) != nil {
 		t.Fatal("the owner's new password is not the stored one")
 	}

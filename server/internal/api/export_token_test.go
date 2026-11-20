@@ -8,8 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 )
 
-// The download link for a full export is a signed token. A token minted for
-// no workspace would address an export that does not exist.
 func TestExportSignedTokenRefusesAnEmptyWorkspace(t *testing.T) {
 	h := &Handler{cfg: &config.Config{SecretKey: strings.Repeat("k", 32)}}
 	if _, err := h.GenerateExportSignedToken(0, time.Minute); err == nil {
@@ -20,7 +18,6 @@ func TestExportSignedTokenRefusesAnEmptyWorkspace(t *testing.T) {
 func TestExportSignedTokenAndURL(t *testing.T) {
 	h := &Handler{cfg: &config.Config{SecretKey: strings.Repeat("k", 32)}}
 
-	// A zero lifetime must still mint a usable token.
 	tok, err := h.GenerateExportSignedToken(5, 0)
 	if err != nil {
 		t.Fatalf("token: %v", err)
@@ -38,8 +35,6 @@ func TestExportSignedTokenAndURL(t *testing.T) {
 	}
 }
 
-// Export files carry conversation content, so credentials in that content must
-// leave the instance masked.
 func TestSanitizeSecretMasksCredentials(t *testing.T) {
 	openAIStyle := "sk-" + strings.Repeat("a", 24)
 	githubStyle := "ghp_" + strings.Repeat("b", 20)

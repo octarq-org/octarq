@@ -141,7 +141,6 @@ func TestHelpDocs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("listDocs error: %v", err)
 		}
-		// Map DocMeta to HelpDoc for easy comparison
 		res := make([]plugin.HelpDoc, len(out.Body))
 		for i, d := range out.Body {
 			res[i] = plugin.HelpDoc{Slug: d.Slug, Title: d.Title}
@@ -149,13 +148,10 @@ func TestHelpDocs(t *testing.T) {
 		return res
 	}
 
-	// 1. Org 1 (enabled) sees both plugins, with deterministic slug resolution
 	docs1 := getDocs(1)
 	if len(docs1) != 2 {
 		t.Fatalf("expected 2 docs, got %d", len(docs1))
 	}
-	// Slug collision: plugin-b's doc-a should become plugin-b-doc-a (or plugin-a-doc-a depending on order)
-	// Because ActivePlugins returns [pluginA, pluginB], A gets "doc-a" and B gets "plugin-b-doc-a"
 	hasDocA := false
 	hasDocBCollision := false
 	for _, d := range docs1 {
@@ -170,13 +166,11 @@ func TestHelpDocs(t *testing.T) {
 		t.Errorf("slug collision not resolved deterministically: %v", docs1)
 	}
 
-	// 2. Org 2 (disabled) sees no docs for disabled plugins
 	docs2 := getDocs(2)
 	if len(docs2) != 0 {
 		t.Errorf("expected 0 docs for org 2, got %d", len(docs2))
 	}
 
-	// 3. Raw HTML is escaped
 	req := httptest.NewRequest("GET", "/api/help/docs/doc-a", nil)
 	humaCtx := humago.NewContext(nil, req, nil)
 	getInput := &GetDocInput{Slug: "doc-a"}
@@ -192,7 +186,6 @@ func TestHelpDocs(t *testing.T) {
 }
 
 func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
-	// Create docs in 3 different categories with intentionally reversed Order to ensure category order wins
 	docStart := plugin.HelpDoc{
 		Slug:     "start-doc",
 		Title:    "Start Doc",
@@ -235,7 +228,6 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 	h.pctx = pctx
 	h.SetHost(host)
 
-	// Test 1: Category sorting order (start [10] < operations [20] < infrastructure [30])
 	docs := h.getDocs(1, "en")
 	if len(docs) != 3 {
 		t.Fatalf("expected 3 docs, got %d", len(docs))
@@ -244,7 +236,6 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 		t.Errorf("incorrect doc ordering: got %s, %s, %s", docs[0].Slug, docs[1].Slug, docs[2].Slug)
 	}
 
-	// Test 2: zh-CN matches "zh" translation and updates Title & Category
 	docsZh := h.getDocs(1, "zh-CN")
 	var matchedService *plugin.HelpDoc
 	for _, d := range docsZh {

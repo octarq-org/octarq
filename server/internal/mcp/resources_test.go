@@ -70,25 +70,21 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 	ctx := context.Background()
 	gdb := setupResourcesTestDB(t)
 
-	// Seed data for Org 1
 	now := time.Now()
 	l1 := testLinkRow{OrgID: 1, Host: "go.corp.com", Slug: "blog", Title: "Blog", Clicks: 30, Enabled: true, Archived: false, CreatedAt: now}
 	l2 := testLinkRow{OrgID: 1, Host: "go.corp.com", Slug: "promo", Title: "Promo", Clicks: 20, Enabled: true, Archived: false, CreatedAt: now}
 	lArchived := testLinkRow{OrgID: 1, Host: "go.corp.com", Slug: "old", Title: "Old", Clicks: 5, Enabled: false, Archived: true, CreatedAt: now}
-	// Seed link for Org 2
 	lOrg2 := testLinkRow{OrgID: 2, Host: "link.other.com", Slug: "secret", Title: "Secret", Clicks: 100, Enabled: true, Archived: false, CreatedAt: now}
 	gdb.Create(&l1)
 	gdb.Create(&l2)
 	gdb.Create(&lArchived)
 	gdb.Create(&lOrg2)
 
-	// Seed events for l1
-	gdb.Create(&testLinkEventRow{LinkID: l1.ID, IsBot: false, CreatedAt: now.Add(-2 * 24 * time.Hour)})  // within 7d
-	gdb.Create(&testLinkEventRow{LinkID: l1.ID, IsBot: false, CreatedAt: now.Add(-10 * 24 * time.Hour)}) // within 30d
-	gdb.Create(&testLinkEventRow{LinkID: l1.ID, IsBot: true, CreatedAt: now.Add(-1 * 24 * time.Hour)})   // bot, excluded
+	gdb.Create(&testLinkEventRow{LinkID: l1.ID, IsBot: false, CreatedAt: now.Add(-2 * 24 * time.Hour)})
+	gdb.Create(&testLinkEventRow{LinkID: l1.ID, IsBot: false, CreatedAt: now.Add(-10 * 24 * time.Hour)})
+	gdb.Create(&testLinkEventRow{LinkID: l1.ID, IsBot: true, CreatedAt: now.Add(-1 * 24 * time.Hour)})
 	gdb.Create(&testLinkEventRow{LinkID: lOrg2.ID, IsBot: false, CreatedAt: now.Add(-1 * 24 * time.Hour)})
 
-	// Seed domains for Org 1
 	d1 := testDomainRow{
 		OrgID:             1,
 		Name:              "corp.com",
@@ -121,7 +117,6 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}
-	// Seed domain for Org 2
 	dOrg2 := testDomainRow{
 		OrgID:             2,
 		Name:              "othercorp.com",
@@ -136,7 +131,6 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 	gdb.Create(&dPendingProv)
 	gdb.Create(&dOrg2)
 
-	// Create MCP server instance for Org 1
 	server := NewServerInstance(gdb, 1, nil, nil)
 	client := mcp.NewClient(&mcp.Implementation{Name: "client", Version: "1.0"}, nil)
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
@@ -151,7 +145,6 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 	}
 	defer clientSession.Close()
 
-	// 1. Verify ListResources
 	resList, err := clientSession.ListResources(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListResources failed: %v", err)
@@ -183,7 +176,6 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 		}
 	}
 
-	// 2. Read octarq://metrics/traffic
 	readTraffic, err := clientSession.ReadResource(ctx, &mcp.ReadResourceParams{URI: ResourceURITrafficMetrics})
 	if err != nil {
 		t.Fatalf("ReadResource(traffic) failed: %v", err)
@@ -217,7 +209,6 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 		t.Errorf("expected 2 active top links, got %d", len(trafficData.TopLinks))
 	}
 
-	// 3. Read octarq://domains/health
 	readDomains, err := clientSession.ReadResource(ctx, &mcp.ReadResourceParams{URI: ResourceURIDomainsHealth})
 	if err != nil {
 		t.Fatalf("ReadResource(domains) failed: %v", err)
@@ -256,7 +247,6 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 		t.Errorf("expected pendingprov.com to be pending_provider, got %s", statusMap["pendingprov.com"])
 	}
 
-	// 4. Test reading unknown URI
 	_, errNotFound := clientSession.ReadResource(ctx, &mcp.ReadResourceParams{URI: "octarq://unknown/resource"})
 	if errNotFound == nil {
 		t.Errorf("expected error for unknown resource URI, got nil")
@@ -269,12 +259,10 @@ func TestMCPResources_EdgeCasesAndTenantIsolation(t *testing.T) {
 
 	sOrg0 := &server{gdb: gdb, orgID: 0}
 
-	// Call handleResourceTraffic with nil params
 	if _, err := sOrg0.handleResourceTraffic(ctx, nil); err == nil {
 		t.Error("expected error for nil request")
 	}
 
-	// Call with unknown URI
 	if _, err := sOrg0.handleResourceTraffic(ctx, &mcp.ReadResourceRequest{Params: &mcp.ReadResourceParams{URI: "octarq://other"}}); err == nil {
 		t.Error("expected error for invalid URI in handleResourceTraffic")
 	}
@@ -285,7 +273,6 @@ func TestMCPResources_EdgeCasesAndTenantIsolation(t *testing.T) {
 		t.Error("expected error for nil request in handleResourceDomainsHealth")
 	}
 
-	// Call with no org in context and server orgID = 0
 	if _, err := sOrg0.handleResourceTraffic(ctx, &mcp.ReadResourceRequest{Params: &mcp.ReadResourceParams{URI: ResourceURITrafficMetrics}}); err == nil {
 		t.Error("expected error when no org present")
 	}
@@ -293,7 +280,6 @@ func TestMCPResources_EdgeCasesAndTenantIsolation(t *testing.T) {
 		t.Error("expected error when no org present")
 	}
 
-	// Fresh empty DB without tables
 	freshDBPath := filepath.Join(t.TempDir(), "fresh.db")
 	freshDB, _ := gorm.Open(sqlite.Open(freshDBPath), &gorm.Config{})
 	sFresh := &server{gdb: freshDB, orgID: 1}
@@ -313,7 +299,6 @@ func TestMCPResources_EdgeCasesAndTenantIsolation(t *testing.T) {
 		t.Errorf("expected response content on fresh DB")
 	}
 
-	// Verify plugin.WithOrgID takes precedence over server.orgID
 	ctxOrg2 := plugin.WithOrgID(ctx, 2)
 	resTrafficOrg2, err := sFresh.handleResourceTraffic(ctxOrg2, &mcp.ReadResourceRequest{Params: &mcp.ReadResourceParams{URI: ResourceURITrafficMetrics}})
 	if err != nil {

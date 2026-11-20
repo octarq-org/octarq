@@ -16,7 +16,6 @@ func TestAccountMore(t *testing.T) {
 	srv, db := newTestHandler(t)
 	adminCookies := loginCookies(t, srv)
 
-	// Create solitary user (not in any org) with related tables
 	solitaryUser := models.User{Email: "solitary@example.com"}
 	db.Create(&solitaryUser)
 	db.Create(&models.UserIdentity{UserID: solitaryUser.ID, Provider: "github", Issuer: "https://github.com", Subject: "123"})
@@ -24,31 +23,26 @@ func TestAccountMore(t *testing.T) {
 	db.Create(&models.Token{UserID: solitaryUser.ID, Name: "User Tok", Hash: "hash"})
 	solitaryCookies := sessionCookies(t, solitaryUser.ID, 0)
 
-	// Create member user (belongs to org 1)
 	orgUser := models.User{Email: "orguser@example.com"}
 	db.Create(&orgUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: orgUser.ID, Role: "member"})
 	orgUserCookies := sessionCookies(t, orgUser.ID, 1)
 
-	// 1. Delete account unauth -> 401
 	rec := do(srv, "DELETE", "/api/account/user", nil, `{"confirm":"DELETE MY ACCOUNT"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth delete account: got %d, want 401", rec.Code)
 	}
 
-	// 2. Delete account wrong confirmation string -> 400
 	rec = do(srv, "DELETE", "/api/account/user", solitaryCookies, `{"confirm":"WRONG"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("wrong confirm delete account: got %d, want 400", rec.Code)
 	}
 
-	// 3. Delete account when user belongs to an org -> 409 Conflict
 	rec = do(srv, "DELETE", "/api/account/user", orgUserCookies, `{"confirm":"DELETE MY ACCOUNT"}`)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("delete account in org: got %d, want 409", rec.Code)
 	}
 
-	// 4. Delete account for solitary user -> 200 OK (purges User, UserIdentity, UserSetting, Token, Sessions)
 	rec = do(srv, "DELETE", "/api/account/user", solitaryCookies, `{"confirm":"DELETE MY ACCOUNT"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete solitary user: got %d (%s)", rec.Code, rec.Body.String())
@@ -59,20 +53,16 @@ func TestAccountMore(t *testing.T) {
 		t.Errorf("solitary user still exists in DB after deletion")
 	}
 
-	// 5. Purge account invalid confirm -> 400
 	rec = do(srv, "DELETE", "/api/account/data", adminCookies, `{"confirm":"WRONG"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("purge account wrong confirm: got %d, want 400", rec.Code)
 	}
 
-	// 6. Purge account non-owner -> 403
 	rec = do(srv, "DELETE", "/api/account/data", orgUserCookies, `{"confirm":"DELETE MY DATA"}`)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member purge account: got %d, want 403", rec.Code)
 	}
 
-	// 7. Successful Purge Account by Owner
-	// Create dedicated org with all data types populated
 	purgeOrg := models.Org{Name: "Purge Me Org", Slug: "purgemeorg"}
 	db.Create(&purgeOrg)
 	purgeOwner := models.User{Email: "purgeowner@example.com"}
@@ -97,19 +87,16 @@ func TestAccountMore(t *testing.T) {
 		t.Errorf("purged org still exists in DB")
 	}
 
-	// 8. Export account unauth -> 401
 	rec = do(srv, "GET", "/api/account/export", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth export: got %d, want 401", rec.Code)
 	}
 
-	// 9. Export account member (non-admin) -> 403
 	rec = do(srv, "GET", "/api/account/export", orgUserCookies, "")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member export: got %d, want 403", rec.Code)
 	}
 
-	// 10. Export account admin -> 200 attachment
 	rec = do(srv, "GET", "/api/account/export", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("admin export: got %d (%s)", rec.Code, rec.Body.String())
@@ -118,7 +105,6 @@ func TestAccountMore(t *testing.T) {
 		t.Errorf("missing Content-Disposition header in export")
 	}
 
-	// 11. Nil Ctx calls
 	h, _, _ := newTestHandlerRaw(t)
 	ctx := context.Background()
 	if _, err := h.exportAccount(ctx, &ExportAccountInput{Ctx: nil}); err == nil {
@@ -153,13 +139,11 @@ func TestAccountExportAndPurgeServices(t *testing.T) {
 	h.SetServiceLookup(reg.Lookup)
 	h.SetPlugins([]plugin.Plugin{dummyAccountPlugin{}})
 
-	// Export with plugin
 	rec := do(srv, "GET", "/api/account/export", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("export with plugin: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// Purge with plugin
 	rec = do(srv, "DELETE", "/api/account/data", adminCookies, `{"confirm":"DELETE MY DATA"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("purge with plugin: got %d (%s)", rec.Code, rec.Body.String())
@@ -184,19 +168,15 @@ func TestAccountPurgePluginFailure(t *testing.T) {
 	h.SetServiceLookup(reg.Lookup)
 	h.SetPlugins([]plugin.Plugin{failingAccountPlugin{}})
 
-	// Attempt purge
 	rec := do(srv, "DELETE", "/api/account/data", adminCookies, `{"confirm":"DELETE MY DATA"}`)
-	// (a) returns 5xx
 	if rec.Code < 500 || rec.Code > 599 {
 		t.Fatalf("expected 5xx status code on purge failure, got %d (%s)", rec.Code, rec.Body.String())
 	}
-	// (b) Org row STILL exists
 	var count int64
 	db.Model(&models.Org{}).Where("id = ?", 1).Count(&count)
 	if count != 1 {
 		t.Fatalf("expected Org row to still exist in DB after purge error, got count %d", count)
 	}
-	// (c) error message contains the plugin name
 	if !strings.Contains(rec.Body.String(), "failing_plugin") {
 		t.Fatalf("expected error response to mention plugin 'failing_plugin', got: %s", rec.Body.String())
 	}

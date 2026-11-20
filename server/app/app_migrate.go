@@ -13,10 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// prepareMigrationAndCipher performs startup preflights, refuses a database
-// migrated by a newer binary, backs the database up before an upgrade,
-// auto-migrates all core and plugin models together in a single pass, records
-// the schema version, and upgrades the cipher to envelope mode.
 func (a *App) prepareMigrationAndCipher() error {
 	if err := preflightNameCollisions(a.plugins); err != nil {
 		return err
@@ -32,16 +28,12 @@ func (a *App) prepareMigrationAndCipher() error {
 	if err != nil {
 		return err
 	}
-	// A schema that already exists and is about to change is backed up first:
-	// AutoMigrate has no downgrade path, so the copy is the way back.
 	if upgrade && a.gdb.Migrator().HasTable(&models.User{}) {
 		if err := a.backupBeforeMigration(); err != nil {
 			return err
 		}
 	}
 
-	// The webhook delivery log and the idempotency ledger are core
-	// infrastructure that no plugin owns, so they join the same single pass.
 	extra := append(eventbus.Models(), idempotency.Models()...)
 	for _, p := range a.plugins {
 		extra = append(extra, p.Models()...)
@@ -55,9 +47,6 @@ func (a *App) prepareMigrationAndCipher() error {
 	return a.cipher.EnableEnvelope(settingsStore{a.gdb})
 }
 
-// backupBeforeMigration writes a database snapshot before an upgrade. A failed
-// backup stops the boot: migrating without a copy leaves nothing to return to,
-// and AutoMigrate never reverses itself.
 func (a *App) backupBeforeMigration() error {
 	dir := filepath.Join(filepath.Dir(a.cfg.StorageDir), "backups")
 	if err := os.MkdirAll(dir, 0o750); err != nil {

@@ -14,11 +14,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// The web assistant used to run with an EMPTY system prompt: the model was
-// never told which tools exist, never told how to call one, and never told
-// that tool output is data. These tests pin the compiled prompt that reaches
-// the provider, and the audit trail the turn leaves behind.
-
 type catalogTestInput struct {
 	Destination string `json:"destination" doc:"Target destination URL"`
 }
@@ -210,8 +205,6 @@ func TestAIChatStream_AnInvalidPublishedSpecFailsClosed(t *testing.T) {
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
 	h.SetHost(hostWithPublishedHarness(t, harness.HarnessSpec{
-		// A spec that does not validate must not reach the model, and must
-		// not silently degrade into the built-in default.
 		Version: harness.HarnessSpecVersion, Name: "",
 	}))
 

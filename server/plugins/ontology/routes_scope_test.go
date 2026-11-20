@@ -7,9 +7,6 @@ import (
 	core "github.com/octarq-org/octarq/server/ontology"
 )
 
-// TestUserScopedRoutesKeepMembersApart walks the REST surface as two members of
-// one workspace. The declaration says the rows belong to a member; neither the
-// page nor the API may show one member another's record.
 func TestUserScopedRoutesKeepMembersApart(t *testing.T) {
 	alice := newHTTPFixtureDoc(t, "member", 1, 1, noteDoc)
 	bob := newHTTPFixtureDoc(t, "member", 1, 2, noteDoc)
@@ -22,8 +19,6 @@ func TestUserScopedRoutesKeepMembersApart(t *testing.T) {
 	if id == "" {
 		t.Fatalf("created = %v, want an id", created)
 	}
-	// The owner column is written from the request context, and the record
-	// contract does not expose it.
 	if _, exposed := created["user_id"]; exposed {
 		t.Fatalf("created = %v, want no platform isolation column in the record", created)
 	}
@@ -43,8 +38,6 @@ func TestUserScopedRoutesKeepMembersApart(t *testing.T) {
 		t.Fatalf("bob list = %d %v, want none of alice's rows", status, list)
 	}
 
-	// 404, not 403: the answer must not confirm that the id exists somewhere in
-	// the workspace.
 	if status, _ := bob.do(t, http.MethodGet, "/api/data/notes/"+id, ""); status != http.StatusNotFound {
 		t.Fatalf("bob get = %d, want 404", status)
 	}
@@ -55,15 +48,12 @@ func TestUserScopedRoutesKeepMembersApart(t *testing.T) {
 		t.Fatalf("bob delete = %d, want 404", status)
 	}
 
-	// The owner still reads her own record unchanged.
 	status, got := alice.do(t, http.MethodGet, "/api/data/notes/"+id, "")
 	if status != http.StatusOK || got["body"] != "alice's note" {
 		t.Fatalf("alice get = %d %v", status, got)
 	}
 }
 
-// TestUserScopedRoutesRefuseTheOwnerInTheBody pins that the owner column is
-// server-side truth: a caller cannot write a row into another member's set.
 func TestUserScopedRoutesRefuseTheOwnerInTheBody(t *testing.T) {
 	f := newHTTPFixtureDoc(t, "member", 1, 1, noteDoc)
 
@@ -76,8 +66,6 @@ func TestUserScopedRoutesRefuseTheOwnerInTheBody(t *testing.T) {
 	}
 }
 
-// TestUserScopedRoutesRefuseATransportWithNoUser pins fail-closed for stdio MCP,
-// which stamps a workspace and no identity.
 func TestUserScopedRoutesRefuseATransportWithNoUser(t *testing.T) {
 	f := newHTTPFixtureDoc(t, "member", 1, 0, noteDoc)
 
@@ -90,8 +78,6 @@ func TestUserScopedRoutesRefuseATransportWithNoUser(t *testing.T) {
 	}
 }
 
-// TestCatalogReportsTheScope pins that the page can tell a member which records
-// are their own.
 func TestCatalogReportsTheScope(t *testing.T) {
 	f := newHTTPFixtureDoc(t, "member", 1, 1, noteDoc)
 

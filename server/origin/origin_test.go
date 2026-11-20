@@ -11,9 +11,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// testDomain mirrors the dns plugin's domains table. The plugin cannot be
-// imported here (it depends on core, not the other way round), which is the same
-// reason domainRow exists in the package under test.
 type testDomain struct {
 	ID        uint `gorm:"primaryKey"`
 	OrgID     uint `gorm:"column:owner_id"`
@@ -26,10 +23,6 @@ type testDomain struct {
 
 func (testDomain) TableName() string { return "domains" }
 
-// openDB opens an empty in-memory database. Callers that want more than one
-// within a single test pass distinct suffixes: the DSN is the database's
-// identity under cache=shared, so reusing it would hand back the same storage.
-// Unlike testDB this leaves the resolver cache alone.
 func openDB(t *testing.T, suffix string) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+suffix+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
@@ -39,9 +32,6 @@ func openDB(t *testing.T, suffix string) *gorm.DB {
 	return db
 }
 
-// testDB returns a database seeded with rows. With no rows the domains table is
-// not created at all, which is what an instance composed without the dns plugin
-// looks like.
 func testDB(t *testing.T, rows ...testDomain) *gorm.DB {
 	t.Helper()
 	clearAllCache()
@@ -66,7 +56,6 @@ func req(host string) *http.Request {
 	return r
 }
 
-// acme is registered by org 1; evil.example is registered by nobody.
 func acme() testDomain {
 	return testDomain{
 		OrgID:   1,

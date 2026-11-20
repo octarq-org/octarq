@@ -16,15 +16,11 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// WebhookView is returned on list and update endpoints. Secret is never returned,
-// but SecretSet indicates whether a signing secret has been configured.
 type WebhookView struct {
 	models.Webhook
 	SecretSet bool `json:"secretSet"`
 }
 
-// WebhookCreateView is returned once on webhook creation, carrying the plaintext
-// signing secret to the creator.
 type WebhookCreateView struct {
 	models.Webhook
 	Secret    string `json:"secret"`
@@ -71,8 +67,8 @@ func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*
 type CreateWebhookInputBody struct {
 	Name    string `json:"name"`
 	URL     string `json:"url"`
-	Secret  string `json:"secret,omitempty"` // optional, will auto-generate if empty
-	Events  string `json:"events,omitempty"` // comma-separated, default "*"
+	Secret  string `json:"secret,omitempty"`
+	Events  string `json:"events,omitempty"`
 	Enabled *bool  `json:"enabled,omitempty"`
 }
 
@@ -107,7 +103,6 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 
 	secret := strings.TrimSpace(input.Body.Secret)
 	if secret == "" {
-		// Generate random 16-byte hex secret (32 chars)
 		b := make([]byte, 16)
 		if _, err := rand.Read(b); err != nil {
 			return nil, huma.Error500InternalServerError("Could not generate webhook secret; retry the request")
@@ -364,10 +359,6 @@ type TestWebhookOutput struct {
 	Body map[string]bool
 }
 
-// testWebhook fires one synthetic webhook.test event at the stored endpoint.
-// Single attempt on purpose (not deliverWithRetry): a test that needs five
-// retries is a broken endpoint, and the operator wants the first failure's
-// reason, not the loop's dead-letter summary.
 func (h *Handler) testWebhook(ctx context.Context, input *TestWebhookInput) (*TestWebhookOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -417,9 +408,6 @@ type ListWebhookEventsOutput struct {
 	Body []eventbus.EventGroup
 }
 
-// listWebhookEvents returns the registered webhook event definitions, grouped
-// in registration order, so the dashboard's webhook editor only offers events
-// this build can actually fire.
 func (h *Handler) listWebhookEvents(ctx context.Context, input *ListWebhookEventsInput) (*ListWebhookEventsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")

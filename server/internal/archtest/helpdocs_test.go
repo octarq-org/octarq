@@ -9,11 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
-// coreDocsProviders reads the same list the binary mounts, so a plugin that
-// ships docs is checked the day it is added. A hand-written list here would go
-// stale the moment a plugin joins builtin.Default(), and the docs of an unlisted
-// plugin ship unchecked — which is how llmgateway's pages escaped the
-// translation guard until this test derived the list instead.
 func coreDocsProviders() map[string]plugin.HelpDocsFS {
 	out := map[string]plugin.HelpDocsFS{}
 	for _, p := range builtin.Default() {
@@ -58,9 +53,6 @@ func TestCoreHelpDocsHaveTranslationsAndExcludeSpecMd(t *testing.T) {
 	}
 }
 
-// TestCoreHelpDocSlugsAreUniqueAcrossPlugins guards the union, not each plugin:
-// /help/<slug> resolves one page, so a second plugin claiming the same slug
-// makes its page unreachable. The per-plugin tests cannot see the collision.
 func TestCoreHelpDocSlugsAreUniqueAcrossPlugins(t *testing.T) {
 	seen := make(map[string]string)
 	for name, p := range coreDocsProviders() {

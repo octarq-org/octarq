@@ -13,12 +13,10 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestManagerGuards covers the early-return guards in the async/revocation
-// helpers that a stateless manager (no DB) and empty inputs hit.
 func TestManagerGuards(t *testing.T) {
-	m := testManager(t) // no DB attached
+	m := testManager(t)
 
-	m.touchToken(3) // must not panic with a nil DB
+	m.touchToken(3)
 
 	if n := m.RevokeUserOrgSessions(1, 1); n != 0 {
 		t.Errorf("RevokeUserOrgSessions without DB = %d, want 0", n)
@@ -39,20 +37,16 @@ func TestManagerGuards(t *testing.T) {
 		t.Errorf("RevokeUserOrgSessions with no rows = %d, want 0", n)
 	}
 
-	// TouchSession no-ops for a missing cookie and an unknown token.
 	m.TouchSession(httptest.NewRequest("GET", "/", nil))
 	req := httptest.NewRequest("GET", "/", nil)
 	req.AddCookie(&http.Cookie{Name: cookieName, Value: "no-such-token"})
 	m.TouchSession(req)
 }
 
-// TestRegisterEmptyID covers the early return in methods.Register.
 func TestRegisterEmptyID(t *testing.T) {
 	Register(AuthMethod{})
 }
 
-// TestBindIdentityNormalizeError surfaces the normalize failure through
-// bindIdentity rather than only through the direct helper call.
 func TestBindIdentityNormalizeError(t *testing.T) {
 	db := identityDB(t)
 	user := mustUser(t, db, "a@acme.com")
@@ -67,7 +61,6 @@ func TestBindIdentityNormalizeError(t *testing.T) {
 	}
 }
 
-// TestUserHasTOTPMissingUser returns false for a non-existent uid.
 func TestUserHasTOTPMissingUser(t *testing.T) {
 	m := testManager(t).WithDB(identityDB(t))
 	if m.userHasTOTP(999999) {
@@ -75,8 +68,6 @@ func TestUserHasTOTPMissingUser(t *testing.T) {
 	}
 }
 
-// TestResolveBoundIdentityWithoutOrg joins a bound identity's first org when no
-// org is named on the assertion (the joinOrg fallback).
 func TestResolveBoundIdentityWithoutOrg(t *testing.T) {
 	db := identityDB(t)
 	user := mustUser(t, db, "bob@acme.com")
@@ -93,8 +84,6 @@ func TestResolveBoundIdentityWithoutOrg(t *testing.T) {
 	}
 }
 
-// TestRegistrationAllowedEdge reads the setting default (on when absent) and a
-// nil DB (off).
 func TestRegistrationAllowedEdge(t *testing.T) {
 	db := identityDB(t)
 	if !registrationAllowed(db) {
@@ -105,7 +94,6 @@ func TestRegistrationAllowedEdge(t *testing.T) {
 	}
 }
 
-// TestUpsertUserByEmailEmpty refuses the empty address.
 func TestUpsertUserByEmailEmpty(t *testing.T) {
 	db := identityDB(t)
 	if _, _, err := UpsertUserByEmail(db, "   ", true); err == nil {
@@ -114,7 +102,6 @@ func TestUpsertUserByEmailEmpty(t *testing.T) {
 	}
 }
 
-// TestDecryptedSettingGarbage refuses an undecryptable stored secret.
 func TestDecryptedSettingGarbage(t *testing.T) {
 	db := identityDB(t)
 	h := NewOAuthHandler(db, New(&config.Config{SecretKey: "s"}, crypto.New("s")).WithDB(db), &testAuthVault{err: errors.New("vault error")})

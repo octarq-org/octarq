@@ -11,14 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// openDB returns a migrated database with the declaration applied, the state a
-// booted server leaves behind.
 func openDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	return openDocDB(t, ticketDoc)
 }
 
-// openDocDB is openDB for another declaration document.
 func openDocDB(t *testing.T, doc string) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -71,7 +68,6 @@ func TestStoreScopesReadsAndWritesToTheCaller(t *testing.T) {
 		t.Fatalf("created row has no id: %v", row)
 	}
 
-	// The other workspace must not see it, by list or by id.
 	rows, total, err := store{}.list(ctx, second, e, listParams{limit: 10})
 	if err != nil {
 		t.Fatalf("list as other tenant: %v", err)
@@ -89,7 +85,6 @@ func TestStoreScopesReadsAndWritesToTheCaller(t *testing.T) {
 		t.Fatalf("delete as other tenant = %v, want ErrNotFound", err)
 	}
 
-	// The owner still sees it, unchanged.
 	got, err := (store{}).get(ctx, first, e, id)
 	if err != nil {
 		t.Fatalf("get as owner: %v", err)
@@ -102,9 +97,6 @@ func TestStoreScopesReadsAndWritesToTheCaller(t *testing.T) {
 	}
 }
 
-// TestStoreWritesTheTenantColumnOnCreate pins the one isolation point GORM does
-// not enforce: TableScoped attaches its predicate to SELECT, UPDATE and DELETE,
-// but an INSERT ignores it, so create must write org_id from the handle.
 func TestStoreWritesTheTenantColumnOnCreate(t *testing.T) {
 	db := openDB(t)
 	e := ticketEntity(t)

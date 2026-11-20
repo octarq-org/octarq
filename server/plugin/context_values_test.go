@@ -6,10 +6,6 @@ import (
 	"testing"
 )
 
-// These wrappers are the only way a plugin reaches request identity and scope
-// data. Their defaults matter: an unset value must fall back to the least
-// privileged answer, never to an elevated one.
-
 func TestContextValues_UserAndScopeDefaults(t *testing.T) {
 	ctx := context.Background()
 
@@ -92,8 +88,6 @@ func TestContextValues_TokenAgentScope(t *testing.T) {
 		t.Fatalf("AllowedToolsFromContext(slice) = %v", got)
 	}
 
-	// A malformed JSON array falls back to comma splitting rather than dropping
-	// every entry, which would turn a broken allowlist into an empty one.
 	broken := WithTokenAgent(ctx, true, `["a",`)
 	if got := AllowedToolsFromContext(broken); !reflect.DeepEqual(got, []string{`["a"`}) {
 		t.Fatalf("AllowedToolsFromContext(malformed) = %v, want the comma-split remainder", got)

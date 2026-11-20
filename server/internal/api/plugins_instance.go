@@ -32,8 +32,6 @@ type ListInstancePluginsOutput struct {
 	Body []instancePluginOut
 }
 
-// listInstancePlugins returns all registered plugins for instance administrators.
-// GET /api/instance/plugins
 func (h *Handler) listInstancePlugins(ctx context.Context, input *ListInstancePluginsInput) (*ListInstancePluginsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -68,15 +66,10 @@ func (h *Handler) listInstancePlugins(ctx context.Context, input *ListInstancePl
 
 		key := plugin.FeatureKey(p)
 		out = append(out, instancePluginOut{
-			Name:       p.Name(),
-			FeatureKey: key,
-			Title:      info.Title,
-			Category:   cat,
-			// Effective, not declared. This table's Kind column is what an
-			// instance admin reads to answer "can a workspace turn this off",
-			// and the answer belongs to the feature: a plugin that shares its
-			// key with a Core sibling is always on however its own Info reads.
-			// Showing info.Core here would label it "Opt-in" and be wrong.
+			Name:             p.Name(),
+			FeatureKey:       key,
+			Title:            info.Title,
+			Category:         cat,
 			Core:             plugin.FeatureIsCore(h.plugins, key),
 			EnabledByDefault: h.FeatureDefaultEnabled(key),
 			Requires:         reqs,

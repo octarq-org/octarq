@@ -31,11 +31,6 @@ func roleSpec() plugin.EndpointSpec[roleEchoIn, roleEchoOut] {
 	}
 }
 
-// callMCPTool registers the spec on a fresh server, connects an in-memory
-// client, and invokes the tool. The role travels on the session context: that is
-// the context a real transport builds from the HTTP request that carried the
-// token, and it is what the server handler sees. Put it only on the client's
-// CallTool context and the server never receives it.
 func callMCPTool(t *testing.T, sessionCtx context.Context) (*mcp.CallToolResult, error) {
 	t.Helper()
 
@@ -94,8 +89,6 @@ func TestRegisterMCP_EnforcesRequireRole(t *testing.T) {
 	})
 
 	t.Run("no role is refused", func(t *testing.T) {
-		// stdio and browser sessions carry no token, so no role ceiling. That is
-		// the least privileged case, never a match.
 		res, err := callMCPTool(t, plugin.WithOrgID(context.Background(), 7))
 		if err == nil && (res == nil || !res.IsError) {
 			t.Fatalf("role-less caller reached an owner/admin-only tool (result %+v, err %v)", res, err)
@@ -104,7 +97,6 @@ func TestRegisterMCP_EnforcesRequireRole(t *testing.T) {
 }
 
 func TestRegisterMCP_WithoutRequireRoleStillWorks(t *testing.T) {
-	// A spec that declares no roles must stay callable with no role ceiling.
 	spec := plugin.EndpointSpec[roleEchoIn, roleEchoOut]{
 		Name:        "open_desk",
 		MCPToolName: "octarq_test__open_desk",

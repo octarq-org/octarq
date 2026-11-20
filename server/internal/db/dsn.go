@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// PostgresConfig holds parsed connection parameters from a Postgres DSN.
 type PostgresConfig struct {
 	Host     string
 	Port     string
@@ -17,7 +16,6 @@ type PostgresConfig struct {
 	SSLMode  string
 }
 
-// MySQLConfig holds parsed connection parameters from a MySQL DSN.
 type MySQLConfig struct {
 	Host     string
 	Port     string
@@ -28,9 +26,6 @@ type MySQLConfig struct {
 	Socket   string
 }
 
-// ParseMySQLDSN parses a MySQL DSN string in either URL format
-// (mysql://user:pass@host:port/dbname) or Go DSN format
-// (user:pass@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local).
 func ParseMySQLDSN(dsn string) (MySQLConfig, error) {
 	dsn = strings.TrimSpace(dsn)
 	if dsn == "" {
@@ -66,7 +61,6 @@ func ParseMySQLDSN(dsn string) (MySQLConfig, error) {
 		}, nil
 	}
 
-	// Standard Go MySQL DSN: [user[:password]@][protocol[(address)]]/dbname[?param1=value1&...]
 	withoutParams := dsn
 	if idx := strings.Index(withoutParams, "?"); idx != -1 {
 		withoutParams = withoutParams[:idx]
@@ -128,9 +122,6 @@ func ParseMySQLDSN(dsn string) (MySQLConfig, error) {
 	return cfg, nil
 }
 
-// ParsePostgresDSN parses a Postgres DSN string in either URL format
-// (postgres://user:pass@host:port/dbname?sslmode=...) or key-value format
-// (host=localhost port=5432 user=postgres password=secret dbname=octarq).
 func ParsePostgresDSN(dsn string) (PostgresConfig, error) {
 	dsn = strings.TrimSpace(dsn)
 	if dsn == "" {
@@ -164,7 +155,6 @@ func ParsePostgresDSN(dsn string) (PostgresConfig, error) {
 		}, nil
 	}
 
-	// Key-value format: host=localhost port=5432 user=postgres password=secret dbname=octarq
 	cfg := PostgresConfig{Host: "localhost", Port: "5432"}
 	parts := strings.Fields(dsn)
 	for _, part := range parts {

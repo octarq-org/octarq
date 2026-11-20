@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// hostCryptoTestStore backs the adapter test with the production settings store.
 func hostCryptoTestStore(t *testing.T) settingsStore {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -113,7 +112,6 @@ func TestHostCryptoVaultSubjectNamespace(t *testing.T) {
 		t.Fatalf("other subject = %q, %v; want %q", got, err, "reply")
 	}
 
-	// A subject adapter can shred a namespace too.
 	if err := subject.ShredSubjectKey(42, "outbox"); err != nil {
 		t.Fatalf("subject ShredSubjectKey: %v", err)
 	}

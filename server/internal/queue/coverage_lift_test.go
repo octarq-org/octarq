@@ -38,7 +38,6 @@ func TestCoverageLift_RunHandlerWithTelemetry_UnwrappedAndMetrics(t *testing.T) 
 		t.Fatalf("expected payload %q, got %q", string(raw), string(calledWith))
 	}
 
-	// Also test error path with telemetry metrics enabled
 	errHandler := func(ctx context.Context, payload []byte) error {
 		return errors.New("handler failed")
 	}
@@ -56,7 +55,6 @@ func TestCoverageLift_InMemoryQueue_ChannelClose(t *testing.T) {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	// Close channel to trigger the !ok worker exit path
 	close(q.ch)
 	q.wg.Wait()
 }

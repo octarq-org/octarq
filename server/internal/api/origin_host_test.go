@@ -12,12 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// originTestServer builds the real API server, seeds a user, and captures the
-// body of every mail the handlers send, so the assertions below read the link
-// that a victim would actually receive.
-//
-// Nothing here re-implements host validation: the test only forges a Host
-// header and reads what came out the other end of the production handler.
 func originTestServer(t *testing.T, domains ...testDomain) (http.Handler, *gorm.DB, *[]string) {
 	t.Helper()
 	h, srv, db := newTestHandlerRaw(t)
@@ -45,8 +39,6 @@ func originTestServer(t *testing.T, domains ...testDomain) (http.Handler, *gorm.
 	return srv, db, &sent
 }
 
-// forgot fires POST /api/auth/forgot with the given Host header and returns the
-// single link that was mailed out.
 func forgot(t *testing.T, srv http.Handler, sent *[]string, host string) string {
 	t.Helper()
 	req := httptest.NewRequest("POST", "/api/auth/forgot", strings.NewReader(`{"email":"victim@example.com"}`))
@@ -65,20 +57,10 @@ func forgot(t *testing.T, srv http.Handler, sent *[]string, host string) string 
 	if i < 0 {
 		t.Fatalf("mailed body carries no reset link:\n%s", body)
 	}
-	// Walk back to the start of the URL (the mail puts it on its own line).
 	start := strings.LastIndexAny(body[:i], " \n\t") + 1
 	return strings.TrimSpace(body[start:])
 }
 
-// TestForgotPasswordRejectsForgedHost is the guard for the attack this refactor
-// would otherwise have introduced (CWE-640).
-//
-// Absolute links used to come from OCTARQ_BASE_URL and were therefore immune to
-// anything the caller sent. They now come from the request, so an attacker who
-// POSTs /api/auth/forgot with "Host: evil.com" would — without the ownership
-// check — have the victim mailed a link carrying a VALID reset token pointed at
-// the attacker's server. One click by the victim is a full account takeover, on
-// an account the attacker only had to know the email address of.
 func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	acme := testDomain{
 		OrgID:     1,
@@ -96,8 +78,6 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 			t.Fatalf("password-reset link points at the forged Host: %s\n"+
 				"a valid reset token was just mailed to the victim aimed at the attacker's server (CWE-640)", link)
 		}
-		// The safe degradation: a relative path. Unopenable from a mail client,
-		// which is a support ticket; an attacker's absolute URL is a breach.
 		if !strings.HasPrefix(link, "/admin/reset?token=") {
 			t.Errorf("unrecognised host produced %q, want a relative /admin/reset path", link)
 		}
@@ -106,8 +86,6 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	t.Run("registered host is honoured", func(t *testing.T) {
 		srv, _, sent := originTestServer(t, acme)
 
-		// A subdomain of a registered domain: whoever controls the zone
-		// controls this name, so links may be built on it.
 		link := forgot(t, srv, sent, "app.acme.example")
 
 		if !strings.HasPrefix(link, "https://app.acme.example/admin/reset?token=") {
@@ -128,8 +106,6 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	t.Run("a near-miss of a registered host is still forged", func(t *testing.T) {
 		srv, _, sent := originTestServer(t, acme)
 
-		// "acme.example.evil.com" ends with a registered name and would pass a
-		// suffix or substring test. It is a domain the attacker owns.
 		link := forgot(t, srv, sent, "acme.example.evil.com")
 
 		if strings.Contains(link, "evil.com") {
@@ -140,13 +116,11 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	t.Run("instance with no registered domain falls back to loopback host only", func(t *testing.T) {
 		srv, _, sent := originTestServer(t)
 
-		// Loopback host for local dev is honoured
 		link := forgot(t, srv, sent, "localhost:8080")
 		if !strings.HasPrefix(link, "http://localhost:8080/admin/reset?token=") {
 			t.Errorf("unregistered instance with localhost produced %q, want http://localhost:8080/admin/reset?token=...", link)
 		}
 
-		// AUD-P2-03: untrusted non-loopback host must NOT become origin (falls back to relative path)
 		*sent = nil
 		untrustedLink := forgot(t, srv, sent, "octarq.internal:8080")
 		if strings.Contains(untrustedLink, "octarq.internal") {
@@ -158,13 +132,6 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	})
 }
 
-// TestSessionCookieSecureFollowsRequest pins that the session cookie's Secure
-// attribute is decided by the request rather than by configuration.
-//
-// The old OCTARQ_SECURE_COOKIES could only ever be right for one scheme: set
-// over plain HTTP the browser drops the cookie and the user is 401 on every
-// request after a "successful" login; unset over HTTPS the session token
-// travels in cleartext.
 func TestSessionCookieSecureFollowsRequest(t *testing.T) {
 	cases := []struct {
 		name string

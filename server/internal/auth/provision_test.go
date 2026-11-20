@@ -20,7 +20,6 @@ func TestUpsertUserByEmailCreatesUserAndOrg(t *testing.T) {
 		t.Fatalf("expected non-zero ids, got uid=%d orgID=%d", uid, orgID)
 	}
 
-	// Email is normalized to lowercase, and the user is NOT an instance admin.
 	var user models.User
 	if err := db.First(&user, uid).Error; err != nil {
 		t.Fatalf("load user: %v", err)
@@ -32,7 +31,6 @@ func TestUpsertUserByEmailCreatesUserAndOrg(t *testing.T) {
 		t.Error("JIT-provisioned user must not be an instance admin")
 	}
 
-	// A second call resolves the same user + org (idempotent).
 	uid2, orgID2, err := UpsertUserByEmail(db, "alice@example.com", true)
 	if err != nil {
 		t.Fatalf("second UpsertUserByEmail: %v", err)
@@ -45,7 +43,6 @@ func TestUpsertUserByEmailCreatesUserAndOrg(t *testing.T) {
 func TestUpsertUserByEmailRespectsRegistrationPolicy(t *testing.T) {
 	db := testDB(t)
 
-	// Unknown email with registration disabled → refused.
 	if _, _, err := UpsertUserByEmail(db, "stranger@example.com", false); !errors.Is(err, ErrRegistrationDisabled) {
 		t.Fatalf("expected ErrRegistrationDisabled, got %v", err)
 	}
@@ -55,7 +52,6 @@ func TestUpsertUserByEmailRespectsRegistrationPolicy(t *testing.T) {
 		t.Errorf("no user should have been created, found %d", count)
 	}
 
-	// A pre-existing user still resolves even when registration is disabled.
 	uid, _, err := UpsertUserByEmail(db, "known@example.com", true)
 	if err != nil {
 		t.Fatalf("seed known user: %v", err)
@@ -79,8 +75,6 @@ func TestUpsertUserByEmailRejectsEmpty(t *testing.T) {
 
 func TestLoginByEmailIssuesSession(t *testing.T) {
 	db := testDB(t)
-	// The in-memory DB is shared across the package's tests; make registration
-	// explicitly on (drop any leftover "allow_registration=false" row).
 	db.Where("key = ?", "allow_registration").Delete(&models.Setting{})
 	m := testManager(t).WithDB(db)
 
@@ -94,11 +88,9 @@ func TestLoginByEmailIssuesSession(t *testing.T) {
 	if uid == 0 {
 		t.Fatal("expected a user id")
 	}
-	// A session cookie was set.
 	if len(rec.Result().Cookies()) == 0 {
 		t.Fatal("expected a session cookie to be set")
 	}
-	// And a session row exists for the user.
 	var sessions int64
 	db.Model(&models.Session{}).Where("user_id = ?", uid).Count(&sessions)
 	if sessions == 0 {
@@ -108,8 +100,6 @@ func TestLoginByEmailIssuesSession(t *testing.T) {
 
 func TestLoginByEmailHonoursInviteOnly(t *testing.T) {
 	db := testDB(t)
-	// Save (upsert) so a leftover row from the shared in-memory DB doesn't trip
-	// a UNIQUE constraint.
 	if err := db.Save(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {
 		t.Fatal(err)
 	}

@@ -25,8 +25,6 @@ func ctxWithChecker(err error) *Context {
 	}
 }
 
-// The core promise of the seam: with no checker registered — the self-hosted
-// build, which is unlimited by design — every call is a no-op that passes.
 func TestCheckQuotaNoCheckerAllows(t *testing.T) {
 	t.Parallel()
 	if err := CheckQuota(&Context{}, context.Background(), 1, "links", 1); err != nil {
@@ -34,8 +32,6 @@ func TestCheckQuotaNoCheckerAllows(t *testing.T) {
 	}
 }
 
-// A nil ctx (never mounted / MCP composition) must read as "no checker", not
-// panic and not fail.
 func TestCheckQuotaNilContextAllows(t *testing.T) {
 	t.Parallel()
 	if err := CheckQuota(nil, context.Background(), 1, "links", 1); err != nil {
@@ -43,7 +39,6 @@ func TestCheckQuotaNilContextAllows(t *testing.T) {
 	}
 }
 
-// An old host whose Context.Lookup is unwired is the same story.
 func TestCheckQuotaNilLookupAllows(t *testing.T) {
 	t.Parallel()
 	if err := CheckQuota(&Context{Lookup: nil}, context.Background(), 1, "links", 1); err != nil {
@@ -67,7 +62,6 @@ func TestCheckQuotaUnavailable(t *testing.T) {
 	}
 }
 
-// An allowed checker must pass the org/metric/n through exactly as given.
 func TestCheckQuotaPassesArguments(t *testing.T) {
 	t.Parallel()
 	var gotOrg uint

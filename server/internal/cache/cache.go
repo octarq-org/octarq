@@ -11,7 +11,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Cache defines the operations for our caching layer.
 type Cache interface {
 	Get(ctx context.Context, key string, dst any) bool
 	Set(ctx context.Context, key string, val any, ttl time.Duration) error
@@ -19,8 +18,6 @@ type Cache interface {
 	IsRedis() bool
 }
 
-// New returns a Cache implementation. If redisURL is empty, it returns an in-memory Cache.
-// If redisURL is set but connection fails initially, it logs the error and falls back to MemoryCache.
 func New(redisURL string) Cache {
 	if redisURL == "" {
 		return NewMemoryCache(10000)
@@ -51,8 +48,6 @@ func New(redisURL string) Cache {
 	return &RedisCache{client: client}
 }
 
-// NoopCache represents a cache that is disabled, effectively acting as a bypass
-// to GORM/DB operations.
 type NoopCache struct{}
 
 func (n *NoopCache) Get(ctx context.Context, key string, dst any) bool { return false }
@@ -62,15 +57,12 @@ func (n *NoopCache) Set(ctx context.Context, key string, val any, ttl time.Durat
 func (n *NoopCache) Delete(ctx context.Context, key string) error { return nil }
 func (n *NoopCache) IsRedis() bool                                { return false }
 
-// RedisCache implements Cache interface using Redis client.
 type RedisCache struct {
 	client *redis.Client
 }
 
 func (rc *RedisCache) IsRedis() bool { return true }
 
-// Get retrieves a key, deserializing it into dst. If Redis has network issues
-// or key doesn't exist, it returns false (triggering GORM fallback).
 func (rc *RedisCache) Get(ctx context.Context, key string, dst any) bool {
 	val, err := rc.client.Get(ctx, key).Result()
 	if err != nil {
@@ -89,8 +81,6 @@ func (rc *RedisCache) Get(ctx context.Context, key string, dst any) bool {
 	return true
 }
 
-// Set serializes val into JSON and stores it in Redis with the given TTL.
-// Gracefully logs and ignores network errors to avoid crashing requests.
 func (rc *RedisCache) Set(ctx context.Context, key string, val any, ttl time.Duration) error {
 	data, err := json.Marshal(val)
 	if err != nil {
@@ -103,7 +93,6 @@ func (rc *RedisCache) Set(ctx context.Context, key string, val any, ttl time.Dur
 	return err
 }
 
-// Delete removes a key from Redis.
 func (rc *RedisCache) Delete(ctx context.Context, key string) error {
 	err := rc.client.Del(ctx, key).Err()
 	if err != nil {

@@ -7,15 +7,6 @@ import (
 	"testing"
 )
 
-// TestSessionCookieSecureTrustsProxyOnlyWhenTold pins the one input to the
-// cookie's Secure attribute that an attacker can set: X-Forwarded-Proto.
-//
-// Believing it unconditionally would let anyone talking plain HTTP to octarq
-// have their own session cookie marked Secure — which the browser then refuses
-// to send back over that same plain-HTTP connection, so the user logs in and is
-// immediately 401 on everything. It is only trustworthy when the operator has
-// declared that a reverse proxy in front of octarq sets it (OCTARQ_TRUST_PROXY),
-// which is the same declaration that governs the client-IP headers.
 func TestSessionCookieSecureTrustsProxyOnlyWhenTold(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -34,8 +25,6 @@ func TestSessionCookieSecureTrustsProxyOnlyWhenTold(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			m := testManager(t)
-			// trustProxy is package state set from config by New; set it
-			// directly and put it back, so one case cannot leak into the next.
 			previous := trustProxy.Load()
 			trustProxy.Store(tc.trustProxy)
 			t.Cleanup(func() { trustProxy.Store(previous) })

@@ -11,9 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// gateMCPPlugin is a toggleable feature with one MCP tool. It exists to pin the
-// rule that turning a feature off removes its agent tools, not only its routes
-// and sidebar entry.
 type gateMCPPlugin struct{}
 
 func (p *gateMCPPlugin) Name() string                      { return "gatetool" }
@@ -32,7 +29,6 @@ func (p *gateMCPPlugin) RegisterMCP(srv *mcp.Server) {
 	})
 }
 
-// mcpToolNames lists the tools one MCP session can see.
 func mcpToolNames(t *testing.T, endpoint string) []string {
 	t.Helper()
 	ctx := context.Background()
@@ -56,9 +52,6 @@ func mcpToolNames(t *testing.T, endpoint string) []string {
 	return names
 }
 
-// A workspace that turns a feature off must not reach it over MCP either. The
-// HTTP gate is what customers see; the agent tool list is a second door, and a
-// disabled plugin left reachable there makes the toggle a half-measure.
 func TestMCPToolsFollowTheFeatureToggle(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 	h.SetPlugins([]plugin.Plugin{&gateMCPPlugin{}})
@@ -85,7 +78,6 @@ func TestMCPToolsFollowTheFeatureToggle(t *testing.T) {
 		t.Fatalf("tools while disabled = %v, want no gatetool__ping", names)
 	}
 
-	// Another workspace that never toggled keeps the declared default.
 	if err := db.Create(&models.Token{
 		OrgID: 2, Name: "gate2", Hash: models.HashToken("oct_" + strings.Repeat("b", 40)), Prefix: "oct_gat2",
 	}).Error; err != nil {

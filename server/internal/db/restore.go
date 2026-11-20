@@ -12,7 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 )
 
-// Restore restores a database from the specified input file for SQLite, Postgres, or MySQL.
 func Restore(cfg *config.Config, inputPath string) error {
 	info, err := os.Stat(inputPath)
 	if err != nil {

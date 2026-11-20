@@ -11,7 +11,6 @@ func BenchmarkSavePreferences(b *testing.B) {
 	ctx := context.Background()
 	userID := "user-benchmark"
 
-	// Create 100 items
 	var items []PreferenceItem
 	for i := 0; i < 100; i++ {
 		items = append(items, PreferenceItem{

@@ -67,7 +67,6 @@ func TestHealthProviderRegistrationAndLookup(t *testing.T) {
 		t.Errorf("unexpected provider names: %s, %s", hps[0].Name(), hps[1].Name())
 	}
 
-	// Test lookup
 	if hp, ok := LookupServiceAs[HealthProvider](reg.Lookup, HealthProviderServiceName("db")); !ok || hp.Name() != "db" {
 		t.Errorf("failed to lookup db provider by name")
 	}
@@ -77,14 +76,12 @@ func TestHealthProviderRegistrationAndLookup(t *testing.T) {
 		t.Errorf("failed to lookup all health providers: %v, len=%d", ok, len(all))
 	}
 
-	// Test GetHealthProviders with Context
 	ctx := &Context{Lookup: reg.Lookup}
 	ctxProviders := GetHealthProviders(ctx)
 	if len(ctxProviders) != 2 {
 		t.Errorf("GetHealthProviders returned %d, want 2", len(ctxProviders))
 	}
 
-	// Nil context
 	if nilRes := GetHealthProviders(nil); nilRes != nil {
 		t.Errorf("GetHealthProviders(nil) = %v, want nil", nilRes)
 	}
@@ -124,7 +121,6 @@ func TestHealthProviderSliceRegistration(t *testing.T) {
 		t.Errorf("expected 2 health providers, got %d", len(reg.HealthProviders()))
 	}
 
-	// Duplicate in slice
 	regDup := NewRegistry()
 	dupSlice := []HealthProvider{
 		&mockHealthProvider{name: "dup"},

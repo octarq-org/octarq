@@ -1,12 +1,5 @@
 package server
 
-// The inbound-mail webhook carries the org's secret in the path, on purpose:
-// SendGrid Inbound Parse and Mailgun routes let you configure a URL and nothing
-// else, so there is no header to put it in (plugins/mail/webhook.go argues the
-// case). What was NOT on purpose is that the edge access log wrote that path
-// verbatim, so every tenant's inbound-mail credential sat in plaintext in the
-// logs and in whatever aggregator collects them.
-
 import (
 	"bytes"
 	"encoding/json"
@@ -21,15 +14,12 @@ import (
 
 func TestRedactPathSecrets(t *testing.T) {
 	cases := []struct{ in, want string }{
-		// The three real inbound-mail routes: token is always the last segment.
 		{"/api/webhook/acme/email/inbound/s3cr3t-token", "/api/webhook/acme/email/inbound/[redacted]"},
 		{"/api/webhook/acme/email/inbound/raw/s3cr3t-token", "/api/webhook/acme/email/inbound/raw/[redacted]"},
 		{"/api/webhook/acme/email/bounce/s3cr3t-token", "/api/webhook/acme/email/bounce/[redacted]"},
-		// Everything else is logged as-is: over-redacting would blind the log.
 		{"/api/auth/login", "/api/auth/login"},
 		{"/api/links/abc123", "/api/links/abc123"},
 		{"/", "/"},
-		// Degenerate webhook paths must not panic or mangle.
 		{"/api/webhook/", "/api/webhook/"},
 	}
 	for _, c := range cases {
@@ -39,8 +29,6 @@ func TestRedactPathSecrets(t *testing.T) {
 	}
 }
 
-// TestAccessLogNeverCarriesTheInboundToken drives the real handle() path and
-// reads what actually landed in the log.
 func TestAccessLogNeverCarriesTheInboundToken(t *testing.T) {
 	const token = "b6f1c0de-secret-inbound-token"
 
@@ -62,8 +50,6 @@ func TestAccessLogNeverCarriesTheInboundToken(t *testing.T) {
 	}
 }
 
-// TestAccessLogStillRecordsOrdinaryPaths keeps the redaction honest: blanking
-// every path would pass the test above and destroy the access log.
 func TestAccessLogStillRecordsOrdinaryPaths(t *testing.T) {
 	var buf bytes.Buffer
 	prev := slog.Default()
@@ -80,10 +66,6 @@ func TestAccessLogStillRecordsOrdinaryPaths(t *testing.T) {
 	}
 }
 
-// --- rate-limit communication ---
-
-// TestRateLimitHeadersOnAllowedRequest: a limit nobody can see is a limit every
-// integrator discovers by tripping it.
 func TestRateLimitHeadersOnAllowedRequest(t *testing.T) {
 	mw := &middleware{
 		limiter: &rateLimiter{
@@ -117,15 +99,12 @@ func TestRateLimitHeadersOnAllowedRequest(t *testing.T) {
 		t.Fatalf("X-RateLimit-Reset is %v away, want within the current window", d)
 	}
 
-	// The counter must actually move — a hardcoded header would be worse than none.
 	rec2 := fire()
 	if got := rec2.Header().Get("X-RateLimit-Remaining"); got != "3" {
 		t.Fatalf("X-RateLimit-Remaining after 2 of 5 = %q, want \"3\"", got)
 	}
 }
 
-// TestRateLimit429IsJSONWithHeaders pins the refusal shape: same RFC 7807 body
-// every other API error uses, plus the budget headers and Retry-After.
 func TestRateLimit429IsJSONWithHeaders(t *testing.T) {
 	mw := &middleware{
 		limiter: &rateLimiter{
@@ -173,8 +152,6 @@ func TestRateLimit429IsJSONWithHeaders(t *testing.T) {
 	}
 }
 
-// TestNoRateLimitHeadersWhenTierDisabled: a disabled tier has no number to
-// report, so it must report none rather than "0", which reads as "exhausted".
 func TestNoRateLimitHeadersWhenTierDisabled(t *testing.T) {
 	mw := &middleware{
 		limiter: &rateLimiter{

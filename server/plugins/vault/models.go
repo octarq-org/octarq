@@ -9,14 +9,13 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// VaultCollection groups secrets into Infisical-style projects or 1Password-style vaults.
 type VaultCollection struct {
 	ID          uint              `gorm:"primaryKey" json:"id"`
 	OrgID       uint              `gorm:"column:org_id;not null;uniqueIndex:idx_vc_org_scope_slug" json:"orgId"`
 	Scope       plugin.VaultScope `gorm:"column:scope;size:16;not null;default:'org';uniqueIndex:idx_vc_org_scope_slug" json:"scope"`
 	Slug        string            `gorm:"column:slug;size:64;not null;uniqueIndex:idx_vc_org_scope_slug" json:"slug"`
 	Name        string            `gorm:"column:name;size:128;not null" json:"name"`
-	Kind        string            `gorm:"column:kind;size:32;not null;default:'vault'" json:"kind"` // integration, project, vault, system
+	Kind        string            `gorm:"column:kind;size:32;not null;default:'vault'" json:"kind"`
 	Description string            `gorm:"column:description;type:text" json:"description,omitempty"`
 	Icon        string            `gorm:"column:icon;size:32" json:"icon,omitempty"`
 	CreatedBy   uint              `gorm:"column:created_by;default:0" json:"createdBy,omitempty"`
@@ -26,8 +25,6 @@ type VaultCollection struct {
 
 func (VaultCollection) TableName() string { return "vault_collections" }
 
-// VaultItem stores searchable, non-secret metadata for a credential or secret.
-// Encrypted payloads live exclusively in VaultItemVersion under a per-item SubjectVault DEK.
 type VaultItem struct {
 	ID                   uint              `gorm:"primaryKey" json:"id"`
 	SecretID             string            `gorm:"column:secret_id;size:64;not null;uniqueIndex" json:"secretId"`
@@ -55,7 +52,6 @@ type VaultItem struct {
 
 func (VaultItem) TableName() string { return "vault_items" }
 
-// VaultItemVersion stores an immutable AES-256-GCM encrypted payload snapshot for a VaultItem.
 type VaultItemVersion struct {
 	ID              uint      `gorm:"primaryKey" json:"id"`
 	OrgID           uint      `gorm:"column:org_id;not null;index" json:"orgId"`
@@ -70,7 +66,6 @@ type VaultItemVersion struct {
 
 func (VaultItemVersion) TableName() string { return "vault_item_versions" }
 
-// VaultServiceToken authorizes scoped machine/CI reads against a specific collection, environment, and folder prefix.
 type VaultServiceToken struct {
 	ID           uint       `gorm:"primaryKey" json:"id"`
 	OrgID        uint       `gorm:"column:org_id;not null;index" json:"orgId"`

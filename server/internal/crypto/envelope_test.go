@@ -7,11 +7,10 @@ import (
 	"testing"
 )
 
-// memStore is an in-memory SecretStore for envelope tests.
 type memStore struct {
 	mu        sync.Mutex
 	m         map[string]string
-	encrypted bool // what HasEncryptedValues reports
+	encrypted bool
 }
 
 func newMemStore() *memStore { return &memStore{m: map[string]string{}} }
@@ -59,7 +58,6 @@ func TestEnvelopePersistsDEK(t *testing.T) {
 }
 
 func TestEnvelopeReloadSameDEK(t *testing.T) {
-	// A second instance under the same master loads the same DEK and reads data.
 	store := newMemStore()
 	c1 := New("master")
 	if err := c1.EnableEnvelope(store); err != nil {
@@ -82,7 +80,6 @@ func TestWrongMasterFailsToUnwrap(t *testing.T) {
 	if err := New("right").EnableEnvelope(store); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	// A different master cannot unwrap the DEK.
 	if err := New("wrong").EnableEnvelope(store); err == nil {
 		t.Fatal("expected EnableEnvelope to fail unwrapping the DEK with the wrong master")
 		return

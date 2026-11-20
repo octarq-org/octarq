@@ -1,11 +1,3 @@
-// Package models defines the GORM persistence schema for octarq.
-//
-// Every user-facing entity (Link, Mailbox, Domain) carries a Note field —
-// a free-text remark that upstream wr.do does not support. DNS records get
-// their note through the provider's native comment field (see dnsprovider).
-//
-// Multi-tenant: all data tables carry OrgID (DB column: owner_id, kept for
-// backward-compat). Each Org is a tenant; Users belong to Orgs via OrgMember.
 package models
 
 import (
@@ -20,74 +12,43 @@ import (
 	"github.com/octarq-org/octarq/server/pkg/hostlist"
 )
 
-// SingleUserID is a legacy placeholder org ID from before multi-tenancy,
-// retained for backward compatibility. Current handlers use the org ID
-// resolved from the authenticated session.
 const SingleUserID uint = 1
 
-// Org kinds. A personal org holds one user's private assets; a team org is a
-// shared workspace. Signup provisions the personal org, so it always exists
-// before the user can join a team.
 const (
 	OrgKindPersonal = "personal"
 	OrgKindTeam     = "team"
 )
 
-// Org is a tenant — every data row is scoped to exactly one Org.
 type Org struct {
-	ID   uint   `gorm:"primaryKey" json:"id"`
-	Name string `gorm:"size:255;not null" json:"name"`
-	Slug string `gorm:"uniqueIndex;size:64;not null" json:"slug"`
-	// Kind is "personal" or "team". Personal data (private credentials,
-	// personal accounts) is stored in the user's personal org, never in the
-	// team workspace that happens to be active in the session.
-	Kind string `gorm:"size:16;not null;default:'team';index" json:"kind"`
-	// InboundToken is this org's per-tenant secret for the inbound-email webhook.
-	// It travels in the webhook URL (?token=) instead of a header to keep the
-	// Cloudflare worker config to a single value; it is never exposed publicly.
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	Name         string    `gorm:"size:255;not null" json:"name"`
+	Slug         string    `gorm:"uniqueIndex;size:64;not null" json:"slug"`
+	Kind         string    `gorm:"size:16;not null;default:'team';index" json:"kind"`
 	InboundToken string    `gorm:"size:64" json:"-"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
-// OrgSlugHistory holds retired workspace addresses (slugs) to prevent squatting/takeover.
 type OrgSlugHistory struct {
 	Slug      string `gorm:"primaryKey;size:64"`
 	OrgID     uint   `gorm:"index;not null"`
 	RetiredAt time.Time
 }
 
-// User is an authenticated human. A user can belong to multiple orgs.
 type User struct {
-	ID           uint   `gorm:"primaryKey" json:"id"`
-	Email        string `gorm:"uniqueIndex;size:320;not null" json:"email"`
-	PasswordHash string `gorm:"size:255;not null" json:"-"`
-	// InviteTokenHash is the SHA-256 hex hash of the raw invite token. The raw
-	// 192-bit token is only ever shown/mailed once, never stored — mirroring
-	// ResetTokenHash / VerifyTokenHash below — and is indexed for lookup. A DB
-	// leak (backup, shared disk, SQLi) therefore exposes no live invite.
+	ID              uint       `gorm:"primaryKey" json:"id"`
+	Email           string     `gorm:"uniqueIndex;size:320;not null" json:"email"`
+	PasswordHash    string     `gorm:"size:255;not null" json:"-"`
 	InviteTokenHash string     `gorm:"index;size:64" json:"-"`
 	InviteExpiresAt *time.Time `json:"inviteExpiresAt,omitempty"`
 
-	// TOTPSecret is the base32 TOTP shared secret, stored AES-GCM encrypted at
-	// rest (via crypto.Cipher). Empty until 2FA enrollment begins.
-	TOTPSecret  string `gorm:"size:512" json:"-"`
-	TOTPEnabled bool   `gorm:"not null;default:0" json:"-"`
-	// LastTOTPCode prevents replay attacks within the 30s window.
-	LastTOTPCode string `gorm:"size:32" json:"-"`
-	// RecoveryCodes is a JSON array of bcrypt-hashed one-time recovery codes.
-	RecoveryCodes string `gorm:"type:text" json:"-"`
-	// IsInstanceAdmin marks the single bootstrap operator account (the user
-	// created from OCTARQ_ADMIN_*). It is the stable identity that grants
-	// instance-level administrative privileges (/api/instance-settings), set
-	// deterministically at first admin login. It must NEVER be derived from
-	// org_id ordering: on a fresh instance with registration/OAuth enabled an
-	// attacker could otherwise register before the operator and inherit org 1.
-	IsInstanceAdmin bool `gorm:"not null;default:0" json:"-"`
-	// Password reset token hash and expiry
-	ResetTokenHash   string     `gorm:"index;size:64" json:"-"`
-	ResetTokenExpiry *time.Time `json:"-"`
-	// Email verification status and token hash/expiry
+	TOTPSecret        string     `gorm:"size:512" json:"-"`
+	TOTPEnabled       bool       `gorm:"not null;default:0" json:"-"`
+	LastTOTPCode      string     `gorm:"size:32" json:"-"`
+	RecoveryCodes     string     `gorm:"type:text" json:"-"`
+	IsInstanceAdmin   bool       `gorm:"not null;default:0" json:"-"`
+	ResetTokenHash    string     `gorm:"index;size:64" json:"-"`
+	ResetTokenExpiry  *time.Time `json:"-"`
 	EmailVerified     bool       `gorm:"not null;default:0" json:"emailVerified"`
 	VerifyTokenHash   string     `gorm:"index;size:64" json:"-"`
 	VerifyTokenExpiry *time.Time `json:"-"`
@@ -95,14 +56,11 @@ type User struct {
 	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
-// Session is a stateful login record. The random Token is stored in the
-// browser cookie; validity is determined by looking up this row — no epoch
-// math needed. Deleting a row instantly revokes that device's access.
 type Session struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	UserID     uint      `gorm:"not null;index" json:"userId"`
 	OrgID      uint      `gorm:"not null" json:"orgId"`
-	Token      string    `gorm:"uniqueIndex;size:64;not null" json:"-"` // SHA-256 hash of the cookie token
+	Token      string    `gorm:"uniqueIndex;size:64;not null" json:"-"`
 	IP         string    `gorm:"size:64" json:"ip"`
 	UserAgent  string    `gorm:"size:512" json:"userAgent"`
 	LastSeenAt time.Time `json:"lastSeenAt"`
@@ -114,27 +72,9 @@ func (Session) TableName() string {
 	return "user_sessions"
 }
 
-// UserIdentity binds a User to one external identity, keyed on the triple the
-// identity provider actually asserts: (provider, issuer, subject).
-//
-// Email is deliberately NOT part of the key. Core identity is matched globally
-// by email, orgs can be created by anyone, and an org's SSO issuer / client ID
-// are filled in by that org — so an attacker who points their own workspace at
-// an OIDC server they run can sign any email claim they like. The subject is
-// scoped to the issuer, which is the one part of the assertion the attacker
-// cannot forge for somebody else's IdP.
-//
-// The stored Email is what the provider asserted at binding time, kept for the
-// account-settings list ("signed in with alice@acme.com at accounts.acme.com").
-// Nothing looks a user up by it.
 type UserIdentity struct {
-	ID     uint `gorm:"primaryKey" json:"id"`
-	UserID uint `gorm:"index;not null" json:"userId"`
-	// Provider is the identity mechanism ("oidc"). Issuer must be normalized
-	// with plugin.NormalizeIssuer before it is written or queried — an IdP that
-	// advertises https://idp.example/ and one that advertises
-	// https://idp.example are the same IdP, and storing both spellings silently
-	// unbinds every user of whichever one wasn't stored.
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"userId"`
 	Provider  string    `gorm:"uniqueIndex:idx_user_identity;size:32;not null" json:"provider"`
 	Issuer    string    `gorm:"uniqueIndex:idx_user_identity;size:255;not null" json:"issuer"`
 	Subject   string    `gorm:"uniqueIndex:idx_user_identity;size:255;not null" json:"subject"`
@@ -142,21 +82,13 @@ type UserIdentity struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// OrgMember links a User to an Org with a role.
 type OrgMember struct {
-	OrgID  uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
-	UserID uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"userId"`
-	Role   string `gorm:"size:32;not null;default:'member'" json:"role"` // "owner" | "admin" | "member"
-	// CreatedAt is when this person joined THIS workspace. The members list
-	// used to show users.created_at instead, so the same person read as having
-	// joined every workspace on the day they registered. Rows written before
-	// this column existed carry the zero time and render as unknown rather
-	// than as a date nobody can vouch for.
+	OrgID     uint      `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
+	UserID    uint      `gorm:"primaryKey;index:idx_org_user,unique" json:"userId"`
+	Role      string    `gorm:"size:32;not null;default:'member'" json:"role"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// StringList is a []string persisted as a JSON text column, portable across
-// SQLite and Postgres.
 type StringList []string
 
 func (s StringList) Value() (driver.Value, error) {
@@ -188,54 +120,29 @@ func (s *StringList) Scan(v any) error {
 	return json.Unmarshal(b, (*[]string)(s))
 }
 
-// Host is re-exported from pkg/hostlist for backward compatibility.
 type Host = hostlist.Host
 
-// HostList is re-exported from pkg/hostlist for backward compatibility.
 type HostList = hostlist.HostList
 
-// Token is an API token for the open API. Only the SHA-256 hash of the raw
-// token is stored; the raw token is shown once at creation time. Prefix keeps
-// a short, non-secret identifier for the dashboard list.
 type Token struct {
 	ID     uint   `gorm:"primaryKey" json:"id"`
 	OrgID  uint   `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name   string `gorm:"size:255" json:"name"`
-	Hash   string `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
-	Prefix string `gorm:"size:32" json:"prefix"`        // e.g. "oct_abcd" for identification
+	Hash   string `gorm:"uniqueIndex;size:64" json:"-"`
+	Prefix string `gorm:"size:32" json:"prefix"`
 	Note   string `gorm:"type:text" json:"note"`
-	// UserID is the person the token acts as. A token borrows its holder's
-	// membership rather than carrying standalone authority, so a token's role is
-	// read live on every request, not frozen at mint time. That live read is one
-	// layer of defence; on top of it, removing someone from a workspace
-	// explicitly revokes their (user, org) tokens (see auth.RevokeUserOrgTokens),
-	// because any authorization seam that answers before the live read must not
-	// let a removed member's token keep working. It also means an API call lands
-	// in the audit log attributed to a person instead of to nobody.
-	UserID uint `gorm:"index;not null" json:"userId"`
-	// Role narrows the token *below* its holder — it never widens it. The
-	// effective role is min(the user's role in OrgID, this). That is what lets an
-	// owner hand CI a read-only token instead of a copy of their own account.
-	// Empty is read as "member", matching what minting defaults to.
-	Role string `gorm:"size:32" json:"role"`
+	UserID uint   `gorm:"index;not null" json:"userId"`
+	Role   string `gorm:"size:32" json:"role"`
 
-	// IsAgent marks this token as a machine agent service account.
-	// When true, tool executions over MCP are strictly restricted to AllowedTools.
 	IsAgent bool `gorm:"default:false;index" json:"isAgent"`
 
-	// AllowedTools stores a JSON-encoded array or comma-separated list of permitted
-	// MCP tool names (e.g. ["octarq_network__list_links", "octarq_network__get_email_summary"]).
-	// An empty list for an agent token means NO tools are permitted (Strict Fail-Closed).
 	AllowedTools string `gorm:"type:text" json:"allowedTools"`
 
 	LastUsedAt *time.Time `json:"lastUsedAt"`
-	// ExpiresAt bounds the token's validity. NULL = never expires (back-compat for
-	// tokens minted before expiry support). Auth paths reject an expired token.
-	ExpiresAt *time.Time `json:"expiresAt"`
-	CreatedAt time.Time  `json:"createdAt"`
+	ExpiresAt  *time.Time `json:"expiresAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }
 
-// ParseAllowedTools parses a JSON-encoded array or comma-separated list of permitted MCP tool names.
 func ParseAllowedTools(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -265,9 +172,6 @@ func ParseAllowedTools(raw string) []string {
 	return out
 }
 
-// AllowsTool checks whether the token is authorized to execute the given MCP tool name.
-// Non-agent tokens return true (subject to normal RBAC roles).
-// Agent tokens return true ONLY IF the tool name matches AllowedTools.
 func (t Token) AllowsTool(toolName string) bool {
 	if !t.IsAgent {
 		return true
@@ -284,26 +188,20 @@ func (t Token) AllowsTool(toolName string) bool {
 	return false
 }
 
-// Expired reports whether the token has a set expiry that is in the past.
 func (t Token) Expired() bool {
 	return t.ExpiresAt != nil && t.ExpiresAt.Before(time.Now())
 }
 
-// HashToken returns the SHA-256 hex digest of a raw API token. The stored hash
-// is what bearer requests are matched against.
 func HashToken(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }
 
-// Setting is a single key/value runtime configuration entry (reserved slugs,
-// reserved mailbox prefixes, a global Cloudflare token, …).
 type Setting struct {
 	Key   string `gorm:"primaryKey;size:64" json:"key"`
 	Value string `gorm:"type:text" json:"value"`
 }
 
-// WorkspaceSetting is a key/value runtime configuration entry scoped to a specific org.
 type WorkspaceSetting struct {
 	OrgID uint   `gorm:"primaryKey" json:"orgId"`
 	Key   string `gorm:"primaryKey;size:64" json:"key"`
@@ -314,47 +212,39 @@ type NotificationChannel struct {
 	ID           uint            `json:"id" gorm:"primaryKey"`
 	OrgID        uint            `gorm:"column:owner_id;index" json:"-"`
 	Name         string          `json:"name"`
-	Type         string          `json:"type"` // e.g. "telegram", "webhook"
+	Type         string          `json:"type"`
 	VaultItemID  uint            `json:"vaultItemId,omitempty" gorm:"column:vault_item_id;default:0"`
-	Config       string          `json:"config" gorm:"type:text"` // non-secret routing metadata JSON (chatId, channel, to, integrationId, etc.); secrets live in VaultService
+	Config       string          `json:"config" gorm:"type:text"`
 	ConfigSchema json.RawMessage `json:"configSchema,omitempty" gorm:"-"`
 	Enabled      bool            `json:"enabled" gorm:"default:true"`
 	CreatedAt    time.Time       `json:"createdAt"`
 	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
-// AuditLog records admin actions for traceability.
-// Design references: Outline (name/actorId/data), Gitea (op_type/content), Authentik (action/context).
-//
-// action format: "<resource>.<verb>" — e.g. "link.create", "settings.update", "domain.delete"
-// meta is free-form JSON containing relevant context (IDs, before/after values, etc.)
 type AuditLog struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	OrgID      uint      `gorm:"index" json:"orgId"`
-	ActorID    uint      `gorm:"index" json:"actorId"` // 0 = API token / system
+	ActorID    uint      `gorm:"index" json:"actorId"`
 	Action     string    `gorm:"size:64;index" json:"action"`
-	TargetType string    `gorm:"size:32" json:"targetType"` // "link", "domain", "mailbox", etc.
+	TargetType string    `gorm:"size:32" json:"targetType"`
 	TargetID   uint      `json:"targetId"`
-	Meta       string    `gorm:"type:text" json:"meta"` // JSON detail
+	Meta       string    `gorm:"type:text" json:"meta"`
 	IP         string    `gorm:"size:64" json:"ip"`
 	CreatedAt  time.Time `gorm:"index" json:"createdAt"`
 }
 
-// AbuseReport is a user-submitted report of a short link being used for spam,
-// phishing, or other policy violations.
 type AbuseReport struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
-	OrgID       uint      `gorm:"index;default:1;column:owner_id" json:"-"` // org owning the reported link, if resolved
+	OrgID       uint      `gorm:"index;default:1;column:owner_id" json:"-"`
 	Slug        string    `gorm:"size:255;index" json:"slug"`
-	Target      string    `gorm:"type:text" json:"target"` // resolved at report time
-	Reason      string    `gorm:"size:64" json:"reason"`   // "spam", "phishing", "malware", "other"
+	Target      string    `gorm:"type:text" json:"target"`
+	Reason      string    `gorm:"size:64" json:"reason"`
 	Description string    `gorm:"type:text" json:"description"`
 	ReporterIP  string    `gorm:"size:64" json:"reporterIp"`
-	Status      string    `gorm:"size:32;default:'open'" json:"status"` // "open", "reviewed", "dismissed"
+	Status      string    `gorm:"size:32;default:'open'" json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
-// UserSetting stores user-scoped custom preferences (e.g. menu groupings).
 type UserSetting struct {
 	UserID    uint      `gorm:"primaryKey" json:"userId"`
 	Key       string    `gorm:"primaryKey;size:64" json:"key"`
@@ -362,8 +252,6 @@ type UserSetting struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// PluginSetting records whether a Pro plugin is enabled for a given workspace
-// (org). Absence of a row means disabled — plugins are opt-in per workspace.
 type PluginSetting struct {
 	OrgID     uint      `gorm:"primaryKey" json:"orgId"`
 	Plugin    string    `gorm:"primaryKey;size:64" json:"plugin"`
@@ -371,21 +259,18 @@ type PluginSetting struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// Webhook represents a registered HTTP webhook endpoint for event streaming.
 type Webhook struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	OrgID       uint      `gorm:"index;default:1;column:owner_id" json:"-"`
 	Name        string    `gorm:"size:255;not null" json:"name"`
 	URL         string    `gorm:"size:1024;not null;column:url" json:"url"`
 	VaultItemID uint      `gorm:"column:vault_item_id;default:0" json:"-"`
-	Events      string    `gorm:"size:1024;not null;default:'*'" json:"events"` // comma-separated subscribed event codes, e.g. "link.click,email.receive"
+	Events      string    `gorm:"size:1024;not null;default:'*'" json:"events"`
 	Enabled     bool      `gorm:"default:true" json:"enabled"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// Notification represents an in-app notification record.
-// Design points: id, user_id, org_id, event_type, title, body, read_at, created_at
 type Notification struct {
 	ID        uint       `gorm:"primaryKey" json:"id"`
 	UserID    string     `gorm:"size:64;index;not null" json:"userId"`
@@ -403,8 +288,6 @@ func (Notification) TableName() string {
 	return "notifications"
 }
 
-// NotificationPreference represents a user's notification channel routing preferences.
-// Design points: user_id, event_pattern, channels[]
 type NotificationPreference struct {
 	ID           uint       `gorm:"primaryKey" json:"id"`
 	UserID       string     `gorm:"size:64;index:idx_notif_pref_user_pattern,unique;not null" json:"userId"`
@@ -418,10 +301,6 @@ func (NotificationPreference) TableName() string {
 	return "notification_preferences"
 }
 
-// SchemaMigration records one applied schema version. The highest version
-// present is the version the database was last migrated to: a binary older
-// than that refuses to boot, so a downgrade cannot run against a schema it
-// does not know.
 type SchemaMigration struct {
 	Version   int64     `gorm:"primaryKey;autoIncrement:false" json:"version"`
 	AppliedAt time.Time `json:"appliedAt"`
@@ -431,7 +310,6 @@ func (SchemaMigration) TableName() string {
 	return "schema_migrations"
 }
 
-// AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserIdentity{}, &UserSetting{}, &PluginSetting{},

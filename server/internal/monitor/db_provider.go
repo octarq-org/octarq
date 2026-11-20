@@ -11,14 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// DBProvider monitors database connectivity, connection pool statistics, and slow queries.
 type DBProvider struct {
 	db          *gorm.DB
 	sqlDB       *sql.DB
 	slowQueries atomic.Uint64
 }
 
-// NewDBProvider creates a new DBProvider monitoring the specified GORM database.
 func NewDBProvider(db *gorm.DB) *DBProvider {
 	p := &DBProvider{db: db}
 	if db != nil {
@@ -29,17 +27,14 @@ func NewDBProvider(db *gorm.DB) *DBProvider {
 	return p
 }
 
-// NewDBProviderWithSQLDB creates a DBProvider directly backed by an *sql.DB instance.
 func NewDBProviderWithSQLDB(sqlDB *sql.DB) *DBProvider {
 	return &DBProvider{sqlDB: sqlDB}
 }
 
-// Name returns the identifier of the database provider.
 func (p *DBProvider) Name() string {
 	return "database"
 }
 
-// Metadata returns the classification and unit metadata for the database provider.
 func (p *DBProvider) Metadata() plugin.HealthMeta {
 	return plugin.HealthMeta{
 		Category: plugin.CategoryDatabase,
@@ -47,27 +42,22 @@ func (p *DBProvider) Metadata() plugin.HealthMeta {
 	}
 }
 
-// RecordSlowQuery increments the slow query counter by 1.
 func (p *DBProvider) RecordSlowQuery() {
 	p.slowQueries.Add(1)
 }
 
-// AddSlowQueries adds delta to the slow query counter.
 func (p *DBProvider) AddSlowQueries(delta uint64) {
 	p.slowQueries.Add(delta)
 }
 
-// SlowQueries returns the total number of slow queries recorded.
 func (p *DBProvider) SlowQueries() uint64 {
 	return p.slowQueries.Load()
 }
 
-// ResetSlowQueries resets the slow query counter to 0.
 func (p *DBProvider) ResetSlowQueries() {
 	p.slowQueries.Store(0)
 }
 
-// Check evaluates the database health and gathers connection pool statistics.
 func (p *DBProvider) Check(ctx context.Context) plugin.HealthResult {
 	sqlDB := p.sqlDB
 	if sqlDB == nil && p.db != nil {
@@ -95,7 +85,6 @@ func (p *DBProvider) Check(ctx context.Context) plugin.HealthResult {
 		}
 	}
 
-	// Verify connectivity with a bounded ping
 	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 

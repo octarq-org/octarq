@@ -21,8 +21,6 @@ func okHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-// TestRateLimiterThresholdAndReset verifies a tier returns 429 once its
-// per-window budget is exhausted, and recovers after the window rolls over.
 func TestRateLimiterThresholdAndReset(t *testing.T) {
 	rl := &rateLimiter{
 		window:   time.Minute,
@@ -44,19 +42,16 @@ func TestRateLimiterThresholdAndReset(t *testing.T) {
 		t.Fatalf("expected positive Retry-After, got %v", retry)
 	}
 
-	// A different IP has its own budget.
 	if ok, _ := rl.allow(tierAuth, "5.6.7.8", now); !ok {
 		t.Fatal("different IP should be allowed")
 	}
 
-	// After the window rolls over, the original IP recovers.
 	later := now.Add(time.Minute + time.Second)
 	if ok, _ := rl.allow(tierAuth, "1.2.3.4", later); !ok {
 		t.Fatal("request after window reset should be allowed")
 	}
 }
 
-// TestRateLimiterDisabledTier confirms a non-positive limit exempts the tier.
 func TestRateLimiterDisabledTier(t *testing.T) {
 	rl := &rateLimiter{
 		window:   time.Minute,
@@ -71,8 +66,6 @@ func TestRateLimiterDisabledTier(t *testing.T) {
 	}
 }
 
-// TestMiddleware429AfterThreshold drives the full handle() path and checks a
-// 429 with Retry-After is returned once the auth tier budget is spent.
 func TestMiddleware429AfterThreshold(t *testing.T) {
 	mw := &middleware{
 		limiter: &rateLimiter{
@@ -106,8 +99,6 @@ func TestMiddleware429AfterThreshold(t *testing.T) {
 	}
 }
 
-// TestRequestIDHeader ensures every response carries an X-Request-Id, and an
-// inbound sane ID is echoed back.
 func TestRequestIDHeader(t *testing.T) {
 	mw := newMiddleware(RuntimeSettings{})
 
@@ -129,10 +120,7 @@ func TestRequestIDHeader(t *testing.T) {
 	}
 }
 
-// TestMetricsGating checks /metrics is off with no token, and that a token is
-// the only credential: a loopback peer gets nothing without it.
 func TestMetricsGating(t *testing.T) {
-	// No token configured: the endpoint is off for every peer, local included.
 	mwNoToken := &middleware{
 		limiter: newRateLimiter(),
 		metrics: newMetrics(),
@@ -147,10 +135,6 @@ func TestMetricsGating(t *testing.T) {
 		}
 	}
 
-	// Token configured: absent token refused even from loopback, correct token
-	// served even from a remote address.
-	// Token supplied through the DB-backed settings seam, picked up by the
-	// first refreshConfig.
 	mwToken := newMiddleware(RuntimeSettings{MetricsToken: func() string { return "s3cret" }})
 	for _, remote := range []string{"8.8.8.8:1", "127.0.0.1:1"} {
 		reqBad := httptest.NewRequest("GET", "/metrics", nil)
@@ -175,8 +159,6 @@ func TestMetricsGating(t *testing.T) {
 	}
 }
 
-// TestOpenTelemetryTracingInMiddleware checks that incoming requests get traced
-// and response carries the X-Trace-Id header.
 func TestOpenTelemetryTracingInMiddleware(t *testing.T) {
 	_, _ = telemetry.Init(context.Background(), telemetry.Config{
 		Enabled:         true,
@@ -197,10 +179,7 @@ func TestOpenTelemetryTracingInMiddleware(t *testing.T) {
 	}
 }
 
-// TestClientIP checks the XFF/X-Real-IP/RemoteAddr precedence, and that proxy
-// headers are honoured only when trustProxy is enabled.
 func TestClientIP(t *testing.T) {
-	// With trustProxy on, proxy headers take precedence.
 	trustProxy = true
 	defer func() { trustProxy = false }()
 
@@ -224,7 +203,6 @@ func TestClientIP(t *testing.T) {
 		t.Fatalf("RemoteAddr fallback: got %q", got)
 	}
 
-	// With trustProxy off, a spoofed XFF must be ignored in favour of RemoteAddr.
 	trustProxy = false
 	req4 := httptest.NewRequest("GET", "/", nil)
 	req4.RemoteAddr = "192.0.2.5:5555"
@@ -234,8 +212,6 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
-// TestTierFor confirms path classification, especially that short-link
-// redirects land in the loose redirect tier.
 func TestTierFor(t *testing.T) {
 	cases := []struct {
 		method, path string
@@ -264,8 +240,6 @@ func TestTierFor(t *testing.T) {
 	}
 }
 
-// TestTierForAuthRoutesKeepsStrictTier verifies that sensitive routes like
-// POST /api/auth/login and webhook receivers are classified under tierAuth.
 func TestTierForAuthRoutesKeepsStrictTier(t *testing.T) {
 	cases := []struct {
 		method, path string
@@ -283,17 +257,6 @@ func TestTierForAuthRoutesKeepsStrictTier(t *testing.T) {
 	}
 }
 
-// TestSecurityHeadersCSP pins the CSP contract that keeps XSS from becoming
-// code execution: script-src must NOT carry 'unsafe-inline', while style-src
-// MUST keep it (Tailwind injects its stylesheet at runtime and removing it
-// blanks the dashboard).
-//
-// The allowed inline scripts are the two the dashboard genuinely ships in
-// index.html (the synchronous theme toggle and the campaign-forwarding
-// snippet). Their build-time SHA-256 hashes must be present in script-src,
-// recomputed here from the actually-embedded dist — so if a frontend build
-// ever refreshes those inline scripts without updating contentSecurityPolicy,
-// this test fails instead of letting the browser silently block them.
 func TestSecurityHeadersCSP(t *testing.T) {
 	rec := httptest.NewRecorder()
 	setSecurityHeaders(rec, httptest.NewRequest("GET", "/", nil))
@@ -306,10 +269,6 @@ func TestSecurityHeadersCSP(t *testing.T) {
 	if strings.Contains(scriptSrc, "'unsafe-inline'") {
 		t.Errorf("script-src must not contain 'unsafe-inline', got %q", scriptSrc)
 	}
-	// 'wasm-unsafe-eval' lets a plugin's WebAssembly app compile; 'unsafe-eval'
-	// would let any injected string run. Drop the wasm keyword and a served
-	// wasm app dies at instantiate time; add 'unsafe-eval' and an XSS becomes
-	// code execution, so pin both sides.
 	if !strings.Contains(scriptSrc, "'wasm-unsafe-eval'") {
 		t.Errorf("script-src must keep 'wasm-unsafe-eval' for WebAssembly apps, got %q", scriptSrc)
 	}
@@ -340,8 +299,6 @@ func TestSecurityHeadersCSP(t *testing.T) {
 	}
 }
 
-// cspDirective extracts a single directive (everything after "name ") from a
-// semicolon-joined Content-Security-Policy value.
 func cspDirective(csp, name string) string {
 	for _, d := range strings.Split(csp, ";") {
 		d = strings.TrimSpace(d)
@@ -352,10 +309,6 @@ func cspDirective(csp, name string) string {
 	return ""
 }
 
-// inlineScriptHashes returns "sha256-<base64>" for every inline <script> block
-// (script tags without attributes) in the given HTML. Vite preserves these
-// verbatim in the build, so hashing the served file matches what the browser
-// will actually check against the CSP.
 func inlineScriptHashes(html string) []string {
 	re := regexp.MustCompile(`(?s)<script>([\s\S]*?)</script>`)
 	var out []string

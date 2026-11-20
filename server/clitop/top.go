@@ -1,7 +1,3 @@
-// Package clitop hosts the terminal consoles: `octarq top` (live daemon
-// vitals over IPC) and `octarq setup` (interactive first-boot wizard). Both
-// degrade honestly: top prints one plain-text snapshot when stdout is not a
-// TTY, and setup refuses to run without a TTY instead of guessing answers.
 package clitop
 
 import (
@@ -17,15 +13,12 @@ import (
 	"github.com/octarq-org/octarq/server/internal/ipc"
 )
 
-// Snapshot is one refresh of daemon state for the top console.
 type Snapshot struct {
 	Status  *ipc.StatusReply
 	Metrics *ipc.MetricsReply
 	Err     string
 }
 
-// FetchSnapshot reads status + metrics from the daemon. A dead daemon yields
-// Err — never fabricated vitals.
 func FetchSnapshot(ctx context.Context, socketPath string) Snapshot {
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
@@ -77,7 +70,6 @@ var (
 	okStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
 )
 
-// RenderPlain renders one snapshot as plain text for pipes, CI and logs.
 func RenderPlain(s Snapshot) string {
 	var b strings.Builder
 	b.WriteString("octarq top\n")
@@ -182,7 +174,6 @@ func (m topModel) View() string {
 	return b.String()
 }
 
-// isTTY reports whether w is a character-device stdout.
 func isTTY(w io.Writer) bool {
 	f, ok := w.(*os.File)
 	if !ok {
@@ -195,9 +186,6 @@ func isTTY(w io.Writer) bool {
 	return st.Mode()&os.ModeCharDevice != 0
 }
 
-// RunTop runs the live console on a TTY, or prints one plain-text snapshot
-// and exits when stdout is piped (CI-safe, exit 0 on snapshot, 1 when the
-// daemon is unreachable).
 func RunTop(ctx context.Context, stdout io.Writer, socketPath string) int {
 	if os.Getenv("CI") != "" || !isTTY(stdout) {
 		snap := FetchSnapshot(ctx, socketPath)

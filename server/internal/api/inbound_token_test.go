@@ -10,20 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// P2-10: org.InboundToken is the per-tenant secret in the inbound-email webhook
-// URL. Anyone holding it can forge inbound mail for the workspace, so GET
-// /api/settings must not expose it to anyone — not even an admin. The dump
-// answers with a boolean (inboundTokenSet); the raw token is returned only by
-// the dedicated GET /api/settings/inbound-token endpoint, and that endpoint is
-// admin-gated.
-//
-// The gate also has to understand API tokens: an automation reads that webhook
-// secret, and comparing the membership role alone hides it from every bearer
-// caller (a token has no membership row).
-
-// seedOrgWithInboundToken ensures org 1 exists carrying a known secret. The base
-// fixture has no org row, and getSettings mints a fresh random token for an org
-// it can find — either way the value would not be one the test can look for.
 func seedOrgWithInboundToken(t *testing.T, db *gorm.DB, secret string) {
 	t.Helper()
 	org := models.Org{ID: 1, Name: "Test", Slug: "test-" + t.Name(), InboundToken: secret}
@@ -44,24 +30,19 @@ func settingsBody(t *testing.T, srv http.Handler, cookies []*http.Cookie) string
 func TestInboundTokenHiddenFromMember(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Give the org a known inbound token so a leak is unmistakable in the body.
 	const secret = "inbound-secret-do-not-leak"
 	seedOrgWithInboundToken(t, db, secret)
 
-	// The masked dump must not carry the raw secret for a member…
 	memberUID := seedOrgMember(t, db, 1, "member@example.com", "member")
 	if body := settingsBody(t, srv, sessionCookies(t, memberUID, 1)); strings.Contains(body, secret) {
 		t.Errorf("member can read the org's inbound webhook secret: body=%s", body)
 	}
 
-	// …and the dedicated endpoint refuses them.
 	recMember := do(srv, http.MethodGet, "/api/settings/inbound-token", sessionCookies(t, memberUID, 1), "")
 	if recMember.Code != http.StatusForbidden {
 		t.Errorf("member GET /api/settings/inbound-token: got %d, want 403", recMember.Code)
 	}
 
-	// The settings dump must not leak it for an admin either — only the
-	// dedicated endpoint returns the value, so the mask cannot be lifted by role.
 	adminUID := seedOrgMember(t, db, 1, "admin@example.com", "admin")
 	if body := settingsBody(t, srv, sessionCookies(t, adminUID, 1)); strings.Contains(body, secret) {
 		t.Errorf("admin settings dump leaked the inbound webhook secret: body=%s", body)
@@ -102,17 +83,6 @@ func TestInboundTokenFollowsTokenScope(t *testing.T) {
 	}
 }
 
-// TestTokenGrantingOwnerFollowsItsCap records a behaviour change, not an
-// oversight. This used to be impossible for any token: the owner grant is gated
-// on callerOrgRole, a token had none, so every token was refused. The stated
-// reason was that handing a workspace to "a credential with no person behind
-// it" should not happen silently and the audit entry would name nobody.
-//
-// A token now has a person behind it and the audit entry names them, so that
-// reason is gone — and singling out this one endpoint would have been theatre
-// anyway: an owner-capped token can already purge the workspace's data, which
-// is worse. The cap is the control. So: owner-capped token held by an owner may
-// grant; anything narrower may not.
 func TestTokenGrantingOwnerFollowsItsCap(t *testing.T) {
 	grant := func(t *testing.T, srv http.Handler, raw, email string) int {
 		t.Helper()
@@ -128,7 +98,7 @@ func TestTokenGrantingOwnerFollowsItsCap(t *testing.T) {
 	t.Run("admin-capped token cannot", func(t *testing.T) {
 		srv, db := newTestHandler(t)
 		const raw = "oct_ownergrantcapped00000000000000001"
-		seedMember(t, db, 22, "owner") // the holder could; the token may not
+		seedMember(t, db, 22, "owner")
 		seedToken(t, db, raw, 22, "admin")
 
 		if code := grant(t, srv, raw, "nope@example.com"); code != http.StatusForbidden {

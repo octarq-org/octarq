@@ -9,16 +9,14 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-// Ensure langchainProvider implements StreamProvider interface.
 var (
 	_ StreamProvider = (*langchainProvider)(nil)
 )
 
-// mockStreamingModel simulates streaming callback execution in langchaingo.
 type mockStreamingModel struct {
 	content string
 	reason  string
-	order   string // "normal" or "disorder"
+	order   string
 	resp    *llms.ContentResponse
 	err     error
 }
@@ -31,7 +29,6 @@ func (m *mockStreamingModel) GenerateContent(ctx context.Context, messages []llm
 
 	if opts.StreamingReasoningFunc != nil {
 		if m.order == "disorder" {
-			// Send text first then reasoning to trigger order violation
 			if err := opts.StreamingReasoningFunc(ctx, nil, []byte("text first")); err != nil {
 				return nil, err
 			}

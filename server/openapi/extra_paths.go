@@ -1,17 +1,5 @@
 package openapi
 
-// extraPaths describes the core routes registered directly on the mux rather
-// than through huma, which is the only reason they need describing by hand.
-//
-// Keep this list minimal and keep it honest: everything here is a maintenance
-// liability of exactly the kind generating the rest of the document removed. An
-// entry earns its place only while its route cannot be a huma operation —
-// OAuth's redirect handshake and the MCP transports are streaming or
-// browser-redirect endpoints, not JSON request/response pairs.
-//
-// The merge in Marshal only fills gaps, so if one of these ever becomes a huma
-// operation the generated version wins automatically and the stale entry here
-// is inert rather than wrong.
 func extraPaths() map[string]any {
 	errorResponse := map[string]any{
 		"description": "Error",

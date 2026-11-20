@@ -11,12 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TestAdminLoginDoesNotDuplicateOrg pins the bootstrap fix: org_members has a
-// composite primary key and NO id column, so Order("id") on the membership
-// lookup (auth.go bootstrapOrgID / bootstrapUserID) errored out and every admin
-// login minted a fresh org — the session then pointed at the newest org while
-// the data hung on the first. Two logins must resolve to the one preset org,
-// and the session must carry it.
 func TestAdminLoginDoesNotDuplicateOrg(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
@@ -58,7 +52,6 @@ func TestAdminLoginDoesNotDuplicateOrg(t *testing.T) {
 		t.Fatalf("bootstrapOrgID after two logins: got %d, want %d (org resolution drifted)", got, org.ID)
 	}
 
-	// The session handed out on login must carry the preset org, not a fresh one.
 	me := do(srv, "GET", "/api/auth/me", lastRec.Result().Cookies(), "")
 	if me.Code != http.StatusOK {
 		t.Fatalf("me after second login: got %d (%s)", me.Code, me.Body.String())
@@ -74,11 +67,6 @@ func TestAdminLoginDoesNotDuplicateOrg(t *testing.T) {
 	}
 }
 
-// TestLoginAuditCarriesActorAndOrg pins the audit attribution fix: user.login
-// was written before a session existed, so the request-derived org/actor were
-// always 0/0 and logins were untraceable. The audit write is async (auditAs
-// spawns a goroutine), so this polls the table with a deadline instead of a
-// fixed sleep.
 func TestLoginAuditCarriesActorAndOrg(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 
@@ -105,9 +93,6 @@ func TestLoginAuditCarriesActorAndOrg(t *testing.T) {
 	}
 }
 
-// waitForAudit polls audit_logs until a row with the given action appears. The
-// audit write is asynchronous, so a fixed time.Sleep would be flaky under
-// -race; poll with a deadline instead.
 func waitForAudit(t *testing.T, db *gorm.DB, action string) models.AuditLog {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)

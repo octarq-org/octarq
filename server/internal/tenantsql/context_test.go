@@ -35,7 +35,6 @@ func TestContextOrgAndUser(t *testing.T) {
 
 func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 	var nilCtx context.Context
-	// Nil context handling
 	if got := ScopeKeyFromContext(nilCtx); got != DefaultWorkScope {
 		t.Fatalf("expected DefaultWorkScope for nil ctx, got %q", got)
 	}
@@ -46,7 +45,6 @@ func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 		t.Fatal("nil ctx should not allow personal scope")
 	}
 
-	// Empty string default
 	ctx := WithScopeKey(nilCtx, "")
 	if got := ScopeKeyFromContext(ctx); got != DefaultWorkScope {
 		t.Fatalf("expected DefaultWorkScope, got %q", got)
@@ -55,7 +53,6 @@ func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 		t.Fatal("default work scope should not allow personal scope")
 	}
 
-	// Personal scope binding automatically elevates AllowedScopes if not explicit
 	ctxPersonal := WithScopeKey(context.Background(), PersonalPrivateScope)
 	if got := ScopeKeyFromContext(ctxPersonal); got != PersonalPrivateScope {
 		t.Fatalf("expected %q, got %q", PersonalPrivateScope, got)
@@ -68,20 +65,17 @@ func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 		t.Fatalf("expected [work:* personal:*], got %v", scopes)
 	}
 
-	// Explicit allowed scopes
 	ctxExplicit := WithAllowedScopes(context.Background(), "work:custom", " ")
 	expScopes := AllowedScopesFromContext(ctxExplicit)
 	if len(expScopes) != 1 || expScopes[0] != "work:custom" {
 		t.Fatalf("expected [work:custom], got %v", expScopes)
 	}
 
-	// Empty scopes fallback
 	ctxEmptyScopes := WithAllowedScopes(nilCtx)
 	if got := AllowedScopesFromContext(ctxEmptyScopes); len(got) != 1 || got[0] != ScopeWildcardWork {
 		t.Fatalf("expected [work:*] fallback, got %v", got)
 	}
 
-	// Wildcard matching and ScopeAllowed
 	if !MatchScopePattern("*", "any:thing") {
 		t.Fatal("expected * to match everything")
 	}
@@ -101,7 +95,6 @@ func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 		t.Fatal("empty pattern should not match")
 	}
 
-	// ScopeAllowed with context
 	ctxAllowed := WithAllowedScopes(context.Background(), "work:*", "personal:vault")
 	if !ScopeAllowed(ctxAllowed, "work:marketing") {
 		t.Fatal("work:marketing should be allowed")
@@ -113,7 +106,6 @@ func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 		t.Fatal("personal:health should NOT be allowed")
 	}
 
-	// AllowsPersonalScope variations
 	ctxWildcardAll := WithAllowedScopes(context.Background(), "*")
 	if !AllowsPersonalScope(ctxWildcardAll) {
 		t.Fatal("* should allow personal scope")

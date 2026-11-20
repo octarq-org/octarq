@@ -35,7 +35,6 @@ func TestScopedCache_Isolation(t *testing.T) {
 		t.Fatalf("mailCache.Get got (%v, %v, %q), want (true, nil, \"mail_data\")", found, err, mailVal)
 	}
 
-	// Delete from linksCache only
 	if err := linksCache.Delete(ctx, "item"); err != nil {
 		t.Fatalf("linksCache.Delete failed: %v", err)
 	}
@@ -58,33 +57,28 @@ func TestScopedCache_TwoLevel_Fill(t *testing.T) {
 
 	sc := plugin.NewScopedCache("svc", l1, l2)
 
-	// Pre-populate L2 directly
 	if err := l2.Set(ctx, "svc:hot_key", "from_l2", 0); err != nil {
 		t.Fatalf("l2.Set failed: %v", err)
 	}
 
-	// Verify L1 is empty initially
 	var v1 string
 	found, _ := l1.Get(ctx, "svc:hot_key", &v1)
 	if found {
 		t.Fatalf("expected l1 to miss initially")
 	}
 
-	// Get via ScopedCache: should find in L2 and backfill L1
 	var dest string
 	found, err := sc.Get(ctx, "hot_key", &dest)
 	if err != nil || !found || dest != "from_l2" {
 		t.Fatalf("sc.Get got (%v, %v, %q), want (true, nil, \"from_l2\")", found, err, dest)
 	}
 
-	// Verify L1 has been backfilled
 	var backfilled string
 	found, _ = l1.Get(ctx, "svc:hot_key", &backfilled)
 	if !found || backfilled != "from_l2" {
 		t.Fatalf("l1 backfill check got (%v, %q), want (true, \"from_l2\")", found, backfilled)
 	}
 
-	// Now delete from L2 to ensure subsequent Get is served from L1
 	if err := l2.Delete(ctx, "svc:hot_key"); err != nil {
 		t.Fatalf("l2.Delete failed: %v", err)
 	}
@@ -201,11 +195,9 @@ func TestTieredCache_TenantIsolation_Context(t *testing.T) {
 	ctx1 := plugin.WithOrgID(context.Background(), 10)
 	ctx2 := plugin.WithOrgID(context.Background(), 20)
 
-	// Org 10 sets key "pricing"
 	if err := sc.Set(ctx1, "pricing", "https://org10.com/pricing", time.Minute); err != nil {
 		t.Fatalf("Org 10 Set failed: %v", err)
 	}
-	// Org 20 sets same key "pricing" with different value
 	if err := sc.Set(ctx2, "pricing", "https://org20.com/pricing", time.Minute); err != nil {
 		t.Fatalf("Org 20 Set failed: %v", err)
 	}
@@ -221,7 +213,6 @@ func TestTieredCache_TenantIsolation_Context(t *testing.T) {
 		t.Fatalf("Org 20 Get got (%v, %v, %q), want (true, nil, org20 URL)", found20, err, val20)
 	}
 
-	// Deleting from Org 10 does not affect Org 20
 	if err := sc.Delete(ctx1, "pricing"); err != nil {
 		t.Fatalf("Org 10 Delete failed: %v", err)
 	}

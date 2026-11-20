@@ -38,7 +38,6 @@ func TestDiskProvider_DefaultsAndRealStat(t *testing.T) {
 }
 
 func TestDiskProvider_ThresholdsAndMocks(t *testing.T) {
-	// 1. Normal usage: 100 GB total, 50 GB free -> 50% used
 	statOK := func(path string) (total, free, avail uint64, err error) {
 		return 100 * 1e9, 50 * 1e9, 50 * 1e9, nil
 	}
@@ -55,7 +54,6 @@ func TestDiskProvider_ThresholdsAndMocks(t *testing.T) {
 		t.Errorf("expected 50%% usage, got %v", pct)
 	}
 
-	// 2. Warning usage: 100 GB total, 12 GB free -> 88% used (>= 85%)
 	statWarn := func(path string) (total, free, avail uint64, err error) {
 		return 100 * 1e9, 12 * 1e9, 12 * 1e9, nil
 	}
@@ -68,7 +66,6 @@ func TestDiskProvider_ThresholdsAndMocks(t *testing.T) {
 		t.Errorf("expected warning message, got %q", resWarn.Message)
 	}
 
-	// 3. Error usage: 100 GB total, 3 GB free -> 97% used (>= 95%)
 	statErr := func(path string) (total, free, avail uint64, err error) {
 		return 100 * 1e9, 3 * 1e9, 3 * 1e9, nil
 	}
@@ -81,11 +78,10 @@ func TestDiskProvider_ThresholdsAndMocks(t *testing.T) {
 		t.Errorf("expected critical message, got %q", resErr.Message)
 	}
 
-	// 4. Custom thresholds via WithDiskThresholds
 	pCustom := NewDiskProvider("/data",
 		WithDiskThresholds(70.0, 90.0),
 		WithDiskStatFunc(func(path string) (uint64, uint64, uint64, error) {
-			return 100 * 1e9, 25 * 1e9, 25 * 1e9, nil // 75% used
+			return 100 * 1e9, 25 * 1e9, 25 * 1e9, nil
 		}),
 	)
 	resCustom := pCustom.Check(context.Background())
@@ -93,7 +89,6 @@ func TestDiskProvider_ThresholdsAndMocks(t *testing.T) {
 		t.Errorf("expected HealthWarn with custom threshold 70%%, got %q", resCustom.Status)
 	}
 
-	// 5. Stat function error
 	statFail := func(path string) (total, free, avail uint64, err error) {
 		return 0, 0, 0, errors.New("io error on mount")
 	}
@@ -106,7 +101,6 @@ func TestDiskProvider_ThresholdsAndMocks(t *testing.T) {
 		t.Errorf("expected 'disk check failed' in message, got %q", resFail.Message)
 	}
 
-	// 6. Zero total bytes edge case
 	statZero := func(path string) (total, free, avail uint64, err error) {
 		return 0, 0, 0, nil
 	}

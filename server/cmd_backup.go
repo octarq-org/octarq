@@ -117,9 +117,6 @@ func runRestoreCommand(args []string) int {
 	return runRestoreCommandWithInput(args, os.Stdin)
 }
 
-// runRestoreCommandWithInput is the body of runRestoreCommand with the prompt's
-// reader injected, so the interactive confirm path is testable without tying up
-// a real stdin. runRestoreCommand passes os.Stdin, preserving the CLI behaviour.
 func runRestoreCommandWithInput(args []string, in io.Reader) int {
 	fs := flag.NewFlagSet("restore", flag.ContinueOnError)
 	inPath := fs.String("in", "", "Input backup file path to restore from (required unless --from-s3 is specified)")
@@ -227,7 +224,6 @@ func runRestoreCommandWithInput(args []string, in io.Reader) int {
 		}
 	}
 
-	// Pre-restore safety net: the current database is backed up before it is overwritten.
 	autoBackupPath := fmt.Sprintf("octarq-backup-before-restore-%s", db.DefaultBackupFilename(cfg.DBDriver, time.Now()))
 	slog.Info("creating safety backup of current database before restore", "out", autoBackupPath)
 	if err := db.Backup(cfg, autoBackupPath); err != nil {

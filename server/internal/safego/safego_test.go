@@ -7,7 +7,6 @@ import (
 )
 
 func TestRecoverLogsAndReturns(t *testing.T) {
-	// Recover should not propagate the panic.
 	var wg sync.WaitGroup
 	wg.Add(1)
 	survived := false
@@ -49,5 +48,5 @@ func TestGoRecoversPanic(t *testing.T) {
 		panic("go boom")
 	})
 	wg.Wait()
-	<-done // ensures the goroutine completed
+	<-done
 }

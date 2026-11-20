@@ -12,32 +12,12 @@ import (
 	"strings"
 )
 
-// DefaultEntitiesFile is where the loader looks when neither the inline JSON nor
-// an explicit path is configured. It is relative to the working directory, the
-// same convention OCTARQ_DB_DSN's default ("octarq.db") uses.
 const DefaultEntitiesFile = "octarq.entities.json"
 
-// ErrEntitiesFileMissing is returned by Load when an explicitly named file does
-// not exist. The default path is different: its absence means "this installation
-// declares no entities", which is not an error.
 var ErrEntitiesFileMissing = errors.New("ontology: entity file not found")
 
-// Load resolves the declaration set the way the frontend manifest does:
-//
-//  1. inline JSON (OCTARQ_ENTITIES)
-//  2. a file path (OCTARQ_ENTITIES_FILE)
-//  3. ./octarq.entities.json
-//
-// It returns (nil, nil) when none of the three is present: an installation that
-// declares no entities is valid. A source that IS present and cannot be parsed
-// or validated is an error, never an empty set.
 func Load(inline, path string) ([]Spec, error) {
 	if inline = strings.TrimSpace(inline); inline != "" {
-		// An inline declaration may be empty. `{"entities":[]}` is the operator
-		// stating that this installation declares nothing — an explicit answer,
-		// not a half-written file — and it is also how a caller that must not
-		// pick up ./octarq.entities.json turns the feature off without changing
-		// its working directory.
 		return decodeDocument(strings.NewReader(inline), true)
 	}
 	if path = strings.TrimSpace(path); path != "" {
@@ -63,16 +43,10 @@ func Load(inline, path string) ([]Spec, error) {
 	return Decode(f)
 }
 
-// DecodeString is Decode for a document already in memory.
 func DecodeString(doc string) ([]Spec, error) { return Decode(strings.NewReader(doc)) }
 
-// Decode parses a declaration document and validates the whole set.
 func Decode(r io.Reader) ([]Spec, error) { return decodeDocument(r, false) }
 
-// decodeDocument is Decode with the empty-declaration rule spelled out. A file that
-// declares nothing is refused: the operator who wrote it meant to declare
-// something. An inline document is the operator's own statement, so it may say
-// "nothing" and be believed.
 func decodeDocument(r io.Reader, allowEmpty bool) ([]Spec, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
@@ -81,8 +55,6 @@ func decodeDocument(r io.Reader, allowEmpty bool) ([]Spec, error) {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, errors.New("ontology: entities document is empty")
 	}
-	// A key declared twice is a declaration whose second half silently replaces
-	// the first. The operator would believe both were applied.
 	if key, dup := DuplicateKey(raw); dup {
 		return nil, fmt.Errorf("ontology: parse entities: %q is declared twice", key)
 	}
@@ -91,8 +63,6 @@ func decodeDocument(r io.Reader, allowEmpty bool) ([]Spec, error) {
 		Entities []Spec `json:"entities"`
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
-	// An unknown key is a typo the operator would otherwise never see: the
-	// platform would silently ignore the field they thought they declared.
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&doc); err != nil {
 		return nil, fmt.Errorf("ontology: parse entities: %w", err)
@@ -112,9 +82,6 @@ func decodeDocument(r io.Reader, allowEmpty bool) ([]Spec, error) {
 	return doc.Entities, nil
 }
 
-// decodeTrailing refuses a second JSON value after the document. A file whose
-// second half is silently ignored is a file whose operator believes something
-// that is not true.
 func decodeTrailing(dec *json.Decoder) error {
 	var extra json.RawMessage
 	if err := dec.Decode(&extra); err != io.EOF {
@@ -126,7 +93,6 @@ func decodeTrailing(dec *json.Decoder) error {
 	return nil
 }
 
-// ValidateAll validates every declaration and the set as a whole.
 func ValidateAll(specs []Spec) error {
 	var errs Errors
 	seen := make(map[string]int, len(specs))
@@ -139,9 +105,6 @@ func ValidateAll(specs []Spec) error {
 					errs = append(errs, iss)
 				}
 			} else {
-				// Validate reports Issues today. An error it cannot express as one
-				// is still a refusal, and dropping it would let a broken entity
-				// through on the strength of the others being fine.
 				return fmt.Errorf("ontology: validate entities[%d]: %w", i, vErr)
 			}
 		}
@@ -155,9 +118,6 @@ func ValidateAll(specs []Spec) error {
 	return normalize(errs)
 }
 
-// SortedSlugs returns the declared slugs in a stable order. Callers use it for
-// menus and for error messages; map iteration order would make boot output
-// differ between runs.
 func SortedSlugs(specs []Spec) []string {
 	out := make([]string, 0, len(specs))
 	for _, s := range specs {

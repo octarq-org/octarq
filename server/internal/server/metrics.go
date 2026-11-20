@@ -5,10 +5,6 @@ import (
 	"time"
 )
 
-// Metrics (stdlib expvar)
-
-// metrics holds the operational counters exposed at /metrics. They are backed
-// by expvar so they are safe for concurrent updates without extra locking.
 type metrics struct {
 	startedAt time.Time
 	requests  *expvar.Int
@@ -19,9 +15,6 @@ type metrics struct {
 	inFlight  *expvar.Int
 }
 
-// newMetrics builds the counters. expvar's global registry panics on duplicate
-// names, so we look up existing vars first (handy across test re-runs) and fall
-// back to publishing fresh ones.
 func newMetrics() *metrics {
 	return &metrics{
 		startedAt: time.Now(),
@@ -43,7 +36,6 @@ func getOrNewInt(name string) *expvar.Int {
 	return expvar.NewInt(name)
 }
 
-// record updates the counters for one completed request.
 func (m *metrics) record(status int) {
 	m.requests.Add(1)
 	switch {
@@ -58,7 +50,6 @@ func (m *metrics) record(status int) {
 	}
 }
 
-// snapshot renders the current metrics as a JSON-serialisable map.
 func (m *metrics) snapshot() map[string]any {
 	return map[string]any{
 		"uptime_seconds":     int64(time.Since(m.startedAt).Seconds()),

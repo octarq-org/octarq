@@ -8,10 +8,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// listToolNames drives a real MCP session against srv and returns the tool names
-// the server actually advertises. Asserting on the wire listing rather than on an
-// internal bookkeeping flag is deliberate: the flag can agree with the comments
-// while the tool is still reachable by a client.
 func listToolNames(t *testing.T, srv *mcp.Server) []string {
 	t.Helper()
 	ctx := context.Background()
@@ -40,11 +36,6 @@ func listToolNames(t *testing.T, srv *mcp.Server) []string {
 	return names
 }
 
-// No transport may expose a tool that runs caller-supplied SQL. Such a query
-// reaches arbitrary tables, so nothing can confine it to the caller's owner_id —
-// the content denylist in plugin.ValidateReadOnlyQuery leaves the analytics
-// tables queryable and `emails` has no owner_id column at all. The capability is
-// gone from the code, not gated by a flag, so no call site can restore it.
 func TestNoTransportExposesRawSQL(t *testing.T) {
 	cases := []struct {
 		name string
@@ -58,8 +49,6 @@ func TestNoTransportExposesRawSQL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			names := listToolNames(t, tc.srv)
 
-			// Fail loudly if the listing came back empty — otherwise the
-			// absence assertions below would pass without proving anything.
 			if len(names) == 0 {
 				t.Fatal("no tools advertised at all; the listing is not exercising the server")
 			}

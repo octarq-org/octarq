@@ -8,8 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// TestSpecGuardRefusesAToolOutsideTheAllowlist pins the control the offline
-// lab has always enforced: a published allowlist is a control, not a hint.
 func TestSpecGuardRefusesAToolOutsideTheAllowlist(t *testing.T) {
 	spec := harness.HarnessSpec{
 		Version:   harness.HarnessSpecVersion,
@@ -30,8 +28,6 @@ func TestSpecGuardRefusesAToolOutsideTheAllowlist(t *testing.T) {
 	}
 }
 
-// TestSpecGuardWithoutAnAllowlistPermitsEverything: an empty allowlist means
-// "no restriction". A spec narrows the tool surface; it never widens it.
 func TestSpecGuardWithoutAnAllowlistPermitsEverything(t *testing.T) {
 	guard := harness.NewSpecGuard(harness.DefaultHarnessSpec())
 	if err := guard.Allow(context.Background(), 1, "anything", "{}"); err != nil {
@@ -39,16 +35,12 @@ func TestSpecGuardWithoutAnAllowlistPermitsEverything(t *testing.T) {
 	}
 }
 
-// guardFunc adapts a function to the Guard interface.
 type guardFunc func(context.Context, uint, string) error
 
-// Allow implements Guard.
 func (f guardFunc) Allow(ctx context.Context, orgID uint, tool, argsJSON string) error {
 	return f(ctx, orgID, tool)
 }
 
-// TestComposeGuardsRequiresEveryGuardToPermit: a channel composes its own
-// rules with the workspace's published spec, and the strictest wins.
 func TestComposeGuardsRequiresEveryGuardToPermit(t *testing.T) {
 	allow := guardFunc(func(context.Context, uint, string) error { return nil })
 	deny := guardFunc(func(context.Context, uint, string) error { return context.Canceled })
@@ -58,8 +50,6 @@ func TestComposeGuardsRequiresEveryGuardToPermit(t *testing.T) {
 		t.Fatal("the chain permitted a tool one of its guards refused")
 	}
 
-	// A chain of one behaves exactly like that guard, and a chain of none
-	// permits everything.
 	single := harness.ComposeGuards(allow)
 	if err := single.Allow(context.Background(), 1, "tool", "{}"); err != nil {
 		t.Fatalf("a chain of one refused a tool: %v", err)

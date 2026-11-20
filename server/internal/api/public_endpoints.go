@@ -8,29 +8,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// Anything served under /api/ normally requires a dashboard session. These two
-// mechanisms punch holes in that, and both are exercised in the middleware in
-// New (see the UseMiddleware block there):
-//
-//  1. an operation carrying Metadata["public"] = true, which any plugin — in
-//     this repo or out of it — can set on its own routes; and
-//  2. a path in publicExactPaths or under a publicSubtreePrefixes entry.
-//
-// Both are legitimate. Login cannot require a session, and a payment webhook
-// arrives with no cookie at all. What neither had was an inventory: a route
-// could become reachable without authentication and nothing anywhere would say
-// so. PublicOperations plus the registry test in public_endpoints_test.go make
-// that visible — a new hole fails the build until someone writes it down.
-
-// publicExactPaths are exempt, and only at exactly these paths.
-//
-// This used to be prefix matching, and prefix matching had already misfired:
-// "/api/auth/logout" also matched "/api/auth/logout-all", silently exempting an
-// endpoint that nukes every session a user has. It was not exploitable — the
-// handler re-authenticates (see logoutAll) — but it survived on the handler
-// author's care rather than on the gate, which is the arrangement this whole
-// inventory exists to stop relying on. Exact matching means a new endpoint
-// cannot inherit an exemption by sharing a name prefix with an old one.
 var publicExactPaths = map[string]bool{
 	"/api/auth/login":               true,
 	"/api/auth/register":            true,
@@ -47,27 +24,12 @@ var publicExactPaths = map[string]bool{
 	"/api/status":                   true,
 }
 
-// publicSubtreePrefixes exempt everything beneath them. There is exactly one,
-// and it has to be a subtree: webhook paths carry the workspace slug and a
-// per-mailbox token as path segments, so the concrete request path is never
-// known in advance.
-//
-// A subtree is blunt — every route any plugin mounts under it is public whether
-// the author considered that or not. That is why the registry test enumerates
-// concrete operations instead of trusting this list: a new webhook route shows
-// up there as a diff someone has to approve.
 var publicSubtreePrefixes = []string{
 	"/api/webhook/",
 }
 
-// isPublicPath reports whether the auth middleware lets path through without a
-// session.
 func isPublicPath(path string) bool {
 	if !strings.HasPrefix(path, "/api/") {
-		// Routes outside /api/ never entered this gate. They are still listed
-		// by PublicOperations, because "not covered by the gate" and "safe to
-		// call anonymously" are different claims and only the second one is
-		// worth trusting without a look.
 		return true
 	}
 	if publicExactPaths[path] {
@@ -81,25 +43,14 @@ func isPublicPath(path string) bool {
 	return false
 }
 
-// PublicEndpoint is one operation reachable without a dashboard session.
 type PublicEndpoint struct {
 	Method string
 	Path   string
-	// Reason is "metadata" when the operation opted in via
-	// Metadata["public"], or "prefix:<p>" when a path prefix exempted it. An
-	// operation can be exempt both ways; metadata wins in the report because
-	// it is the deliberate, per-route choice.
 	Reason string
 }
 
 func (e PublicEndpoint) String() string { return e.Method + " " + e.Path + "  (" + e.Reason + ")" }
 
-// PublicOperations returns every registered operation that the auth middleware
-// will let through unauthenticated, sorted for stable comparison.
-//
-// It reads the operations off the OpenAPI document rather than re-deriving them,
-// so it sees exactly what was registered — including routes contributed by
-// out-of-tree plugins, which is the case a hand-maintained list would miss.
 func PublicOperations(api huma.API) []PublicEndpoint {
 	var out []PublicEndpoint
 	doc := api.OpenAPI()
@@ -141,8 +92,6 @@ func PublicOperations(api huma.API) []PublicEndpoint {
 	return out
 }
 
-// matchedPrefix returns the longest prefix that exempted path, so the report
-// names the specific rule rather than just asserting one applied.
 func matchedPrefix(path string) string {
 	if publicExactPaths[path] {
 		return path
@@ -156,24 +105,6 @@ func matchedPrefix(path string) string {
 	return best
 }
 
-// PublicGETMatcher returns a predicate reporting whether a path hosts a public
-// GET endpoint — i.e. one the auth gate lets through unauthenticated. It is
-// derived from PublicOperations (which reads the OpenAPI document), so it sees
-// exactly what was registered, including routes contributed by out-of-tree
-// plugins such as the Pro storefront.
-//
-// The CORS allowlist grants cross-origin reads only to these endpoints. The
-// matcher never does prefix matching, so a new endpoint cannot inherit
-// cross-origin access by sharing a name prefix with an old one.
-//
-// The document gives PATH TEMPLATES ("/api/storefront/{slug}") while the
-// middleware asks about the CONCRETE request path ("/api/storefront/pro"), so a
-// straight map lookup answers false for every parameterized route — the route
-// is public, the browser is refused, and the page silently renders nothing.
-// Templates are therefore matched segment by segment: same segment count,
-// literal segments equal, and a "{...}" segment matching exactly one non-empty
-// segment. That keeps the no-prefix-inheritance property (a longer or shorter
-// path can never match) while letting a parameterized public route work.
 func PublicGETMatcher(api huma.API) func(path string) bool {
 	var exact []string
 	var templates [][]string
@@ -203,10 +134,6 @@ func PublicGETMatcher(api huma.API) func(path string) bool {
 	}
 }
 
-// templateMatches reports whether the concrete path segments satisfy the
-// template segments. A parameter segment matches exactly one non-empty
-// segment — never zero, never several — so "/api/storefront/a/b" does not
-// match "/api/storefront/{slug}".
 func templateMatches(tmpl, got []string) bool {
 	if len(tmpl) != len(got) {
 		return false

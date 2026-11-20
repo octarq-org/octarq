@@ -15,10 +15,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Handler represents a task worker function.
 type Handler func(ctx context.Context, payload []byte) error
 
-// Queue defines a robust, optional task queue.
 type Queue interface {
 	Register(taskType string, h Handler)
 	Start(ctx context.Context) error
@@ -92,8 +90,6 @@ func runHandlerWithTelemetry(taskType string, h Handler, raw []byte) error {
 	return err
 }
 
-// New returns a Queue implementation. If redisURL is empty or fails to parse,
-// it returns a local InMemoryQueue. Otherwise, it returns an Asynq-backed Queue.
 func New(redisURL string) Queue {
 	if redisURL == "" {
 		log.Println("queue: Redis URL is empty. Using in-memory task queue.")
@@ -147,7 +143,7 @@ func (q *InMemoryQueue) Register(taskType string, h Handler) {
 }
 
 func (q *InMemoryQueue) Start(ctx context.Context) error {
-	q.wg.Add(4) // 4 workers
+	q.wg.Add(4)
 	for i := 0; i < 4; i++ {
 		go func() {
 			defer q.wg.Done()
@@ -180,7 +176,6 @@ func (q *InMemoryQueue) Enqueue(ctx context.Context, taskType string, payload []
 	case q.ch <- task{Type: taskType, Payload: wrapped}:
 		return nil
 	default:
-		// Queue full, fallback to instant goroutine execution
 		h, exists := q.handler(taskType)
 		if !exists {
 			return fmt.Errorf("queue: full and no handler registered for %q", taskType)
@@ -214,7 +209,6 @@ func (q *AsynqQueue) Enqueue(ctx context.Context, taskType string, payload []byt
 	_, err := q.client.EnqueueContext(ctx, t)
 	if err != nil {
 		log.Printf("queue: asynq Enqueue failed: %v. Falling back to instant execution.", err)
-		// Connection failed - run instantly in background as fallback
 		q.mu.Lock()
 		h, exists := q.handlers[taskType]
 		q.mu.Unlock()
@@ -242,7 +236,7 @@ func (q *AsynqQueue) Start(ctx context.Context) error {
 
 	mux := asynq.NewServeMux()
 	for taskType, h := range q.handlers {
-		handler := h // capture loop variable
+		handler := h
 		tType := taskType
 		mux.HandleFunc(taskType, func(ctx context.Context, t *asynq.Task) error {
 			return runHandlerWithTelemetry(tType, handler, t.Payload())

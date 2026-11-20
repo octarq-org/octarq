@@ -19,7 +19,6 @@ func TestAuthzCharacterizationRoles(t *testing.T) {
 }
 
 func TestAuthzCharacterizationFailClosed(t *testing.T) {
-	// Any non-canonical roles must strictly fail closed
 	badRoles := []authz.Role{"", "root", "system", "anonymous", "null", "OWNER", "Admin"}
 	for _, r := range badRoles {
 		if authz.AtLeast(r, authz.RoleMember) {

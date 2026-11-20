@@ -9,7 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ColumnSchema describes a column in a tenant view for describe_tenant_schema output.
 type ColumnSchema struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
@@ -17,26 +16,21 @@ type ColumnSchema struct {
 	Sensitive   bool   `json:"sensitive,omitempty"`
 }
 
-// ViewSchema describes a tenant view for describe_tenant_schema output.
 type ViewSchema struct {
 	Name    string         `json:"name"`
 	Columns []ColumnSchema `json:"columns"`
 }
 
-// DescribeTenantSchemaInput is the input for describe_tenant_schema.
 type DescribeTenantSchemaInput struct{}
 
-// DescribeTenantSchemaOutput is the output for describe_tenant_schema.
 type DescribeTenantSchemaOutput struct {
 	Views []ViewSchema `json:"views"`
 }
 
-// QueryTenantSQLInput is the input for query_tenant_sql.
 type QueryTenantSQLInput struct {
 	SQL string `json:"sql"`
 }
 
-// QueryTenantSQLOutput is the output for query_tenant_sql.
 type QueryTenantSQLOutput struct {
 	Rows      []map[string]any `json:"rows"`
 	RowCount  int              `json:"rowCount"`

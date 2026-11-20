@@ -13,7 +13,6 @@ type charTestEvent struct {
 	Code    int
 }
 
-// TestCharacterization_TypedBus verifies TypedBus sync and async publish behavior.
 func TestCharacterization_TypedBus(t *testing.T) {
 	bus := plugin.NewTypedBus[charTestEvent]()
 
@@ -40,7 +39,6 @@ func TestCharacterization_TypedBus(t *testing.T) {
 	mu.Unlock()
 }
 
-// TestCharacterization_ContextHelpers verifies context OrgID and UserID propagation.
 func TestCharacterization_ContextHelpers(t *testing.T) {
 	ctx := context.Background()
 	if orgID := plugin.OrgIDFromContext(ctx); orgID != 0 {
@@ -61,7 +59,6 @@ func TestCharacterization_ContextHelpers(t *testing.T) {
 	}
 }
 
-// TestCharacterization_HelpDocParsing verifies YAML frontmatter parsing and category fallback.
 func TestCharacterization_HelpDocParsing(t *testing.T) {
 	content := `---
 title: "Sample Guide"
@@ -88,9 +85,8 @@ Body markdown text here.`
 		t.Errorf("unexpected markdown: %q", doc.Markdown)
 	}
 
-	// Test category normalization
 	doc.FillDefaults("myplugin", "")
-	if doc.Category != "start" { // "core" gets remapped to "start"
+	if doc.Category != "start" {
 		t.Errorf("expected category remapped to 'start', got %q", doc.Category)
 	}
 }
@@ -103,13 +99,11 @@ type dummyImpl struct{}
 
 func (d *dummyImpl) Greet() string { return "hi" }
 
-// TestCharacterization_Registry verifies Service Registry Provide and LookupAs.
 func TestCharacterization_Registry(t *testing.T) {
 	r := plugin.NewRegistry()
 	impl := &dummyImpl{}
 	r.Provide("test.dummy", impl)
 
-	// Duplicate provide must be recorded in r.Err()
 	r.Provide("test.dummy", impl)
 	if r.Err() == nil {
 		t.Fatalf("expected error on duplicate Provide in r.Err(), got nil")

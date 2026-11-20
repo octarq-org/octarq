@@ -66,8 +66,6 @@ func (s *testVaultService) ComputeTOTP(context.Context, uint, uint) (string, int
 	return "", 0, nil
 }
 
-// testDB gives each test its own sqlite file with the webhook + delivery-log
-// schema, and restores the package db when it finishes.
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	gdb, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "eventbus.db")), &gorm.Config{})
@@ -83,8 +81,6 @@ func testDB(t *testing.T) *gorm.DB {
 	return gdb
 }
 
-// fastRetries shrinks the retry clock so the loop runs in microseconds, and
-// records what backoff each attempt asked for.
 func fastRetries(t *testing.T, attempts int) *[]time.Duration {
 	t.Helper()
 	var waits []time.Duration
@@ -112,9 +108,6 @@ func allowSecrets(t *testing.T) {
 	t.Cleanup(func() { SetVaultService(nil) })
 }
 
-// TestDeliveryRetriesUntilReceiverRecovers is the core reliability guarantee:
-// a receiver that 500s twice and then succeeds must still get the event, and
-// the delivery log must show it took three attempts.
 func TestDeliveryRetriesUntilReceiverRecovers(t *testing.T) {
 	gdb := testDB(t)
 	allowSecrets(t)
@@ -167,8 +160,6 @@ func TestDeliveryRetriesUntilReceiverRecovers(t *testing.T) {
 	}
 }
 
-// TestDeliveryDeadLettersAfterMaxAttempts pins the bounded attempt count and
-// the dead-letter state that makes the failure visible and replayable.
 func TestDeliveryDeadLettersAfterMaxAttempts(t *testing.T) {
 	gdb := testDB(t)
 	allowSecrets(t)
@@ -213,9 +204,6 @@ func TestDeliveryDeadLettersAfterMaxAttempts(t *testing.T) {
 	}
 }
 
-// TestPermanentFailureIsNotRetried: a delivery that cannot ever succeed (secret
-// will not decrypt) must dead-letter on the first attempt rather than burn the
-// whole retry budget.
 func TestPermanentFailureIsNotRetried(t *testing.T) {
 	gdb := testDB(t)
 	SetVaultService(&testVaultService{err: context.DeadlineExceeded})
@@ -252,15 +240,11 @@ func TestPermanentFailureIsNotRetried(t *testing.T) {
 	}
 }
 
-// TestBackoffIsExponentialAndJittered guards the backoff shape itself: the
-// window grows per attempt, is capped, and never returns the same value for
-// every call (a constant would stampede receivers).
 func TestBackoffIsExponentialAndJittered(t *testing.T) {
 	prevBase, prevMax := baseBackoff, maxBackoff
 	baseBackoff, maxBackoff = 100*time.Millisecond, 2*time.Second
 	t.Cleanup(func() { baseBackoff, maxBackoff = prevBase, prevMax })
 
-	// Growth: attempt n's window is [d/2, d] with d = base*2^(n-1).
 	for n := 1; n <= 4; n++ {
 		want := baseBackoff << (n - 1)
 		if want > maxBackoff {
@@ -274,14 +258,12 @@ func TestBackoffIsExponentialAndJittered(t *testing.T) {
 		}
 	}
 
-	// Cap: a far-out attempt never exceeds maxBackoff.
 	for i := 0; i < 50; i++ {
 		if got := backoffFor(30); got > maxBackoff {
 			t.Fatalf("backoffFor(30) = %v exceeds cap %v", got, maxBackoff)
 		}
 	}
 
-	// Jitter: 100 draws of the same attempt must not all be identical.
 	seen := map[time.Duration]bool{}
 	for i := 0; i < 100; i++ {
 		seen[backoffFor(3)] = true
@@ -291,9 +273,6 @@ func TestBackoffIsExponentialAndJittered(t *testing.T) {
 	}
 }
 
-// TestReplayDetectionHeadersAndSignature is the receiver-side contract: the
-// timestamp and delivery id are sent AND signed, so a captured delivery cannot
-// be replayed with a fresh timestamp without breaking the signature.
 func TestReplayDetectionHeadersAndSignature(t *testing.T) {
 	allowSecrets(t)
 	secret := "shhh"
@@ -344,10 +323,6 @@ func TestReplayDetectionHeadersAndSignature(t *testing.T) {
 		t.Fatalf("v2 signature = %q, want %q", sig[3:], want)
 	}
 
-	// The replay check a receiver performs: the SAME body replayed under a
-	// different timestamp must not verify against the v2 signature. If the
-	// timestamp were merely a header, this would pass and replay would be
-	// undetectable.
 	forged := hmac.New(sha256.New, []byte(secret))
 	forged.Write(v2Material(signedAt.Add(time.Hour), "dlv-abc123", body))
 	if hex.EncodeToString(forged.Sum(nil)) == sig[3:] {
@@ -355,8 +330,6 @@ func TestReplayDetectionHeadersAndSignature(t *testing.T) {
 	}
 }
 
-// TestFanOutIsBounded pins the concurrency ceiling: many hooks subscribed to
-// one event must not become one goroutine (and one socket) per hook.
 func TestFanOutIsBounded(t *testing.T) {
 	gdb := testDB(t)
 	allowSecrets(t)
@@ -390,7 +363,6 @@ func TestFanOutIsBounded(t *testing.T) {
 
 	Publish(1, "link.click", map[string]any{"ok": true})
 
-	// Give the fan-out time to saturate the semaphore, then let everyone go.
 	deadline := time.Now().Add(3 * time.Second)
 	for inFlight.Load() < 2 && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
@@ -398,7 +370,6 @@ func TestFanOutIsBounded(t *testing.T) {
 	if inFlight.Load() == 0 {
 		t.Fatal("no delivery reached the receiver")
 	}
-	// Hold the receivers long enough that an unbounded fan-out would show up.
 	time.Sleep(100 * time.Millisecond)
 	gotPeak := peak.Load()
 	close(release)
@@ -407,9 +378,6 @@ func TestFanOutIsBounded(t *testing.T) {
 		t.Errorf("peak concurrent deliveries = %d, want <= 2 (fan-out is unbounded)", gotPeak)
 	}
 
-	// Publish is fire-and-forget, so the delivery goroutines outlive the test
-	// body. Wait for all of them before the cleanup swaps the package-level
-	// semaphore and DB back — otherwise the teardown races the workers.
 	deadline = time.Now().Add(5 * time.Second)
 	for served.Load() < hooks && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
@@ -417,15 +385,11 @@ func TestFanOutIsBounded(t *testing.T) {
 	if got := served.Load(); got != hooks {
 		t.Fatalf("only %d of %d deliveries completed", got, hooks)
 	}
-	// Every worker has released its slot once the semaphore can be filled.
 	for i := 0; i < cap(deliverySem); i++ {
 		deliverySem <- struct{}{}
 	}
 }
 
-// TestReplayResendsOriginalBodyAndDeliveryID: an operator replaying a
-// dead-lettered delivery re-sends the same bytes under the same delivery id,
-// which is what lets the receiver dedupe instead of double-processing.
 func TestReplayResendsOriginalBodyAndDeliveryID(t *testing.T) {
 	gdb := testDB(t)
 	allowSecrets(t)
@@ -461,7 +425,6 @@ func TestReplayResendsOriginalBodyAndDeliveryID(t *testing.T) {
 		t.Errorf("after replay: status %q attempts %d, want delivered/6", row.Status, row.Attempts)
 	}
 
-	// Another org must not be able to replay it.
 	if err := Replay(context.Background(), 4, "dlv-replay"); err == nil {
 		t.Error("cross-tenant replay must fail")
 	}

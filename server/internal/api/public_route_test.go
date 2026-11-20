@@ -9,16 +9,9 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// TestPublicMetadataBypassesAuth verifies the sanctioned plugin mechanism for
-// self-authenticating routes: an operation registered with
-// Metadata["public"] = true skips the core dashboard-auth middleware, while an
-// otherwise identical operation without it still 401s when unauthenticated.
-//
-// Downstream buyer routes follow this exact contract — the
-// "public" boolean metadata key on huma.Operation.
 func TestPublicMetadataBypassesAuth(t *testing.T) {
 	h, _ := newHandlerForAdminTest(t)
-	mux := h.Routes() // builds and populates h.humaAPI
+	mux := h.Routes()
 	api := h.Huma()
 
 	type out struct {
@@ -45,14 +38,12 @@ func TestPublicMetadataBypassesAuth(t *testing.T) {
 		Path:        "/api/test/protected",
 	}, handler)
 
-	// Public operation: reachable without any credentials.
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/test/public", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("public route: want 200, got %d (body %s)", rec.Code, rec.Body.String())
 	}
 
-	// Protected operation: 401 when unauthenticated.
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/test/protected", nil))
 	if rec.Code != http.StatusUnauthorized {

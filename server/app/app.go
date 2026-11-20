@@ -1,15 +1,3 @@
-// Package app is the public composition root for octarq. It wires config, the
-// database, auth, the core API, the short-link redirector and the embedded
-// dashboard into one HTTP server — and lets external modules extend it
-// through the plugin package without forking.
-//
-// This is the importable seam of the Core-as-Library split: the open-core
-// binary (cmd in this repo) calls New().Run() with no plugins; a downstream
-// distribution calls Use() for each extra plugin before Run().
-//
-// AutoMigrate timing: New() opens the database but does NOT migrate. Run()
-// collects core models plus every registered plugin's Models() and migrates
-// them together, exactly once, before any request is served.
 package app
 
 import (
@@ -44,7 +32,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// App holds the wired core dependencies and any registered plugins.
 type App struct {
 	cfg             *config.Config
 	gdb             *gorm.DB
@@ -54,23 +41,15 @@ type App struct {
 	plugins         []plugin.Plugin
 	services        *plugin.Registry
 	healthCollector atomic.Pointer[monitor.Collector]
-	webFS           fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
+	webFS           fs.FS
 	telemetry       *telemetry.Telemetry
-	// mcpTierGate judges the tiers the MCP composition may expose (see
-	// WithMCPTierGate). Nil means this build has no tier model.
-	mcpTierGate plugin.TierGate
+	mcpTierGate     plugin.TierGate
 }
 
-// HealthCollector returns the system health collector instance.
 func (a *App) HealthCollector() *monitor.Collector {
 	return a.healthCollector.Load()
 }
 
-// RunMCP runs the MCP server with the registered plugins over stdio. It mounts
-// the plugins with the same plugin.Context the HTTP server uses, so their MCP
-// tool handlers have their dependencies wired (DB, DNS manager, Encrypt/Decrypt)
-// — without this, plugin MCP tools would run with nil dependencies. The HTTP mux
-// they mount onto is discarded; only the captured context matters here.
 func (a *App) RunMCP(ctx context.Context) error {
 	if err := a.prepareMigrationAndCipher(); err != nil {
 		return err
@@ -120,8 +99,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 		loginByIdentity: a.loginByIdentity,
 		onEmailMu:       &emailMu,
 		deferredOnEmail: &deferredOnEmail,
-		handleRoot:      func(h http.Handler) { /* unused in MCP */ },
-		handleStatic:    func(prefix string, fsys fs.FS) { /* unused in MCP */ },
+		handleRoot:      func(h http.Handler) {},
+		handleStatic:    func(prefix string, fsys fs.FS) {},
 		httpMode:        false,
 		plugins:         a.plugins,
 	})
@@ -190,15 +169,6 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
-	// Validate against the host the plugins will run against on this path, which
-	// is not the one this mount built. RunWithPlugins re-mounts every plugin
-	// through buildServerInstance with a no-op host, and a plugin caches the host
-	// it is given at Mount, so the second mount is the one its tools read from.
-	// A plugin that needs a runtime service has to refuse here, where the boot
-	// stops, instead of exposing tools that fail on every call.
-	// Validate against the exact Host surface the stdio MCP mount gives plugins
-	// in RunStdio (which includes CryptoVault when configured, while keeping HTTP
-	// session hooks absent).
 	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	err := plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
 	valCancel()
@@ -218,8 +188,6 @@ func (a *App) RunMCP(ctx context.Context) error {
 	return mcp.RunStdio(ctx, a.gdb, a.plugins, pctx.Host, a.mcpTierGate)
 }
 
-// Run migrates the schema (core + plugin models), builds the HTTP server, and
-// serves until interrupted.
 func (a *App) Run(ctx context.Context) error {
 	defer a.geo.Close()
 
@@ -286,9 +254,6 @@ func (a *App) Run(ctx context.Context) error {
 		plugins:  a.plugins,
 	})
 	apiHandler.SetEndpointSource(endpointEngine)
-	// The host is installed before plugins mount, but its Workforce() and
-	// HarnessSpec() resolve the providing plugin's service at call time, so the
-	// ledger and the published harness appear as soon as that plugin mounts.
 	apiHandler.SetHost(pctx.Host)
 	a.Setup(pctx, apiHandler)
 	healthCollector := monitor.NewCollector(30*time.Second,
@@ -384,9 +349,6 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	// Validate against the exact Host surface the stdio MCP mount gives plugins
-	// in RunStdio (which includes CryptoVault when configured, while keeping HTTP
-	// session hooks absent).
 	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	err := plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
 	valCancel()
@@ -394,10 +356,6 @@ func (a *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	// Plugin goroutines get a context the shutdown path can cancel. The root
-	// ctx is never cancelled on SIGTERM (main passes context.Background), so
-	// reusing it would leave every Start goroutine running while the process
-	// tears down around it.
 	pluginCtx, stopPluginContext := context.WithCancel(ctx)
 	defer stopPluginContext()
 

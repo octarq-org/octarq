@@ -1,18 +1,3 @@
-// Package mcp implements octarq's Model Context Protocol server for the
-// `octarq mcp` subcommand and for the networked (HTTP/SSE) transports. It
-// exposes read-only tools over the core models, every one of them scoped to a
-// single tenant.
-//
-// There is deliberately no general-purpose raw-SQL tool. A raw SELECT reaches
-// arbitrary tables, so no owner_id predicate can be injected into it and no
-// content denylist can stand in for one (plugin.ValidateReadOnlyQuery is a
-// content filter, not an authorization boundary — it leaves the analytics tables
-// queryable, and `emails` has no owner_id column at all). The capability is
-// removed from the tool surface rather than gated by a flag, so no call site can
-// re-enable it by mistake.
-//
-// Scope is the open-core surface only. Write tools, and Finance/Infra tools,
-// belong to the Pro plugins — don't add them here.
 package mcp
 
 import (
@@ -36,60 +21,28 @@ import (
 	"gorm.io/gorm"
 )
 
-// errNoOrgInContext refuses a tool call that arrives without a tenant scope.
-// Every transport supplies one — the networked ones from the caller's API token,
-// the stdio CLI from its entry point — so an absent org means something is wrong,
-// and defaulting it to a tenant would hand that tenant's data to whoever asked.
 var errNoOrgInContext = errors.New("no workspace in this request")
 
-// version is reported to MCP clients in the server handshake.
 const version = "0.1.0"
 
-// stdioOrgID is the tenant the stdio CLI operates as. `octarq mcp` is launched by
-// the operator on their own machine against their own database, so there is one
-// tenant and it is the bootstrap org.
 const stdioOrgID uint = 1
 
-// server bundles the dependencies the tool handlers share.
 type server struct {
 	gdb    *gorm.DB
-	orgID  uint // tenant scope for the tools (defaults to 1 for Stdio CLI, dynamically set via HTTP tokens for remote SSE)
+	orgID  uint
 	lookup func(name string) (any, bool)
 	srv    *mcp.Server
 	subs   *subscriptionTracker
 }
 
-// Run loads configuration, opens the database read-only-style, builds the MCP
-// server with every tool registered, and serves over stdio until ctx is
-// cancelled or stdin closes. It is the body of the `octarq mcp` subcommand.
 func Run(ctx context.Context) error {
 	return RunWithPlugins(ctx, nil, nil)
 }
 
-// NewNetworkedServerInstance builds an MCP server for a networked transport
-// (HTTP/SSE), where the caller is one tenant among many and orgID comes from
-// their API token. Only tenant-scoped tools exist on any transport; see the
-// package doc for why raw SQL is not one of them.
-//
-// It also never Mounts the plugins. They are shared instances, already mounted
-// at app boot with per-request resolvers; re-Mounting them here — once per
-// connection, with this connection's org — would overwrite those resolvers
-// process-wide and silently repoint every other tenant's requests at this org.
-// Tools get the caller's org from the request context instead, via
-// plugin.OrgIDFromContext. lookup is the app's own service registry, which
-// Mounting used to (re)build; it is required, not optional, so a caller cannot
-// quietly drop it and lose the export tools.
 func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool)) *mcp.Server {
 	return buildServerInstance(gdb, orgID, plugins, lookup, false, nil, nil)
 }
 
-// NewServerInstance builds an MCP server for a single operator, scoped to
-// orgID, with the given plugins mounted the way app boot mounts them. gate is
-// the operator's tier judge: tools declared above a tier it does not allow are
-// never registered, so an unlicensed instance cannot call them. A nil gate
-// means the build has no tier model (core). The networked counterpart is
-// NewNetworkedServerInstance. Both expose the same tenant-scoped tool set;
-// there is no transport that gets extra reach.
 func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) *mcp.Server {
 	return buildServerInstance(gdb, orgID, plugins, nil, true, gate, nil)
 }
@@ -101,9 +54,6 @@ type mcpCryptoHost struct {
 
 func (h mcpCryptoHost) Crypto() plugin.CryptoVault { return h.crypto }
 
-// NewStdioPluginHost returns the Host capability surface plugins receive when
-// mounted inside the stdio MCP server. If baseHost supplies a CryptoVault, the
-// returned host preserves it so Vault and encrypted plugins work over stdio.
 func NewStdioPluginHost(pctx *plugin.Context, baseHost plugin.Host) plugin.Host {
 	ensured := plugin.EnsureHost(pctx)
 	if baseHost != nil && baseHost.Crypto() != nil {
@@ -112,7 +62,6 @@ func NewStdioPluginHost(pctx *plugin.Context, baseHost plugin.Host) plugin.Host 
 	return ensured
 }
 
-// buildServerInstance is the single chokepoint that constructs an MCP server.
 func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool, gate plugin.TierGate, baseHost plugin.Host) *mcp.Server {
 	lookupFn := lookup
 	endpointEngine := endpoint.NewEngine()
@@ -131,8 +80,6 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 				}
 			},
 			RegisterReactor: eventbus.RegisterReactor,
-			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
-			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
 		pctx.Host = NewStdioPluginHost(pctx, baseHost)
 		for _, p := range plugins {
@@ -172,12 +119,6 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	return srv
 }
 
-// RunWithPlugins is identical to Run but lets the caller supply registered
-// Pro plugins so they can register their custom MCP write or finance tools.
-//
-// It is the stdio entry point: the caller is the single local operator, and the
-// tools are scoped to the bootstrap org (stdioOrgID). gate is passed through to
-// NewServerInstance, so tier-gated tools stay absent without a license.
 func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.TierGate) error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -191,22 +132,12 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.Ti
 	telemetry.IncMCPSessions()
 	defer telemetry.DecMCPSessions()
 
-	// Stdio CLI: single local operator, org 1.
-	//
-	// The org goes on the context, exactly as the networked transports put the
-	// caller's org there. That is what lets every tool read its scope from one
-	// place and refuse when it is absent: without this, stdio would be the sole
-	// caller arriving with no org, and each tool would need a "default to 1"
-	// fallback — a fallback that is harmless here and a cross-tenant read over
-	// the network. One line at the entry point removes the need for all of them.
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
 	ctx = plugin.WithTokenRole(ctx, "owner")
 	srv := NewServerInstance(gdb, stdioOrgID, plugins, gate)
 	return srv.Run(ctx, stdioTransport())
 }
 
-// RunStdio serves MCP over stdio using an already-opened database and host
-// capabilities (including CryptoVault for plugins such as the Vault).
 func RunStdio(ctx context.Context, gdb *gorm.DB, plugins []plugin.Plugin, host plugin.Host, gate plugin.TierGate) error {
 	telemetry.IncMCPSessions()
 	defer telemetry.DecMCPSessions()
@@ -217,11 +148,6 @@ func RunStdio(ctx context.Context, gdb *gorm.DB, plugins []plugin.Plugin, host p
 	return srv.Run(ctx, stdioTransport())
 }
 
-// stdioTransport frames the process streams the way the SDK's StdioTransport
-// does, with one difference: closing it leaves stdin open. The CLI exits right
-// after serving, but a test process boots the server more than once, and the
-// SDK closes os.Stdin — the second boot then dies with "read /dev/stdin: file
-// already closed" instead of running the code under test.
 func stdioTransport() mcp.Transport {
 	return &mcp.IOTransport{Reader: openReader{os.Stdin}, Writer: openWriter{os.Stdout}}
 }
@@ -234,10 +160,6 @@ type openWriter struct{ io.Writer }
 
 func (openWriter) Close() error { return nil }
 
-// registerTools wires every tool onto the server. Every tool registered here
-// must be scoped to a single tenant. Do not add a tool that takes caller-supplied
-// SQL: an arbitrary SELECT cannot carry an owner_id predicate, which is why the
-// former query_db_readonly tool no longer exists on any transport.
 func (s *server) registerTools(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "core_mcp", &mcp.Tool{
 		Name:        "octarq_infra__export_data",
@@ -245,8 +167,6 @@ func (s *server) registerTools(srv *mcp.Server) {
 	}, s.exportData)
 }
 
-// jsonResult marshals v to pretty JSON and wraps it as an MCP text result,
-// returning v as the structured output too.
 func jsonResult[T any](v T) (*mcp.CallToolResult, any, error) {
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

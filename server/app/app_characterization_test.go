@@ -54,7 +54,6 @@ func TestCharacterization_LazyDNSFailClosed(t *testing.T) {
 	ldns := &lazyDNSManager{lookup: a.services.Lookup}
 	ctx := context.Background()
 
-	// When DNS plugin is unmounted, all operations must fail-closed with error
 	if _, err := ldns.List(ctx, 1, 1); err == nil {
 		t.Error("expected fail-closed error from lazyDNS.List when unmounted")
 	}

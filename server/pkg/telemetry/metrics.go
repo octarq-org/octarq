@@ -10,45 +10,36 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-// Metrics bundles all pre-defined application metric instruments.
 type Metrics struct {
-	// HTTP Server
 	HTTPRequestsTotal     metric.Int64Counter
 	HTTPRequestDuration   metric.Float64Histogram
 	HTTPRequestsInFlight  metric.Int64UpDownCounter
 	HTTPResponseSizeBytes metric.Int64Histogram
 
-	// Database
 	DBQueryDuration metric.Float64Histogram
 
-	// Cache
 	CacheHitsTotal       metric.Int64Counter
 	CacheMissesTotal     metric.Int64Counter
 	CacheOperationsTotal metric.Int64Counter
 
-	// Queue / Background Jobs
 	QueueTasksTotal    metric.Int64Counter
 	QueueTaskDuration  metric.Float64Histogram
 	QueueTasksInFlight metric.Int64UpDownCounter
 
-	// Webhooks & Events
 	WebhookDeliveriesTotal  metric.Int64Counter
 	WebhookDeliveryDuration metric.Float64Histogram
 
-	// Business / Domain
 	LinksClicksTotal    metric.Int64Counter
 	LinksCreatedTotal   metric.Int64Counter
 	EmailsReceivedTotal metric.Int64Counter
 	EmailsSentTotal     metric.Int64Counter
 }
 
-// NewMetrics initializes all metric instruments using the provided Meter.
 func NewMetrics(meter metric.Meter) (*Metrics, error) {
 	m := &Metrics{}
 
 	var err error
 
-	// 1. HTTP Server Instruments
 	if m.HTTPRequestsTotal, err = meter.Int64Counter("http_requests_total",
 		metric.WithDescription("Total number of HTTP requests processed"),
 		metric.WithUnit("{request}"),
@@ -78,7 +69,6 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		return nil, err
 	}
 
-	// 2. Database Instruments
 	if m.DBQueryDuration, err = meter.Float64Histogram("db_query_duration_seconds",
 		metric.WithDescription("Database operation latency in seconds"),
 		metric.WithUnit("s"),
@@ -87,7 +77,6 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		return nil, err
 	}
 
-	// 3. Cache Instruments
 	if m.CacheHitsTotal, err = meter.Int64Counter("cache_hits_total",
 		metric.WithDescription("Total number of cache hits"),
 		metric.WithUnit("{hit}"),
@@ -109,7 +98,6 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		return nil, err
 	}
 
-	// 4. Queue / Tasks Instruments
 	if m.QueueTasksTotal, err = meter.Int64Counter("queue_tasks_total",
 		metric.WithDescription("Total background tasks processed"),
 		metric.WithUnit("{task}"),
@@ -132,7 +120,6 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		return nil, err
 	}
 
-	// 5. Webhooks & Events Instruments
 	if m.WebhookDeliveriesTotal, err = meter.Int64Counter("webhook_deliveries_total",
 		metric.WithDescription("Total outbound webhook delivery attempts"),
 		metric.WithUnit("{delivery}"),
@@ -148,7 +135,6 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		return nil, err
 	}
 
-	// 6. Business Domain Instruments
 	if m.LinksClicksTotal, err = meter.Int64Counter("links_clicks_total",
 		metric.WithDescription("Total short-link redirection clicks handled"),
 		metric.WithUnit("{click}"),
@@ -180,12 +166,10 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 	return m, nil
 }
 
-// NewNoopMetrics returns an empty Metrics struct that does nothing when called.
 func NewNoopMetrics() *Metrics {
 	return &Metrics{}
 }
 
-// RecordHTTPRequest records server request metrics.
 func (m *Metrics) RecordHTTPRequest(ctx context.Context, method, route string, status int, duration time.Duration, bytes int64) {
 	if m == nil || m.HTTPRequestsTotal == nil {
 		return
@@ -204,7 +188,6 @@ func (m *Metrics) RecordHTTPRequest(ctx context.Context, method, route string, s
 	}
 }
 
-// RecordCacheHit records a cache hit.
 func (m *Metrics) RecordCacheHit(ctx context.Context, layer string) {
 	if m == nil || m.CacheHitsTotal == nil {
 		return
@@ -212,7 +195,6 @@ func (m *Metrics) RecordCacheHit(ctx context.Context, layer string) {
 	m.CacheHitsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("layer", layer)))
 }
 
-// RecordCacheMiss records a cache miss.
 func (m *Metrics) RecordCacheMiss(ctx context.Context, layer string) {
 	if m == nil || m.CacheMissesTotal == nil {
 		return
@@ -220,7 +202,6 @@ func (m *Metrics) RecordCacheMiss(ctx context.Context, layer string) {
 	m.CacheMissesTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("layer", layer)))
 }
 
-// RecordQueueTask records a completed background task.
 func (m *Metrics) RecordQueueTask(ctx context.Context, taskType, status string, duration time.Duration) {
 	if m == nil || m.QueueTasksTotal == nil {
 		return
@@ -233,7 +214,6 @@ func (m *Metrics) RecordQueueTask(ctx context.Context, taskType, status string, 
 	m.QueueTaskDuration.Record(ctx, duration.Seconds(), attrs)
 }
 
-// RecordWebhookDelivery records a webhook delivery attempt.
 func (m *Metrics) RecordWebhookDelivery(ctx context.Context, event string, status int, duration time.Duration) {
 	if m == nil || m.WebhookDeliveriesTotal == nil {
 		return
@@ -246,7 +226,6 @@ func (m *Metrics) RecordWebhookDelivery(ctx context.Context, event string, statu
 	m.WebhookDeliveryDuration.Record(ctx, duration.Seconds(), attrs)
 }
 
-// RegisterDBStatsMetrics registers observable gauges for database connection pool statistics.
 func RegisterDBStatsMetrics(meter metric.Meter, sqlDB *sql.DB) error {
 	if sqlDB == nil || meter == nil {
 		return nil

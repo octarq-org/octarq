@@ -9,9 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// Guard test 3: SSO (LoginByIdentity) admits a TOTP-enabled account — the IdP
-// owns the second factor — but MUST leave an audit trail so an operator can
-// tell "SSO behind IdP MFA" from "SSO with no MFA at all".
 func TestLoginByIdentityWithTOTPUserWritesBypassAudit(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -48,8 +45,6 @@ func TestLoginByIdentityWithTOTPUserWritesBypassAudit(t *testing.T) {
 	}
 }
 
-// No TOTP on the account, no bypass to record: the audit row must not appear,
-// so "presence of the row" stays a meaningful signal.
 func TestLoginByIdentityWithoutTOTPWritesNoBypassAudit(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -74,9 +69,6 @@ func TestLoginByIdentityWithoutTOTPWritesNoBypassAudit(t *testing.T) {
 	}
 }
 
-// LoginByEmail gets the same treatment: it is a plugin-facing trusted-email
-// login (no in-repo caller other than app.App.loginByEmail), so a TOTP user
-// arriving through it is admitted and audited, never double-challenged.
 func TestLoginByEmailWithTOTPUserWritesBypassAudit(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -107,8 +99,6 @@ func TestLoginByEmailWithTOTPUserWritesBypassAudit(t *testing.T) {
 	}
 }
 
-// The challenge token must refuse a forged signature and an expired token,
-// and still complete for a fresh one — the OAuth 2FA redirect rides on it.
 func TestTwoFAChallengeRoundTrip(t *testing.T) {
 	m := identityManager(t, identityDB(t))
 

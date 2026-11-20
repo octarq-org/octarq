@@ -56,7 +56,6 @@ func TestEndpointSpec_Execute(t *testing.T) {
 		t.Errorf("expected RequireApproval false by default")
 	}
 
-	// Success case
 	res, err := spec.Execute(context.Background(), echoIn{Message: "hello"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -66,7 +65,6 @@ func TestEndpointSpec_Execute(t *testing.T) {
 		t.Fatalf("expected 'echo: hello', got %+v", res)
 	}
 
-	// Pointer input conversion
 	resPtr, err := spec.Execute(context.Background(), &echoIn{Message: "ptr"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -76,13 +74,11 @@ func TestEndpointSpec_Execute(t *testing.T) {
 		t.Fatalf("expected 'echo: ptr', got %+v", resPtr)
 	}
 
-	// Error case
 	_, err = spec.Execute(context.Background(), echoIn{Message: "fail"})
 	if err == nil || err.Error() != "forced failure" {
 		t.Fatalf("expected 'forced failure' error, got %v", err)
 	}
 
-	// Incompatible type error
 	_, err = spec.Execute(context.Background(), 12345)
 	if err == nil {
 		t.Fatalf("expected error for incompatible input type")
@@ -94,18 +90,15 @@ func TestRegisterEndpoint_NilContext(t *testing.T) {
 	spec := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "echo",
 	}
-	// Calling with nil Context should return nil without panic
 	if err := plugin.RegisterEndpoint[echoIn, echoOut](nil, spec); err != nil {
 		t.Errorf("expected nil error on nil context, got %v", err)
 	}
 
-	// Calling with uninitialized RegisterEndpoint func
 	ctx := &plugin.Context{}
 	if err := plugin.RegisterEndpoint(ctx, spec); err != nil {
 		t.Errorf("expected nil error on uninitialized RegisterEndpoint, got %v", err)
 	}
 
-	// Calling with registered handler
 	var registered any
 	ctx.RegisterEndpoint = func(s any) error {
 		registered = s
@@ -120,7 +113,6 @@ func TestRegisterEndpoint_NilContext(t *testing.T) {
 }
 
 func TestEndpointSpec_Validate(t *testing.T) {
-	// 1. Valid /api/links
 	specValid := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "valid_endpoint",
 		Path: "/api/links",
@@ -129,7 +121,6 @@ func TestEndpointSpec_Validate(t *testing.T) {
 		t.Errorf("expected valid for /api/links, got: %v", err)
 	}
 
-	// 2. Valid /api (bare prefix boundary)
 	specBare := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "bare_api",
 		Path: "/api",
@@ -138,7 +129,6 @@ func TestEndpointSpec_Validate(t *testing.T) {
 		t.Errorf("expected valid for /api, got: %v", err)
 	}
 
-	// 3. Empty Name
 	specEmptyName := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "",
 		Path: "/api/links",
@@ -147,7 +137,6 @@ func TestEndpointSpec_Validate(t *testing.T) {
 		t.Errorf("expected error for empty name, got nil")
 	}
 
-	// 4. Invalid Path /foo
 	specInvalidPath := plugin.EndpointSpec[echoIn, echoOut]{
 		Name: "invalid_path",
 		Path: "/foo",
@@ -188,7 +177,6 @@ func TestDefaultRiskLevel(t *testing.T) {
 }
 
 func TestEndpointSpec_EffectiveRisk(t *testing.T) {
-	// 1. Inferred from GET
 	specGet := plugin.EndpointSpec[echoIn, echoOut]{
 		Method: "GET",
 	}
@@ -196,7 +184,6 @@ func TestEndpointSpec_EffectiveRisk(t *testing.T) {
 		t.Errorf("expected %q for GET, got %q", plugin.RiskLevelRead, specGet.EffectiveRisk())
 	}
 
-	// 2. Inferred from POST (explicit or default)
 	specPost := plugin.EndpointSpec[echoIn, echoOut]{
 		Method: "POST",
 	}
@@ -208,7 +195,6 @@ func TestEndpointSpec_EffectiveRisk(t *testing.T) {
 		t.Errorf("expected %q for default method, got %q", plugin.RiskLevelWrite, specEmptyMethod.EffectiveRisk())
 	}
 
-	// 3. Inferred from DELETE
 	specDelete := plugin.EndpointSpec[echoIn, echoOut]{
 		Method: "DELETE",
 	}
@@ -216,7 +202,6 @@ func TestEndpointSpec_EffectiveRisk(t *testing.T) {
 		t.Errorf("expected %q for DELETE, got %q", plugin.RiskLevelWrite, specDelete.EffectiveRisk())
 	}
 
-	// 4. Explicit override: read on POST
 	specOverrideRead := plugin.EndpointSpec[echoIn, echoOut]{
 		Method:    "POST",
 		RiskLevel: plugin.RiskLevelRead,
@@ -225,7 +210,6 @@ func TestEndpointSpec_EffectiveRisk(t *testing.T) {
 		t.Errorf("expected explicit %q on POST, got %q", plugin.RiskLevelRead, specOverrideRead.EffectiveRisk())
 	}
 
-	// 5. Explicit override: write on GET
 	specOverrideWrite := plugin.EndpointSpec[echoIn, echoOut]{
 		Method:    "GET",
 		RiskLevel: plugin.RiskLevelWrite,
@@ -234,7 +218,6 @@ func TestEndpointSpec_EffectiveRisk(t *testing.T) {
 		t.Errorf("expected explicit %q on GET, got %q", plugin.RiskLevelWrite, specOverrideWrite.EffectiveRisk())
 	}
 
-	// 6. Explicit override: destructive on DELETE
 	specOverrideDestructive := plugin.EndpointSpec[echoIn, echoOut]{
 		Method:    "DELETE",
 		RiskLevel: plugin.RiskLevelDestructive,
@@ -243,7 +226,6 @@ func TestEndpointSpec_EffectiveRisk(t *testing.T) {
 		t.Errorf("expected explicit %q on DELETE, got %q", plugin.RiskLevelDestructive, specOverrideDestructive.EffectiveRisk())
 	}
 
-	// 7. Invalid explicit value returns empty string
 	specInvalidRisk := plugin.EndpointSpec[echoIn, echoOut]{
 		Method:    "POST",
 		RiskLevel: "dangerous",
@@ -258,7 +240,6 @@ func TestRegisterEndpoint_RiskValidation(t *testing.T) {
 		RegisterEndpoint: func(spec any) error { return nil },
 	}
 
-	// 1. Valid endpoint with default (empty) RiskLevel
 	specDefault := plugin.EndpointSpec[echoIn, echoOut]{
 		Name:   "default_risk",
 		Method: "POST",
@@ -268,7 +249,6 @@ func TestRegisterEndpoint_RiskValidation(t *testing.T) {
 		t.Errorf("expected no error for default risk, got %v", err)
 	}
 
-	// 2. Valid endpoint with explicit valid RiskLevels
 	for _, lvl := range []string{plugin.RiskLevelRead, plugin.RiskLevelWrite} {
 		specValid := plugin.EndpointSpec[echoIn, echoOut]{
 			Name:      "valid_" + lvl,
@@ -281,7 +261,6 @@ func TestRegisterEndpoint_RiskValidation(t *testing.T) {
 		}
 	}
 
-	// 3. Valid destructive endpoint with RequireApproval=true
 	specDestructiveValid := plugin.EndpointSpec[echoIn, echoOut]{
 		Name:            "destroy_all",
 		Method:          "DELETE",
@@ -293,7 +272,6 @@ func TestRegisterEndpoint_RiskValidation(t *testing.T) {
 		t.Errorf("expected no error for destructive endpoint with RequireApproval=true, got %v", err)
 	}
 
-	// 4. Invalid RiskLevel: must be rejected
 	specInvalidRisk := plugin.EndpointSpec[echoIn, echoOut]{
 		Name:      "invalid_risk",
 		Method:    "POST",
@@ -304,7 +282,6 @@ func TestRegisterEndpoint_RiskValidation(t *testing.T) {
 		t.Errorf("expected error for invalid RiskLevel, got nil")
 	}
 
-	// 5. Destructive without RequireApproval: must be rejected
 	specDestructiveNoApproval := plugin.EndpointSpec[echoIn, echoOut]{
 		Name:            "destroy_no_approval",
 		Method:          "DELETE",
@@ -316,7 +293,6 @@ func TestRegisterEndpoint_RiskValidation(t *testing.T) {
 		t.Errorf("expected error for destructive endpoint without RequireApproval, got nil")
 	}
 
-	// 6. Validation occurs even if ctx is nil (fail-fast)
 	if err := plugin.RegisterEndpoint[echoIn, echoOut](nil, specInvalidRisk); err == nil {
 		t.Errorf("expected error on nil ctx for invalid RiskLevel, got nil")
 	}
@@ -340,7 +316,6 @@ func TestEndpointSpec_EndpointRequireApproval(t *testing.T) {
 		t.Errorf("expected true, got false")
 	}
 
-	// Verify interface fulfillment
 	var ep plugin.Endpoint = specTrue
 	if !ep.EndpointRequireApproval() {
 		t.Errorf("expected Endpoint interface to return true for EndpointRequireApproval")
@@ -364,13 +339,11 @@ func TestEndpointSpec_SpecAndExecuteAgentJSON(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Valid JSON
 	res, err := spec.ExecuteAgentJSON(ctx, `{"message":"agent"}`)
 	if err != nil || res.(*echoOut).Reply != "echo:agent" {
 		t.Fatalf("ExecuteAgentJSON failed: %v, res=%v", err, res)
 	}
 
-	// Empty string & null
 	resEmpty, errEmpty := spec.ExecuteAgentJSON(ctx, "")
 	if errEmpty != nil || resEmpty.(*echoOut).Reply != "echo:" {
 		t.Fatalf("ExecuteAgentJSON empty failed: %v, res=%v", errEmpty, resEmpty)
@@ -380,7 +353,6 @@ func TestEndpointSpec_SpecAndExecuteAgentJSON(t *testing.T) {
 		t.Fatalf("ExecuteAgentJSON null failed: %v, res=%v", errNull, resNull)
 	}
 
-	// Invalid JSON
 	_, errBadJSON := spec.ExecuteAgentJSON(ctx, "{invalid-json")
 	if errBadJSON == nil {
 		t.Fatalf("expected error on invalid JSON")
@@ -389,7 +361,6 @@ func TestEndpointSpec_SpecAndExecuteAgentJSON(t *testing.T) {
 		t.Errorf("expected INVALID_TOOL_ARGS AgentError, got %v", errBadJSON)
 	}
 
-	// Nil handler
 	nilHandlerSpec := plugin.EndpointSpec[echoIn, echoOut]{Name: "nil_handler"}
 	if _, err := nilHandlerSpec.ExecuteAgentJSON(ctx, `{}`); err == nil {
 		t.Errorf("expected error on nil handler in ExecuteAgentJSON")
@@ -398,7 +369,6 @@ func TestEndpointSpec_SpecAndExecuteAgentJSON(t *testing.T) {
 		t.Errorf("expected error on nil handler in Execute")
 	}
 
-	// Execute with nil input
 	resNilInput, errNilInput := spec.Execute(ctx, nil)
 	if errNilInput != nil || resNilInput.(*echoOut).Reply != "echo:" {
 		t.Errorf("Execute with nil input failed: %v", errNilInput)
@@ -406,14 +376,11 @@ func TestEndpointSpec_SpecAndExecuteAgentJSON(t *testing.T) {
 }
 
 func TestRegisterTenantView(t *testing.T) {
-	// Nil context
 	plugin.RegisterTenantView(nil, plugin.TenantView{Name: "tenant_links"})
 
-	// Context with nil callback
 	ctx := &plugin.Context{}
 	plugin.RegisterTenantView(ctx, plugin.TenantView{Name: "tenant_links"})
 
-	// Context with callback
 	var registered plugin.TenantView
 	ctx.RegisterTenantView = func(v plugin.TenantView) {
 		registered = v

@@ -6,10 +6,6 @@ import (
 	core "github.com/octarq-org/octarq/server/ontology"
 )
 
-// TestCatalogNamesTheTierThePageNeeds pins the value the generic admin page puts
-// on its upsell mask. A declared Pro entity answers 402 on the first list, and
-// without this field the mask can only say "Locked feature" — or label an
-// elite-only entity as Pro, which is a worse lie than saying nothing.
 func TestCatalogNamesTheTierThePageNeeds(t *testing.T) {
 	catalogTier := func(t *testing.T, tiers map[core.Operation]string) string {
 		t.Helper()
@@ -48,9 +44,6 @@ func TestCatalogNamesTheTierThePageNeeds(t *testing.T) {
 		})
 	}
 
-	// The page opens by listing, so listing is the operation whose tier decides
-	// whether it can open at all. Taking the highest tier instead would gate a
-	// readable page behind a write the caller never asked for.
 	t.Run("list decides, not the highest operation", func(t *testing.T) {
 		tiers := map[core.Operation]string{
 			core.OpList:   core.TierPro,

@@ -5,10 +5,8 @@ import (
 	"strings"
 )
 
-// MaxRows caps how many rows a read-only query returns.
 const MaxRows = 200
 
-// SensitiveColumns are result column names whose values are always redacted.
 var SensitiveColumns = map[string]bool{
 	"password":      true,
 	"password_hash": true,
@@ -28,47 +26,24 @@ var SensitiveColumns = map[string]bool{
 	"fingerprint":   true,
 }
 
-// RedactedValue is what a sensitive column's value is replaced with.
 const RedactedValue = "[redacted]"
 
-// BannedKeywords are statement types that must never run through the read-only tool.
 var BannedKeywords = []string{
 	"insert", "update", "delete", "drop", "alter", "create", "replace",
 	"truncate", "attach", "detach", "pragma", "vacuum", "reindex",
 	"grant", "revoke", "merge", "upsert",
 }
 
-// BannedIdentifiers are table and column names a read-only query may never
-// reference. Output-column redaction alone is bypassable (SELECT password_hash
-// AS x hides the name), so we reject the query outright if it so much as
-// mentions a secret-bearing table or column. Tables holding credentials,
-// password/token hashes, or another tenant's account data are off-limits; the
-// analytics tables (links, link_events, emails, domains, …) stay queryable.
 var BannedIdentifiers = []string{
-	// secret-bearing / cross-tenant tables
 	"users", "user_sessions", "tokens", "provider_accounts", "settings",
 	"workspace_settings", "org_members", "orgs", "product_keys",
 	"issued_licenses", "license_devices", "webhooks", "email_ais",
-	// secret-bearing columns (in case a JOIN or view exposes them)
 	"password", "password_hash", "passwordhash", "hash", "secret",
 	"private_key", "privatekey", "private_key_enc", "token",
 	"access_token", "refresh_token", "totp_secret", "recovery_codes",
 	"inbound_token", "invite_token", "otp",
 }
 
-// ValidateReadOnlyQuery checks a user-supplied SQL string against the guardrails
-// and returns a normalized, LIMIT-bounded query ready to execute, or an error.
-//
-// It is a CONTENT filter, NOT an authorization boundary. It rejects writes and
-// references to secret-bearing identifiers; it does not and cannot confine a
-// query to one tenant. A passing query still reaches whole tables across every
-// tenant in the database — several of them (emails, for one) have no owner_id
-// column to scope by even in principle. Never treat a nil error as permission to
-// run the query on behalf of a specific caller: a caller who supplies SQL must
-// already be entitled to the entire database. This is why octarq's own MCP
-// server no longer exposes a raw-SQL tool on any transport. It stays exported
-// only for out-of-tree plugins that operate under that same whole-database
-// premise.
 func ValidateReadOnlyQuery(query string) (string, error) {
 	q := strings.TrimSpace(query)
 	q = strings.TrimSuffix(q, ";")
@@ -93,8 +68,6 @@ func ValidateReadOnlyQuery(query string) (string, error) {
 		}
 	}
 
-	// Reject any reference to a secret-bearing or cross-tenant table/column. This
-	// closes the output-alias bypass of column-name redaction.
 	for _, id := range BannedIdentifiers {
 		if ContainsWord(lower, id) {
 			return "", fmt.Errorf("disallowed table/column %q in a read-only query", id)
@@ -108,7 +81,6 @@ func ValidateReadOnlyQuery(query string) (string, error) {
 	return q, nil
 }
 
-// ContainsWord reports whether s contains word as a whole word.
 func ContainsWord(s, word string) bool {
 	idx := 0
 	for {
@@ -134,7 +106,6 @@ func isIdentChar(b byte) bool {
 		(b >= '0' && b <= '9')
 }
 
-// RedactRow replaces the values of sensitive columns in a result row with RedactedValue.
 func RedactRow(columns []string, row map[string]any) {
 	for _, c := range columns {
 		if SensitiveColumns[strings.ToLower(c)] {

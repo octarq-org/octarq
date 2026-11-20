@@ -9,22 +9,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrMissingDB is returned when a caller asks for an Inspector without a handle.
 var ErrMissingDB = errors.New("ontology: nil database")
 
 var validIdent = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// Inspector reads the physical shape of a generated table. It exists instead of
-// gorm.Migrator because a generated table has no Go model for the migrator to
-// parse: Table() handles work for queries, not for schema reflection.
 type Inspector interface {
 	TableExists(ctx context.Context, table string) (bool, error)
 	Columns(ctx context.Context, table string) (map[string]bool, error)
 	Indexes(ctx context.Context, table string) (map[string]bool, error)
 }
 
-// InspectorFor returns the inspector for a driver name as it appears in
-// OCTARQ_DB_DRIVER (the same names DialectFor accepts).
 func InspectorFor(driver string, db *gorm.DB) (Inspector, error) {
 	if db == nil {
 		return nil, ErrMissingDB
@@ -64,8 +58,6 @@ func (r nameRows) set() map[string]bool {
 	return out
 }
 
-// --- sqlite ----------------------------------------------------------------
-
 type sqliteInspector struct{ db *gorm.DB }
 
 func (i sqliteInspector) Columns(ctx context.Context, table string) (map[string]bool, error) {
@@ -99,8 +91,6 @@ func (i sqliteInspector) TableExists(ctx context.Context, table string) (bool, e
 	}
 	return len(cols) > 0, nil
 }
-
-// --- postgres --------------------------------------------------------------
 
 type postgresInspector struct{ db *gorm.DB }
 
@@ -139,8 +129,6 @@ func (i postgresInspector) TableExists(ctx context.Context, table string) (bool,
 	}
 	return len(cols) > 0, nil
 }
-
-// --- mysql -----------------------------------------------------------------
 
 type mysqlInspector struct{ db *gorm.DB }
 

@@ -8,19 +8,12 @@ import (
 	"github.com/octarq-org/octarq/server/internal/csrf"
 )
 
-// TestCSRFCookieTTLMatchesSessionTTL pins the one duplicated constant in the
-// pair. csrf.CookieTTL can't read sessionTTL (auth imports csrf, not the other
-// way round), so nothing but this test stops the two drifting — and a token
-// cookie that expires before its session leaves the user unable to write.
 func TestCSRFCookieTTLMatchesSessionTTL(t *testing.T) {
 	if csrf.CookieTTL != sessionTTL {
 		t.Fatalf("csrf.CookieTTL = %v, sessionTTL = %v — the token must live exactly as long as the session it is derived from", csrf.CookieTTL, sessionTTL)
 	}
 }
 
-// TestSetCookieIssuesBothHalves: a session is useless to the dashboard without
-// the readable token beside it, so setCookie must emit the pair — with matching
-// Secure, or the two split across HTTP/HTTPS and every write 403s.
 func TestSetCookieIssuesBothHalves(t *testing.T) {
 	m := testManager(t)
 	rec := httptest.NewRecorder()
@@ -49,8 +42,6 @@ func TestSetCookieIssuesBothHalves(t *testing.T) {
 	}
 }
 
-// TestClearExpiresBothHalves: logging out must not leave a stale token cookie
-// pointing at a dead session.
 func TestClearExpiresBothHalves(t *testing.T) {
 	m := testManager(t)
 	rec := httptest.NewRecorder()

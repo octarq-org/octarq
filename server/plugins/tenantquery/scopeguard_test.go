@@ -53,7 +53,6 @@ func TestTenantQuery_ScopeIsolation_PersonalInvisibleToWork(t *testing.T) {
 		t.Fatalf("register tenant_scoped_commitments: %v", err)
 	}
 
-	// Seed work and personal rows for Org 1, plus a row for Org 2
 	seed := []scopedCommitmentRow{
 		{OrgID: 1, ScopeKey: "work:default", Title: "Ship Q4 Release", Secret: "work-sec-1"},
 		{OrgID: 1, ScopeKey: "work:ops", Title: "Rotate DNS Keys", Secret: "work-sec-2"},
@@ -78,7 +77,6 @@ func TestTenantQuery_ScopeIsolation_PersonalInvisibleToWork(t *testing.T) {
 		t.Fatal("query_tenant_sql endpoint not found")
 	}
 
-	// 1. Default un-elevated context (defaults to work:* only)
 	defaultCtx := plugin.WithOrgID(context.Background(), 1)
 	if got := plugin.ScopeKeyFromContext(defaultCtx); got != "work:default" {
 		t.Fatalf("ScopeKeyFromContext(defaultCtx) = %q, want work:default", got)
@@ -107,7 +105,6 @@ func TestTenantQuery_ScopeIsolation_PersonalInvisibleToWork(t *testing.T) {
 		}
 	}
 
-	// 2. Explicit attempt by team member to query personal:private via WHERE or aggregates (COUNT) must return 0 rows
 	bypassRes, err := queryEP.Execute(defaultCtx, tenantquery.QueryTenantSQLInput{
 		SQL: "SELECT COUNT(*) AS cnt FROM tenant_scoped_commitments WHERE scope_key LIKE 'personal:%'",
 	})
@@ -123,7 +120,6 @@ func TestTenantQuery_ScopeIsolation_PersonalInvisibleToWork(t *testing.T) {
 		t.Fatalf("expected 0 personal rows visible in COUNT(*), got %v", cntVal)
 	}
 
-	// 3. Explicit work:default ScopeKey still blocks personal:* rows
 	workCtx := plugin.WithScopeKey(plugin.WithOrgID(context.Background(), 1), "work:default")
 	workRes, err := queryEP.Execute(workCtx, tenantquery.QueryTenantSQLInput{
 		SQL: "SELECT scope_key, title FROM tenant_scoped_commitments",
@@ -136,7 +132,6 @@ func TestTenantQuery_ScopeIsolation_PersonalInvisibleToWork(t *testing.T) {
 		t.Fatalf("expected 2 rows under work:default, got %d", workOut.RowCount)
 	}
 
-	// 4. Owner-authenticated session with personal:private (or AllowedScopes including personal:*) unlocks personal:* rows
 	ownerCtx := plugin.WithScopeKey(plugin.WithOrgID(context.Background(), 1), "personal:private")
 	if !plugin.AllowsPersonalScope(ownerCtx) {
 		t.Fatal("expected AllowsPersonalScope(ownerCtx) = true")
