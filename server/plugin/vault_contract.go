@@ -6,29 +6,21 @@ import (
 	"time"
 )
 
-// ServiceVault is the well-known service name under which the core Vault
-// plugin provides the unified credential and secret store (contract type
-// VaultService).
 const ServiceVault = "vault.service"
 
 var (
-	// ErrVaultUnavailable reports that no vault service is mounted on this host.
 	ErrVaultUnavailable = errors.New("vault service unavailable")
-	// ErrSecretNotFound reports that the requested vault item does not exist.
-	ErrSecretNotFound = errors.New("vault secret not found")
+	ErrSecretNotFound   = errors.New("vault secret not found")
 )
 
-// VaultScope identifies the ownership boundary of a vault collection or item.
 type VaultScope string
 
 const (
-	VaultScopeInstance VaultScope = "instance" // org_id = 0, instance-admin only
-	VaultScopeOrg      VaultScope = "org"      // org_id > 0, workspace-scoped
-	VaultScopeUser     VaultScope = "user"     // org_id > 0, owner_user_id > 0
+	VaultScopeInstance VaultScope = "instance"
+	VaultScopeOrg      VaultScope = "org"
+	VaultScopeUser     VaultScope = "user"
 )
 
-// VaultItemMeta is the non-secret metadata projection of a vault item.
-// Plaintext secrets and ciphertexts are never included here.
 type VaultItemMeta struct {
 	ID                   uint           `json:"id"`
 	SecretID             string         `json:"secretId"`
@@ -58,14 +50,12 @@ type VaultItemMeta struct {
 	UpdatedAt            time.Time      `json:"updatedAt"`
 }
 
-// VaultSecret carries the decrypted payload of one vault item version.
 type VaultSecret struct {
 	Meta    VaultItemMeta  `json:"meta"`
 	Version int            `json:"version"`
 	Payload map[string]any `json:"payload"`
 }
 
-// PutSecretRequest creates or replaces a secret item inside the vault.
 type PutSecretRequest struct {
 	OrgID                uint
 	Scope                VaultScope
@@ -88,7 +78,6 @@ type PutSecretRequest struct {
 	RotationIntervalDays int
 }
 
-// VaultFilter filters listed vault item metadata.
 type VaultFilter struct {
 	Scope          VaultScope
 	OwnerUserID    uint
@@ -102,9 +91,6 @@ type VaultFilter struct {
 	Query          string
 }
 
-// VaultService is the cross-plugin contract for storing, resolving, rotating,
-// and shredding unified credentials and secrets across Core, Community Plugins,
-// and downstream modules.
 type VaultService interface {
 	PutSecret(ctx context.Context, req PutSecretRequest) (*VaultItemMeta, error)
 	UpdateSecret(ctx context.Context, orgID, itemID uint, name *string, metadata map[string]any, payload map[string]any, isDefault *bool, changeNote string, actorUserID uint) (*VaultItemMeta, error)

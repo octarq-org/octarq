@@ -9,9 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// A plugin route registers on the mux outside the core middleware, so it must
-// resolve its own caller. Without AuthenticateRequest a plugin can never admit
-// an "oct_" API token, and every automated caller is forced onto a cookie.
 func TestPluginContext_AuthenticateRequestAdmitsAnAPIToken(t *testing.T) {
 	a := bootApp(t)
 	if err := a.gdb.AutoMigrate(&models.Token{}); err != nil {
@@ -46,8 +43,6 @@ func TestPluginContext_AuthenticateRequestAdmitsAnAPIToken(t *testing.T) {
 	}
 }
 
-// A token that is absent or unknown must not authenticate, or the hook would
-// turn every anonymous plugin request into a workspace request.
 func TestPluginContext_AuthenticateRequestRefusesAnUnknownToken(t *testing.T) {
 	a := bootApp(t)
 	if err := a.gdb.AutoMigrate(&models.Token{}); err != nil {

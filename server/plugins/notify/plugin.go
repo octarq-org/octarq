@@ -1,8 +1,3 @@
-// Package notify exposes a single write tool that delivers a message to the
-// calling workspace's configured notification channels. It is the core
-// replacement for the removed community telegram/webhook plugins' MCP tools:
-// an agent can ping a human over whatever channel the workspace already set up
-// in Settings → Alerts, without a second configuration surface.
 package notify
 
 import (
@@ -10,8 +5,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Plugin holds the tenant-scoped DB handle used to read the workspace's enabled
-// notification channels.
 type Plugin struct {
 	db   *gorm.DB
 	pctx *plugin.Context
@@ -22,7 +15,6 @@ var (
 	_ plugin.Describer = (*Plugin)(nil)
 )
 
-// New creates a new notify Plugin.
 func New() *Plugin { return &Plugin{} }
 
 func (p *Plugin) Name() string { return "notify" }

@@ -58,30 +58,25 @@ func (c *customEntityReactor) EntityKey(env plugin.Envelope) string {
 func TestReactor_RegistrationValidation(t *testing.T) {
 	reg := eventbus.NewReactorRegistry()
 
-	// Nil reactor
 	if err := reg.Register(nil); err == nil {
 		t.Fatal("expected error for nil reactor, got nil")
 	}
 
-	// Empty events
 	rEmpty := &testReactor{events: []string{}}
 	if err := reg.Register(rEmpty); err == nil {
 		t.Fatal("expected error for empty events, got nil")
 	}
 
-	// Whitespace event key
 	rSpace := &testReactor{events: []string{"   "}}
 	if err := reg.Register(rSpace); err == nil {
 		t.Fatal("expected error for whitespace event key, got nil")
 	}
 
-	// Valid registration
 	rValid := &testReactor{events: []string{"link.click"}}
 	if err := reg.Register(rValid); err != nil {
 		t.Fatalf("unexpected error registering valid reactor: %v", err)
 	}
 
-	// Duplicate registration
 	if err := reg.Register(rValid); err == nil {
 		t.Fatal("expected error for duplicate reactor registration, got nil")
 	}
@@ -154,18 +149,14 @@ func TestReactor_MinIntervalDebounce(t *testing.T) {
 	stop := reg.Start(ctx, 4)
 	defer stop()
 
-	// Send 3 events with same EntityKey immediately
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.click", EntityKey: "link:debounce-1"})
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.click", EntityKey: "link:debounce-1"})
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.click", EntityKey: "link:debounce-1"})
 
-	// Send 1 event with a different EntityKey
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.click", EntityKey: "link:debounce-2"})
 
-	// Give time to process
 	time.Sleep(40 * time.Millisecond)
 
-	// Wait past minInterval and send link:debounce-1 again
 	time.Sleep(100 * time.Millisecond)
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.click", EntityKey: "link:debounce-1"})
 
@@ -177,7 +168,6 @@ func TestReactor_MinIntervalDebounce(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 
-	// link:debounce-1 should fire 2 times, link:debounce-2 should fire 1 time -> total 3 fires
 	if got := atomic.LoadInt64(&r.count); got != 3 {
 		t.Errorf("expected 3 executed events, got %d", got)
 	}
@@ -190,12 +180,10 @@ func TestReactor_MinIntervalDebounce(t *testing.T) {
 
 func TestReactor_DebouncePerReactorIsolation(t *testing.T) {
 	reg := eventbus.NewReactorRegistry()
-	// Reactor A has debounce 200ms
 	rA := &debounceTestReactor{
 		testReactor: testReactor{events: []string{"link.anomaly"}},
 		minInterval: 200 * time.Millisecond,
 	}
-	// Reactor B has NO debounce
 	rB := &testReactor{events: []string{"link.anomaly"}}
 
 	if err := reg.Register(rA); err != nil {
@@ -211,7 +199,6 @@ func TestReactor_DebouncePerReactorIsolation(t *testing.T) {
 	stop := reg.Start(ctx, 4)
 	defer stop()
 
-	// Send 2 rapid events with same EntityKey
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.anomaly", EntityKey: "link:iso-1"})
 	eventbus.PublishEnvelope(eventbus.Envelope{OrgID: 1, Key: "link.anomaly", EntityKey: "link:iso-1"})
 
@@ -223,11 +210,9 @@ func TestReactor_DebouncePerReactorIsolation(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 
-	// rA debounced 1 event -> count 1
 	if gotA := atomic.LoadInt64(&rA.count); gotA != 1 {
 		t.Errorf("rA expected 1 event, got %d", gotA)
 	}
-	// rB has no debounce -> count 2
 	if gotB := atomic.LoadInt64(&rB.count); gotB != 2 {
 		t.Errorf("rB expected 2 events (must not be affected by rA debounce), got %d", gotB)
 	}

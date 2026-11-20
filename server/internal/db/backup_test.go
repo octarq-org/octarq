@@ -136,7 +136,6 @@ func TestSQLiteBackupAndRestore(t *testing.T) {
 	backupPath := filepath.Join(tempDir, "backup.db")
 	restoredDBPath := filepath.Join(tempDir, "restored.db")
 
-	// 1. Seed a source database with a test table and row
 	gdb, err := gorm.Open(sqlite.Open(sourceDBPath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open source db: %v", err)
@@ -154,7 +153,6 @@ func TestSQLiteBackupAndRestore(t *testing.T) {
 	sqlDB, _ := gdb.DB()
 	sqlDB.Close()
 
-	// 2. Perform Backup
 	cfg := &config.Config{
 		DBDriver: "sqlite",
 		DBDSN:    sourceDBPath,
@@ -164,7 +162,6 @@ func TestSQLiteBackupAndRestore(t *testing.T) {
 		t.Fatalf("Backup failed: %v", err)
 	}
 
-	// 3. Verify backup file existence and integrity
 	info, err := os.Stat(backupPath)
 	if err != nil {
 		t.Fatalf("backup file stat failed: %v", err)
@@ -177,7 +174,6 @@ func TestSQLiteBackupAndRestore(t *testing.T) {
 		t.Fatalf("VerifySQLiteIntegrity failed: %v", err)
 	}
 
-	// 4. Perform Restore to a new location
 	restoreCfg := &config.Config{
 		DBDriver: "sqlite",
 		DBDSN:    restoredDBPath,
@@ -186,7 +182,6 @@ func TestSQLiteBackupAndRestore(t *testing.T) {
 		t.Fatalf("Restore failed: %v", err)
 	}
 
-	// 5. Verify restored database has the data
 	restoredDB, err := gorm.Open(sqlite.Open(restoredDBPath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open restored db: %v", err)

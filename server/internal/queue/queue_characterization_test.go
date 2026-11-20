@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-// TestCharacterization_MemoryQueueProcessing locks in-memory queue dispatch,
-// registration, and task execution.
 func TestCharacterization_MemoryQueueProcessing(t *testing.T) {
 	q := New("")
 
@@ -32,7 +30,6 @@ func TestCharacterization_MemoryQueueProcessing(t *testing.T) {
 		t.Fatalf("Enqueue failed: %v", err)
 	}
 
-	// Wait briefly for worker processing
 	deadline := time.Now().Add(1 * time.Second)
 	for time.Now().Before(deadline) {
 		if atomic.LoadInt32(&processed) == 1 {
@@ -46,11 +43,8 @@ func TestCharacterization_MemoryQueueProcessing(t *testing.T) {
 	}
 }
 
-// TestCharacterization_QueueFullBackpressure locks the backpressure error
-// when queue buffer is full.
 func TestCharacterization_QueueFullBackpressure(t *testing.T) {
 	q := newInMemoryQueue()
-	// Fill buffer completely
 	ctx := context.Background()
 	for i := 0; i < cap(q.ch); i++ {
 		if err := q.Enqueue(ctx, "fill", []byte("data")); err != nil {
@@ -58,7 +52,6 @@ func TestCharacterization_QueueFullBackpressure(t *testing.T) {
 		}
 	}
 
-	// Next enqueue must return error queue full
 	err := q.Enqueue(ctx, "overflow", []byte("data"))
 	if err == nil {
 		t.Fatal("expected error on full queue, got nil")
@@ -68,7 +61,6 @@ func TestCharacterization_QueueFullBackpressure(t *testing.T) {
 	}
 }
 
-// TestCharacterization_UnregisteredTaskHandling locks unregistered task behavior.
 func TestCharacterization_UnregisteredTaskHandling(t *testing.T) {
 	q := newInMemoryQueue()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -78,7 +70,6 @@ func TestCharacterization_UnregisteredTaskHandling(t *testing.T) {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	// Enqueueing an unregistered task should succeed at enqueue time
 	if err := q.Enqueue(ctx, "unregistered_type", []byte("payload")); err != nil {
 		t.Fatalf("Enqueue failed: %v", err)
 	}

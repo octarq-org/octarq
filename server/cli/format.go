@@ -5,9 +5,6 @@ import (
 	"time"
 )
 
-// formatDuration and formatBytes format daemon vitals (uptime, allocated memory)
-// into concise human-readable strings for the status and top commands.
-
 func formatDuration(secs int64) string {
 	d := time.Duration(secs) * time.Second
 	if d >= 24*time.Hour {

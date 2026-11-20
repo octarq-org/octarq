@@ -13,10 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailSenderFunc defines the contract for sending transactional emails.
 type EmailSenderFunc func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error
 
-// EmailChannel delivers notifications via email, reusing the core mail sending engine.
 type EmailChannel struct {
 	db     *gorm.DB
 	sender EmailSenderFunc
@@ -24,7 +22,6 @@ type EmailChannel struct {
 
 var _ plugin.NotificationChannel = (*EmailChannel)(nil)
 
-// NewEmailChannel constructs an EmailChannel. sender can be nil initially and configured via SetSender.
 func NewEmailChannel(db *gorm.DB, sender EmailSenderFunc) *EmailChannel {
 	return &EmailChannel{
 		db:     db,
@@ -32,22 +29,18 @@ func NewEmailChannel(db *gorm.DB, sender EmailSenderFunc) *EmailChannel {
 	}
 }
 
-// SetSender updates the transactional email sending function.
 func (c *EmailChannel) SetSender(sender EmailSenderFunc) {
 	c.sender = sender
 }
 
-// Name returns the channel identifier "email".
 func (c *EmailChannel) Name() string {
 	return "email"
 }
 
-// DisplayName returns the human-readable channel name.
 func (c *EmailChannel) DisplayName() string {
 	return "Email"
 }
 
-// ConfigSchema returns the JSON Schema for user configuration.
 func (c *EmailChannel) ConfigSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"$schema": "http://json-schema.org/draft-07/schema#",
@@ -63,11 +56,9 @@ func (c *EmailChannel) ConfigSchema() json.RawMessage {
 	}`)
 }
 
-// Send resolves the recipient's email address and relays the notification via the configured mail sender.
 func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	toEmail := ""
 
-	// 1. Check user-configured override
 	if recipient.Config != nil {
 		if v, ok := recipient.Config["email"].(string); ok && strings.TrimSpace(v) != "" {
 			toEmail = strings.TrimSpace(v)
@@ -76,7 +67,6 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		}
 	}
 
-	// 2. Lookup user's account email from the database
 	if toEmail == "" && c.db != nil && recipient.UserID != "" {
 		if uid, err := strconv.ParseUint(recipient.UserID, 10, 64); err == nil && uid > 0 {
 			var user models.User
@@ -94,8 +84,6 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		return errors.New("notification: no email sender configured")
 	}
 
-	// System recipient.OrgID has top priority to prevent cross-tenant sender hijacking.
-	// Fallback to channel configuration or payload only when recipient.OrgID is empty or invalid.
 	var orgID uint
 	if n, err := strconv.ParseUint(strings.TrimSpace(recipient.OrgID), 10, 64); err == nil && n > 0 {
 		orgID = uint(n)

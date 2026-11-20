@@ -8,9 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/config"
 )
 
-// loadReadinessConfig builds a Config through the real config.Load so the
-// report is exercised against the struct the running server actually holds,
-// not a hand-filled literal that could drift from it.
 func loadReadinessConfig(t *testing.T, env map[string]string) *config.Config {
 	t.Helper()
 	dir := t.TempDir()
@@ -42,12 +39,6 @@ func reportText(lines []readinessLine) string {
 	return b.String()
 }
 
-// TestReadinessReportOmitsSecrets is the leak guard. The report is written to
-// the operator's log stream, which is shipped, indexed and often shared in
-// support threads; a KEK or admin password landing there is a compromise that
-// no rotation policy catches, because nobody knows it happened.
-//
-// Every secret is given a distinctive sentinel value so a hit is unambiguous.
 func TestReadinessReportOmitsSecrets(t *testing.T) {
 	const (
 		secretKey     = "SENTINEL-SECRET-KEY-must-never-be-logged"
@@ -58,8 +49,6 @@ func TestReadinessReportOmitsSecrets(t *testing.T) {
 		"OCTARQ_SECRET_KEY":     secretKey,
 		"OCTARQ_ADMIN_PASSWORD": adminPassword,
 	})
-	// Postgres is where a DSN carries a password. Set it on the loaded config
-	// rather than through the driver env so the test needs no live database.
 	cfg.DBDriver = "postgres"
 	cfg.DBDSN = "postgres://octarq:" + dsnPassword + "@db.internal:5432/octarq"
 
@@ -76,19 +65,13 @@ func TestReadinessReportOmitsSecrets(t *testing.T) {
 			t.Errorf("readiness report leaks the %s value:\n%s", name, out)
 		}
 	}
-	// The DSN is withheld, but the operator still learns the driver.
 	if !strings.Contains(out, "postgres") {
 		t.Errorf("report should still name the database driver:\n%s", out)
 	}
 }
 
-// TestReadinessReportFlagsSilentFailures pins the two capabilities that fail
-// with no error of their own: absolute links (now: no registered domain to
-// validate the request host against) and outbound mail. Each degraded line must
-// also carry the action that fixes it — a status with no remedy leaves the
-// operator exactly where they started.
 func TestReadinessReportFlagsSilentFailures(t *testing.T) {
-	cfg := loadReadinessConfig(t, nil) // sqlite, no redis: development mode
+	cfg := loadReadinessConfig(t, nil)
 
 	degraded := map[string]readinessLine{}
 	statuses := map[string]readinessStatus{}
@@ -115,9 +98,6 @@ func TestReadinessReportFlagsSilentFailures(t *testing.T) {
 	}
 }
 
-// TestReadinessReportHealthyInstance is the negative control: a fully
-// configured production instance must not be told anything is degraded, or the
-// degraded lines above would mean nothing.
 func TestReadinessReportHealthyInstance(t *testing.T) {
 	cfg := loadReadinessConfig(t, map[string]string{
 		"OCTARQ_DB_DRIVER": "postgres",
@@ -195,7 +175,6 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 	})
 
 	t.Run("readiness report secret key statuses", func(t *testing.T) {
-		// 1) Registered + short key -> readyDegraded
 		cfgShort := loadReadinessConfig(t, map[string]string{
 			"OCTARQ_SECRET_KEY": shortKey,
 		})
@@ -210,7 +189,6 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 			t.Errorf("secret key status for registered domain with short key = %q, want %q", statusRegShort, readyDegraded)
 		}
 
-		// 2) Unregistered + short key -> readyDev
 		linesUnregShort := readinessReport(cfgShort, true, false, true)
 		var statusUnregShort readinessStatus
 		for _, l := range linesUnregShort {
@@ -222,7 +200,6 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 			t.Errorf("secret key status for unregistered domain with short key = %q, want %q", statusUnregShort, readyDev)
 		}
 
-		// 3) Long key -> readyOK
 		cfgLong := loadReadinessConfig(t, map[string]string{
 			"OCTARQ_SECRET_KEY": longKey,
 		})

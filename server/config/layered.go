@@ -1,8 +1,3 @@
-// Package config resolves operator configuration from layered sources with
-// one precedence order: built-in defaults < YAML file < dotenv file <
-// process environment < explicit overrides (CLI flags). The koanf registry
-// owns the merge; Config construction and every Fail-Closed validation stay
-// in one builder so all entry points share identical strictness.
 package config
 
 import (
@@ -18,8 +13,6 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
-// Layered keys (koanf paths). YAML files use these dotted paths; environment
-// variables and CLI overrides use the mapped OCTARQ_* / OTEL_* names.
 var layeredKeys = []struct {
 	Env  string
 	Path string
@@ -61,18 +54,12 @@ var layeredKeys = []struct {
 	{"OCTARQ_BACKUP_CRON", "backup.cron"},
 }
 
-// LoadOptions selects the configuration sources for one load.
 type LoadOptions struct {
-	// DotEnvPath fills unset process variables ("" skips, ".env" is standard).
 	DotEnvPath string
-	// YAMLPath layers a YAML file under env ("" skips).
-	YAMLPath string
-	// Overrides wins over everything (CLI flags). Keys are OCTARQ_* env names.
-	Overrides map[string]string
+	YAMLPath   string
+	Overrides  map[string]string
 }
 
-// Resolve merges all sources into a flat env-keyed map following the
-// precedence: defaults < YAML < dotenv < environment < overrides.
 func Resolve(opts LoadOptions) (map[string]string, error) {
 	k := koanf.New(".")
 
@@ -83,8 +70,6 @@ func Resolve(opts LoadOptions) (map[string]string, error) {
 	}
 
 	if opts.DotEnvPath != "" {
-		// Preserve historical dotenv semantics (fill only unset process
-		// variables) by loading through the same routine Load uses.
 		if err := loadDotEnv(opts.DotEnvPath); err != nil {
 			return nil, fmt.Errorf("loading %s: %w", opts.DotEnvPath, err)
 		}
@@ -107,8 +92,6 @@ func Resolve(opts LoadOptions) (map[string]string, error) {
 	return values, nil
 }
 
-// LoadWithOptions builds the Config from layered sources with the same
-// validation and Fail-Closed rules as Load.
 func LoadWithOptions(opts LoadOptions) (*Config, error) {
 	values, err := Resolve(opts)
 	if err != nil {
@@ -124,10 +107,6 @@ func valueOf(values map[string]string, key, def string) string {
 	return def
 }
 
-// parseLoginBudgets reads the sign-in limits. Defaults are the production
-// values. A value that is not a positive number stops startup: a typo that
-// fell back to the default would leave the operator with a lockout nobody can
-// explain.
 func (c *Config) parseLoginBudgets(get func(key, def string) string) error {
 	c.LoginMaxFails = DefaultLoginMaxFails
 	if raw := strings.TrimSpace(get("OCTARQ_LOGIN_MAX_FAILS", "")); raw != "" {

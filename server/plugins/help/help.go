@@ -14,21 +14,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// docs holds this plugin's own documentation: the platform-level pages that
-// document capabilities the core owns but no plugin does — authentication,
-// organizations/RBAC, API tokens, webhooks, notification channels, MCP.
-//
-// Those pages have no other home. "Docs live with the feature" resolves
-// cleanly for links/mail/dns, which are plugins and carry their own
-// docs/ directory — but auth, orgs, tokens and webhooks live in internal/ and
-// app/, which nothing can hang a docs directory on. Until they are plugins, the
-// help plugin is their custodian: it is already Core, already mounted in every
-// build, and already the aggregator every other contributor feeds into.
-//
-// The directory name is the convention (plugin.HelpDocsFS) — the same one every
-// other plugin follows — so this plugin loads its own pages through exactly the
-// path it serves everyone else's, with no second loader to drift.
-//
 //go:embed docs
 var docs embed.FS
 
@@ -44,10 +29,8 @@ type Plugin struct {
 	host plugin.Host
 }
 
-// Host returns the host runtime interface.
 func (p *Plugin) Host() plugin.Host { return p.host }
 
-// SetHost sets the host runtime interface.
 func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 func New() *Plugin {
@@ -58,7 +41,6 @@ func (p *Plugin) Name() string { return "help" }
 
 func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
-		// Title matches the sidebar entry below.
 		Title:       "Help",
 		Description: "In-app documentation, versioned with the binary.",
 		Core:        true,
@@ -67,11 +49,6 @@ func (p *Plugin) Describe() plugin.Info {
 
 func (p *Plugin) Models() []any { return nil }
 
-// Menus places Help in the sidebar footer rail rather than a nav group.
-// areaForCategory (web/src/shell/areas.tsx) reserves category "footer" for
-// low-frequency, always-available product links and names Help as the example;
-// inventing a "Help & Resources" group instead would put it in the main nav and
-// oblige every locale to translate a heading that the IA does not want.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
 		{ID: "help", Label: "Help", Path: "/help", Icon: "book", Category: "footer"},
@@ -196,27 +173,8 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 	return out, nil
 }
 
-// docsFSCache memoises the parse of each plugin's embedded docs directory.
-// getDocs runs on every /api/help/docs request and the embedded FS cannot change
-// while the process lives, so re-walking and re-parsing thirty markdown files per
-// request would be pure waste. Plugins that implement HelpProvider do their own
-// caching (sync.OnceValue), which is why only the FS half is cached here.
-//
-// The key is the plugin VALUE, not its name. Names are not unique: a distribution
-// can mount both the core help plugin and a downstream help module, and both answer
-// Name() == "help" on purpose, so that the two halves of the help feature share
-// one feature key and one toggle. Keying this cache by name made the second half
-// read back the first half's docs — every core page served twice (once under its
-// own slug, once shadow-renamed to help-<slug>) and the downstream page missing
-// entirely. Plugins are long-lived singletons, so the interface value is a
-// stable identity.
-var docsFSCache sync.Map // plugin.Plugin -> []plugin.HelpDoc
+var docsFSCache sync.Map
 
-// pluginDocs returns every doc a plugin contributes, from either half of the
-// contract: the docs-directory convention (plugin.HelpDocsFS) and/or a
-// hand-built HelpDocs() (plugin.HelpProvider). Implementing both is legal — a
-// plugin can ship static pages from disk next to pages it generates at runtime —
-// so these concatenate rather than one winning.
 func pluginDocs(pl plugin.Plugin) []plugin.HelpDoc {
 	var docs []plugin.HelpDoc
 	if fp, ok := pl.(plugin.HelpDocsFS); ok {
@@ -260,7 +218,6 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 				slugs[d.Slug] = pl.Name()
 
 				if lang != "" {
-					// Deterministic lang matching: exact match first, then primary language subtag (e.g. "zh-CN" -> "zh")
 					var matchedKey string
 					if _, ok := d.Translations[lang]; ok {
 						matchedKey = lang
@@ -297,7 +254,6 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	return docs
 }
 
-// HelpDocsFS hands the embedded docs/ directory to the shared walker.
 func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
@@ -305,10 +261,6 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx != nil && ctx.Host != nil {
 		p.host = ctx.Host
 	}
-	// The MCP composition path mounts every plugin with no huma API: it wants
-	// the plugin's MCP tools, not its HTTP routes. This plugin has only HTTP
-	// routes, so it stops here. Without the guard the registrations below
-	// dereference a nil API and panic the MCP server at startup.
 	api := ctx.Huma
 	if api == nil {
 		return

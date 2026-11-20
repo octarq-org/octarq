@@ -26,8 +26,6 @@ func openVersionTestDB(t *testing.T) *gorm.DB {
 func TestSchemaVersionRoundTrip(t *testing.T) {
 	db := openVersionTestDB(t)
 
-	// A schema without a recorded version reads as 0, the state of a database
-	// that predates this table.
 	if v, err := SchemaVersionOf(db); err != nil || v != 0 {
 		t.Fatalf("fresh database: version %d, err %v; want 0", v, err)
 	}

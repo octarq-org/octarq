@@ -9,8 +9,6 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-// TestOAuthStoreSecure covers the requestSecureStore wrappers: New, Get, Save
-// all stamp the per-request Secure flag, and a nil session is a safe no-op.
 func TestOAuthStoreSecure(t *testing.T) {
 	base := sessions.NewCookieStore([]byte("test-key"))
 	store := requestSecureStore{base}
@@ -38,12 +36,9 @@ func TestOAuthStoreSecure(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	// nil session must not panic.
 	store.markSecure(req, nil)
 }
 
-// TestRequestSecureStoreOverHTTP asserts the Secure flag stays off over plain
-// HTTP: a storage whose Options.Secure was previously set must not leak it.
 func TestRequestSecureStoreOverHTTP(t *testing.T) {
 	base := sessions.NewCookieStore([]byte("test-key"))
 	base.Options.Secure = true

@@ -12,10 +12,6 @@ import (
 	"testing"
 )
 
-// canonicalNames is the product list of metered metric names. The tests below
-// pin it against the canonical allowed set rather than asserting the
-// constants against themselves: a value drift ("mailOut" back to "mail") must
-// turn red, not echo.
 func canonicalNames() []string {
 	return []string{Clicks, MailOut, MailIn, RawBytes}
 }
@@ -28,10 +24,6 @@ func canonicalSet() map[string]bool {
 	return set
 }
 
-// TestCanonicalMetricNames pins the constants to the metric names the quota
-// side (downstream quota metricNames) enforces: clicks, mailOut, mailIn,
-// plus mail.raw_bytes which has no quota consumer yet. Changing a constant's
-// value so it no longer matches this set is a regression.
 func TestCanonicalMetricNames(t *testing.T) {
 	want := map[string]bool{
 		"clicks":         true,
@@ -53,11 +45,6 @@ func TestCanonicalMetricNames(t *testing.T) {
 	}
 }
 
-// TestRecordUsageCallSitesUseCanonicalMetrics scans every .go file in the
-// module and fails if any recordUsage/RecordUsage call passes a string literal
-// that is not one of the canonical metric names. This is the guard against the
-// two-list drift this package exists to prevent: reintroducing a literal
-// ("mail") at a call site compiles fine, so it must be caught here.
 func TestRecordUsageCallSitesUseCanonicalMetrics(t *testing.T) {
 	canon := canonicalSet()
 

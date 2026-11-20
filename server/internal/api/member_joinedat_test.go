@@ -9,9 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// The members list reports when someone joined THIS workspace. It used to
-// select users.created_at, so one person read as having joined every workspace
-// on the day they registered — the same relative date on every list.
 func TestListOrgMembersReportsMembershipDateNotAccountDate(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
@@ -51,9 +48,6 @@ func TestListOrgMembersReportsMembershipDateNotAccountDate(t *testing.T) {
 	}
 }
 
-// A membership row written before org_members carried a timestamp has no join
-// date to report. Omitting the field is the honest answer; serialising the zero
-// time would render as year 1 or as "joined 2000 years ago".
 func TestListOrgMembersOmitsUnknownJoinDate(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)

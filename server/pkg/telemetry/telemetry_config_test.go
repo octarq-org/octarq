@@ -41,7 +41,6 @@ func TestTelemetryInitAndShutdown(t *testing.T) {
 		return
 	}
 
-	// Test StartSpan and TraceID
 	tr := Tracer("test-tracer")
 	spanCtx, span := tr.Start(ctx, "test-span")
 	defer span.End()
@@ -56,7 +55,6 @@ func TestTelemetryInitAndShutdown(t *testing.T) {
 		t.Fatal("expected non-empty spanID")
 	}
 
-	// Test Propagation
 	req := httptest.NewRequest("GET", "/test", nil)
 	InjectHTTP(spanCtx, req.Header)
 	if req.Header.Get("traceparent") == "" {
@@ -69,14 +67,12 @@ func TestTelemetryInitAndShutdown(t *testing.T) {
 		t.Fatalf("extracted traceID %q != %q", extractedSpan.SpanContext().TraceID().String(), traceID)
 	}
 
-	// Test Metrics recording
 	tel.Metrics.RecordHTTPRequest(spanCtx, "GET", "/test", 200, 10*time.Millisecond, 1024)
 	tel.Metrics.RecordCacheHit(spanCtx, "redis")
 	tel.Metrics.RecordCacheMiss(spanCtx, "redis")
 	tel.Metrics.RecordQueueTask(spanCtx, "email.send", "success", 50*time.Millisecond)
 	tel.Metrics.RecordWebhookDelivery(spanCtx, "link.created", 200, 100*time.Millisecond)
 
-	// Test Prometheus endpoint
 	promHandler := tel.PrometheusHandler()
 	rec := httptest.NewRecorder()
 	promReq := httptest.NewRequest("GET", "/metrics", nil)
@@ -103,7 +99,6 @@ func TestDisabledTelemetry(t *testing.T) {
 	}
 	defer tel.Shutdown(ctx)
 
-	// In disabled mode, no panic, tracing is noop
 	ctx, span := StartSpan(ctx, "test", "noop-span")
 	span.End()
 
@@ -147,7 +142,6 @@ func TestConfigParsers(t *testing.T) {
 		t.Errorf("got SampleRatio %f, want 0.5", cfg.SampleRatio)
 	}
 
-	// Test bool parser
 	if !parseBool("true", false) || !parseBool("1", false) || !parseBool("yes", false) || !parseBool("on", false) {
 		t.Error("parseBool truthy failed")
 	}
@@ -158,7 +152,6 @@ func TestConfigParsers(t *testing.T) {
 		t.Error("parseBool default failed")
 	}
 
-	// Test float parser
 	if parseFloat("0.75", 1.0) != 0.75 {
 		t.Errorf("got %f, want 0.75", parseFloat("0.75", 1.0))
 	}
@@ -210,7 +203,6 @@ func TestStdoutExporters(t *testing.T) {
 func TestOTLPExportersCreation(t *testing.T) {
 	ctx := context.Background()
 
-	// HTTP protocol
 	cfgHTTP := Config{
 		Endpoint: "http://localhost:4318",
 		Protocol: "http/protobuf",
@@ -233,7 +225,6 @@ func TestOTLPExportersCreation(t *testing.T) {
 		_ = mExpHTTP.Shutdown(ctx)
 	}
 
-	// gRPC protocol
 	cfgGRPC := Config{
 		Endpoint: "localhost:4317",
 		Protocol: "grpc",
@@ -259,13 +250,11 @@ func TestOTLPExportersCreation(t *testing.T) {
 func TestTelemetry_ExtraBranches(t *testing.T) {
 	ctx := context.Background()
 
-	// Tracer with empty name
 	tr := Tracer("")
 	if tr == nil {
 		t.Error("expected non-nil default tracer")
 	}
 
-	// Telemetry without prometheus exporter -> PrometheusHandler returns 404
 	telNone := &Telemetry{}
 	h := telNone.PrometheusHandler()
 	rec := httptest.NewRecorder()
@@ -274,7 +263,6 @@ func TestTelemetry_ExtraBranches(t *testing.T) {
 		t.Errorf("expected 404 from PrometheusHandler when exporter is nil, got %d", rec.Code)
 	}
 
-	// Init with MetricsExporter="none" and TracesExporter="none"
 	cfgNone := Config{
 		Enabled:         true,
 		ServiceName:     "test-none",
@@ -287,7 +275,6 @@ func TestTelemetry_ExtraBranches(t *testing.T) {
 	}
 	_ = telN.Shutdown(ctx)
 
-	// Init with MetricsExporter="otlp" and TracesExporter="otlp"
 	cfgOTLP := Config{
 		Enabled:         true,
 		ServiceName:     "test-otlp",

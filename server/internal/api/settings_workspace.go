@@ -13,8 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/tenancy"
 )
 
-// currentOrg loads the caller's org, generating its inbound-webhook token on
-// first read so the operator always has a token to copy into the worker URL.
 func (h *Handler) currentOrg(r *http.Request) (models.Org, error) {
 	if _, err := h.requireOrg(r); err != nil {
 		return models.Org{}, err
@@ -28,10 +26,6 @@ func (h *Handler) currentOrg(r *http.Request) (models.Org, error) {
 	return org, nil
 }
 
-// tenantSubdomain returns the org's automatic tenant address under the
-// configured base domain, or "" when no base is configured. It is the read
-// side of the provisioning on org creation, so the dashboard can show the
-// address without importing the dns plugin.
 func (h *Handler) tenantSubdomain(slug string) string {
 	name, _ := tenancy.Subdomain(h.db, slug)
 	return name
@@ -70,21 +64,11 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 	body := map[string]any{
 		"reservedMailboxes": h.GetWorkspaceSetting(orgID, keyReservedMailboxes),
 		"orgSlug":           org.Slug,
-		// The org's automatic tenant subdomain, when a base domain is
-		// configured; empty string = no base, so the org has only its slug.
-		"tenantSubdomain": h.tenantSubdomain(org.Slug),
-		"catchAll":        h.GetWorkspaceSetting(orgID, keyCatchAll) == "true",
-		"autoWrapLinks":   h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
-		"isInstanceAdmin": h.isInstanceAdmin(r),
+		"tenantSubdomain":   h.tenantSubdomain(org.Slug),
+		"catchAll":          h.GetWorkspaceSetting(orgID, keyCatchAll) == "true",
+		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
+		"isInstanceAdmin":   h.isInstanceAdmin(r),
 	}
-	// inboundTokenSet reports whether the org's inbound-email webhook secret is
-	// set, without exposing it. Whoever holds the token can forge inbound mail
-	// for the workspace, so the plaintext is never part of a settings dump — it
-	// is fetched explicitly through the admin-only GET /api/settings/inbound-token
-	// endpoint instead. Gate through callerHoldsRole rather than comparing
-	// callerOrgRole directly — that is the one function that also understands API
-	// tokens. Comparing the membership role alone hid the field from every
-	// bearer-authenticated caller, since a token has no membership row.
 	if h.callerHoldsRole(r, authz.RoleAdmin) {
 		body["inboundTokenSet"] = org.InboundToken != ""
 	}
@@ -111,10 +95,6 @@ type GetInboundTokenOutput struct {
 	Body GetInboundTokenOutputBody
 }
 
-// getInboundToken is the only endpoint that returns the org's inbound-email
-// webhook secret in full. getSettings now answers with a boolean (inboundTokenSet),
-// so the raw token never rides along in a settings dump; fetching it is an
-// explicit, admin-or-owner-only action.
 func (h *Handler) getInboundToken(ctx context.Context, input *GetInboundTokenInput) (*GetInboundTokenOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -181,7 +161,6 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		h.SetWorkspaceSetting(orgID, keyReservedMailboxes, strings.Join(splitList(*input.Body.ReservedMailboxes), "\n"))
 	}
 	if input.Body.InboundToken != nil {
-		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
 		tok := strings.TrimSpace(*input.Body.InboundToken)
 		if tok == "" {
 			tok = uuid.NewString()

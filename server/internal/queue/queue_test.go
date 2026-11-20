@@ -86,7 +86,6 @@ func TestInMemoryQueue_Execution(t *testing.T) {
 
 func TestInMemoryQueue_FullFallback(t *testing.T) {
 	q := newInMemoryQueue()
-	// Unregistered task when full
 	for i := 0; i < 1000; i++ {
 		_ = q.Enqueue(context.Background(), "unregistered", []byte("fill"))
 	}
@@ -95,7 +94,6 @@ func TestInMemoryQueue_FullFallback(t *testing.T) {
 		t.Errorf("expected error when queue full and no handler registered")
 	}
 
-	// Registered task when full
 	ranCh := make(chan struct{})
 	q.Register("overflow_task", func(ctx context.Context, payload []byte) error {
 		close(ranCh)
@@ -112,7 +110,6 @@ func TestInMemoryQueue_FullFallback(t *testing.T) {
 		t.Fatal("timed out waiting for fallback task execution")
 	}
 
-	// Fallback error branch
 	ranFailCh := make(chan struct{})
 	q.Register("overflow_fail_task", func(ctx context.Context, payload []byte) error {
 		close(ranFailCh)
@@ -131,20 +128,17 @@ func TestInMemoryQueue_FullFallback(t *testing.T) {
 }
 
 func TestAsynqQueue_Fallback(t *testing.T) {
-	// Connect to non-existent Redis port
 	q := New("redis://127.0.0.1:58999/0")
 	asynqQ, ok := q.(*AsynqQueue)
 	if !ok {
 		t.Fatalf("expected *AsynqQueue")
 	}
 
-	// Enqueue without handler registered
 	err := asynqQ.Enqueue(context.Background(), "task1", []byte("p1"))
 	if err == nil {
 		t.Errorf("expected error when redis down and no handler registered")
 	}
 
-	// Enqueue with handler registered -> triggers fallback
 	ranCh := make(chan struct{})
 	asynqQ.Register("task1", func(ctx context.Context, payload []byte) error {
 		close(ranCh)
@@ -162,7 +156,6 @@ func TestAsynqQueue_Fallback(t *testing.T) {
 		t.Fatal("timed out waiting for fallback execution")
 	}
 
-	// Fallback with error
 	ranFailCh := make(chan struct{})
 	asynqQ.Register("task_fail", func(ctx context.Context, payload []byte) error {
 		close(ranFailCh)
@@ -195,8 +188,6 @@ func TestAsynqQueue_StartAndShutdown(t *testing.T) {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	// Cancel context to trigger shutdown
 	cancel()
-	// Shutdown takes a moment; give the goroutine a moment to finish srv.Shutdown()
 	asynqQ.server.Shutdown()
 }

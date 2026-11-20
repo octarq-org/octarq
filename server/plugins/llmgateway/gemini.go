@@ -9,22 +9,10 @@ import (
 	"strings"
 )
 
-// Gemini CLI speaks Google's generateContent protocol, not the OpenAI one. The
-// gateway therefore translates it the same way it translates the Messages API:
-// the workspace's provider is called over OpenAI, and the answer is rebuilt as a
-// GenerateContentResponse, streaming included.
-//
-// The model in the path is a Gemini name such as gemini-2.5-pro. The provider
-// runs one model per call, so the turn is sent to the provider's configured
-// model; ?model= names another one. The answer reports the model that ran.
 const (
-	// AgentGeminiModelsPath is the Gemini model list.
 	AgentGeminiModelsPath = "/v1beta/models"
-	// agentGeminiPrefix is where the per-model actions live.
-	agentGeminiPrefix = "/v1beta/models/"
+	agentGeminiPrefix     = "/v1beta/models/"
 )
-
-// --- request shapes (Gemini in) ---
 
 type gemRequest struct {
 	Contents          []gemContent   `json:"contents"`
@@ -39,8 +27,6 @@ type gemContent struct {
 	Parts []gemPart `json:"parts"`
 }
 
-// gemPart is one content part. Every field is optional because the key decides
-// which one is read.
 type gemPart struct {
 	Text             string           `json:"text,omitempty"`
 	Thought          bool             `json:"thought,omitempty"`
@@ -98,14 +84,6 @@ type gemGeneration struct {
 	ResponseJSONSchema json.RawMessage `json:"responseJsonSchema,omitempty"`
 }
 
-// --- request translation ---
-
-// geminiToOpenAI rebuilds a Gemini request as the OpenAI one the provider reads.
-//
-// A Gemini function call carries no id; a later functionResponse names the
-// function it answers. OpenAI pairs a call and its result by id, so this mints
-// ids while it walks the history and pairs each response with the oldest
-// unanswered call of the same name.
 func geminiToOpenAI(in *gemRequest, model string) (*oaiRequest, error) {
 	out := &oaiRequest{Model: model}
 	if in.SystemInstruction != nil {
@@ -117,7 +95,6 @@ func geminiToOpenAI(in *gemRequest, model string) (*oaiRequest, error) {
 	callSeq := 0
 	for i, c := range in.Contents {
 		switch c.Role {
-		// The protocol leaves the role out on a plain user turn.
 		case "user", "":
 			msgs, err := geminiUserMessages(c.Parts, pending)
 			if err != nil {
@@ -165,7 +142,6 @@ func geminiToOpenAI(in *gemRequest, model string) (*oaiRequest, error) {
 	return out, nil
 }
 
-// partsText flattens the text parts of one content block.
 func gemPartsText(parts []gemPart) string {
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
@@ -176,9 +152,6 @@ func gemPartsText(parts []gemPart) string {
 	return strings.Join(out, "\n\n")
 }
 
-// geminiUserMessages turns one Gemini user turn into the OpenAI messages it
-// implies. A functionResponse is a tool message in OpenAI, and it must follow
-// the assistant turn that called the function, so results are emitted first.
 func geminiUserMessages(parts []gemPart, pending map[string][]string) ([]oaiMessage, error) {
 	var tool []oaiMessage
 	var content []oaiContentPart
@@ -195,9 +168,6 @@ func geminiUserMessages(parts []gemPart, pending map[string][]string) ([]oaiMess
 				ImageURL: &oaiImageURL{URL: "data:" + p.InlineData.MimeType + ";base64," + p.InlineData.Data},
 			})
 		case p.FileData != nil:
-			// A file part points at a URL only the provider's own platform can
-			// read. Handing that URL to another vendor would 404, so the caller
-			// is told instead.
 			return nil, fmt.Errorf("a file part has no OpenAI counterpart; send its bytes as inlineData")
 		case p.Text != "" && !p.Thought:
 			content = append(content, oaiContentPart{Type: "text", Text: p.Text})
@@ -213,8 +183,6 @@ func geminiUserMessages(parts []gemPart, pending map[string][]string) ([]oaiMess
 	return out, nil
 }
 
-// geminiModelMessage keeps the text and the function calls of one model turn,
-// registers the ids it minted, and reports the next id to use.
 func geminiModelMessage(parts []gemPart, seq int, pending map[string][]string) (oaiMessage, int, error) {
 	msg := oaiMessage{Role: "assistant"}
 	var text strings.Builder
@@ -233,8 +201,6 @@ func geminiModelMessage(parts []gemPart, seq int, pending map[string][]string) (
 				Function: oaiToolFunction{Name: p.FunctionCall.Name, Arguments: args},
 			})
 		case p.Text != "" && !p.Thought:
-			// Thoughts stay out: an OpenAI backend has no field for them, and
-			// feeding reasoning back as prose changes the turn.
 			text.WriteString(p.Text)
 		}
 	}
@@ -244,22 +210,15 @@ func geminiModelMessage(parts []gemPart, seq int, pending map[string][]string) (
 	return msg, seq, nil
 }
 
-// takeCallID returns the oldest id minted for this function name, so two calls
-// to the same function answer in order.
 func takeCallID(pending map[string][]string, name string) string {
 	ids := pending[name]
 	if len(ids) == 0 {
-		// A history that answers a call it did not carry. A stable id keeps the
-		// pair together for the provider's own bookkeeping.
 		return "call_" + name
 	}
 	pending[name] = ids[1:]
 	return ids[0]
 }
 
-// functionResponseText is what a tool message carries. A Gemini response is an
-// object such as {"output": "…"}; OpenAI tool content is a string, and the JSON
-// is what the model read.
 func functionResponseText(raw json.RawMessage) string {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
@@ -268,7 +227,6 @@ func functionResponseText(raw json.RawMessage) string {
 	return trimmed
 }
 
-// geminiToolChoice maps the calling mode onto the OpenAI choice.
 func geminiToolChoice(cfg *gemToolConfig) any {
 	if cfg == nil || cfg.FunctionCallingConfig == nil {
 		return "auto"
@@ -287,11 +245,6 @@ func geminiToolChoice(cfg *gemToolConfig) any {
 	}
 }
 
-// geminiResponseFormat turns the JSON output request into the OpenAI one.
-//
-// A schema goes as json_schema; a bare application/json asks for any JSON
-// object. A provider that refuses the stricter form answers with an error the
-// client can read, which beats returning prose to a caller that asked for JSON.
 func geminiResponseFormat(g *gemGeneration) any {
 	schema := strings.TrimSpace(string(g.ResponseJSONSchema))
 	if schema != "" && schema != "null" {
@@ -307,8 +260,6 @@ func geminiResponseFormat(g *gemGeneration) any {
 	}
 	return nil
 }
-
-// --- response shapes (Gemini out) ---
 
 type gemResponse struct {
 	Candidates    []gemCandidate `json:"candidates"`
@@ -328,7 +279,6 @@ type gemUsage struct {
 	TotalTokenCount      int `json:"totalTokenCount"`
 }
 
-// geminiFinishReason maps the OpenAI finish reason onto the Gemini one.
 func geminiFinishReason(finish string) string {
 	switch finish {
 	case "length":
@@ -340,7 +290,6 @@ func geminiFinishReason(finish string) string {
 	}
 }
 
-// geminiFromOpenAI rebuilds one OpenAI answer as a GenerateContentResponse.
 func geminiFromOpenAI(in *oaiResponse, model string) (*gemResponse, error) {
 	out := &gemResponse{ModelVersion: model}
 	if len(in.Choices) == 0 {
@@ -382,10 +331,6 @@ func geminiFromOpenAI(in *oaiResponse, model string) (*gemResponse, error) {
 	return out, nil
 }
 
-// --- the routes ---
-
-// handleGeminiModels serves GET /v1beta/models from the provider's own list, so
-// the names a Gemini client shows are the names this workspace can run.
 func (p *Plugin) handleGeminiModels(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := p.agentOrg(w, r)
 	if !ok {
@@ -408,8 +353,6 @@ func (p *Plugin) handleGeminiModels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gemModelList{Models: geminiModelEntries(models)})
 }
 
-// handleGeminiModel serves GET /v1beta/models/{model} for a client that asks
-// about one name before it calls it.
 func (p *Plugin) handleGeminiModel(w http.ResponseWriter, r *http.Request) {
 	name, action := geminiPathModel(r)
 	if action != "" {
@@ -444,8 +387,6 @@ func (p *Plugin) handleGeminiModel(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("The workspace offers no model named %q.", name))
 }
 
-// handleGeminiAction serves the per-model actions: generateContent,
-// streamGenerateContent, and countTokens.
 func (p *Plugin) handleGeminiAction(w http.ResponseWriter, r *http.Request) {
 	name, action := geminiPathModel(r)
 	if name == "" || action == "" {
@@ -506,13 +447,9 @@ func (p *Plugin) handleGeminiAction(w http.ResponseWriter, r *http.Request) {
 		p.streamGemini(w, r, ap, out, model)
 		return
 	}
-	// Without alt=sse the protocol answers with a JSON array of the same frames.
-	// One buffered answer is that array with one element.
 	p.completeGemini(w, r, ap, out, model, true)
 }
 
-// geminiPathModel splits "{model}:{action}" out of the path segment. A segment
-// without an action names a model.
 func geminiPathModel(r *http.Request) (string, string) {
 	raw := strings.TrimPrefix(r.PathValue("model"), "models/")
 	if i := strings.LastIndex(raw, ":"); i >= 0 {
@@ -521,8 +458,6 @@ func geminiPathModel(r *http.Request) (string, string) {
 	return raw, ""
 }
 
-// geminiModel picks the model the provider runs: the ?model= selector, else the
-// provider's configured model. A workspace that names neither cannot answer.
 func (p *Plugin) geminiModel(w http.ResponseWriter, r *http.Request, ap agentProvider) (string, bool) {
 	if want := strings.TrimSpace(r.URL.Query().Get("model")); want != "" {
 		return want, true
@@ -535,8 +470,6 @@ func (p *Plugin) geminiModel(w http.ResponseWriter, r *http.Request, ap agentPro
 	return "", false
 }
 
-// completeGemini sends the turn and answers with one GenerateContentResponse,
-// or the one-element array the non-SSE stream form expects.
 func (p *Plugin) completeGemini(w http.ResponseWriter, r *http.Request, ap agentProvider, body *oaiRequest, model string, asArray bool) {
 	resp, err := p.postProvider(r.Context(), ap, "/chat/completions", body)
 	if err != nil {
@@ -571,11 +504,6 @@ func (p *Plugin) completeGemini(w http.ResponseWriter, r *http.Request, ap agent
 	writeJSON(w, http.StatusOK, answer)
 }
 
-// streamGemini relays the provider's stream as generateContent frames.
-//
-// Text streams as it arrives. A function call cannot: its arguments are JSON
-// that is only whole at the end, and a Gemini client reads the call as one
-// object, so the calls are held and written in the frame that closes the turn.
 func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentProvider, body *oaiRequest, model string) {
 	resp, err := p.postProvider(r.Context(), ap, "/chat/completions", body)
 	if err != nil {
@@ -683,8 +611,6 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 			args = "{}"
 		}
 		if !json.Valid([]byte(args)) {
-			// A half-written object cannot become a functionCall. Saying so
-			// beats sending malformed JSON the client's own parser rejects.
 			writeFrame(gemErrorBody(http.StatusBadGateway, "UNAVAILABLE",
 				"The provider streamed tool arguments that are not JSON."))
 			return
@@ -701,14 +627,11 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 		usage = &gemUsage{}
 	}
 	writeFrame(&gemResponse{
-		// parts is an empty list, never null: the client reads its length.
 		Candidates:    []gemCandidate{{Content: gemContent{Role: "model", Parts: []gemPart{}}, FinishReason: geminiFinishReason(finish)}},
 		UsageMetadata: usage,
 		ModelVersion:  model,
 	})
 }
-
-// --- model list ---
 
 type gemModelList struct {
 	Models []gemModel `json:"models"`
@@ -721,25 +644,18 @@ type gemModel struct {
 	SupportedGenerationMethods []string `json:"supportedGenerationMethods"`
 }
 
-// geminiModelEntries renames the provider's models into the Gemini list shape.
 func geminiModelEntries(models []modelEntry) []gemModel {
 	out := make([]gemModel, 0, len(models))
 	for _, m := range models {
 		out = append(out, gemModel{
-			Name:        "models/" + m.ID,
-			DisplayName: m.ID,
-			// Every model on this surface answers all three actions: the
-			// gateway translates each of them.
+			Name:                       "models/" + m.ID,
+			DisplayName:                m.ID,
 			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
 		})
 	}
 	return out
 }
 
-// --- helpers ---
-
-// estimateGeminiTokens counts a request the same rough way the Anthropic meter
-// counts one. Nothing bills on it.
 func estimateGeminiTokens(in *gemRequest) int {
 	total := 4
 	if in.SystemInstruction != nil {
@@ -768,7 +684,6 @@ func estimateGeminiTokens(in *gemRequest) int {
 	return total
 }
 
-// gemErrorBody is the Gemini error shape.
 func gemErrorBody(status int, reason, message string) map[string]any {
 	return map[string]any{
 		"error": map[string]any{
@@ -777,8 +692,6 @@ func gemErrorBody(status int, reason, message string) map[string]any {
 	}
 }
 
-// writeGeminiError answers in the Gemini error shape, which is what the client
-// parses and nothing else.
 func writeGeminiError(w http.ResponseWriter, status int, reason, message string) {
 	writeJSON(w, status, gemErrorBody(status, reason, message))
 }

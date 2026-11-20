@@ -12,7 +12,6 @@ import (
 
 var _ plugin.MCPProvider = (*Plugin)(nil)
 
-// MCPTier returns "" because the unified Vault is a Core capability.
 func (p *Plugin) MCPTier() string { return "" }
 
 func mcpJSONResult(v any) (*mcp.CallToolResult, any, error) {
@@ -50,8 +49,6 @@ type mcpSetSecretArgs struct {
 	IsDefault      bool           `json:"isDefault,omitempty"`
 }
 
-// RegisterMCP exposes agent-safe Vault tools. Plaintext secrets are never returned
-// into LLM context; agents operate by item ID, vault:// reference, or time-bound TOTP codes.
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "vault", &mcp.Tool{
 		Name:        "octarq_vault__list_items",

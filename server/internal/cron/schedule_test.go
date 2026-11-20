@@ -17,7 +17,7 @@ func TestParseStandard_Valid5Fields(t *testing.T) {
 		{"0 9-17 * * 1-5"},
 		{"0 0 1 JAN-DEC *"},
 		{"0 0 * * SUN,MON,TUE,WED,THU,FRI,SAT"},
-		{"0 0 * * 7"}, // 7 is Sunday
+		{"0 0 * * 7"},
 		{"1-30/5 * * * *"},
 		{"* * ? * *"},
 	}
@@ -127,7 +127,6 @@ func TestCronSchedule_NextCalculations(t *testing.T) {
 	loc := time.UTC
 	base := time.Date(2026, 9, 6, 12, 0, 0, 0, loc)
 
-	// Hourly at min 0
 	s, err := ParseStandard("0 * * * *")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -138,7 +137,6 @@ func TestCronSchedule_NextCalculations(t *testing.T) {
 		t.Fatalf("expected %v, got %v", expected, next)
 	}
 
-	// Daily at midnight
 	s, _ = ParseStandard("0 0 * * *")
 	next = s.Next(base)
 	expected = time.Date(2026, 9, 7, 0, 0, 0, 0, loc)
@@ -146,7 +144,6 @@ func TestCronSchedule_NextCalculations(t *testing.T) {
 		t.Fatalf("expected %v, got %v", expected, next)
 	}
 
-	// Seconds matching
 	s, _ = ParseStandard("30 * * * * *")
 	next = s.Next(base)
 	expected = time.Date(2026, 9, 6, 12, 0, 30, 0, loc)
@@ -154,7 +151,6 @@ func TestCronSchedule_NextCalculations(t *testing.T) {
 		t.Fatalf("expected %v, got %v", expected, next)
 	}
 
-	// Specific month and day
 	s, _ = ParseStandard("0 0 1 1 *")
 	next = s.Next(base)
 	expected = time.Date(2027, 1, 1, 0, 0, 0, 0, loc)
@@ -162,7 +158,6 @@ func TestCronSchedule_NextCalculations(t *testing.T) {
 		t.Fatalf("expected %v, got %v", expected, next)
 	}
 
-	// Every schedule
 	every := EverySchedule{Duration: -1}
 	if !every.Next(base).IsZero() {
 		t.Fatalf("expected zero for non-positive duration")
@@ -171,9 +166,8 @@ func TestCronSchedule_NextCalculations(t *testing.T) {
 
 func TestCronSchedule_DayMatchingVixie(t *testing.T) {
 	loc := time.UTC
-	base := time.Date(2026, 9, 6, 0, 0, 0, 0, loc) // 2026-09-06 is Sunday
+	base := time.Date(2026, 9, 6, 0, 0, 0, 0, loc)
 
-	// Restricted DOM only (the 10th of every month)
 	s, _ := ParseStandard("0 0 10 * *")
 	next := s.Next(base)
 	expected := time.Date(2026, 9, 10, 0, 0, 0, 0, loc)
@@ -181,17 +175,13 @@ func TestCronSchedule_DayMatchingVixie(t *testing.T) {
 		t.Fatalf("expected %v, got %v", expected, next)
 	}
 
-	// Restricted DOW only (Monday = 1)
 	s, _ = ParseStandard("0 0 * * 1")
 	next = s.Next(base)
-	expected = time.Date(2026, 9, 7, 0, 0, 0, 0, loc) // Monday Sept 7
+	expected = time.Date(2026, 9, 7, 0, 0, 0, 0, loc)
 	if !next.Equal(expected) {
 		t.Fatalf("expected %v, got %v", expected, next)
 	}
 
-	// Both restricted: Vixie cron union (10th of month OR Monday)
-	// Base is Sept 6. Sept 7 is Monday (matches DOW), Sept 10 is Thursday (matches DOM)
-	// Earliest is Sept 7.
 	s, _ = ParseStandard("0 0 10 * 1")
 	next = s.Next(base)
 	expected = time.Date(2026, 9, 7, 0, 0, 0, 0, loc)

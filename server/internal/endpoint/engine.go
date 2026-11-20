@@ -10,18 +10,15 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// Engine collects declarative endpoints and mounts them onto HTTP (Huma) and MCP servers.
 type Engine struct {
 	mu        sync.RWMutex
 	endpoints []plugin.Endpoint
 }
 
-// NewEngine creates a new declarative endpoint engine.
 func NewEngine() *Engine {
 	return &Engine{}
 }
 
-// Register adds an endpoint specification to the engine.
 func (e *Engine) Register(spec any) error {
 	ep, ok := spec.(plugin.Endpoint)
 	if !ok {
@@ -33,7 +30,6 @@ func (e *Engine) Register(spec any) error {
 	return nil
 }
 
-// Endpoints returns all registered endpoints.
 func (e *Engine) Endpoints() []plugin.Endpoint {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -42,10 +38,6 @@ func (e *Engine) Endpoints() []plugin.Endpoint {
 	return out
 }
 
-// Lookup returns the endpoint with the given name, or false if not found.
-// Endpoint count is small (<100), so linear scan is sufficient.
-//
-// P3 前 API 易变.
 func (e *Engine) Lookup(name string) (plugin.Endpoint, bool) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -57,13 +49,11 @@ func (e *Engine) Lookup(name string) (plugin.Endpoint, bool) {
 	return nil, false
 }
 
-// HTTPOptions provides authentication and role checking hooks for HTTP endpoint execution.
 type HTTPOptions struct {
 	RequireAuth func(ctx context.Context) (uint, error)
 	RequireRole func(ctx context.Context, roles []string) error
 }
 
-// MountHTTP registers all collected endpoints onto the given Huma API.
 func (e *Engine) MountHTTP(api huma.API, opts HTTPOptions) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -81,9 +71,6 @@ func (e *Engine) MountHTTP(api huma.API, opts HTTPOptions) error {
 	return nil
 }
 
-// MountMCP registers all collected endpoints with ExposeMCP=true onto the MCP
-// server. An endpoint whose Tier the gate does not allow is skipped: the tool
-// never reaches the agent, so an unlicensed instance cannot call it.
 func (e *Engine) MountMCP(srv *mcp.Server, gate plugin.TierGate) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

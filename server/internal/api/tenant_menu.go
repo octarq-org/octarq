@@ -16,9 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// callerOrgRole returns the role the current user holds in their active org,
-// or "" if they are not a member. Member-management handlers gate on this so a
-// plain member can't escalate themselves or evict others.
 func (h *Handler) callerOrgRole(r *http.Request) string {
 	uid := h.auth.UserID(r)
 	oid := h.auth.OrgID(r)
@@ -34,13 +31,7 @@ func (h *Handler) callerOrgRole(r *http.Request) string {
 	return role
 }
 
-// OrgRole is the public wrapper around callerOrgRole, exposed to plugins via
-// plugin.Context.OrgRole so a plugin can gate workspace administration on
-// owner/admin without importing internal/models.
 func (h *Handler) OrgRole(r *http.Request) string {
-	// Effective, not raw: plugins gate workspace administration on this, so
-	// handing back the holder's membership would let every plugin's gate ignore
-	// the token's cap.
 	return string(h.effectiveRole(r))
 }
 
@@ -66,8 +57,6 @@ type SwitchOrgOutput struct {
 	Body SwitchOrgOutputBody
 }
 
-// switchOrg re-issues the session cookie with the new active organization ID.
-// POST /api/auth/switch-org  {"orgId": 2}
 func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*SwitchOrgOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -78,36 +67,18 @@ func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*Switch
 		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
-	// A bearer token must never leave here holding a session cookie. This is the
-	// only endpoint that both accepts a token AND mints a session (every other
-	// SetSessionFromRequest call site sits behind a fresh credential: password,
-	// OAuth callback, verified external identity, or registration), and minting
-	// one here laundered a capped token into an uncapped credential:
-	//
-	//   - effectiveRole only applies the token's role ceiling while
-	//     TokenIDFromContext != 0 (see helpers.go). A session carries no token
-	//     ID, so a session minted by a member-capped token came back with the
-	//     holder's full owner authority.
-	//   - the minted session also outlives the token: revoking or deleting the
-	//     token does not touch the sessions table.
-	//
-	// CSRF is no obstacle either — a cookie-less bearer request is waved through
-	// the guard by design. So the refusal has to live here.
 	if auth.TokenIDFromContext(r.Context()) != 0 {
 		return nil, huma.Error403Forbidden("API tokens cannot switch the active workspace; scope the token to the workspace instead")
 	}
 
 	uid := h.auth.UserID(r)
 	oldOrg := h.orgID(r)
-	// Verify the user belongs to the target organization.
 	var mem models.OrgMember
 	if err := h.db.Where("org_id = ? AND user_id = ?", input.Body.OrgID, uid).First(&mem).Error; err != nil {
 		return nil, huma.Error403Forbidden("Account is not a member of this workspace; select an authorized workspace")
 	}
 
 	h.auth.SetSessionFromRequest(r, w, uid, input.Body.OrgID)
-	// Write the audit row to the workspace being switched INTO, recording the
-	// switch explicitly in meta (h.audit would attribute it to the old org).
 	h.auditAs(r, input.Body.OrgID, uid, "user.switch_org", "org", input.Body.OrgID,
 		map[string]any{"from": oldOrg, "to": input.Body.OrgID})
 	out := &SwitchOrgOutput{}
@@ -135,8 +106,6 @@ type ListOrgsOutput struct {
 	Body []OrgItem
 }
 
-// listOrgs returns all organizations the current user belongs to.
-// GET /api/orgs
 func (h *Handler) listOrgs(ctx context.Context, input *ListOrgsInput) (*ListOrgsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -179,8 +148,6 @@ type CreateOrgOutput struct {
 	Body models.Org
 }
 
-// createOrg creates a new organization and links the current user as the owner.
-// POST /api/orgs  {"name": "New Organization"}
 func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*CreateOrgOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -210,9 +177,6 @@ func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*Create
 		if err := tx.Create(&mem).Error; err != nil {
 			return err
 		}
-		// A configured base domain provisions the org's <slug>.<base> address in
-		// the same transaction; an unclaimable address fails the whole create
-		// rather than producing a workspace nobody can reach at its address.
 		_, _, err = tenancy.Provision(tx, org.ID, org.Slug)
 		return err
 	})
@@ -244,8 +208,6 @@ type UpdateOrgOutput struct {
 	Body models.Org
 }
 
-// updateOrg updates the current organization name.
-// PUT /api/org
 func (h *Handler) updateOrg(ctx context.Context, input *UpdateOrgInput) (*UpdateOrgOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -258,7 +220,6 @@ func (h *Handler) updateOrg(ctx context.Context, input *UpdateOrgInput) (*Update
 
 	oid := h.auth.OrgID(r)
 
-	// Verify permissions: only owner/admin can rename organization/workspace
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to rename workspace")
 	}

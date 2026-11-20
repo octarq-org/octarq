@@ -8,11 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TestEveryInspectorReportsAFailedQueryAsAnError pins the error path of each
-// dialect. The postgres and mysql inspectors cannot reach a live server in this
-// suite, but they must not answer "no columns" when the query itself failed: an
-// empty table and an unreachable database would look the same, and the
-// difference decides whether a declaration is applied or skipped.
 func TestEveryInspectorReportsAFailedQueryAsAnError(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
@@ -44,8 +39,6 @@ func TestEveryInspectorReportsAFailedQueryAsAnError(t *testing.T) {
 				t.Fatal("Indexes on a closed db = nil error, want a failure")
 			}
 
-			// A table name is interpolated into each dialect's query, so an
-			// invalid one is refused before it is sent.
 			if _, err := insp.Columns(ctx, "ont tickets; drop"); err == nil {
 				t.Fatal("Columns with an invalid name = nil error, want a refusal")
 			}

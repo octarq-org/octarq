@@ -98,7 +98,6 @@ func TestRealtimeStream_StreamingSuccessAndIsolation(t *testing.T) {
 		srv.ServeHTTP(rec, req)
 	}()
 
-	// Wait for connected event
 	if err := buf.waitForString("event: connected", 3*time.Second); err != nil {
 		t.Fatalf("wait for connected: %v", err)
 	}
@@ -106,14 +105,12 @@ func TestRealtimeStream_StreamingSuccessAndIsolation(t *testing.T) {
 		t.Fatalf("wait for orgId 100: %v", err)
 	}
 
-	// Publish an event for Org 999 (different tenant). It MUST NOT reach client.
 	eventbus.PublishEnvelope(eventbus.Envelope{
 		ID:    "other-org-event",
 		OrgID: 999,
 		Key:   "secret.leak",
 	})
 
-	// Publish an event for Org 100 (matching tenant).
 	payloadMap := map[string]any{"user": "alice", "action": "invite"}
 	rawJSON, _ := json.Marshal(payloadMap)
 	eventbus.PublishEnvelope(eventbus.Envelope{
@@ -123,7 +120,6 @@ func TestRealtimeStream_StreamingSuccessAndIsolation(t *testing.T) {
 		Payload: rawJSON,
 	})
 
-	// Verify client receives matching event
 	if err := buf.waitForString("id: matching-event-1", 3*time.Second); err != nil {
 		t.Fatalf("wait for matching event id: %v", err)
 	}
@@ -134,13 +130,11 @@ func TestRealtimeStream_StreamingSuccessAndIsolation(t *testing.T) {
 		t.Fatalf("wait for payload: %v", err)
 	}
 
-	// Verify other-org-event never reached
 	output := buf.String()
 	if strings.Contains(output, "other-org-event") || strings.Contains(output, "secret.leak") {
 		t.Fatalf("tenant boundary violation: leaked event in output:\n%s", output)
 	}
 
-	// Close context to terminate SSE handler cleanly
 	cancel()
 	select {
 	case <-done:
@@ -175,14 +169,12 @@ func TestRealtimeStream_EventFilter(t *testing.T) {
 		t.Fatalf("wait for connected: %v", err)
 	}
 
-	// Publish non-subscribed key
 	eventbus.PublishEnvelope(eventbus.Envelope{
 		ID:    "unfiltered-drop",
 		OrgID: 200,
 		Key:   "billing.invoice",
 	})
 
-	// Publish subscribed key
 	eventbus.PublishEnvelope(eventbus.Envelope{
 		ID:    "filtered-hit",
 		OrgID: 200,
@@ -239,7 +231,6 @@ func TestRealtimeStream_KeepAlivePing(t *testing.T) {
 		t.Fatalf("wait for connected: %v", err)
 	}
 
-	// Should receive ping line
 	if err := buf.waitForString(": ping", 3*time.Second); err != nil {
 		t.Fatalf("wait for ping: %v", err)
 	}
@@ -288,32 +279,27 @@ func TestRealtimeStream_NonFlusher(t *testing.T) {
 }
 
 func TestWriteRealtimeSSE_Errors(t *testing.T) {
-	// Invalid JSON payload
 	rec := httptest.NewRecorder()
 	err := writeRealtimeSSE(rec, nil, "event", "id", make(chan int))
 	if err == nil {
 		t.Fatal("expected error for unmarshalable data")
 	}
 
-	// Failing writer on ID
 	fw := &failingHTTPWriter{failOn: 1}
 	if err := writeRealtimeSSE(fw, nil, "event", "id", map[string]string{"k": "v"}); err == nil {
 		t.Fatal("expected error for failing writer on id")
 	}
 
-	// Failing writer on Event
 	fw2 := &failingHTTPWriter{failOn: 2}
 	if err := writeRealtimeSSE(fw2, nil, "event", "id", map[string]string{"k": "v"}); err == nil {
 		t.Fatal("expected error for failing writer on event")
 	}
 
-	// Failing writer on Data
 	fw3 := &failingHTTPWriter{failOn: 3}
 	if err := writeRealtimeSSE(fw3, nil, "event", "id", map[string]string{"k": "v"}); err == nil {
 		t.Fatal("expected error for failing writer on data")
 	}
 
-	// Failing writer on Final newline
 	fw4 := &failingHTTPWriter{failOn: 4}
 	if err := writeRealtimeSSE(fw4, nil, "event", "id", map[string]string{"k": "v"}); err == nil {
 		t.Fatal("expected error for failing writer on final newline")

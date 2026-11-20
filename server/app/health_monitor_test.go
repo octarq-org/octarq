@@ -53,13 +53,11 @@ func TestApp_HealthMonitorIntegration(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Run app in goroutine
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- a.Run(ctx)
 	}()
 
-	// Wait briefly for app to initialize
 	var collector *monitor.Collector
 	for i := 0; i < 250; i++ {
 		if c := a.HealthCollector(); c != nil {
@@ -73,14 +71,6 @@ func TestApp_HealthMonitorIntegration(t *testing.T) {
 		t.Fatal("HealthCollector() returned nil after app Run")
 	}
 
-	// Verify that runtime, database, disk, and plugin-check are all present.
-	//
-	// The plugin registers its health provider while the app boots, so the
-	// collector can exist a moment before the provider shows up in the report
-	// it builds. Poll until every expected provider is there instead of
-	// racing the boot: on a loaded machine the collector was ready before
-	// the plugin had mounted, and the assertion failed on a report that was
-	// merely early.
 	expectedProviders := []string{"runtime", "database", "disk", "plugin-check"}
 
 	var report monitor.HealthReport
@@ -106,7 +96,6 @@ func TestApp_HealthMonitorIntegration(t *testing.T) {
 		}
 	}
 
-	// Cancel context to shut down cleanly
 	cancel()
 	select {
 	case err := <-errCh:
@@ -118,7 +107,6 @@ func TestApp_HealthMonitorIntegration(t *testing.T) {
 	}
 }
 
-// hasProvider reports whether the report carries a provider with the name.
 func hasProvider(report monitor.HealthReport, name string) bool {
 	for _, p := range report.Providers {
 		if p.Name == name {
@@ -128,7 +116,6 @@ func hasProvider(report monitor.HealthReport, name string) bool {
 	return false
 }
 
-// hasAllProviders reports whether every expected provider is present.
 func hasAllProviders(report monitor.HealthReport, names []string) bool {
 	for _, name := range names {
 		if !hasProvider(report, name) {

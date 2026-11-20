@@ -17,7 +17,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// PluginContextTestParams exports a parameter struct with exported fields for black-box testing.
 type PluginContextTestParams struct {
 	ApiHandler      *api.Handler
 	Gdb             *gorm.DB
@@ -40,7 +39,6 @@ type PluginContextTestParams struct {
 	Plugins         []plugin.Plugin
 }
 
-// BuildPluginContext exports buildPluginContext for black-box testing.
 func (a *App) BuildPluginContext(p PluginContextTestParams) *plugin.Context {
 	return a.buildPluginContext(pluginContextParams{
 		apiHandler:      p.ApiHandler,

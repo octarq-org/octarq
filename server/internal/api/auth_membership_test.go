@@ -12,9 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// seedPasswordUser creates an account that carries a password and no workspace
-// membership. This is the state an administrator leaves behind by removing a
-// member: the account survives, the membership row does not.
 func seedPasswordUser(t *testing.T, db *gorm.DB, email string) models.User {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte("pw"), bcrypt.MinCost)
@@ -28,7 +25,6 @@ func seedPasswordUser(t *testing.T, db *gorm.DB, email string) models.User {
 	return user
 }
 
-// loginOrgID signs in over HTTP and reports the workspace the session landed in.
 func loginOrgID(t *testing.T, srv http.Handler, email string) uint {
 	t.Helper()
 	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"`+email+`","password":"pw"}`)
@@ -55,9 +51,6 @@ func assertNoCookies(t *testing.T, rec interface{ Result() *http.Response }, wha
 	}
 }
 
-// refusedCode reports the machine-readable code of a refused response. The
-// client branches on it, so a refusal without the right code sends the user
-// down the wrong recovery path.
 func refusedCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 	t.Helper()
 	var body struct {
@@ -69,9 +62,6 @@ func refusedCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return body.Code
 }
 
-// TestLoginWithoutWorkspaceIsRefused covers the escalation a removed member
-// used to get: the account still has its password, and sign-in minted a fresh
-// owner membership so the removed person was back inside, now with full rights.
 func TestLoginWithoutWorkspaceIsRefused(t *testing.T) {
 	srv, db := newTestHandler(t)
 	user := seedPasswordUser(t, db, "removed@example.com")
@@ -94,8 +84,6 @@ func TestLoginWithoutWorkspaceIsRefused(t *testing.T) {
 	}
 }
 
-// TestLoginLandsInTheExistingWorkspace guards the other side of the change:
-// an account that does belong somewhere still signs in, into that workspace.
 func TestLoginLandsInTheExistingWorkspace(t *testing.T) {
 	srv, db := newTestHandler(t)
 	user := seedPasswordUser(t, db, "member@example.com")
@@ -112,9 +100,6 @@ func TestLoginLandsInTheExistingWorkspace(t *testing.T) {
 	}
 }
 
-// TestTwoFactorLoginWithoutWorkspaceIsRefused covers the second door into the
-// same session. The endpoint re-checks the password, so it must apply the same
-// refusal rather than issuing a workspace-less session.
 func TestTwoFactorLoginWithoutWorkspaceIsRefused(t *testing.T) {
 	srv, db := newTestHandler(t)
 	seedPasswordUser(t, db, "removed2fa@example.com")
@@ -129,9 +114,6 @@ func TestTwoFactorLoginWithoutWorkspaceIsRefused(t *testing.T) {
 	}
 }
 
-// TestLoginRequiresVerificationReportsItsOwnCode keeps the two 403 refusals
-// apart. This one tells the client to offer the verification email; the
-// no-workspace one tells it to ask an administrator for an invitation.
 func TestLoginRequiresVerificationReportsItsOwnCode(t *testing.T) {
 	srv, db := newTestHandler(t)
 	user := seedPasswordUser(t, db, "unverified@example.com")
@@ -155,8 +137,6 @@ func TestLoginRequiresVerificationReportsItsOwnCode(t *testing.T) {
 	}
 }
 
-// TestLoginWrongPasswordStaysUnauthorized keeps the two refusals apart: only a
-// correct password learns that the account exists.
 func TestLoginWrongPasswordStaysUnauthorized(t *testing.T) {
 	srv, db := newTestHandler(t)
 	seedPasswordUser(t, db, "removed3@example.com")
@@ -167,9 +147,6 @@ func TestLoginWrongPasswordStaysUnauthorized(t *testing.T) {
 	}
 }
 
-// TestLoginReportsStorageFault: a failure to read the membership is not a
-// credential verdict. Folding it into "invalid credentials" would tell a
-// correctly authenticated user their password is wrong.
 func TestLoginReportsStorageFault(t *testing.T) {
 	srv, db := newTestHandler(t)
 	seedPasswordUser(t, db, "fault@example.com")
@@ -183,8 +160,6 @@ func TestLoginReportsStorageFault(t *testing.T) {
 	}
 }
 
-// TestTwoFactorLoginReportsStorageFault covers the same branch on the second
-// door into a session.
 func TestTwoFactorLoginReportsStorageFault(t *testing.T) {
 	srv, db := newTestHandler(t)
 	seedPasswordUser(t, db, "fault2fa@example.com")

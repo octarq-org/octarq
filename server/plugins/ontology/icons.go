@@ -6,18 +6,8 @@ import (
 	core "github.com/octarq-org/octarq/server/ontology"
 )
 
-// defaultIcon is the sidebar glyph for an entity that declares none. It must be
-// a key in menuIcons, or the default would be the very thing this file refuses.
 const defaultIcon = "database"
 
-// menuIcons mirrors PLUGIN_ICONS in web/src/shell/areas.tsx, the single table
-// that maps an icon key to a lucide component. The sidebar renders an unknown
-// key as literal text, so a typo in a declaration shows a word where a glyph
-// belongs; refusing it at load is the only check that reaches runtime values.
-//
-// A key added to PLUGIN_ICONS belongs here too. web/src/shell/menuIcons.test.ts
-// parses Go menu literals but cannot see a declaration file, which is why this
-// list exists at all.
 var menuIcons = map[string]bool{
 	"bell": true, "book": true, "book-open": true, "bot": true, "boxes": true,
 	"credit-card": true, "database": true, "globe": true, "hard-drive": true,
@@ -29,7 +19,6 @@ var menuIcons = map[string]bool{
 	"webhook": true, "workflow": true,
 }
 
-// validateIcon refuses an icon the sidebar cannot render.
 func validateIcon(spec core.Spec) error {
 	if spec.Icon == "" {
 		return nil
@@ -41,7 +30,6 @@ func validateIcon(spec core.Spec) error {
 	return nil
 }
 
-// iconFor is the declared icon, or the default.
 func iconFor(spec core.Spec) string {
 	if spec.Icon == "" {
 		return defaultIcon

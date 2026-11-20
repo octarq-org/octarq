@@ -10,8 +10,6 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-// extractTOTPParams parses either a raw base32 secret/seed or an otpauth:// URI
-// from a vault payload.
 func extractTOTPParams(payload map[string]any) (secret string, opts totp.ValidateOpts, err error) {
 	opts = totp.ValidateOpts{
 		Period:    30,
@@ -55,7 +53,6 @@ func extractTOTPParams(payload map[string]any) (secret string, opts totp.Validat
 	return secret, opts, nil
 }
 
-// computeTOTPCode returns the current RFC-6238 code and remaining seconds in the window.
 func computeTOTPCode(payload map[string]any, now time.Time) (string, int, error) {
 	secret, opts, err := extractTOTPParams(payload)
 	if err != nil {

@@ -7,8 +7,6 @@ import (
 	"net/http"
 )
 
-// EnsureHost extracts ctx.Host. If ctx is nil or ctx.Host is nil,
-// it returns a safe no-op Host adapter so callers never encounter a nil Host.
 func EnsureHost(ctx *Context) Host {
 	if ctx != nil && ctx.Host != nil {
 		return ctx.Host
@@ -24,19 +22,14 @@ func (noopHost) Settings() SettingsStore { return noopSettings{} }
 func (noopHost) Events() EventSpine      { return noopEvents{} }
 func (noopHost) TenantDB(uint) *TenantDB { return nil }
 
-// HarnessSpec reports that no harness is published: a host without a
-// workspace behind it has none to report.
 func (noopHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) { return nil, nil }
 
 func (noopHost) LookupCredential(context.Context, uint, CredentialQuery) (*Credential, error) {
 	return nil, ErrCredentialResolverUnavailable
 }
 
-// Workforce reports that no ledger is mounted. A host without a workspace has
-// no agents to bill, and refusing is the only honest answer.
 func (noopHost) Workforce() Workforce { return unavailableWorkforce{} }
 
-// unavailableWorkforce is the ledger of a host that has none.
 type unavailableWorkforce struct{}
 
 func (unavailableWorkforce) AuthorizeTurn(context.Context, uint, string, string) error {

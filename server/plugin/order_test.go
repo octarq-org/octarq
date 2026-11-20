@@ -7,7 +7,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// namedPlugin is a bare plugin that only carries a name and a Requires list.
 type namedPlugin struct {
 	name     string
 	requires []string
@@ -29,7 +28,6 @@ func names(plugins []plugin.Plugin) []string {
 }
 
 func TestDependencyOrderPutsRequirementsFirst(t *testing.T) {
-	// Registered in exactly the wrong order: mail before links before dns.
 	plugins := []plugin.Plugin{
 		namedPlugin{name: "mail", requires: []string{"dns", "links"}},
 		namedPlugin{name: "links", requires: []string{"dns"}},
@@ -45,9 +43,6 @@ func TestDependencyOrderPutsRequirementsFirst(t *testing.T) {
 	}
 }
 
-// TestDependencyOrderIsStableForIndependentPlugins pins that the ordering does
-// not shuffle a composition that has no dependencies: registration order is
-// the operator's intent and must survive.
 func TestDependencyOrderIsStableForIndependentPlugins(t *testing.T) {
 	plugins := []plugin.Plugin{
 		namedPlugin{name: "alpha"},
@@ -64,7 +59,6 @@ func TestDependencyOrderIsStableForIndependentPlugins(t *testing.T) {
 }
 
 func TestDependencyOrderHandlesDiamond(t *testing.T) {
-	// top requires left and right; both require base.
 	plugins := []plugin.Plugin{
 		namedPlugin{name: "top", requires: []string{"left", "right"}},
 		namedPlugin{name: "right", requires: []string{"base"}},
@@ -89,9 +83,6 @@ func TestDependencyOrderHandlesDiamond(t *testing.T) {
 	}
 }
 
-// TestDependencyOrderRejectsCycle pins that a cycle fails startup by name
-// instead of overflowing the stack. A self-requirement is the one-character
-// version of the same mistake.
 func TestDependencyOrderRejectsCycle(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -139,10 +130,6 @@ func TestDependencyOrderRejectsCycle(t *testing.T) {
 	}
 }
 
-// TestDependencyOrderIgnoresMissingRequirement pins the division of labour:
-// preflightDependencies already refuses a composition that is missing a
-// required plugin, and it does so with a message naming both plugins. Failing
-// here as well would replace that message with a worse one.
 func TestDependencyOrderIgnoresMissingRequirement(t *testing.T) {
 	plugins := []plugin.Plugin{
 		namedPlugin{name: "needy", requires: []string{"absent"}},

@@ -61,7 +61,6 @@ func TestRecoverHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
-	// Should not panic
 	safeHandler.ServeHTTP(rec, req)
 }
 

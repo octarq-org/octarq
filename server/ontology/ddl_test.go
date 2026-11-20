@@ -167,8 +167,6 @@ func TestAddColumnSQL(t *testing.T) {
 		t.Errorf("AddColumnSQL = %q, want %q", got, want)
 	}
 
-	// Numbers and booleans must not be quoted: SQLite would store them as text
-	// and Postgres would reject the literal.
 	num, err := ontology.AddColumnSQL(d, spec, ontology.Field{Name: "qty", Type: ontology.TypeInteger, Default: strptr("0")})
 	if err != nil {
 		t.Fatalf("AddColumnSQL integer: %v", err)
@@ -237,17 +235,12 @@ func TestQuoteEscapes(t *testing.T) {
 	}
 }
 
-// userScopedSpec is sqliteSpec partitioned by the member who owns the row.
 func userScopedSpec() ontology.Spec {
 	s := sqliteSpec()
 	s.Scope = ontology.ScopeUser
 	return s
 }
 
-// TestUserScopedTableCarriesTheOwnerColumn pins the DDL half of owner-level
-// isolation: the platform adds the column, and every index starts with it, so a
-// unique field is unique inside one member's rows rather than across the whole
-// workspace.
 func TestUserScopedTableCarriesTheOwnerColumn(t *testing.T) {
 	d, err := ontology.DialectFor("sqlite")
 	if err != nil {
@@ -274,7 +267,6 @@ func TestUserScopedTableCarriesTheOwnerColumn(t *testing.T) {
 		}
 	}
 
-	// The same declaration without a scope keeps the workspace-wide shape.
 	orgStmts, err := ontology.CreateTableSQL(d, sqliteSpec())
 	if err != nil {
 		t.Fatalf("CreateTableSQL: %v", err)
@@ -284,9 +276,6 @@ func TestUserScopedTableCarriesTheOwnerColumn(t *testing.T) {
 	}
 }
 
-// TestIndexNamesFollowTheScope pins that creation and reconciliation agree on
-// the name of a scoped index. A reconciler that spelled the org-only name would
-// miss the index the table actually carries and rebuild it on every boot.
 func TestIndexNamesFollowTheScope(t *testing.T) {
 	user := userScopedSpec()
 	if got, want := ontology.TenantIndexName(user), "idx_ont_widget_org_id_user_id"; got != want {

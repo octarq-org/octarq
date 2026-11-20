@@ -31,8 +31,6 @@ func generateServiceToken() (raw string, prefix string, hash string, err error) 
 	return raw, prefix, hash, nil
 }
 
-// CreateServiceToken mints a new scoped machine token for CI/CD or external apps.
-// The raw token is returned once and never stored in plaintext.
 func (p *Plugin) CreateServiceToken(ctx context.Context, orgID uint, name string, collectionSlug, env, folderPrefix, perms string, expiresAt *time.Time, actorUserID uint) (*VaultServiceToken, string, error) {
 	if orgID == 0 {
 		return nil, "", errors.New("vault: organization id required")
@@ -76,7 +74,6 @@ func (p *Plugin) CreateServiceToken(ctx context.Context, orgID uint, name string
 	return &tok, raw, nil
 }
 
-// AuthenticateServiceToken validates a bearer token and returns its active scope.
 func (p *Plugin) AuthenticateServiceToken(ctx context.Context, bearer string) (*VaultServiceToken, error) {
 	if p.db == nil {
 		return nil, errors.New("vault: database unavailable")

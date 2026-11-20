@@ -16,9 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// oauthPreparedHandler returns a handler whose google provider is configured in
-// the settings table (client id + envelope-encrypted secret), so prepare() can
-// successfully resolve an origin.
 func oauthPreparedHandler(t *testing.T) (*OAuthHandler, *gorm.DB) {
 	t.Helper()
 	db := identityDB(t)
@@ -35,8 +32,6 @@ func oauthPreparedHandler(t *testing.T) (*OAuthHandler, *gorm.DB) {
 	return NewOAuthHandler(db, m, vs), db
 }
 
-// overrideCompleteUserAuth swaps gothic's package-level CompleteUserAuth so the
-// OAuth callback can be driven without a network round trip, restoring it after.
 func overrideCompleteUserAuth(t *testing.T, fn func(w http.ResponseWriter, r *http.Request) (goth.User, error)) {
 	t.Helper()
 	original := gothic.CompleteUserAuth
@@ -50,8 +45,6 @@ func callbackRequest() *http.Request {
 	return r
 }
 
-// seedUserOrgs creates a user with a personal org+m membership so the OAuth
-// upsert resolves to an existing account instead of provisioning a new one.
 func seedUserOrgs(t *testing.T, db *gorm.DB, email string) (models.User, models.Org) {
 	t.Helper()
 	u := models.User{Email: email, EmailVerified: true}
@@ -72,8 +65,6 @@ func seedUserOrgs(t *testing.T, db *gorm.DB, email string) (models.User, models.
 	return u, o
 }
 
-// TestOAuthCallbackIssuesSession drives the happy path: a verified email without
-// TOTP completes login, sets the session cookie, and redirects to /admin/.
 func TestOAuthCallbackIssuesSession(t *testing.T) {
 	h, db := oauthPreparedHandler(t)
 	u, o := seedUserOrgs(t, db, "alice@example.com")
@@ -106,8 +97,6 @@ func TestOAuthCallbackIssuesSession(t *testing.T) {
 	}
 }
 
-// TestOAuthCallbackTOTPRedirectsToSecondFactor sends a TOTP-enabled user to the
-// second-factor page with a challenge cookie standing in for their password.
 func TestOAuthCallbackTOTPRedirectsToSecondFactor(t *testing.T) {
 	h, db := oauthPreparedHandler(t)
 	u := mustUser(t, db, "totp@example.com")
@@ -143,8 +132,6 @@ func TestOAuthCallbackTOTPRedirectsToSecondFactor(t *testing.T) {
 	}
 }
 
-// TestOAuthCallbackFailures covers the refusal paths: completion errors and a
-// provider that returns no email.
 func TestOAuthCallbackFailures(t *testing.T) {
 	h, _ := oauthPreparedHandler(t)
 
@@ -167,8 +154,6 @@ func TestOAuthCallbackFailures(t *testing.T) {
 	}
 }
 
-// TestOAuthCallbackInviteOnly: an invite-only instance refuses an unknown email
-// via the OAuth callback, matching LoginByEmail's policy.
 func TestOAuthCallbackInviteOnly(t *testing.T) {
 	h, db := oauthPreparedHandler(t)
 	if err := db.Create(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {
@@ -185,8 +170,6 @@ func TestOAuthCallbackInviteOnly(t *testing.T) {
 	}
 }
 
-// TestOAuthBeginRedirects asserts the begin flow redirects to the provider's
-// authorization URL when the provider is configured.
 func TestOAuthBeginRedirects(t *testing.T) {
 	h, _ := oauthPreparedHandler(t)
 	InitGothStore("secret")
@@ -204,8 +187,6 @@ func TestOAuthBeginRedirects(t *testing.T) {
 	}
 }
 
-// TestLoadProviderEdgeCases covers the credential cache, the unknown-provider
-// refusal, an undecryptable stored secret, and the wholesale registry reset.
 func TestLoadProviderEdgeCases(t *testing.T) {
 	db := identityDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
@@ -225,24 +206,20 @@ func TestLoadProviderEdgeCases(t *testing.T) {
 	t.Cleanup(func() { loadedCreds = loadedCredsBackup })
 
 	ctx := context.Background()
-	// No secret configured -> not loadable.
 	if loaded := h.loadProvider(ctx, "google", "g@http://x", "http://x"); loaded {
 		t.Error("loadProvider succeeded without a client secret")
 	}
 
-	// Vault error -> not loadable.
 	vs.err = errors.New("vault unavailable")
 	if loaded := h.loadProvider(ctx, "google", "g@http://x", "http://x"); loaded {
 		t.Error("loadProvider succeeded on vault error")
 	}
 	vs.err = nil
 
-	// Unknown provider -> not loadable.
 	if loaded := h.loadProvider(ctx, "twitter", "t@http://x", "http://x"); loaded {
 		t.Error("loadProvider accepted an unknown provider")
 	}
 
-	// A proper secret loads; the second identical call hits the cache.
 	vs.secrets["instance.oauth.google"] = "real-secret"
 	if !h.loadProvider(ctx, "google", "g@http://x", "http://x") {
 		t.Fatal("loadProvider rejected a valid secret")
@@ -250,13 +227,8 @@ func TestLoadProviderEdgeCases(t *testing.T) {
 	if !h.loadProvider(ctx, "google", "g@http://x", "http://x") {
 		t.Fatal("cached loadProvider rejected a valid secret")
 	}
-	// The >64-entry wholesale registry reset is deliberately NOT exercised here:
-	// it clears goth's process-global provider registry, which would break the
-	// order-sensitive OAuth tests under -count=2.
 }
 
-// TestOAuthCallbackRejectsWhenSSODomainEnabled verifies SEC-10: if an enterprise
-// domain is managed by SSO, social OAuth callback must be rejected with 403 Forbidden.
 func TestOAuthCallbackRejectsWhenSSODomainEnabled(t *testing.T) {
 	h, db := oauthPreparedHandler(t)
 	type SSOConfig struct {

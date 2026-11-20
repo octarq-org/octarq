@@ -10,8 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
-// TestGatedMux verifies plugin routes are blocked (404) only when the caller's
-// workspace has the plugin disabled; enabled and no-workspace requests pass.
 func TestGatedMux(t *testing.T) {
 	cases := []struct {
 		name            string
@@ -45,8 +43,6 @@ func TestGatedMux(t *testing.T) {
 	}
 }
 
-// TestGatedAPI verifies Huma routes registered via gatedAPI/gatedAdapter are blocked
-// (404) only when the caller's workspace has the plugin disabled.
 func TestGatedAPI(t *testing.T) {
 	cases := []struct {
 		name            string
@@ -76,7 +72,6 @@ func TestGatedAPI(t *testing.T) {
 				},
 			}
 
-			// Register a Huma route on the gated API
 			type TestInput struct{}
 			type TestOutput struct {
 				Body struct {
@@ -131,7 +126,6 @@ func TestRecordingAPI_And_Collisions(t *testing.T) {
 		return &TestOutput{}, nil
 	})
 
-	// Duplicate route on recordingAPI should be caught by routes
 	huma.Register(recAPI, huma.Operation{
 		Method: "GET",
 		Path:   "/api/core-huma",
@@ -143,7 +137,6 @@ func TestRecordingAPI_And_Collisions(t *testing.T) {
 		t.Errorf("expected collision error on recordingAdapter duplicate register")
 	}
 
-	// Test collision on gatedAdapter
 	gRoutes := newRouteRegistry()
 	gAPI := &gatedAPI{
 		API: realAPI,

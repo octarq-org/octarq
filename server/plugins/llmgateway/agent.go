@@ -15,32 +15,13 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// The agent API is the workspace's model, served to coding agents.
-//
-// A coding agent (Claude Code, Codex, Cline, aider) speaks one of three wire
-// formats. It asks GET /v1/models what the workspace offers, then posts its
-// turns to POST /v1/chat/completions, POST /v1/responses, or POST /v1/messages.
-// The gateway answers all of them by calling the provider the workspace
-// configured, so an agent never holds the provider's key and never needs a
-// model name typed into it: the list comes from the provider's own /models
-// endpoint.
-//
-// The two routes sit behind the ordinary token guard. A coding agent sends the
-// same bearer token the console mints, and the workspace it names is the
-// workspace whose provider is spent.
 const (
-	// AgentModelsPath is the OpenAI-compatible model list.
-	AgentModelsPath = "/v1/models"
-	// AgentChatPath is the OpenAI-compatible chat completion.
-	AgentChatPath = "/v1/chat/completions"
-	// agentMaxBody bounds one chat request. A coding agent sends whole files;
-	// 16 MiB is far above a real turn and small enough to refuse a mistake.
-	agentMaxBody = 16 << 20
-	// agentListTimeout bounds the model-list call to the provider.
+	AgentModelsPath  = "/v1/models"
+	AgentChatPath    = "/v1/chat/completions"
+	agentMaxBody     = 16 << 20
 	agentListTimeout = 15 * time.Second
 )
 
-// hopByHop headers are connection-scoped and must not be relayed.
 var hopByHop = map[string]bool{
 	"connection":          true,
 	"keep-alive":          true,
@@ -53,15 +34,6 @@ var hopByHop = map[string]bool{
 	"content-length":      true,
 }
 
-// registerAgentRoutes mounts the OpenAI-compatible surface on the plain mux.
-//
-// These routes are not huma operations: a chat completion streams the vendor's
-// own bytes, and a huma handler would have to decode and re-encode them. The
-// guard is the token guard, so a coding agent authorises with the same bearer
-// token the console mints.
-//
-// A mount without a guard is a test composition, not a deployment: the app
-// always supplies one, and the routes are simply absent when it does not.
 func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	if mux == nil || ctx == nil || ctx.Guard == nil {
 		return
@@ -71,39 +43,21 @@ func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	mux.Handle("POST "+AgentResponsesPath, ctx.Guard(http.HandlerFunc(p.handleAgentResponses)))
 	mux.Handle("POST "+AgentMessagesPath, ctx.Guard(http.HandlerFunc(p.handleAgentMessages)))
 	mux.Handle("POST "+AgentCountTokensPath, ctx.Guard(http.HandlerFunc(p.handleAgentCountTokens)))
-	// opencode discovers the workspace itself: the manifest is public by
-	// design (it names no workspace data), and the config it points at is
-	// behind the same token guard as the routes above.
 	mux.Handle("GET "+AgentWellKnownPath, http.HandlerFunc(p.handleOpencodeManifest))
 	mux.Handle("GET "+AgentOpencodeConfigPath, ctx.Guard(http.HandlerFunc(p.handleOpencodeConfig)))
-	// Gemini CLI speaks its own protocol, so its model list and its per-model
-	// actions are separate routes rather than another shape on the ones above.
 	mux.Handle("GET "+AgentGeminiModelsPath, ctx.Guard(http.HandlerFunc(p.handleGeminiModels)))
 	mux.Handle("GET "+agentGeminiPrefix+"{model}", ctx.Guard(http.HandlerFunc(p.handleGeminiModel)))
 	mux.Handle("POST "+agentGeminiPrefix+"{model}", ctx.Guard(http.HandlerFunc(p.handleGeminiAction)))
 }
 
-// agentProvider is one workspace provider resolved for an outbound call: the
-// base URL that speaks the OpenAI API and the key that opens it.
 type agentProvider struct {
-	BaseURL string
-	APIKey  string
-	Backend string
-	// Model is the model the workspace configured. A protocol that names its
-	// own models (Gemini) sends the turn to this one, because the provider
-	// serves exactly the model it was configured with.
-	Model string
-	// Anthropic means the base URL is Anthropic's own API rather than an
-	// OpenAI-compatible endpoint. Only discovery sets it: the relay cannot
-	// serve that wire format, but the model list can be read from it.
+	BaseURL   string
+	APIKey    string
+	Backend   string
+	Model     string
 	Anthropic bool
 }
 
-// openAIBase returns where the OpenAI-compatible API of a backend lives.
-//
-// A provider's own BaseURL always wins. The defaults exist so a workspace that
-// named only a backend still works; a backend with no OpenAI surface is refused
-// by name rather than guessed at.
 func openAIBase(row *Provider) (string, error) {
 	if base := strings.TrimRight(strings.TrimSpace(row.BaseURL), "/"); base != "" {
 		return base, nil
@@ -120,8 +74,6 @@ func openAIBase(row *Provider) (string, error) {
 	}
 }
 
-// agentProviderFor resolves the provider a request spends. An empty id means
-// the workspace's default provider.
 func (p *Plugin) agentProviderFor(ctx context.Context, orgID uint, id uint) (agentProvider, error) {
 	if p.store == nil {
 		return agentProvider{}, ErrNotConfigured
@@ -139,9 +91,6 @@ func (p *Plugin) agentProviderFor(ctx context.Context, orgID uint, id uint) (age
 	return p.agentProviderFromRow(ctx, row, "")
 }
 
-// agentProviderFromRow builds the outbound call from one row. A non-empty
-// keyOverride is a key the caller typed and has not saved yet; the stored
-// sealed key serves every other case.
 func (p *Plugin) agentProviderFromRow(ctx context.Context, row *Provider, keyOverride string) (agentProvider, error) {
 	base, err := openAIBase(row)
 	if err != nil {
@@ -159,12 +108,6 @@ func (p *Plugin) agentProviderFromRow(ctx context.Context, row *Provider, keyOve
 	}, nil
 }
 
-// discoveryProviderFromRow builds the call that reads a provider's model list.
-//
-// It goes one step past the relay: an Anthropic key has no OpenAI-compatible
-// endpoint, so the relay refuses it, yet the operator still has to know which
-// models the key offers. Anthropic answers that in its own list shape, so
-// discovery reads it instead of asking the operator to type model names.
 func (p *Plugin) discoveryProviderFromRow(ctx context.Context, row *Provider, keyOverride string) (agentProvider, error) {
 	base, err := openAIBase(row)
 	anthropic := false
@@ -174,8 +117,6 @@ func (p *Plugin) discoveryProviderFromRow(ctx context.Context, row *Provider, ke
 	case err != nil:
 		return agentProvider{}, fmt.Errorf("%w: %v", ErrInvalidProvider, err)
 	case isAnthropicHost(base):
-		// The operator pasted Anthropic's own URL as the base. It reads its own
-		// list shape, and the /v1 the list request adds must not double up.
 		base, anthropic = strings.TrimSuffix(strings.TrimRight(base, "/"), "/v1"), true
 	}
 	key, err := p.unsealKey(ctx, row, keyOverride)
@@ -191,7 +132,6 @@ func (p *Plugin) discoveryProviderFromRow(ctx context.Context, row *Provider, ke
 	}, nil
 }
 
-// isAnthropicHost reports whether a base URL points at Anthropic's own API.
 func isAnthropicHost(base string) bool {
 	u, err := neturl.Parse(base)
 	if err != nil {
@@ -200,8 +140,6 @@ func isAnthropicHost(base string) bool {
 	return strings.EqualFold(u.Hostname(), "api.anthropic.com")
 }
 
-// unsealKey returns the key a call spends. A typed key wins over the stored
-// one, and a build without secret storage refuses rather than call unsigned.
 func (p *Plugin) unsealKey(ctx context.Context, row *Provider, keyOverride string) (string, error) {
 	if key := strings.TrimSpace(keyOverride); key != "" {
 		return key, nil
@@ -209,8 +147,6 @@ func (p *Plugin) unsealKey(ctx context.Context, row *Provider, keyOverride strin
 	return p.resolveAPIKey(ctx, row)
 }
 
-// sign adds the credential as a bearer token. Every backend that reaches this
-// point speaks the OpenAI wire format, so none of them wants another scheme.
 func (a agentProvider) sign(req *http.Request) {
 	if a.APIKey == "" {
 		return
@@ -218,40 +154,26 @@ func (a agentProvider) sign(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+a.APIKey)
 }
 
-// modelList is the OpenAI shape and the only list shape this API answers.
 type modelList struct {
 	Object string       `json:"object"`
 	Data   []modelEntry `json:"data"`
 }
 
-// modelEntry is one model a provider offers.
 type modelEntry struct {
 	ID      string `json:"id"`
 	Object  string `json:"object,omitempty"`
 	OwnedBy string `json:"owned_by,omitempty"`
 }
 
-// anthropicBaseURL is where Anthropic's own API lives. A provider that names
-// the claude backend and no base URL reads its model list from here.
 const anthropicBaseURL = "https://api.anthropic.com"
 
-// anthropicVersion is the API version every Anthropic request must name. The
-// list endpoint refuses a request without it.
 const anthropicVersion = "2023-06-01"
 
-// anthropicListPage bounds the page size the model list asks for, and
-// anthropicListPages bounds how many pages one call follows. A list that keeps
-// saying "more" past that is a broken answer, not a large catalogue.
 const (
 	anthropicListPage  = 1000
 	anthropicListPages = 10
 )
 
-// anthropicModels reads the model list an Anthropic key can call.
-//
-// Anthropic answers GET /v1/models with its own shape and pages by after_id, so
-// the whole list is read rather than the first page: a form that offered only
-// the first twenty models would hide the one the operator wanted.
 func anthropicModels(ctx context.Context, ap agentProvider) ([]modelEntry, error) {
 	out := make([]modelEntry, 0, 8)
 	seen := make(map[string]bool, 8)
@@ -308,12 +230,6 @@ func anthropicModels(ctx context.Context, ap agentProvider) ([]modelEntry, error
 	return nil, fmt.Errorf("the provider model list did not end after %d pages", anthropicListPages)
 }
 
-// discoveredModels calls the provider's own /models and normalises the answer.
-//
-// OpenAI-compatible backends answer {"data":[{"id":…}]}; Ollama answers
-// {"models":[{"name":…}]}. Anthropic answers its own paged shape. Every shape
-// is read, so a workspace pointed at any of them lists its models without
-// anyone typing them in.
 func (p *Plugin) discoveredModels(ctx context.Context, ap agentProvider) ([]modelEntry, error) {
 	ctx, cancel := context.WithTimeout(ctx, agentListTimeout)
 	defer cancel()
@@ -374,7 +290,6 @@ func (p *Plugin) discoveredModels(ctx context.Context, ap agentProvider) ([]mode
 	return out, nil
 }
 
-// upstreamMessage keeps an upstream error legible without leaking its headers.
 func upstreamMessage(status int, raw []byte) string {
 	text := strings.TrimSpace(string(raw))
 	if len(text) > 300 {
@@ -386,8 +301,6 @@ func upstreamMessage(status int, raw []byte) string {
 	return fmt.Sprintf("HTTP %d: %s", status, text)
 }
 
-// writeAgentError answers in the OpenAI error shape, because the client on the
-// other end parses that shape and nothing else.
 func writeAgentError(w http.ResponseWriter, status int, kind, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -396,7 +309,6 @@ func writeAgentError(w http.ResponseWriter, status int, kind, message string) {
 	})
 }
 
-// handleAgentModels serves GET /v1/models.
 func (p *Plugin) handleAgentModels(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := p.agentOrg(w, r)
 	if !ok {
@@ -420,12 +332,6 @@ func (p *Plugin) handleAgentModels(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(modelList{Object: "list", Data: models})
 }
 
-// handleAgentChat serves POST /v1/chat/completions by relaying the call.
-//
-// The body is forwarded byte for byte, so tools, streaming and response_format
-// keep working without this gateway knowing each vendor's dialect. The response
-// is streamed back the moment the provider writes it, which is what makes a
-// coding agent feel local.
 func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := p.agentOrg(w, r)
 	if !ok {
@@ -449,9 +355,6 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 		writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The request cannot be built.")
 		return
 	}
-	// Keep the declared length so the provider receives a plain body rather
-	// than a chunked one. Some backends read Content-Length only, and a coding
-	// agent always knows the size of the turn it sends.
 	if r.ContentLength > 0 && r.ContentLength <= agentMaxBody {
 		req.ContentLength = r.ContentLength
 	}
@@ -470,7 +373,6 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 	relay(w, resp)
 }
 
-// acceptOf keeps the caller's streaming preference.
 func acceptOf(r *http.Request) string {
 	if v := r.Header.Get("Accept"); v != "" {
 		return v
@@ -478,7 +380,6 @@ func acceptOf(r *http.Request) string {
 	return "application/json"
 }
 
-// relay copies an upstream answer to the client, flushing as it goes.
 func relay(w http.ResponseWriter, resp *http.Response) {
 	for k, values := range resp.Header {
 		if hopByHop[strings.ToLower(k)] {
@@ -507,7 +408,6 @@ func relay(w http.ResponseWriter, resp *http.Response) {
 	}
 }
 
-// agentOrg is the workspace the caller's token names.
 func (p *Plugin) agentOrg(w http.ResponseWriter, r *http.Request) (uint, bool) {
 	if p.pctx == nil || p.pctx.Host == nil || p.pctx.Host.Session() == nil {
 		writeAgentError(w, http.StatusInternalServerError, "server_error", "The workspace cannot be read.")
@@ -521,13 +421,11 @@ func (p *Plugin) agentOrg(w http.ResponseWriter, r *http.Request) (uint, bool) {
 	return orgID, true
 }
 
-// agentProviderID reads the optional ?provider= selector.
 func agentProviderID(w http.ResponseWriter, r *http.Request) (uint, bool) {
 	raw := strings.TrimSpace(r.URL.Query().Get("provider"))
 	if raw == "" {
 		return 0, true
 	}
-	// Parsed strictly: "12abc" is a mistake, not provider 12.
 	n, err := strconv.ParseUint(raw, 10, 32)
 	if err != nil || n == 0 {
 		writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The provider id is not a number.")
@@ -536,7 +434,6 @@ func agentProviderID(w http.ResponseWriter, r *http.Request) (uint, bool) {
 	return uint(n), true
 }
 
-// agentErrorText turns a resolution failure into one sentence a client can read.
 func agentErrorText(err error) string {
 	switch {
 	case errors.Is(err, ErrNotConfigured):

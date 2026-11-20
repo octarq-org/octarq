@@ -5,17 +5,12 @@ import (
 	"testing"
 )
 
-// intOrgModel carries a signed tenant column, the shape a plugin model may use.
 type intOrgModel struct {
 	ID    uint `gorm:"primaryKey"`
 	OrgID int  `gorm:"column:org_id;index"`
 	Name  string
 }
 
-// toUint reads a tenant id out of an untyped value. It accepts every integer
-// width because plugin models and maps reach this code with whatever width
-// they declared. A wrong answer here would read a foreign tenant as zero and
-// let the write through, so the table is explicit.
 func TestToUintReadsEveryIntegerWidth(t *testing.T) {
 	cases := []struct {
 		name string
@@ -130,7 +125,6 @@ func TestEnforceTenantScopeFillsAndRefuses(t *testing.T) {
 	})
 }
 
-// Writing an entity of another tenant must fail before it reaches the database.
 func TestWriteRefusesForeignTenant(t *testing.T) {
 	db := setupTestDB(t)
 	tdb, err := NewTenantDB(db, 7)

@@ -20,9 +20,6 @@ func (richPlugin) Stop(context.Context) error { return nil }
 func (richPlugin) Menus() []MenuItem          { return nil }
 func (richPlugin) Describe() Info             { return Info{} }
 
-// typoPlugin is the failure this diagnostic exists for: the author meant
-// MenuProvider but wrote Menu() instead of Menus(). Nothing fails to build,
-// nothing logs, the plugin simply never appears in the sidebar.
 type typoPlugin struct{ barePlugin }
 
 func (typoPlugin) Name() string     { return "typo" }
@@ -40,9 +37,6 @@ func TestDetectedCapabilities(t *testing.T) {
 	}
 }
 
-// TestTypoedOptionalInterfaceIsVisiblyAbsent is the point of the whole helper:
-// the misspelled method must NOT show up as a detected capability, so the
-// author comparing what they wrote against what the host saw gets an answer.
 func TestTypoedOptionalInterfaceIsVisiblyAbsent(t *testing.T) {
 	caps := DetectedCapabilities(typoPlugin{})
 	for _, c := range caps {
@@ -55,7 +49,6 @@ func TestTypoedOptionalInterfaceIsVisiblyAbsent(t *testing.T) {
 	}
 }
 
-// LogDetectedCapabilities must not panic on either shape.
 func TestLogDetectedCapabilitiesDoesNotPanic(t *testing.T) {
 	LogDetectedCapabilities(nil)
 	LogDetectedCapabilities(barePlugin{})

@@ -15,8 +15,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// upstream is a stand-in provider. It records what the gateway sent and answers
-// with whatever the test asked for.
 type upstream struct {
 	mu       sync.Mutex
 	requests []recorded
@@ -26,7 +24,6 @@ type upstream struct {
 	chatCode int
 }
 
-// recorded is one call the gateway made.
 type recorded struct {
 	path   string
 	auth   string
@@ -77,7 +74,6 @@ func (u *upstream) last(t *testing.T) recorded {
 	return u.requests[len(u.requests)-1]
 }
 
-// withUpstream points the fixture at a stand-in provider.
 func withUpstream(t *testing.T, f *httpFixture, u *upstream, providerID uint) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(u)
@@ -92,7 +88,6 @@ func withUpstream(t *testing.T, f *httpFixture, u *upstream, providerID uint) *h
 	return srv
 }
 
-// createProvider writes one provider row through the same path the API uses.
 func createProvider(t *testing.T, f *httpFixture, in ProviderInput) uint {
 	t.Helper()
 	row, err := f.plugin.store.CreateProvider(context.Background(), 1, in, f.plugin.vaultService())
@@ -102,9 +97,6 @@ func createProvider(t *testing.T, f *httpFixture, in ProviderInput) uint {
 	return row.ID
 }
 
-// TestAgentModelsComesFromTheProvider proves the model list is the provider's
-// answer, not a string a person typed. A coding agent reads this list and picks
-// from it.
 func TestAgentModelsComesFromTheProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test",
@@ -129,8 +121,6 @@ func TestAgentModelsComesFromTheProvider(t *testing.T) {
 	}
 }
 
-// TestAgentModelsReadsTheOllamaShape keeps a local model server usable without
-// a translation layer: Ollama answers {"models":[...]}.
 func TestAgentModelsReadsTheOllamaShape(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "local", Backend: "ollama", BaseURL: "http://placeholder.invalid"})
@@ -154,7 +144,6 @@ func TestAgentModelsReadsTheOllamaShape(t *testing.T) {
 	}
 }
 
-// TestAgentModelsReportsAnUpstreamRefusal keeps a broken provider visible.
 func TestAgentModelsReportsAnUpstreamRefusal(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k", BaseURL: "http://placeholder.invalid"})
@@ -171,8 +160,6 @@ func TestAgentModelsReportsAnUpstreamRefusal(t *testing.T) {
 	}
 }
 
-// TestAgentModelsRefusesARegistryWithNoModels keeps an unparsable answer from
-// turning into an empty picker.
 func TestAgentModelsRefusesARegistryWithNoModels(t *testing.T) {
 	for name, body := range map[string]string{
 		"empty list": `{"data":[]}`,
@@ -192,8 +179,6 @@ func TestAgentModelsRefusesARegistryWithNoModels(t *testing.T) {
 	}
 }
 
-// TestAgentChatRelaysTheTurnByteForByte proves tools, streaming flags and
-// response_format survive: the body is forwarded, not re-encoded.
 func TestAgentChatRelaysTheTurnByteForByte(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test", BaseURL: "http://placeholder.invalid"})
@@ -214,8 +199,6 @@ func TestAgentChatRelaysTheTurnByteForByte(t *testing.T) {
 	}
 }
 
-// TestAgentChatKeepsTheStreamingAnswer keeps a coding agent's incremental
-// output incremental: the upstream stream reaches the client untouched.
 func TestAgentChatKeepsTheStreamingAnswer(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test", BaseURL: "http://placeholder.invalid"})
@@ -247,15 +230,11 @@ func TestAgentChatKeepsTheStreamingAnswer(t *testing.T) {
 	if resp.Header.Get("X-Upstream") != "yes" {
 		t.Fatal("an upstream header was dropped")
 	}
-	// The length was declared, so the provider reads a plain body; a backend
-	// that reads Content-Length only would otherwise see an empty turn.
 	if got := u.last(t); got.length <= 0 || got.length != int64(len(`{"model":"m","stream":true}`)) {
 		t.Fatalf("forwarded Content-Length = %d", got.length)
 	}
 }
 
-// TestAgentRefusesWithoutAProvider is the fail-closed state: no provider means
-// no model, never a default.
 func TestAgentRefusesWithoutAProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	for _, c := range []struct{ method, path, body string }{
@@ -273,8 +252,6 @@ func TestAgentRefusesWithoutAProvider(t *testing.T) {
 	}
 }
 
-// TestAgentRefusesABackendWithNoOpenAISurface keeps a native-API backend from
-// being guessed at.
 func TestAgentRefusesABackendWithNoOpenAISurface(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "g", Backend: "gemini", APIKey: "k", Model: "gemini-pro"})
@@ -289,8 +266,6 @@ func TestAgentRefusesABackendWithNoOpenAISurface(t *testing.T) {
 	}
 }
 
-// TestAgentProviderSelector covers the ?provider= id and the workspace bound it
-// must stay inside.
 func TestAgentProviderSelector(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	u := &upstream{listBody: `{"data":[{"id":"m"}]}`}
@@ -317,8 +292,6 @@ func TestAgentProviderSelector(t *testing.T) {
 	}
 }
 
-// TestAgentNeedsASession keeps an unauthenticated composition from reading the
-// provider table.
 func TestAgentNeedsASession(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	f.plugin.pctx = nil
@@ -328,8 +301,6 @@ func TestAgentNeedsASession(t *testing.T) {
 	}
 }
 
-// TestProviderModelsRoute is the console's picker source: an admin reads one
-// provider's models, and nobody else does.
 func TestProviderModelsRoute(t *testing.T) {
 	admin := newHTTPFixture(t, 1, 1, "admin")
 	id := createProvider(t, admin, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k", BaseURL: "http://placeholder.invalid"})
@@ -353,22 +324,18 @@ func TestProviderModelsRoute(t *testing.T) {
 		t.Fatalf("member = %d, want 403", status)
 	}
 
-	// Another workspace names no such provider.
 	other := newHTTPFixture(t, 3, 2, "admin")
 	if status, _ := other.do(t, http.MethodPost, "/api/llm-gateway/models", fmt.Sprintf(`{"providerId":%d}`, id)); status != http.StatusNotFound {
 		t.Fatalf("other workspace = %d, want 404", status)
 	}
 }
 
-// TestProviderModelsDraft covers the form before it is saved: the console asks
-// for the list with the values on screen.
 func TestProviderModelsDraft(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 	u := &upstream{listBody: `{"data":[{"id":"m-draft"}]}`}
 	srv := httptest.NewServer(u)
 	t.Cleanup(srv.Close)
 
-	// A provider that does not exist yet: the form alone resolves it.
 	status, body := f.do(t, http.MethodPost, "/api/llm-gateway/models",
 		fmt.Sprintf(`{"backend":"openai","baseUrl":%q,"apiKey":"typed"}`, srv.URL))
 	if status != http.StatusOK {
@@ -378,7 +345,6 @@ func TestProviderModelsDraft(t *testing.T) {
 		t.Fatalf("the typed key was not used: %q", u.last(t).auth)
 	}
 
-	// The form's edits override the stored row, so the list matches the screen.
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k",
 		BaseURL: "http://placeholder.invalid"})
 	status, body = f.do(t, http.MethodPost, "/api/llm-gateway/models",
@@ -390,19 +356,15 @@ func TestProviderModelsDraft(t *testing.T) {
 		t.Fatalf("the edit was not applied: %q", u.last(t).auth)
 	}
 
-	// A form with no saved row and no backend names no provider.
 	if status, _ := f.do(t, http.MethodPost, "/api/llm-gateway/models", `{"baseUrl":"http://127.0.0.1:1"}`); status != http.StatusBadRequest {
 		t.Fatalf("no backend = %d, want 400", status)
 	}
 
-	// A backend with no OpenAI surface is refused before any call is made.
 	if status, _ := f.do(t, http.MethodPost, "/api/llm-gateway/models", `{"backend":"gemini"}`); status != http.StatusBadRequest {
 		t.Fatalf("gemini = %d, want 400", status)
 	}
 }
 
-// TestProviderModelsRouteReportsATransportFailure covers the branch where the
-// provider cannot be reached at all.
 func TestProviderModelsRouteReportsATransportFailure(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k",
@@ -414,13 +376,9 @@ func TestProviderModelsRouteReportsATransportFailure(t *testing.T) {
 	}
 }
 
-// TestAgentRoutesAbsentWithoutAGuard keeps a test composition from exposing the
-// provider key path by accident.
 func TestAgentRoutesAbsentWithoutAGuard(t *testing.T) {
 	mux := http.NewServeMux()
 	p := New()
-	// A composition without the token guard: the app always supplies one, and a
-	// test double must not expose the credential path.
 	p.Mount(mux, &plugin.Context{Provide: func(string, any) {}})
 	status := probe(t, mux, http.MethodGet, "/v1/models")
 	if status != http.StatusNotFound {
@@ -428,7 +386,6 @@ func TestAgentRoutesAbsentWithoutAGuard(t *testing.T) {
 	}
 }
 
-// probe sends one request through a bare mux.
 func probe(t *testing.T, mux http.Handler, method, path string) int {
 	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
@@ -437,7 +394,6 @@ func probe(t *testing.T, mux http.Handler, method, path string) int {
 	return rec.Code
 }
 
-// TestOpenAIBase covers every backend the gateway accepts.
 func TestOpenAIBase(t *testing.T) {
 	cases := []struct {
 		row     Provider
@@ -467,8 +423,6 @@ func TestOpenAIBase(t *testing.T) {
 	}
 }
 
-// TestSignSendsTheCredentialTheBackendReads covers the bearer scheme and the
-// provider that has no key.
 func TestSignSendsTheCredentialTheBackendReads(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	agentProvider{}.sign(req)
@@ -483,7 +437,6 @@ func TestSignSendsTheCredentialTheBackendReads(t *testing.T) {
 	}
 }
 
-// TestAgentErrorsAreOpenAIShaped keeps a client's error parser working.
 func TestAgentErrorsAreOpenAIShaped(t *testing.T) {
 	rec := httptest.NewRecorder()
 	writeAgentError(rec, http.StatusBadRequest, "invalid_request_error", "bad")
@@ -497,13 +450,8 @@ func TestAgentErrorsAreOpenAIShaped(t *testing.T) {
 	}
 }
 
-// errTestUnseal models a key the host cannot open.
 var errTestUnseal = errors.New("test: the key does not open")
 
-// --- resolution and transport branches -------------------------------------
-
-// TestAgentProviderResolutionFailures keeps every refusal legible: no store, no
-// key storage, and a row whose key cannot be opened.
 func TestAgentProviderResolutionFailures(t *testing.T) {
 	t.Run("no store", func(t *testing.T) {
 		p := New()
@@ -535,8 +483,6 @@ func TestAgentProviderResolutionFailures(t *testing.T) {
 	})
 }
 
-// TestAgentRejectsAnInvalidBaseURL covers the branch where the stored base URL
-// is not a URL at all.
 func TestAgentRejectsAnInvalidBaseURL(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "s", Backend: "openai", APIKey: "k", BaseURL: "http://bad host"})
@@ -548,8 +494,6 @@ func TestAgentRejectsAnInvalidBaseURL(t *testing.T) {
 	}
 }
 
-// TestAgentChatReportsAnUnreachableProvider keeps a dead provider from looking
-// like a client mistake.
 func TestAgentChatReportsAnUnreachableProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "s", Backend: "openai", APIKey: "k", BaseURL: "http://127.0.0.1:1"})
@@ -559,8 +503,6 @@ func TestAgentChatReportsAnUnreachableProvider(t *testing.T) {
 	}
 }
 
-// TestAgentModelsReportsATruncatedAnswer covers a provider that closes the
-// connection mid-body.
 func TestAgentModelsReportsATruncatedAnswer(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "s", Backend: "openai", APIKey: "k"})
@@ -579,8 +521,6 @@ func TestAgentModelsReportsATruncatedAnswer(t *testing.T) {
 	}
 }
 
-// TestAgentRefusesAWorkspaceTheTokenDoesNotName covers the session that carries
-// no workspace.
 func TestAgentRefusesAWorkspaceTheTokenDoesNotName(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	f.plugin.pctx.Host = &plugin.TestHost{SessionMock: &plugin.TestSession{OrgIDFn: func(*http.Request) uint { return 0 }}}
@@ -590,7 +530,6 @@ func TestAgentRefusesAWorkspaceTheTokenDoesNotName(t *testing.T) {
 	}
 }
 
-// TestUpstreamMessageKeepsAnErrorShort covers both truncation and an empty body.
 func TestUpstreamMessageKeepsAnErrorShort(t *testing.T) {
 	if got := upstreamMessage(500, nil); got != "HTTP 500" {
 		t.Fatalf("empty = %q", got)
@@ -602,14 +541,12 @@ func TestUpstreamMessageKeepsAnErrorShort(t *testing.T) {
 	}
 }
 
-// failingWriter is a client that went away.
 type failingWriter struct{ header http.Header }
 
 func (w *failingWriter) Header() http.Header       { return w.header }
 func (w *failingWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 func (w *failingWriter) WriteHeader(int)           {}
 
-// bareWriter has no Flusher, which is a legitimate ResponseWriter.
 type bareWriter struct {
 	header http.Header
 	body   strings.Builder
@@ -620,7 +557,6 @@ func (w *bareWriter) Header() http.Header         { return w.header }
 func (w *bareWriter) Write(p []byte) (int, error) { return w.body.Write(p) }
 func (w *bareWriter) WriteHeader(code int)        { w.code = code }
 
-// TestRelayCopiesWithoutAFlusherAndStopsOnAWriteError covers both relay exits.
 func TestRelayCopiesWithoutAFlusherAndStopsOnAWriteError(t *testing.T) {
 	up := &http.Response{
 		StatusCode: http.StatusOK,
@@ -640,8 +576,6 @@ func TestRelayCopiesWithoutAFlusherAndStopsOnAWriteError(t *testing.T) {
 	relay(&failingWriter{header: http.Header{}}, up)
 }
 
-// TestAgentModelsSkipsNamelessEntries covers a provider that lists an entry with
-// neither an id nor a name. Such an entry names no model, so it is dropped.
 func TestAgentModelsSkipsNamelessEntries(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	id := createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k",
@@ -662,8 +596,6 @@ func TestAgentModelsSkipsNamelessEntries(t *testing.T) {
 	}
 }
 
-// TestAgentChatRefusesAnUnusableRequest covers the three ways a chat request
-// stops before the provider is called.
 func TestAgentChatRefusesAnUnusableRequest(t *testing.T) {
 	t.Run("no session", func(t *testing.T) {
 		f := newHTTPFixture(t, 1, 1, "member")
@@ -688,8 +620,6 @@ func TestAgentChatRefusesAnUnusableRequest(t *testing.T) {
 	})
 }
 
-// TestPricingServicesWithoutAPluginFailClosed keeps a half-built composition
-// from answering a price of zero.
 func TestPricingServicesWithoutAPluginFailClosed(t *testing.T) {
 	if _, err := (pricingService{}).Price(context.Background(), 1, "m"); !errors.Is(err, plugin.ErrPricingUnavailable) {
 		t.Fatalf("pricing err = %v", err)

@@ -29,9 +29,6 @@ func (f fakeLLM) Complete(ctx context.Context, req llmprovider.Request) (llmprov
 	return llmprovider.Response{Text: f.reply, Model: req.Model}, nil
 }
 
-// newAITestHandler mirrors newTestHandler but keeps the *Handler so the test
-// can inject a fake LLM resolver before routes are served. An empty reply
-// leaves the default env-backed resolver in place.
 func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 	t.Helper()
 	db := newTestDB(t)
@@ -83,8 +80,6 @@ func TestAIStatusUnconfigured(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &st); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	// No OCTARQ_LLM_* env in tests → unconfigured, and the LLM endpoints refuse
-	// with a hint instead of calling out.
 	if st.Configured {
 		t.Skip("OCTARQ_LLM_*/ANTHROPIC_API_KEY set in this environment")
 	}
@@ -134,7 +129,6 @@ func TestAISummarizeEmailOrgIsolation(t *testing.T) {
 		t.Errorf("summary missing: %s", rec.Body.String())
 	}
 
-	// Another org's email must be a 404, not a summary.
 	if rec = post(e2.ID); rec.Code != http.StatusNotFound {
 		t.Fatalf("cross-org summarize: got %d want 404", rec.Code)
 	}
@@ -153,7 +147,7 @@ func TestParseSlugList(t *testing.T) {
 		{`["go-fast","octarq-live","ship-it"]`, []string{"go-fast", "octarq-live", "ship-it"}},
 		{"```json\n[\"promo-2026\"]\n```", []string{"promo-2026"}},
 		{"Here you go:\n- launch-day\n- big-sale\n", []string{"launch-day", "big-sale"}},
-		{`["Has Space", "UPPER", "ok-slug"]`, []string{"upper", "ok-slug"}}, // lowercased; invalid dropped
+		{`["Has Space", "UPPER", "ok-slug"]`, []string{"upper", "ok-slug"}},
 		{"no valid tokens here!!", nil},
 	}
 	for _, c := range cases {

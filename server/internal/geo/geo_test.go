@@ -5,13 +5,11 @@ import (
 )
 
 func TestGeo(t *testing.T) {
-	// 1. Open with empty path
 	r, err := Open("")
 	if err != nil {
 		t.Fatalf("expected no error opening empty path, got %v", err)
 	}
 
-	// 2. Locate with empty resolver/db
 	country, region, city := r.Locate("127.0.0.1")
 	if country != "" || region != "" || city != "" {
 		t.Errorf("expected empty results for empty resolver, got: %q, %q, %q", country, region, city)
@@ -22,10 +20,8 @@ func TestGeo(t *testing.T) {
 		t.Errorf("expected empty results for invalid IP, got: %q, %q, %q", country, region, city)
 	}
 
-	// 3. Close is safe
 	r.Close()
 
-	// 4. ParseUA tests
 	cases := []struct {
 		ua      string
 		device  string

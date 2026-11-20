@@ -13,7 +13,6 @@ import (
 )
 
 func TestAPI_Handler(t *testing.T) {
-	// 1. Overall OK -> 200
 	pOK := &mockProvider{
 		name:     "runtime",
 		category: "runtime",
@@ -48,7 +47,6 @@ func TestAPI_Handler(t *testing.T) {
 		t.Errorf("unexpected providers in report: %v", repOK.Providers)
 	}
 
-	// 2. Overall Warn -> 200
 	pWarn := &mockProvider{
 		name:     "database",
 		category: "database",
@@ -75,7 +73,6 @@ func TestAPI_Handler(t *testing.T) {
 		t.Errorf("Overall = %q, want %q", repWarn.Overall, plugin.HealthWarn)
 	}
 
-	// 3. Overall Error -> 503
 	pErr := &mockProvider{
 		name:     "storage",
 		category: "storage",
@@ -128,7 +125,6 @@ func TestAPI_RegisterRoutesHuma(t *testing.T) {
 
 	RegisterRoutes(api, c)
 
-	// Test 200 OK path
 	req := httptest.NewRequest(http.MethodGet, "/api/monitor/health", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -145,7 +141,6 @@ func TestAPI_RegisterRoutesHuma(t *testing.T) {
 		t.Errorf("Overall = %q, want %q", rep.Overall, plugin.HealthOK)
 	}
 
-	// Test 503 Error path
 	pErr := &mockProvider{
 		name: "p_err",
 		checkFn: func(ctx context.Context) plugin.HealthResult {
@@ -162,16 +157,12 @@ func TestAPI_RegisterRoutesHuma(t *testing.T) {
 		t.Errorf("Huma route with error returned %d, want 503", rec503.Code)
 	}
 
-	// HealthInput.Resolve
 	input := &HealthInput{}
 	if errs := input.Resolve(nil); errs != nil {
 		t.Errorf("HealthInput.Resolve returned errs: %v", errs)
 	}
 }
 
-// TestMonitorHealthRequiresAuthentication pins the route tier: the report
-// carries host and database diagnostics, so it must not answer unauthenticated
-// callers the way the bare /api/health probe does.
 func TestMonitorHealthRequiresAuthentication(t *testing.T) {
 	api := humago.New(http.NewServeMux(), huma.DefaultConfig("test", "1.0.0"))
 	RegisterRoutes(api, NewCollector(DefaultInterval))

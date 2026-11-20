@@ -15,24 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Renaming a workspace's slug.
-//
-// Slugs are allocated at random (models.AllocateOrgSlug), which means nobody
-// can read one. That is fine for a webhook path and unhelpful for a URL people
-// have to recognize, so an owner can choose their own — with the catch that the
-// slug is not a display name. It is the address third parties have registered:
-//
-//	/api/webhook/{orgSlug}/billing/{provider}  — held by Stripe / Polar
-//	/api/sso/{orgSlug}/callback                — held by the org's IdP
-//
-// Changing it breaks both until they are updated by hand, which is why this is
-// its own owner-gated endpoint rather than a field on the workspace-rename form
-// an admin can submit.
-
-// orgSlugPattern is what a hand-picked slug may look like: lowercase
-// alphanumerics and inner hyphens. It is stricter than the generated alphabet
-// on purpose — a slug travels in URLs and in provider dashboards, so anything
-// that needs escaping or renders ambiguously does not belong in one.
 var orgSlugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$`)
 
 type GetOrgSlugInput struct {
@@ -49,8 +31,6 @@ type GetOrgSlugOutput struct {
 	Body OrgSlugView
 }
 
-// getOrgSlug returns the active workspace's slug and whether it is a leftover
-// email-derived one. GET /api/org/slug
 func (h *Handler) getOrgSlug(ctx context.Context, input *GetOrgSlugInput) (*GetOrgSlugOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -86,8 +66,6 @@ type UpdateOrgSlugOutput struct {
 	Body OrgSlugView
 }
 
-// updateOrgSlug changes the active workspace's slug. Owner only.
-// PUT /api/org/slug
 func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) (*UpdateOrgSlugOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -97,9 +75,6 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 	if !ok {
 		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
-	// Owner, not admin: this invalidates addresses held by Stripe and by the
-	// org's identity provider, and only the person answerable for those
-	// accounts should be able to do it.
 	if err := h.requireRole(r, authz.RoleOwner); err != nil {
 		return nil, huma.Error403Forbidden("Workspace owner role required to change the workspace slug")
 	}
@@ -126,8 +101,6 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 		return nil, huma.Error409Conflict("Workspace slug is reserved; choose a different slug")
 	}
 	if status == models.SlugTaken {
-		// Same answer as "reserved": whether some other workspace holds this
-		// address is not something an outsider gets to probe.
 		return nil, huma.Error409Conflict("Workspace slug is already in use; choose a different slug")
 	}
 
@@ -147,10 +120,6 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 		if err := tx.Where("slug = ?", slug).Delete(&models.OrgSlugHistory{}).Error; err != nil {
 			return err
 		}
-		// The tenant subdomain follows the slug: the old address goes offline
-		// (mirroring OrgSlugHistory — it must not keep resolving, and must not
-		// be pickable-up by anyone else) and the new one is claimed. A
-		// collision on the new address rolls the whole rename back.
 		if err := tenancy.Retire(tx, oid, old); err != nil {
 			return err
 		}
@@ -163,7 +132,6 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 		if errors.Is(err, tenancy.ErrNameTaken) {
 			return nil, huma.Error409Conflict("Workspace slug is already in use; choose a different slug")
 		}
-		// The unique index is the real arbiter; a racing writer lands here.
 		return nil, huma.Error409Conflict("Workspace slug is already in use; choose a different slug")
 	}
 	h.audit(r, "org.slug.update", "org", org.ID, map[string]any{"from": old, "to": slug})

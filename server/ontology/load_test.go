@@ -101,10 +101,6 @@ func TestDecodeRejectsEmptyEntityList(t *testing.T) {
 	}
 }
 
-// TestLoadAcceptsAnInlineEmptyDeclaration pins the one difference between the
-// sources: a file that declares nothing is a mistake, while an inline document
-// saying "nothing" is the operator's answer. openapi generation relies on it to
-// keep runtime routes out of the published spec.
 func TestLoadAcceptsAnInlineEmptyDeclaration(t *testing.T) {
 	specs, err := ontology.Load(`{"entities":[]}`, "")
 	if err != nil {

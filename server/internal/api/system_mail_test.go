@@ -15,8 +15,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
-// captureSMTP speaks just enough ESMTP to complete a send and returns the DATA
-// payload, so tests can assert what actually left the instance over the wire.
 func captureSMTP(t *testing.T) (host string, port int, got func() string) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -94,13 +92,6 @@ func captureSMTP(t *testing.T) (host string, port int, got func() string) {
 	}
 }
 
-// TestVerificationEmailDeliveredWithoutOrgMembership is THE guard for the bug
-// this batch fixes: registration used to resolve the org for the verification
-// email BEFORE the org transaction ran, so primaryOrgForUser returned 0 and
-// sendMail(0, …) found no sender — the mail never left the instance, on any
-// deployment, SMTP configured or not. The verification email now goes through
-// the instance's system sender, which must deliver while the new user still
-// belongs to no workspace at all.
 func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	safehttp.SetAllowPrivateSMTP(true)
 	defer safehttp.SetAllowPrivateSMTP(false)
@@ -108,9 +99,6 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	host, port, got := captureSMTP(t)
 
-	// Rebuild the handler's cipher (same KEK, same envelope store) so the
-	// sender password is encryptable with the key the mail plugin will decrypt
-	// with.
 	cipher := crypto.New("secret")
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("enable envelope: %v", err)
@@ -126,14 +114,10 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	if err := db.Create(&sender).Error; err != nil {
 		t.Fatalf("seed sender: %v", err)
 	}
-	// Pre-v1.0 fail-closed: the mail plugin refuses the removed lowest-id
-	// fallback, so the system sender must be selected explicitly.
 	if err := h.setSetting(keySystemSenderID, strconv.FormatUint(uint64(sender.ID), 10)); err != nil {
 		t.Fatalf("set system sender: %v", err)
 	}
 
-	// require_email_verification defaults to on; the seeded sender makes
-	// mail.ready answer true, so registration proceeds past the 503 gate.
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fresh@user.com","password":"hunter2pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
@@ -146,8 +130,6 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 		t.Fatalf("register did not report success (%s)", rec.Body.String())
 	}
 
-	// The send happens synchronously inside register, before the org/membership
-	// transaction — the relay must have received the verification mail anyway.
 	mailed := got()
 	if !strings.Contains(mailed, "Confirm your email address for Octarq") {
 		t.Fatalf("verification email never reached the relay — the org-less send is broken:\n%s", mailed)

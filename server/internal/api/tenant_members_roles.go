@@ -37,8 +37,6 @@ type UpdateOrgMemberOutput struct {
 	Body UpdateOrgMemberOutputBody
 }
 
-// updateOrgMember re-grades an existing member.
-// PATCH /api/org/members/{userId}  {"role": "admin"}
 func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInput) (*UpdateOrgMemberOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -73,18 +71,12 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 		return out, nil
 	}
 
-	// The same two owner rules addOrgMember enforces: an admin can neither mint
-	// an owner (which would be self-promotion by proxy) nor re-grade the one
-	// already there.
 	if role == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 		return nil, huma.Error403Forbidden("Workspace owner role required to grant owner permissions")
 	}
 	if authz.Role(target.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 		return nil, huma.Error403Forbidden("Workspace owner role required to modify an owner's role")
 	}
-	// Demoting the last owner strands the workspace: nobody left who can grant
-	// the role back, including the person who just gave it up. removeOrgMember
-	// refuses the same shape of mistake.
 	if authz.Role(target.Role) == authz.RoleOwner {
 		if err := h.requireAnotherOwner(orgID, input.UserID); err != nil {
 			return nil, err
@@ -130,8 +122,6 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 	return out, nil
 }
 
-// requireAnotherOwner reports whether the workspace would still have an owner
-// after userID stops being one.
 func (h *Handler) requireAnotherOwner(orgID, userID uint) error {
 	var owners int64
 	h.db.Model(&models.OrgMember{}).
@@ -161,8 +151,6 @@ type RemoveOrgMemberOutput struct {
 	Body RemoveOrgMemberOutputBody
 }
 
-// removeOrgMember removes a user from the active organization.
-// DELETE /api/org/members/{userId}
 func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInput) (*RemoveOrgMemberOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -191,11 +179,9 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).First(&target).Error; err != nil {
 		return nil, huma.Error404NotFound("Member not found in this workspace; verify the member identifier and try again")
 	}
-	// Only an owner may remove an owner.
 	if target.Role == "owner" && callerRole != "owner" {
 		return nil, huma.Error403Forbidden("Workspace owner role required to remove an owner")
 	}
-	// Never strand the workspace ownerless — refuse to remove the last owner.
 	if target.Role == "owner" {
 		var owners int64
 		h.db.Model(&models.OrgMember{}).Where("org_id = ? AND role = ?", orgID, "owner").Count(&owners)

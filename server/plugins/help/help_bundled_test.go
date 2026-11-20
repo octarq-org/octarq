@@ -11,28 +11,12 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// bundledDocsProviders is every plugin in this build that ships documentation
-// through the docs-directory convention. Adding a plugin here is the one manual
-// step the convention does not remove — a plugin whose docs/ nobody lists is
-// still served correctly at runtime (the aggregator finds it by interface), it
-// just is not held to the checks below.
 func bundledDocsProviders() map[string]plugin.HelpDocsFS {
 	return map[string]plugin.HelpDocsFS{
 		"help": New(),
 	}
 }
 
-// TestBundledDocsHaveTranslations guards the docs/ naming contract for every
-// plugin in the OSS build. Nothing else can: a page that ships without its zh
-// half still compiles, still parses, and still serves — it just silently renders
-// English to a Chinese reader, which is exactly how the Pro help corpus ended up
-// 100% English. The same loop catches the other failure modes that are valid
-// strings and therefore invisible to the compiler: a missing title, a category
-// outside the closed set, a duplicate slug shadowing another page.
-//
-// This walks the embedded FS directly rather than the parsed HelpDocs, because
-// the specific regression it exists to catch — a page dropped in with no
-// translation — produces a perfectly well-formed HelpDoc.
 func TestBundledDocsHaveTranslations(t *testing.T) {
 	valid := make(map[string]bool)
 	for _, c := range plugin.HelpCategories() {
@@ -52,7 +36,6 @@ func TestBundledDocsHaveTranslations(t *testing.T) {
 				return nil
 			}
 			base := strings.TrimSuffix(d.Name(), ext)
-			// Translations are checked via their English page, not as pages.
 			if filepath.Ext(base) == ".zh" {
 				return nil
 			}
@@ -89,8 +72,6 @@ func TestBundledDocsHaveTranslations(t *testing.T) {
 	}
 }
 
-// TestEveryCategoryHasAtLeastOneDoc asserts that every category in plugin.HelpCategories()
-// has at least one document assigned to it across all bundled plugins.
 func TestEveryCategoryHasAtLeastOneDoc(t *testing.T) {
 	categories := plugin.HelpCategories()
 	categoryCounts := make(map[string]int)
@@ -129,8 +110,6 @@ func TestEveryCategoryHasAtLeastOneDoc(t *testing.T) {
 	}
 
 	for _, c := range categories {
-		// commerce, licensing, infrastructure and operations are contributed by
-		// plugins outside core (Pro modules and the octarq-plugins dns plugin).
 		if c.Key == "commerce" || c.Key == "licensing" || c.Key == "infrastructure" || c.Key == "operations" {
 			continue
 		}
@@ -140,10 +119,6 @@ func TestEveryCategoryHasAtLeastOneDoc(t *testing.T) {
 	}
 }
 
-// TestBundledDocSlugsAreUnique pins the property the aggregator cannot fix. It
-// de-duplicates slugs ACROSS plugins by prefixing the loser, so a collision
-// there degrades to an ugly URL; two pages colliding INSIDE one plugin, or a
-// slug two plugins both want, silently costs a page its canonical /help/<slug>.
 func TestBundledDocSlugsAreUnique(t *testing.T) {
 	seen := make(map[string]string)
 	for name, p := range bundledDocsProviders() {
@@ -156,10 +131,6 @@ func TestBundledDocSlugsAreUnique(t *testing.T) {
 	}
 }
 
-// TestFilenameIsTheSlug pins the half of the convention a reader relies on: the
-// URL /help/<slug> is predictable from the file tree. Frontmatter may still
-// override the slug — LoadHelpDocs honours it — but nothing in this build should
-// need to, and a page that quietly did would be findable only by grep.
 func TestFilenameIsTheSlug(t *testing.T) {
 	for name, p := range bundledDocsProviders() {
 		fsys := p.HelpDocsFS()
@@ -174,10 +145,6 @@ func TestFilenameIsTheSlug(t *testing.T) {
 			if !found {
 				t.Errorf("%s: doc %q (%s) has no docs/%s.md(x) — its slug comes from frontmatter, so the file name no longer predicts the URL", name, d.Title, d.Slug, d.Slug)
 			}
-			// A slug ending in a language tag means a translation was served as
-			// a page: every doc then appears twice in the sidebar, once per
-			// language. LoadHelpDocs recognises a closed list of suffixes, so
-			// this is what shipping a locale it has not been taught looks like.
 			if ext := filepath.Ext(d.Slug); ext != "" && len(ext) <= 4 {
 				t.Errorf("%s: slug %q ends in %q — if that is a language tag, add it to helpDocLangs so the file is treated as a translation rather than a page of its own", name, d.Slug, ext)
 			}
@@ -185,7 +152,6 @@ func TestFilenameIsTheSlug(t *testing.T) {
 	}
 }
 
-// docsFSPlugin is a plugin whose docs come from the directory convention.
 type docsFSPlugin struct {
 	name string
 	fsys fs.FS
@@ -196,13 +162,6 @@ func (m *docsFSPlugin) Models() []any                             { return nil }
 func (m *docsFSPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {}
 func (m *docsFSPlugin) HelpDocsFS() fs.FS                         { return m.fsys }
 
-// TestSameNamedPluginsKeepTheirOwnDocs covers the case of two mounted plugins
-// answering the same Name(). That is deliberate — the core help plugin and a
-// downstream help module can be two halves of one feature and share a feature
-// key so one toggle governs both — so the docs cache must not treat the name as
-// an identity. When it did, the second half read back the first half's pages:
-// every core doc was served twice (the duplicate shadow-renamed to help-<slug> by
-// the slug dedup) and the downstream-only page vanished.
 func TestSameNamedPluginsKeepTheirOwnDocs(t *testing.T) {
 	page := func(slug, title string) *fstest.MapFile {
 		return &fstest.MapFile{Data: []byte("---\ntitle: " + title + "\n---\n\nbody\n")}
@@ -222,34 +181,17 @@ func TestSameNamedPluginsKeepTheirOwnDocs(t *testing.T) {
 		return out
 	}
 
-	// Order matters: the bug only appeared on the second plugin, after the first
-	// had populated the cache under the shared name.
 	if got := slugsOf(oss); len(got) != 1 || got[0] != "getting-started" {
 		t.Fatalf("first plugin: got %v, want [getting-started]", got)
 	}
 	if got := slugsOf(pro); len(got) != 1 || got[0] != "overview" {
 		t.Errorf("second plugin with the same Name(): got %v, want [overview] — it is reading the other plugin's cached docs", got)
 	}
-	// And the cache must still be a cache: a repeat call is served from it and
-	// must return the same plugin's pages, not the other's.
 	if got := slugsOf(oss); len(got) != 1 || got[0] != "getting-started" {
 		t.Errorf("first plugin on the cached path: got %v, want [getting-started]", got)
 	}
 }
 
-// TestBundledDocLinksResolve walks every in-app link the OSS corpus writes and
-// fails on one that lands nowhere. Cross-references are the whole navigation
-// story of the help area — each page ends in a "Related" list — and a dead one
-// is invisible to every other check here: the markdown is well-formed, the page
-// renders, and the reader only finds out by clicking. Three ways they went dead
-// before this test existed:
-//
-//   - /help/plugins/dns/dns — the docs-site path, which is not the in-app one;
-//   - /help/portal — a slug that was renamed to customer-portal;
-//   - /help/<pro-slug> from an OSS page, dead in every OSS build.
-//
-// The canonical in-app form is /help/<slug>, two segments. The viewer expands it
-// to /help/<category>/<slug>, so a page that changes category keeps its links.
 func TestBundledDocLinksResolve(t *testing.T) {
 	slugs := make(map[string]bool)
 	for _, p := range bundledDocsProviders() {

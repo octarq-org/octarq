@@ -34,13 +34,11 @@ func TestCoverageLift_TracingHelpers(t *testing.T) {
 		t.Fatalf("expected empty span id for empty context, got %q", id)
 	}
 
-	// Should not panic on nil inputs
 	RecordError(nil, nil)
 	SetOK(nil)
 }
 
 func TestCoverageLift_HTTPMiddleware_DefaultsAnd500Status(t *testing.T) {
-	// Empty tracerName triggers default tracer name branch
 	mw := HTTPMiddleware("")
 	handler500 := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -59,10 +57,9 @@ func TestCoverageLift_HTTPMiddleware_DefaultsAnd500Status(t *testing.T) {
 func TestCoverageLift_ResourceAttributesAndDefaultExporter(t *testing.T) {
 	ctx := context.Background()
 	cfg := Config{
-		Enabled:        true,
-		ServiceName:    "test-res-svc",
-		TracesExporter: "none",
-		// Unknown exporter falls back to default prometheus exporter
+		Enabled:         true,
+		ServiceName:     "test-res-svc",
+		TracesExporter:  "none",
 		MetricsExporter: "custom_unsupported_exporter",
 		ResourceAttributes: map[string]string{
 			"custom.environment": "test-env",
@@ -89,7 +86,6 @@ func TestCoverageLift_OTLPDefaultEndpoints(t *testing.T) {
 		Insecure: true,
 	}
 
-	// Trace exporter default endpoint (localhost:4317)
 	tExp, err := createOTLPTraceExporter(ctx, cfg)
 	if err != nil {
 		t.Fatalf("createOTLPTraceExporter failed: %v", err)
@@ -98,7 +94,6 @@ func TestCoverageLift_OTLPDefaultEndpoints(t *testing.T) {
 		t.Fatal("expected non-nil trace exporter")
 	}
 
-	// Metric exporter default endpoint (localhost:4317)
 	mExp, err := createOTLPMetricExporter(ctx, cfg)
 	if err != nil {
 		t.Fatalf("createOTLPMetricExporter failed: %v", err)

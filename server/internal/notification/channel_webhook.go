@@ -16,7 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// WebhookChannel delivers notifications via HTTP POST payloads.
 type WebhookChannel struct {
 	db      *gorm.DB
 	timeout time.Duration
@@ -25,12 +24,10 @@ type WebhookChannel struct {
 
 var _ plugin.NotificationChannel = (*WebhookChannel)(nil)
 
-// SetVaultService injects VaultService for resolving local channel secrets.
 func (c *WebhookChannel) SetVaultService(vs plugin.VaultService) {
 	c.vault = vs
 }
 
-// NewWebhookChannel constructs a Webhook notification channel driver.
 func NewWebhookChannel(db ...*gorm.DB) *WebhookChannel {
 	var gdb *gorm.DB
 	if len(db) > 0 {
@@ -42,17 +39,14 @@ func NewWebhookChannel(db ...*gorm.DB) *WebhookChannel {
 	}
 }
 
-// Name returns the channel identifier "webhook".
 func (c *WebhookChannel) Name() string {
 	return "webhook"
 }
 
-// DisplayName returns the human-readable channel name.
 func (c *WebhookChannel) DisplayName() string {
 	return "Webhook"
 }
 
-// ConfigSchema returns the JSON Schema for user configuration.
 func (c *WebhookChannel) ConfigSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"$schema": "http://json-schema.org/draft-07/schema#",
@@ -69,7 +63,6 @@ func (c *WebhookChannel) ConfigSchema() json.RawMessage {
 	}`)
 }
 
-// Send delivers a notification via HTTP POST to the configured webhook URL.
 func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	var webhookURL string
 
@@ -103,7 +96,6 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 		}
 	}
 
-	// Fallback to database lookup if org-scoped notification channel is configured
 	if webhookURL == "" && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
@@ -119,8 +111,6 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 		}
 	}
 
-	// Fallback for system-level alerts: if targetOrg is "0" or payload indicates system event,
-	// and webhookURL is still empty, fall back to instance default channel (org 1)
 	if webhookURL == "" && c.db != nil && (targetOrg == "0" || payload.EventType == "system" || strings.HasPrefix(payload.EventType, "system.")) {
 		var ch models.NotificationChannel
 		if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", 1, "webhook", true).First(&ch).Error; err == nil && (ch.Config != "" || ch.VaultItemID > 0) {

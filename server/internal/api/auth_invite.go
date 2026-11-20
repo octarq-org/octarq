@@ -36,16 +36,12 @@ type AcceptInviteOutput struct {
 	Body AcceptInviteOutputBody
 }
 
-// POST /api/auth/invite/accept
 func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*AcceptInviteOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	// Same budget as the password-reset endpoints: this is an unauthenticated
-	// "completion" endpoint, so every request counts (there is no "failed"
-	// attempt to budget on), and sharing the budget keeps a single limiter.
 	if !h.recoveryLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
@@ -77,11 +73,6 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	user.PasswordHash = string(hash)
 	user.InviteTokenHash = ""
 	user.InviteExpiresAt = nil
-	// Redeeming a valid, unexpired invite token proves ownership of the account's
-	// address: the token is delivered only to that mailbox (see sendInviteEmail),
-	// so nothing more than holding it is needed to mark the email verified. This
-	// keeps invited teammates from bouncing off the login gate on instances that
-	// require verification — the very users the admin just brought in.
 	user.EmailVerified = true
 
 	if err := h.db.Save(&user).Error; err != nil {
@@ -89,8 +80,6 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	}
 
 	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
-	// The invite is now redeemed: the account both joined its workspace(s) and
-	// set its password in this one step.
 	memberOrgs := h.memberOrgIDs(user.ID)
 	for _, oid := range memberOrgs {
 		eventbus.Publish(oid, "member.join", map[string]any{"userId": user.ID, "email": user.Email})

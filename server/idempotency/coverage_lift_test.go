@@ -43,7 +43,6 @@ func TestCoverageLift_CaptureWriter_ImplicitStatusOK(t *testing.T) {
 	var handlerCalled bool
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlerCalled = true
-		// Intentionally omit WriteHeader; go straight to Write
 		_, _ = w.Write([]byte(`{"status":"implicit-200"}`))
 	})
 	h := s.Middleware(org7)(handler)
@@ -64,10 +63,8 @@ func TestCoverageLift_StoreDatabaseErrors(t *testing.T) {
 		t.Fatalf("gdb.DB() failed: %v", err)
 	}
 
-	// Close the DB connection so subsequent queries fail
 	_ = sqlDB.Close()
 
-	// 1. claim with closed DB -> triggers claimError and fallback next.ServeHTTP
 	var calls atomic.Int32
 	h := s.Middleware(org7)(countingHandler(&calls))
 	r := httptest.NewRequest(http.MethodPost, "/api/emails/send", strings.NewReader(`{"hello":"world"}`))
@@ -82,9 +79,7 @@ func TestCoverageLift_StoreDatabaseErrors(t *testing.T) {
 		t.Fatalf("expected 201 Created from fallback handler, got %d", w.Code)
 	}
 
-	// 2. commit with closed DB -> triggers error log
 	s.commit(1, http.StatusOK, "application/json", []byte(`{}`), true, time.Now())
 
-	// 3. release with closed DB -> triggers error log
 	s.release(1)
 }

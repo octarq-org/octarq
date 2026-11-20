@@ -9,43 +9,21 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ErrApprovalRequired is returned by RiskGuard when the tool's endpoint has
-// RequireApproval=true. Channel adapters should translate this into a HITL
-// flow rather than treating it as a terminal failure.
-//
-// P3 前 API 易变.
 var ErrApprovalRequired = errors.New("harness: tool requires operator approval")
 
-// EndpointSource is the subset of endpoint.Engine that wiring components need.
-// It decouples the harness from the concrete Engine type so both can be
-// injected through constructors.
-//
-// Endpoints lists the whole registry: the agent harness compiles its tool
-// guidance from it, so an endpoint that is not listed is invisible to the
-// model.
-//
-// P3 前 API 易变.
 type EndpointSource interface {
 	Lookup(name string) (plugin.Endpoint, bool)
 	Endpoints() []plugin.Endpoint
 }
 
-// RegistryExecutor adapts an EndpointSource into the harness ToolExecutor
-// interface: it resolves a tool name, injects the org-ID into the context
-// (reusing plugin.WithOrgID so handlers read the same key), calls
-// ExecuteAgentJSON, and marshals the result back to a JSON string.
-//
-// P3 前 API 易变.
 type RegistryExecutor struct {
 	src EndpointSource
 }
 
-// NewRegistryExecutor constructs a RegistryExecutor backed by the given source.
 func NewRegistryExecutor(src EndpointSource) ToolExecutor {
 	return &RegistryExecutor{src: src}
 }
 
-// Execute implements ToolExecutor.
 func (r *RegistryExecutor) Execute(ctx context.Context, orgID uint, name string, argsJSON string) (string, error) {
 	if r.src == nil {
 		return "", plugin.NewAgentError(
@@ -67,7 +45,6 @@ func (r *RegistryExecutor) Execute(ctx context.Context, orgID uint, name string,
 		)
 	}
 
-	// Inject org-ID into context so handlers see it via plugin.OrgIDFromContext.
 	ctx = plugin.WithOrgID(ctx, orgID)
 
 	result, err := ep.ExecuteAgentJSON(ctx, argsJSON)
@@ -82,26 +59,14 @@ func (r *RegistryExecutor) Execute(ctx context.Context, orgID uint, name string,
 	return string(buf), nil
 }
 
-// riskGuard is the concrete Guard implementation that checks endpoint
-// existence and approval requirements.
 type riskGuard struct {
 	src EndpointSource
 }
 
-// NewRiskGuard constructs a Guard that vetoes unknown tools and tools that
-// require operator approval (returning ErrApprovalRequired for the latter).
-//
-// The destructive-must-have-approval invariant is enforced at registration
-// time (plugin.RegisterEndpoint), so this guard does not replicate that
-// business rule.
-//
-// P3 前 API 易变.
 func NewRiskGuard(src EndpointSource) Guard {
 	return &riskGuard{src: src}
 }
 
-// Allow implements Guard. Whether a call needs approval is a property of the
-// endpoint, not of the arguments, so the arguments are not consulted.
 func (g *riskGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	if g.src == nil {
 		return plugin.NewAgentError(

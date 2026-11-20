@@ -60,16 +60,13 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	const orgA uint = 501
 	const orgB uint = 502
 
-	// Seed organizations
 	db.Create(&models.Org{ID: orgA, Name: "Tenant Alpha", Slug: "tenant-a"})
 	db.Create(&models.Org{ID: orgB, Name: "Tenant Beta", Slug: "tenant-b"})
 
-	// Seed users and members
 	userA := seedOrgMember(t, db, orgA, "admin@tenant-a.com", "admin")
 	userB := seedOrgMember(t, db, orgB, "admin@tenant-b.com", "admin")
 	userMember := seedOrgMember(t, db, orgA, "member@tenant-a.com", "member")
 
-	// Seed Tenant A resources
 	linkA1 := &testLink{OrgID: orgA, Slug: "alpha-docs", Target: "https://docs.alpha.com", Title: "Alpha Docs", Clicks: 42, Tags: "docs,alpha"}
 	linkA2 := &testLink{OrgID: orgA, Slug: "alpha-app", Target: "https://app.alpha.com", Title: "Alpha App", Clicks: 108, Tags: "app"}
 	linkA3 := &testLink{OrgID: orgA, Slug: "alpha-blog", Target: "https://blog.alpha.com", Title: "Alpha Blog", Clicks: 5, Tags: "blog"}
@@ -90,7 +87,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	auditA := &models.AuditLog{OrgID: orgA, ActorID: userA, Action: "domain.create", TargetType: "domain", TargetID: domA.ID, CreatedAt: time.Now().UTC().Add(-2 * time.Hour)}
 	db.Create(auditA)
 
-	// Seed Tenant B resources (to verify cross-tenant isolation)
 	linkB1 := &testLink{OrgID: orgB, Slug: "beta-secret", Target: "https://secret.beta.com", Title: "Beta Secret", Clicks: 999, Tags: "beta"}
 	linkB2 := &testLink{OrgID: orgB, Slug: "beta-dashboard", Target: "https://dash.beta.com", Title: "Beta Dash", Clicks: 12}
 	db.Create(linkB1)
@@ -105,7 +101,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	auditB := &models.AuditLog{OrgID: orgB, ActorID: userB, Action: "org.secret", TargetType: "secret", TargetID: 999, CreatedAt: time.Now().UTC().Add(-1 * time.Hour)}
 	db.Create(auditB)
 
-	// Register DNS mock with DNS records including a secret that must be masked
 	const rawSecretToken = "sk-live-secret-key-that-must-be-redacted"
 	mockDNS := &mockExportDNSManager{
 		records: map[uint][]plugin.DNSRecord{
@@ -119,14 +114,12 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	reg.Provide(plugin.ServiceDNSManager, plugin.DNSManager(mockDNS))
 	h.SetServiceLookup(reg.Lookup)
 
-	// 1. Request export as Tenant A admin
 	cookiesA := sessionCookies(t, userA, orgA)
 	rec := do(srv, http.MethodGet, "/api/account/export", cookiesA, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("export request failed: code %d, body %s", rec.Code, rec.Body.String())
 	}
 
-	// 2. Validate HTTP headers
 	if ct := rec.Header().Get("Content-Type"); ct != "application/zip" {
 		t.Errorf("Content-Type = %q, want application/zip", ct)
 	}
@@ -137,7 +130,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		t.Errorf("Cache-Control = %q, want no-store", cc)
 	}
 
-	// 3. Unzip and verify structure
 	files := unzipTestArchive(t, rec.Body.Bytes())
 
 	expectedFiles := []string{
@@ -153,7 +145,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		}
 	}
 
-	// 4. Verify metadata.json
 	var meta map[string]any
 	if err := json.Unmarshal(files["metadata.json"], &meta); err != nil {
 		t.Fatalf("unmarshal metadata.json: %v", err)
@@ -178,13 +169,12 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		t.Errorf("metadata counts.mailboxes = %v, want 2", cnt)
 	}
 
-	// 5. Verify links.csv rows and strict isolation
 	csvReader := csv.NewReader(bytes.NewReader(files["links.csv"]))
 	csvRecords, err := csvReader.ReadAll()
 	if err != nil {
 		t.Fatalf("read links.csv: %v", err)
 	}
-	if len(csvRecords) != 4 { // 1 header + 3 data rows
+	if len(csvRecords) != 4 {
 		t.Fatalf("links.csv row count = %d, want 4 (header + 3 links)", len(csvRecords))
 	}
 	expectedHeaders := []string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "Tags", "CreatedAt"}
@@ -197,12 +187,10 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	if !contains(linksCSVText, "alpha-docs") || !contains(linksCSVText, "alpha-app") || !contains(linksCSVText, "alpha-blog") {
 		t.Errorf("links.csv missing expected links: %s", linksCSVText)
 	}
-	// Multi-tenant assertion: Tenant B links MUST NOT leak into Tenant A's export
 	if contains(linksCSVText, "beta-secret") || contains(linksCSVText, "beta-dashboard") {
 		t.Errorf("CROSS-TENANT LEAK: Tenant B link data present in Tenant A export: %s", linksCSVText)
 	}
 
-	// 6. Verify domains.json and secret masking
 	var domainsData []map[string]any
 	if err := json.Unmarshal(files["domains.json"], &domainsData); err != nil {
 		t.Fatalf("unmarshal domains.json: %v", err)
@@ -213,12 +201,10 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 	if domainsData[0]["name"] != "alpha.com" {
 		t.Errorf("domain name = %v, want alpha.com", domainsData[0]["name"])
 	}
-	// Assert Tenant B domain is NOT present
 	domainsJSONText := string(files["domains.json"])
 	if contains(domainsJSONText, "beta-private.com") {
 		t.Errorf("CROSS-TENANT LEAK: Tenant B domain present in Tenant A export")
 	}
-	// Assert Secret Masking: raw secret must NOT exist, must be masked as sk-****
 	if contains(domainsJSONText, rawSecretToken) {
 		t.Errorf("SECURITY LEAK: raw DNS secret token %q leaked in export", rawSecretToken)
 	}
@@ -226,7 +212,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		t.Errorf("expected secret to be masked with sk-****: %s", domainsJSONText)
 	}
 
-	// 7. Verify mailboxes.json and stats
 	var mailboxesData []map[string]any
 	if err := json.Unmarshal(files["mailboxes.json"], &mailboxesData); err != nil {
 		t.Fatalf("unmarshal mailboxes.json: %v", err)
@@ -242,7 +227,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		t.Errorf("CROSS-TENANT LEAK: Tenant B mailbox present in Tenant A export")
 	}
 
-	// 8. Verify audit_logs.json and Fail-Closed audit entry
 	var auditData []models.AuditLog
 	if err := json.Unmarshal(files["audit_logs.json"], &auditData); err != nil {
 		t.Fatalf("unmarshal audit_logs.json: %v", err)
@@ -260,20 +244,17 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		t.Error("FAIL-CLOSED AUDIT MISSING: account.data_export audit event was not recorded in audit_logs")
 	}
 
-	// 9. Verify role access controls: member role -> 403 Forbidden
 	cookiesMember := sessionCookies(t, userMember, orgA)
 	recMember := do(srv, http.MethodGet, "/api/account/export", cookiesMember, "")
 	if recMember.Code != http.StatusForbidden {
 		t.Errorf("member export status = %d, want 403 Forbidden", recMember.Code)
 	}
 
-	// 10. Verify unauthenticated -> 401 Unauthorized
 	recUnauth := do(srv, http.MethodGet, "/api/account/export", nil, "")
 	if recUnauth.Code != http.StatusUnauthorized {
 		t.Errorf("unauth export status = %d, want 401 Unauthorized", recUnauth.Code)
 	}
 
-	// 11. Verify 15-minute temporary signed token download
 	signedURL, err := h.GenerateExportSignedURL(orgA)
 	if err != nil {
 		t.Fatalf("GenerateExportSignedURL failed: %v", err)
@@ -286,7 +267,6 @@ func TestExportZip_CompleteDataPortabilityAndCrossOrgIsolation(t *testing.T) {
 		t.Errorf("signed download Content-Type = %q, want application/zip", ct)
 	}
 
-	// 12. Invalid token -> 401 Unauthorized
 	recBadToken := do(srv, http.MethodGet, "/api/account/export?token=invalid-garbage-token", nil, "")
 	if recBadToken.Code != http.StatusUnauthorized {
 		t.Errorf("invalid token export status = %d, want 401 Unauthorized", recBadToken.Code)

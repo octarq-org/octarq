@@ -188,7 +188,6 @@ func TestTenantQuery_DescribeViews(t *testing.T) {
 func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 	db, engine := setupTestApp(t)
 
-	// Seed link
 	db.Create(&queryTestLink{
 		OrgID:    1,
 		Slug:     "test-route-slug",
@@ -199,7 +198,6 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 	queryEP := findEndpoint(t, engine, "query_tenant_sql")
 	ctx := plugin.WithOrgID(context.Background(), 1)
 
-	// Test 1: Successful valid query
 	res, err := queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
 		SQL: "SELECT slug, target FROM tenant_links",
 	})
@@ -220,7 +218,6 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 		t.Errorf("expected slug 'test-route-slug', got %v", qRes.Rows[0]["slug"])
 	}
 
-	// Test 2: Sensitive column masking
 	res, err = queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
 		SQL: "SELECT password FROM tenant_links",
 	})
@@ -235,7 +232,6 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 		t.Errorf("expected password to be redacted, got %v", qRes.Rows[0]["password"])
 	}
 
-	// Test 3: Disallowed mutation query
 	_, err = queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{
 		SQL: "DROP TABLE links",
 	})
@@ -243,7 +239,6 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 		t.Error("expected error for non-SELECT query, got nil")
 	}
 
-	// Test 4: Missing query parameter
 	_, err = queryEP.Execute(ctx, tenantquery.QueryTenantSQLInput{})
 	if err == nil {
 		t.Error("expected error for missing query param, got nil")

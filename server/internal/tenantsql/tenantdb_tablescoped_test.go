@@ -56,7 +56,6 @@ func TestTenantDB_TableScopedKeepsTenantsApart(t *testing.T) {
 		t.Fatalf("org 2 saw %v, want only its own row", rows2)
 	}
 
-	// A delete through the scoped handle must not reach the other tenant.
 	q, err := org1.TableScoped("ont_widget", "org_id")
 	if err != nil {
 		t.Fatalf("TableScoped: %v", err)
@@ -109,9 +108,6 @@ func TestTenantDB_TableScopedRejectsBadIdentifiers(t *testing.T) {
 	}
 }
 
-// TestTenantDB_TableScopedByBindsTheSecondDimension pins the owner-level
-// isolation: two members of one workspace share org_id and are told apart by the
-// predicate the handle binds, not by a filter the caller remembered to add.
 func TestTenantDB_TableScopedByBindsTheSecondDimension(t *testing.T) {
 	db := setupTestDB(t)
 
@@ -159,7 +155,6 @@ func TestTenantDB_TableScopedByBindsTheSecondDimension(t *testing.T) {
 		t.Fatalf("user 2 saw %v, want only its own row", rows)
 	}
 
-	// With no extra predicate it is TableScoped.
 	q, err := org1.TableScopedBy("ont_note", "org_id")
 	if err != nil {
 		t.Fatalf("TableScopedBy: %v", err)
@@ -173,9 +168,6 @@ func TestTenantDB_TableScopedByBindsTheSecondDimension(t *testing.T) {
 	}
 }
 
-// TestTenantDB_TableScopedByRefusesAnEmptyScope pins that a scope value the
-// caller failed to resolve is an error, not a predicate matching nothing: an
-// empty page would look like "no records" instead of "no identity".
 func TestTenantDB_TableScopedByRefusesAnEmptyScope(t *testing.T) {
 	db := setupTestDB(t)
 	tdb, err := NewTenantDB(db, 1)

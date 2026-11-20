@@ -8,9 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestEnsureHostCredentialLookupFailsClosed pins the sentinel a plugin sees when
-// no resolver is mounted. "Unavailable" is the only answer that lets a plugin
-// read its own local registry; a bare error would make it fail instead.
 func TestEnsureHostCredentialLookupFailsClosed(t *testing.T) {
 	h := plugin.EnsureHost(nil)
 
@@ -18,21 +15,16 @@ func TestEnsureHostCredentialLookupFailsClosed(t *testing.T) {
 		t.Fatalf("expected ErrCredentialResolverUnavailable, got %v", err)
 	}
 
-	// A host with no workspace behind it publishes no harness, and says so.
 	raw, err := h.HarnessSpec(context.Background(), 1)
 	if err != nil || raw != nil {
 		t.Fatalf("expected no published harness, got %q / %v", raw, err)
 	}
 
-	// The no-op event spine accepts calls without panicking.
 	h.Events().PublishEvent(1, "test.event", nil)
 	h.Events().RegisterWebhookEvent(plugin.WebhookEventDef{})
 	h.Events().OnEmail(func(plugin.EmailEvent) {})
 }
 
-// TestTestHostDefaultsAreFailClosed keeps the test host honest: tests that do
-// not mount a resolver must see the same "unavailable" answer production does,
-// not a "not found" that hides a missing mock.
 func TestTestHostDefaultsAreFailClosed(t *testing.T) {
 	th := &plugin.TestHost{}
 
@@ -46,7 +38,6 @@ func TestTestHostDefaultsAreFailClosed(t *testing.T) {
 	}
 }
 
-// stubWorkforce is a ledger a test can hand to TestHost.
 type stubWorkforce struct{ calls int }
 
 func (s *stubWorkforce) AuthorizeTurn(context.Context, uint, string, string) error {
@@ -61,9 +52,6 @@ func (s *stubWorkforce) RecordSpend(context.Context, uint, plugin.TurnSpend) (*p
 }
 func (s *stubWorkforce) DecideApproval(context.Context, uint, string, bool) error { return nil }
 
-// TestTestHostWorkforceUsesTheMock pins that a test which supplies a ledger
-// gets that ledger, and that a host variable which is nil still answers with
-// the unavailable sentinel instead of panicking.
 func TestTestHostWorkforceUsesTheMock(t *testing.T) {
 	mock := &stubWorkforce{}
 	th := &plugin.TestHost{WorkforceMock: mock}
@@ -83,9 +71,6 @@ func TestTestHostWorkforceUsesTheMock(t *testing.T) {
 	}
 }
 
-// TestWorkforceWithoutALedgerRefusesEveryCall pins the host that has no agent
-// ledger: every method refuses with ErrWorkforceUnavailable. A zero-cost
-// answer would let a turn run that nobody can bill.
 func TestWorkforceWithoutALedgerRefusesEveryCall(t *testing.T) {
 	ctx := context.Background()
 	for name, w := range map[string]plugin.Workforce{

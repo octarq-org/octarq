@@ -45,25 +45,21 @@ func TestChangeEmailFlows(t *testing.T) {
 	})
 	adminUser.Email = "admin@example.com"
 
-	// 1. Unauthenticated -> 401
 	rec := do(srv, "PUT", "/api/auth/email", nil, `{"newEmail":"admin2@example.com","currentPassword":"pw"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth change email: got %d, want 401", rec.Code)
 	}
 
-	// 2. Invalid email format -> 400
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"invalid-email","currentPassword":"pw"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid email: got %d, want 400", rec.Code)
 	}
 
-	// 3. Same email as current -> 200 (no-op)
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"admin@example.com","currentPassword":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("same email: got %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 4. SSO user without password hash -> 400
 	ssoUser := models.User{Email: "sso_auth@example.com", PasswordHash: ""}
 	db.Create(&ssoUser)
 	ssoCookies := sessionCookies(t, ssoUser.ID, 1)
@@ -72,13 +68,11 @@ func TestChangeEmailFlows(t *testing.T) {
 		t.Fatalf("sso user change email: got %d, want 400", rec.Code)
 	}
 
-	// 5. Wrong current password -> 400
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"admin2@example.com","currentPassword":"wrong"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("wrong password: got %d, want 400", rec.Code)
 	}
 
-	// 6. Conflict with existing user -> 409
 	otherUser := models.User{Email: "taken@example.com"}
 	db.Create(&otherUser)
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"taken@example.com","currentPassword":"pw"}`)
@@ -86,7 +80,6 @@ func TestChangeEmailFlows(t *testing.T) {
 		t.Fatalf("taken email: got %d, want 409", rec.Code)
 	}
 
-	// 7. Successful email change (require_email_verification = false)
 	disableEmailVerification(t, db)
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"admin_new@example.com","currentPassword":"pw"}`)
 	if rec.Code != http.StatusOK {
@@ -98,7 +91,6 @@ func TestChangeEmailFlows(t *testing.T) {
 		t.Errorf("email not updated in DB: %q", reloaded.Email)
 	}
 
-	// 8. Successful email change (require_email_verification = true)
 	db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"})
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"admin_verified@example.com","currentPassword":"pw"}`)
 	if rec.Code != http.StatusOK {
@@ -109,7 +101,6 @@ func TestChangeEmailFlows(t *testing.T) {
 		t.Errorf("expected VerifyTokenHash to be set")
 	}
 
-	// 9. Nil Ctx guards on auth methods
 	h, _, _ := newTestHandlerRaw(t)
 	ctx := context.Background()
 	if _, err := h.loginHuma(ctx, &LoginInput{Ctx: nil}); err == nil {
@@ -148,45 +139,38 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	adminCookies := loginCookies(t, srv)
 
-	// 1. GET /api/auth/me unauth -> 401
 	rec := do(srv, "GET", "/api/auth/me", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth me: got %d, want 401", rec.Code)
 	}
 
-	// 2. GET /api/auth/me auth -> 200
 	rec = do(srv, "GET", "/api/auth/me", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("auth me: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 3. GET /api/auth/sessions auth -> 200
 	rec = do(srv, "GET", "/api/auth/sessions", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list sessions: got %d", rec.Code)
 	}
 
-	// 4. DELETE /api/auth/sessions/999999 -> 404
 	rec = do(srv, "DELETE", "/api/auth/sessions/999999", adminCookies, "")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("revoke nonexistent session: got %d, want 404", rec.Code)
 	}
 
-	// 5. POST /api/auth/invite/accept with invalid token -> 400
 	h.recoveryLimiter.reset("192.0.2.1")
 	rec = do(srv, "POST", "/api/auth/invite/accept", nil, `{"token":"invalid-token","password":"newpassword123"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("accept invalid invite token: got %d, want 400", rec.Code)
 	}
 
-	// 6. POST /api/auth/invite/accept with short password -> 400
 	h.recoveryLimiter.reset("192.0.2.1")
 	rec = do(srv, "POST", "/api/auth/invite/accept", nil, `{"token":"invalid-token","password":"short"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("accept invite short password: got %d, want 400", rec.Code)
 	}
 
-	// Expired invite token -> 400
 	expiredTime := time.Now().Add(-1 * time.Hour)
 	expUser := models.User{
 		Email:           "expinvite@example.com",
@@ -200,7 +184,6 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 		t.Fatalf("accept expired invite token: got %d, want 400", rec.Code)
 	}
 
-	// Valid invite token -> 200
 	futureTime := time.Now().Add(24 * time.Hour)
 	validUser := models.User{
 		Email:           "validinvite@example.com",
@@ -218,8 +201,6 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 		t.Errorf("expected Set-Cookie to contain session cookie, got %q", rec.Header().Get("Set-Cookie"))
 	}
 
-	// 7. POST /api/auth/2fa/verify
-	// Create user with 2FA enabled
 	secretKey, _ := totp.Generate(totp.GenerateOpts{Issuer: "octarq", AccountName: "totp2fa@example.com"})
 	totpSecret := secretKey.Secret()
 	encSecret, _ := h.cipher.Encrypt([]byte(totpSecret))
@@ -234,100 +215,82 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 	db.Create(&twofaUser)
 	db.Create(&models.OrgMember{OrgID: 1, UserID: twofaUser.ID, Role: "member"})
 
-	// Wrong password -> 401
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"email":"totp2fa@example.com","password":"wrong","code":"123456"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("verify2FA wrong password: got %d, want 401", rec.Code)
 	}
 
-	// Wrong TOTP code -> 401
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"email":"totp2fa@example.com","password":"strongpassword123","code":"000000"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("verify2FA wrong code: got %d, want 401", rec.Code)
 	}
 
-	// Valid TOTP code -> 200
 	validCode, _ := totp.GenerateCode(totpSecret, time.Now())
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, fmt.Sprintf(`{"email":"totp2fa@example.com","password":"strongpassword123","code":%q}`, validCode))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("verify2FA valid code: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 8. POST /api/auth/password
-	// Unauth -> 401
 	rec = do(srv, "POST", "/api/auth/password", nil, `{"currentPassword":"pw","newPassword":"newpassword123"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth change password: got %d, want 401", rec.Code)
 	}
 
-	// Empty password hash -> 400
 	rec = do(srv, "POST", "/api/auth/password", adminCookies, `{"currentPassword":"pw","newPassword":"newpassword123"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("empty password hash change password: got %d, want 400", rec.Code)
 	}
 
-	// Set password hash and valid email for admin
 	var adminUser models.User
 	db.Where("email = ?", "admin").First(&adminUser)
 	pwHash, _ := bcrypt.GenerateFromPassword([]byte("currentpw123"), bcrypt.MinCost)
 	db.Model(&adminUser).Updates(map[string]any{"password_hash": string(pwHash), "email": "admin@example.com"})
 
-	// Short new password -> 400
 	rec = do(srv, "POST", "/api/auth/password", adminCookies, `{"currentPassword":"currentpw123","newPassword":"short"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("short new password: got %d, want 400", rec.Code)
 	}
 
-	// Wrong current password -> 400
 	rec = do(srv, "POST", "/api/auth/password", adminCookies, `{"currentPassword":"wrong","newPassword":"newpassword123"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("wrong current password: got %d, want 400", rec.Code)
 	}
 
-	// Valid password change -> 200
 	rec = do(srv, "POST", "/api/auth/password", adminCookies, `{"currentPassword":"currentpw123","newPassword":"newpassword123"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("valid change password: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 9. PUT /api/auth/email
-	// Unauth -> 401
 	rec = do(srv, "PUT", "/api/auth/email", nil, `{"newEmail":"admin2@example.com","currentPassword":"newpassword123"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauth change email: got %d, want 401", rec.Code)
 	}
 
-	// Invalid email -> 400
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"notanemail","currentPassword":"newpassword123"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid new email: got %d, want 400", rec.Code)
 	}
 
-	// Same email -> 200 no-op
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"admin@example.com","currentPassword":"newpassword123"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("same email change: got %d, want 200", rec.Code)
 	}
 
-	// Wrong current password -> 400
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"newadmin@example.com","currentPassword":"wrongpassword"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("wrong password change email: got %d, want 400", rec.Code)
 	}
 
-	// Existing email collision -> 409
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"totp2fa@example.com","currentPassword":"newpassword123"}`)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("existing email collision: got %d, want 409", rec.Code)
 	}
 
-	// Valid email change -> 200
 	rec = do(srv, "PUT", "/api/auth/email", adminCookies, `{"newEmail":"brandnewadmin@example.com","currentPassword":"newpassword123"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("valid change email: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 10. locationFromGeo helper
 	if loc := locationFromGeo("US", "New York"); loc != "New York, US" {
 		t.Errorf("locationFromGeo(US, New York) = %q, want New York, US", loc)
 	}
@@ -341,8 +304,6 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 		t.Errorf("locationFromGeo(\"\", \"\") = %q, want \"\"", loc)
 	}
 
-	// 11. Revoke own session
-	// List sessions to find own session ID
 	rec = do(srv, "GET", "/api/auth/sessions", adminCookies, "")
 	var sessList []models.Session
 	if err := json.Unmarshal(rec.Body.Bytes(), &sessList); err == nil && len(sessList) > 0 {
@@ -352,14 +313,11 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 		}
 	}
 
-	// 12. POST /api/auth/logout
-	// Unauth -> 200
 	rec = do(srv, "POST", "/api/auth/logout", nil, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unauth logout: got %d, want 200", rec.Code)
 	}
 
-	// Auth -> 200
 	freshAdminCookies := loginCookies(t, srv)
 	rec = do(srv, "POST", "/api/auth/logout", freshAdminCookies, "")
 	if rec.Code != http.StatusOK {

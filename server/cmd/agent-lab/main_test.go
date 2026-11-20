@@ -38,18 +38,15 @@ func TestCLI_MissingFlagsFailClosed(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	// Missing -tasks
 	code := run([]string{"-candidates", "some/cand", "-out", "/tmp/out"}, &stdout, &stderr)
 	assert.NotEqual(t, 0, code)
 	assert.Contains(t, stderr.String(), "missing required flag: -tasks")
 
-	// Missing -candidates
 	stderr.Reset()
 	code = run([]string{"-tasks", "some/tasks.json", "-out", "/tmp/out"}, &stdout, &stderr)
 	assert.NotEqual(t, 0, code)
 	assert.Contains(t, stderr.String(), "missing required flag: -candidates")
 
-	// Missing -out
 	stderr.Reset()
 	code = run([]string{"-tasks", "some/tasks.json", "-candidates", "some/cand"}, &stdout, &stderr)
 	assert.NotEqual(t, 0, code)
@@ -126,7 +123,6 @@ func TestCLI_Propose_Success(t *testing.T) {
 	assert.Equal(t, "candidate-optimized", doc.Evidence.Candidate)
 	assert.Equal(t, "example-ops-tasks", doc.Evidence.TaskSet)
 
-	// Contract verification: spec inside proposal can be decoded by core
 	decoded, err := harness.DecodeSpec(doc.Spec)
 	require.NoError(t, err)
 	assert.Equal(t, "candidate-optimized", decoded.Name)
@@ -159,14 +155,12 @@ func TestCLI_Propose_DoesNotAffectReport(t *testing.T) {
 	}, &stdout2, &stderr2)
 	require.Equal(t, 0, code2)
 
-	// Compare report.json byte-for-byte
 	json1, err := os.ReadFile(filepath.Join(outDirWithoutProp, "report.json"))
 	require.NoError(t, err)
 	json2, err := os.ReadFile(filepath.Join(outDirWithProp, "report.json"))
 	require.NoError(t, err)
 	assert.Equal(t, string(json1), string(json2), "report.json must be identical whether -propose is given or not")
 
-	// Compare report.md byte-for-byte
 	md1, err := os.ReadFile(filepath.Join(outDirWithoutProp, "report.md"))
 	require.NoError(t, err)
 	md2, err := os.ReadFile(filepath.Join(outDirWithProp, "report.md"))

@@ -12,9 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
-// TestSlackChannel_SSRFProtection stress-tests the Slack channel's SSRF protection
-// against tricky URLs: loopback, link-local metadata, IPv6, invalid DNS, private IPs,
-// and disallowed schemes.
 func TestSlackChannel_SSRFProtection(t *testing.T) {
 	safehttp.SetAllowPrivateWebhooks(false)
 	t.Cleanup(func() {
@@ -114,7 +111,7 @@ func TestSlackChannel_SSRFProtection(t *testing.T) {
 		{
 			name:        "Invalid DNS domain",
 			url:         "http://invalid.dns.that.does.not.exist.octarq.internal/webhook",
-			errContains: "", // any error is expected since host does not exist
+			errContains: "",
 		},
 	}
 
@@ -125,7 +122,6 @@ func TestSlackChannel_SSRFProtection(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Do NOT inject a mock client! Use default production NewSlackChannel()
 			ch := NewSlackChannel()
 
 			rec := plugin.NotificationRecipient{
@@ -149,8 +145,6 @@ func TestSlackChannel_SSRFProtection(t *testing.T) {
 	}
 }
 
-// TestSlackChannel_LiveLoopbackServerBlocked verifies that an active listening HTTP
-// server on 127.0.0.1 is blocked by the default safehttp client.
 func TestSlackChannel_LiveLoopbackServerBlocked(t *testing.T) {
 	safehttp.SetAllowPrivateWebhooks(false)
 	t.Cleanup(func() {
@@ -164,7 +158,7 @@ func TestSlackChannel_LiveLoopbackServerBlocked(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ch := NewSlackChannel() // Uses real safehttp client
+	ch := NewSlackChannel()
 	rec := plugin.NotificationRecipient{
 		Config: map[string]any{
 			"webhook_url": ts.URL,
@@ -187,8 +181,6 @@ func TestSlackChannel_LiveLoopbackServerBlocked(t *testing.T) {
 	}
 }
 
-// TestSlackChannel_RedirectSSRFBlocked verifies that if a webhook endpoint redirects
-// to 169.254.169.254 or 127.0.0.1, the redirect is stopped at dial time.
 func TestSlackChannel_RedirectSSRFBlocked(t *testing.T) {
 	safehttp.SetAllowPrivateWebhooks(false)
 	t.Cleanup(func() {
@@ -201,7 +193,6 @@ func TestSlackChannel_RedirectSSRFBlocked(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// When private webhooks are NOT allowed, even the first hop to ts.URL is blocked
 	ch := NewSlackChannel()
 	rec := plugin.NotificationRecipient{
 		Config: map[string]any{

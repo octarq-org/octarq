@@ -15,13 +15,11 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ReactorRegistry manages declarative EventReactor registration and lifecycle.
 type ReactorRegistry struct {
 	mu       sync.RWMutex
 	reactors []plugin.EventReactor
 }
 
-// NewReactorRegistry creates a new isolated ReactorRegistry instance.
 func NewReactorRegistry() *ReactorRegistry {
 	return &ReactorRegistry{
 		reactors: make([]plugin.EventReactor, 0),
@@ -30,9 +28,6 @@ func NewReactorRegistry() *ReactorRegistry {
 
 var defaultReactorRegistry = NewReactorRegistry()
 
-// Register registers an EventReactor to the registry.
-// Returns an error if the reactor is nil, defines no events, contains invalid keys,
-// or has already been registered.
 func (reg *ReactorRegistry) Register(r plugin.EventReactor) error {
 	if r == nil {
 		return errors.New("event reactor cannot be nil")
@@ -60,7 +55,6 @@ func (reg *ReactorRegistry) Register(r plugin.EventReactor) error {
 	return nil
 }
 
-// Reactors returns a copy of all registered EventReactors.
 func (reg *ReactorRegistry) Reactors() []plugin.EventReactor {
 	reg.mu.RLock()
 	defer reg.mu.RUnlock()
@@ -69,19 +63,16 @@ func (reg *ReactorRegistry) Reactors() []plugin.EventReactor {
 	return out
 }
 
-// Reset clears all registered reactors in this registry.
 func (reg *ReactorRegistry) Reset() {
 	reg.mu.Lock()
 	defer reg.mu.Unlock()
 	reg.reactors = nil
 }
 
-// RegisterReactor registers an EventReactor into the default global registry.
 func RegisterReactor(r plugin.EventReactor) error {
 	return defaultReactorRegistry.Register(r)
 }
 
-// ResetReactors clears all registered reactors from the default global registry.
 func ResetReactors() {
 	defaultReactorRegistry.Reset()
 }
@@ -97,7 +88,6 @@ func (s *reactorState) shouldDebounce(entityKey string, minInterval time.Duratio
 	defer s.mu.Unlock()
 	now := time.Now()
 	s.ops++
-	// Amortized eviction sweep every 1,000 operations when map exceeds threshold to avoid O(N) overhead on every call under lock
 	if s.ops%1000 == 0 && len(s.lastFire) > 10000 {
 		for k, t := range s.lastFire {
 			if now.Sub(t) > minInterval*2 {
@@ -126,9 +116,6 @@ func hashEntityKey(s string) uint32 {
 	return h.Sum32()
 }
 
-// Start launches the subscriber and worker pool for all registered reactors in this registry.
-// Concurrency defaults to GOMAXPROCS (or 8 if GOMAXPROCS < 8) when concurrency <= 0.
-// It returns an idempotent stop function for graceful shutdown.
 func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 	if concurrency <= 0 {
 		concurrency = runtime.GOMAXPROCS(0)
@@ -182,7 +169,6 @@ func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 	var wg sync.WaitGroup
 	var rr uint32
 
-	// Start worker goroutines (1 worker per shard queue for strict per-entity serialization)
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func(shardID int, queue <-chan reactorTask) {
@@ -204,7 +190,6 @@ func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 		}(i, shardQueues[i])
 	}
 
-	// Dispatcher goroutine: consumes from event spine subscriber channel and fans out to worker shards
 	wg.Add(1)
 	go func() {
 		defer func() {
@@ -224,13 +209,11 @@ func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 				}
 				matchedReactors := reactorsByKey[env.Key]
 				for _, r := range matchedReactors {
-					// Extract EntityKey
 					entityKey := env.EntityKey
 					if ekr, ok := r.(plugin.EntityKeyReactor); ok {
 						entityKey = ekr.EntityKey(env)
 					}
 
-					// Per-reactor debounce check
 					if dr, ok := r.(plugin.DebounceReactor); ok {
 						minInterval := dr.MinInterval()
 						if minInterval > 0 && entityKey != "" {
@@ -242,7 +225,6 @@ func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 						}
 					}
 
-					// Select shard for serialization
 					var shardID int
 					if entityKey != "" {
 						shardID = int(hashEntityKey(entityKey) % uint32(concurrency))
@@ -298,13 +280,10 @@ func executeReactor(ctx context.Context, r plugin.EventReactor, env plugin.Envel
 	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if err := r.React(execCtx, env); err != nil {
-		// Best-effort execution: log error and do not block the event spine.
-		// For guaranteed transactional retries across restarts, background queues (asynq) are used.
 		log.Printf("eventbus: reactor %T failed on event %s (entity %s): %v", r, env.Key, entityKey, err)
 	}
 }
 
-// StartReactors starts reactors registered in the default global registry.
 func StartReactors(ctx context.Context, concurrency int) func() {
 	return defaultReactorRegistry.Start(ctx, concurrency)
 }

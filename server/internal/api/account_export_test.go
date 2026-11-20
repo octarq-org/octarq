@@ -37,7 +37,6 @@ func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 
 	files := unzipTestArchive(t, rec.Body.Bytes())
 
-	// 1. Assert raw secret is NOT present in any export file
 	for fName, fBytes := range files {
 		fStr := string(fBytes)
 		if contains(fStr, secretStr) {
@@ -48,7 +47,6 @@ func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 		}
 	}
 
-	// 2. Assert standard files are present in the zip
 	for _, key := range []string{
 		"metadata.json", "links.csv", "domains.json", "mailboxes.json", "audit_logs.json",
 	} {
@@ -57,7 +55,6 @@ func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 		}
 	}
 
-	// 3. Verify metadata.json counts and structure
 	var meta map[string]any
 	if err := json.Unmarshal(files["metadata.json"], &meta); err != nil {
 		t.Fatalf("unmarshal metadata.json: %v", err)
@@ -71,10 +68,6 @@ func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || (len(substr) > 0 && searchSubstr(s, substr)))
 }
 
-// TestExportAccount_IncludesPluginData guards the plugin.ExportFunc contract:
-// the export must merge in every mounted plugin's data through
-// LookupServiceAs[plugin.ExportFunc]. Short-circuiting that guard leaves the
-// plugin's key out of the export and reds this test.
 func TestExportAccount_IncludesPluginData(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 

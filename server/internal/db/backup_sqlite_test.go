@@ -10,7 +10,6 @@ import (
 func TestVerifySQLiteIntegrity(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// 1. Valid database
 	validDBPath := filepath.Join(tempDir, "valid.db")
 	db, err := sql.Open("sqlite", validDBPath)
 	if err != nil {
@@ -26,10 +25,7 @@ func TestVerifySQLiteIntegrity(t *testing.T) {
 		t.Errorf("Expected valid DB to pass, got error: %v", err)
 	}
 
-	// 2. Corrupt database
 	corruptDBPath := filepath.Join(tempDir, "corrupt.db")
-	// Creating a file that looks like a sqlite db with 100 bytes (to bypass empty file check),
-	// but is invalid data to trigger integrity check failure.
 	corruptData := make([]byte, 100)
 	for i := range corruptData {
 		corruptData[i] = 0x42

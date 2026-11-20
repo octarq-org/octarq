@@ -12,8 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ---------- test types (mirrors plugin/endpoints_test.go echo pattern) ----------
-
 type wiringIn struct {
 	Message string `json:"message"`
 	Count   int    `json:"count"`
@@ -24,12 +22,10 @@ type wiringOut struct {
 	Total int    `json:"total"`
 }
 
-// buildEngine creates a minimal Engine populated with test endpoints.
 func buildEngine(t *testing.T) *endpoint.Engine {
 	t.Helper()
 	eng := endpoint.NewEngine()
 
-	// 1. A normal read endpoint.
 	readSpec := plugin.EndpointSpec[wiringIn, wiringOut]{
 		Name:      "echo_tool",
 		Summary:   "Echoes",
@@ -48,7 +44,6 @@ func buildEngine(t *testing.T) *endpoint.Engine {
 		t.Fatalf("register echo_tool: %v", err)
 	}
 
-	// 2. An endpoint requiring approval.
 	approvalSpec := plugin.EndpointSpec[wiringIn, wiringOut]{
 		Name:            "delete_everything",
 		Summary:         "Nuke",
@@ -65,7 +60,6 @@ func buildEngine(t *testing.T) *endpoint.Engine {
 		t.Fatalf("register delete_everything: %v", err)
 	}
 
-	// 3. A write endpoint without approval.
 	writeSpec := plugin.EndpointSpec[wiringIn, wiringOut]{
 		Name:      "update_item",
 		Summary:   "Update",
@@ -83,7 +77,6 @@ func buildEngine(t *testing.T) *endpoint.Engine {
 	return eng
 }
 
-// ① Unknown tool → executor returns AgentError 404 UNKNOWN_TOOL
 func TestRegistryExecutor_UnknownTool(t *testing.T) {
 	eng := buildEngine(t)
 	exec := harness.NewRegistryExecutor(eng)
@@ -102,7 +95,6 @@ func TestRegistryExecutor_UnknownTool(t *testing.T) {
 	}
 }
 
-// ① Unknown tool → guard returns AgentError 404 UNKNOWN_TOOL with guidance
 func TestRiskGuard_UnknownTool(t *testing.T) {
 	eng := buildEngine(t)
 	g := harness.NewRiskGuard(eng)
@@ -124,12 +116,10 @@ func TestRiskGuard_UnknownTool(t *testing.T) {
 	}
 }
 
-// ② Full-chain happy path: JSON args → handler → marshal output
 func TestRegistryExecutor_FullChain(t *testing.T) {
 	eng := buildEngine(t)
 	exec := harness.NewRegistryExecutor(eng)
 
-	// Test with string + int fields to cover number round-trip (陷阱: float64 default).
 	argsJSON := `{"message":"hello","count":42}`
 	out, err := exec.Execute(context.Background(), 7, "echo_tool", argsJSON)
 	if err != nil {
@@ -148,7 +138,6 @@ func TestRegistryExecutor_FullChain(t *testing.T) {
 	}
 }
 
-// ② Empty args → zero-value In
 func TestRegistryExecutor_EmptyArgs(t *testing.T) {
 	eng := buildEngine(t)
 	exec := harness.NewRegistryExecutor(eng)
@@ -166,7 +155,6 @@ func TestRegistryExecutor_EmptyArgs(t *testing.T) {
 	}
 }
 
-// ② "null" args → zero-value In
 func TestRegistryExecutor_NullArgs(t *testing.T) {
 	eng := buildEngine(t)
 	exec := harness.NewRegistryExecutor(eng)
@@ -184,7 +172,6 @@ func TestRegistryExecutor_NullArgs(t *testing.T) {
 	}
 }
 
-// ③ Bad JSON → AgentError INVALID_TOOL_ARGS
 func TestRegistryExecutor_BadJSON(t *testing.T) {
 	eng := buildEngine(t)
 	exec := harness.NewRegistryExecutor(eng)
@@ -203,7 +190,6 @@ func TestRegistryExecutor_BadJSON(t *testing.T) {
 	}
 }
 
-// ④ RequireApproval tool → guard returns ErrApprovalRequired
 func TestRiskGuard_RequireApproval(t *testing.T) {
 	eng := buildEngine(t)
 	g := harness.NewRiskGuard(eng)
@@ -218,22 +204,18 @@ func TestRiskGuard_RequireApproval(t *testing.T) {
 	}
 }
 
-// ⑤ Non-approval tool → guard allows
 func TestRiskGuard_AllowsNormalTools(t *testing.T) {
 	eng := buildEngine(t)
 	g := harness.NewRiskGuard(eng)
 
-	// read tool
 	if err := g.Allow(context.Background(), 1, "echo_tool", "{}"); err != nil {
 		t.Errorf("expected guard to allow echo_tool, got: %v", err)
 	}
-	// write tool without approval
 	if err := g.Allow(context.Background(), 1, "update_item", "{}"); err != nil {
 		t.Errorf("expected guard to allow update_item, got: %v", err)
 	}
 }
 
-// ⑥ Org context injection: handler reads OrgIDFromContext correctly
 func TestRegistryExecutor_OrgIDInjection(t *testing.T) {
 	eng := endpoint.NewEngine()
 
@@ -272,7 +254,6 @@ func TestRegistryExecutor_OrgIDInjection(t *testing.T) {
 	}
 }
 
-// Engine.Lookup correctness
 func TestEngine_Lookup(t *testing.T) {
 	eng := buildEngine(t)
 

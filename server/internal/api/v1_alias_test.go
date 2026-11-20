@@ -6,9 +6,6 @@ import (
 	"testing"
 )
 
-// TestV1AliasRejected verifies that the pre-v1.0 zero-degradation rule strictly
-// refuses /api/v1/... compatibility shims (AUD-P1-05). All endpoints must use
-// canonical /api/... routes.
 func TestV1AliasRejected(t *testing.T) {
 	srv, _ := newTestHandler(t)
 

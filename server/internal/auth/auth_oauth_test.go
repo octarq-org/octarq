@@ -124,8 +124,6 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	if o.Name != "alice@example.com" {
 		t.Errorf("org mismatch: %+v", o)
 	}
-	// The slug is allocated at random, never derived: it lands in public URLs
-	// (the billing webhook path), so it must not spell out the founder's address.
 	if o.Slug == "" || strings.Contains(o.Slug, "alice") || strings.Contains(o.Slug, "example") {
 		t.Errorf("org slug %q leaks the founder's email", o.Slug)
 	}
@@ -139,21 +137,16 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	}
 }
 
-// TestOAuthUpsertRespectsRegistrationGate verifies OAuth can't provision a
-// brand-new account when public registration is disabled, but still lets an
-// already-provisioned user sign in.
 func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
 	m := New(cfg, crypto.New("secret")).WithDB(db)
 	handler := NewOAuthHandler(db, m, nil)
 
-	// Turn registration off (invite-only instance).
 	if err := db.Create(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {
 		t.Fatalf("seed setting: %v", err)
 	}
 
-	// Unknown email → refused with the sentinel error, no account created.
 	if _, _, err := handler.upsertUser("stranger@example.com"); !errors.Is(err, ErrRegistrationDisabled) {
 		t.Fatalf("expected ErrRegistrationDisabled for unknown email, got %v", err)
 	}
@@ -163,7 +156,6 @@ func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 		t.Errorf("stranger account should not have been created, found %d", count)
 	}
 
-	// A pre-existing user still resolves even while registration is off.
 	existing := models.User{Email: "member@example.com"}
 	if err := db.Create(&existing).Error; err != nil {
 		t.Fatalf("seed user: %v", err)

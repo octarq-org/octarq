@@ -32,7 +32,6 @@ func TestReactor_EntityKeySerialization(t *testing.T) {
 			activeKeys[key] = true
 			activeKeyMu.Unlock()
 
-			// Sleep briefly to expand concurrency race window if sharding failed
 			time.Sleep(200 * time.Microsecond)
 
 			activeKeyMu.Lock()
@@ -54,7 +53,6 @@ func TestReactor_EntityKeySerialization(t *testing.T) {
 
 	const totalEvents = 100
 	var pubWg sync.WaitGroup
-	// Concurrently publish 100 events across 3 distinct entity keys
 	for i := 0; i < totalEvents; i++ {
 		pubWg.Add(1)
 		go func(idx int) {
@@ -142,11 +140,9 @@ func TestReactor_GracefulShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := reg.Start(ctx, 4)
 
-	// Trigger cancel
 	cancel()
 	stop()
 
-	// After stop, publishing should not panic or deliver to stopped runner
 	eventbus.PublishEnvelope(eventbus.Envelope{
 		OrgID: 1,
 		Key:   "shutdown.event",
@@ -262,25 +258,21 @@ func TestReactor_ShardQueueFullDrop(t *testing.T) {
 	defer cancel()
 
 	beforeDropped := eventbus.DroppedTotal()
-	stop := reg.Start(ctx, 1) // 1 worker shard with 256 buffer
+	stop := reg.Start(ctx, 1)
 	defer stop()
 
-	// Publish 1st event to block worker 0
 	eventbus.PublishEnvelope(eventbus.Envelope{
 		OrgID:     1,
 		Key:       "queue.overflow",
 		EntityKey: "entity-block",
 	})
 
-	// Wait until worker starts executing the 1st event
 	select {
 	case <-startedCh:
 	case <-time.After(2 * time.Second):
 		t.Fatal("worker did not start executing first event in time")
 	}
 
-	// Now worker 0 is blocked. Shard buffer is 256.
-	// Publish 300 more events: 256 should buffer, remaining should drop.
 	const overflowCount = 300
 	for i := 0; i < overflowCount; i++ {
 		eventbus.PublishEnvelope(eventbus.Envelope{
@@ -290,7 +282,6 @@ func TestReactor_ShardQueueFullDrop(t *testing.T) {
 		})
 	}
 
-	// Allow dispatcher to process incoming events from spine and drop overflow
 	time.Sleep(50 * time.Millisecond)
 
 	afterDropped := eventbus.DroppedTotal()
@@ -298,6 +289,5 @@ func TestReactor_ShardQueueFullDrop(t *testing.T) {
 		t.Errorf("expected DroppedTotal to increase due to full shard queue, before=%d, after=%d", beforeDropped, afterDropped)
 	}
 
-	// Unblock worker to drain remaining tasks
 	close(blockCh)
 }

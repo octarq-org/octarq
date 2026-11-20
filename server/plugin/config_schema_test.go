@@ -91,7 +91,6 @@ func TestConfigSchema_Validate_Required(t *testing.T) {
 		},
 	}
 
-	// Missing serviceUrl
 	err := schema.Validate(map[string]any{
 		"optionalDesc": "testing",
 	})
@@ -103,7 +102,6 @@ func TestConfigSchema_Validate_Required(t *testing.T) {
 		t.Fatalf("expected error to mention 'serviceUrl', got: %v", err)
 	}
 
-	// Empty string for required field
 	err = schema.Validate(map[string]any{
 		"serviceUrl": "   ",
 	})
@@ -115,7 +113,6 @@ func TestConfigSchema_Validate_Required(t *testing.T) {
 		t.Fatalf("expected error to mention 'serviceUrl', got: %v", err)
 	}
 
-	// Present serviceUrl
 	err = schema.Validate(map[string]any{
 		"serviceUrl": "https://example.com",
 	})
@@ -136,7 +133,6 @@ func TestConfigSchema_Validate_Range(t *testing.T) {
 		},
 	}
 
-	// Exceed Max
 	err := schema.Validate(map[string]any{
 		"port": 99999,
 	})
@@ -148,7 +144,6 @@ func TestConfigSchema_Validate_Range(t *testing.T) {
 		t.Fatalf("expected error to mention 'port', got: %v", err)
 	}
 
-	// Below Min
 	err = schema.Validate(map[string]any{
 		"port": 80,
 	})
@@ -160,7 +155,6 @@ func TestConfigSchema_Validate_Range(t *testing.T) {
 		t.Fatalf("expected error to mention 'port', got: %v", err)
 	}
 
-	// In range
 	err = schema.Validate(map[string]any{
 		"port": 8080,
 	})
@@ -168,7 +162,6 @@ func TestConfigSchema_Validate_Range(t *testing.T) {
 		t.Fatalf("expected valid port to pass, got: %v", err)
 	}
 
-	// Float representation of int (e.g. from JSON decoder)
 	err = schema.Validate(map[string]any{
 		"port": float64(8080),
 	})
@@ -188,7 +181,6 @@ func TestConfigSchema_Validate_Enum(t *testing.T) {
 		},
 	}
 
-	// Invalid enum
 	err := schema.Validate(map[string]any{
 		"logLevel": "trace",
 	})
@@ -200,7 +192,6 @@ func TestConfigSchema_Validate_Enum(t *testing.T) {
 		t.Fatalf("expected error to mention 'logLevel', got: %v", err)
 	}
 
-	// Valid enum
 	err = schema.Validate(map[string]any{
 		"logLevel": "debug",
 	})
@@ -221,7 +212,6 @@ func TestConfigSchema_Validate_NilMinMax(t *testing.T) {
 		},
 	}
 
-	// Should not panic with nil Min/Max
 	err := schema.Validate(map[string]any{
 		"count": 1000000,
 	})
@@ -259,22 +249,18 @@ func TestConfigSchema_Validate_AllNumericTypes(t *testing.T) {
 		}
 	}
 
-	// Invalid non-integer float
 	if err := schema.Validate(map[string]any{"count": 10.5}); err == nil {
 		t.Errorf("expected error for non-integer float 10.5")
 	}
 
-	// Invalid non-integer json.Number
 	if err := schema.Validate(map[string]any{"count": json.Number("invalid")}); err == nil {
 		t.Errorf("expected error for invalid json.Number")
 	}
 
-	// Invalid type (string for int field)
 	if err := schema.Validate(map[string]any{"count": "not-an-int"}); err == nil {
 		t.Errorf("expected error for string in int field")
 	}
 
-	// Invalid boolean
 	if err := schema.Validate(map[string]any{"flag": "not-a-bool"}); err == nil {
 		t.Errorf("expected error for invalid boolean")
 	}

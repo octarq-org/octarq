@@ -6,11 +6,6 @@ import (
 	"testing"
 )
 
-// The tool-call block is the model's only way to reach a tool, and the prompt
-// tells it exactly one shape. These tests pin that shape down: an object for
-// "args", one call per line, and a malformed line reported back instead of
-// being dropped in silence.
-
 func TestParseToolCalls_ObjectArgs(t *testing.T) {
 	text := "thinking\n```tool_call\n{\"name\":\"create_link\",\"args\":{\"destination\":\"https://example.com\"}}\n```\nafter"
 
@@ -38,8 +33,6 @@ func TestParseToolCalls_ObjectArgs(t *testing.T) {
 }
 
 func TestParseToolCalls_StringArgsAreNormalizedToAnObject(t *testing.T) {
-	// A JSON-encoded string carries the same value as the object; both decode
-	// to the same arguments.
 	text := "```tool_call\n{\"name\":\"create_link\",\"args\":\"{\\\"slug\\\":\\\"promo\\\"}\"}\n```"
 
 	calls, _, invalid := parseToolCalls(text)

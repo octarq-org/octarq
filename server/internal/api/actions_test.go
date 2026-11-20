@@ -32,7 +32,6 @@ func TestActionsAPI(t *testing.T) {
 
 		cookies := loginCookies(t, srv)
 
-		// 1. When plugin is disabled (default), its action does NOT appear
 		rec := do(srv, "GET", "/api/actions", cookies, "")
 		if rec.Code != http.StatusOK {
 			t.Fatalf("GET /api/actions got %d (%s)", rec.Code, rec.Body.String())
@@ -45,12 +44,10 @@ func TestActionsAPI(t *testing.T) {
 			t.Fatalf("expected 0 actions when plugin is disabled, got %d", len(actions))
 		}
 
-		// Enable plugin
 		if rec := do(srv, "PUT", "/api/plugins/action_test", cookies, `{"enabled":true}`); rec.Code != http.StatusOK {
 			t.Fatalf("enable plugin got %d (%s)", rec.Code, rec.Body.String())
 		}
 
-		// 2. When plugin is enabled, its action appears in GET /api/actions
 		rec = do(srv, "GET", "/api/actions", cookies, "")
 		if rec.Code != http.StatusOK {
 			t.Fatalf("GET /api/actions got %d (%s)", rec.Code, rec.Body.String())
@@ -66,7 +63,6 @@ func TestActionsAPI(t *testing.T) {
 		if act.ID != "action_test.create" || act.Label != "New Test Item" || act.Path != "/test?create=1" || act.Icon != "plus" || act.Category != "Test" || act.Order != 5 {
 			t.Errorf("unexpected action fields: %+v", act)
 		}
-		// 3. RequiredRole passes through to JSON
 		if act.RequiredRole != "admin" {
 			t.Errorf("expected RequiredRole \"admin\", got %q", act.RequiredRole)
 		}
@@ -78,7 +74,6 @@ func TestActionsAPI(t *testing.T) {
 
 		cookies := loginCookies(t, srv)
 
-		// Enable noActionPlugin
 		if rec := do(srv, "PUT", "/api/plugins/no_action", cookies, `{"enabled":true}`); rec.Code != http.StatusOK {
 			t.Fatalf("enable plugin got %d (%s)", rec.Code, rec.Body.String())
 		}

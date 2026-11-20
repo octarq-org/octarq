@@ -10,8 +10,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// cryptoMCPPlugin requires a CryptoVault at validation time, the shape Core's
-// Vault plugin uses so MCP credential tools can encrypt/decrypt secrets.
 type cryptoMCPPlugin struct {
 	refuse     error
 	validated  bool
@@ -35,10 +33,6 @@ func (p *cryptoMCPPlugin) Validate(_ context.Context, host plugin.Host) error {
 	return nil
 }
 
-// TestRunMCPValidatesAgainstTheHostTheMountBuilds pins that RunMCP wires the
-// stdio mount with CryptoVault so Vault and crypto-dependent MCP plugins pass
-// validation and expose their tools, while Validate still receives the stdio
-// host surface.
 func TestRunMCPValidatesAgainstTheHostTheMountBuilds(t *testing.T) {
 	a := bootApp(t)
 	p := &cryptoMCPPlugin{}
@@ -58,9 +52,6 @@ func TestRunMCPValidatesAgainstTheHostTheMountBuilds(t *testing.T) {
 	}
 }
 
-// TestRunMCPStopsBeforeRegisteringToolsOnRefusal is the fail-closed half: a
-// plugin that refuses to start must not have its tools exposed to the agent,
-// and the refusal must name the plugin so an operator knows what to fix.
 func TestRunMCPStopsBeforeRegisteringToolsOnRefusal(t *testing.T) {
 	a := bootApp(t)
 	refusal := errors.New("twofa: encryption unavailable")

@@ -7,9 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TestPersonalOrgIDResolvesOnlyPersonalOrgs proves the resolver never mistakes
-// a team workspace for the personal one, even when the team org was created
-// first and would win a plain "lowest org id" lookup.
 func TestPersonalOrgIDResolvesOnlyPersonalOrgs(t *testing.T) {
 	db := identityDB(t)
 	user := mustUser(t, db, "solo@acme.com")
@@ -32,9 +29,6 @@ func TestPersonalOrgIDResolvesOnlyPersonalOrgs(t *testing.T) {
 	}
 }
 
-// TestPersonalOrgIDFailsClosed covers every "cannot answer" input: a team-only
-// member, an unknown user, a zero user, and a nil db all yield 0 so callers
-// refuse instead of writing personal data into the active workspace.
 func TestPersonalOrgIDFailsClosed(t *testing.T) {
 	db := identityDB(t)
 	user := mustUser(t, db, "team-only@acme.com")
@@ -57,9 +51,6 @@ func TestPersonalOrgIDFailsClosed(t *testing.T) {
 	}
 }
 
-// TestSignupProvisionsPersonalOrg pins the provisioning side of the contract:
-// the org UpsertUserByEmail creates carries kind=personal, so PersonalOrgID can
-// find it without guessing from ids.
 func TestSignupProvisionsPersonalOrg(t *testing.T) {
 	db := identityDB(t)
 	_, orgID, err := UpsertUserByEmail(db, "fresh@acme.com", true)

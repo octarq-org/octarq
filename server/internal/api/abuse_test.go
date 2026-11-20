@@ -17,7 +17,6 @@ func TestAbuseEndpoints(t *testing.T) {
 
 	cookies := sessionCookies(t, 1, 1)
 
-	// 1. Submit abuse report (Public)
 	body := `{"slug":"nonexistent","reason":"phishing","description":"Phishing site"}`
 	req := httptest.NewRequest(http.MethodPost, "/abuse", strings.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -37,7 +36,6 @@ func TestAbuseEndpoints(t *testing.T) {
 		t.Errorf("unexpected submit response: %+v", submitResp)
 	}
 
-	// 2. Submit 5 more times to trigger the rate limiter (making a total of 6 calls)
 	for i := 0; i < 5; i++ {
 		req := httptest.NewRequest(http.MethodPost, "/abuse", strings.NewReader(body))
 		rec := httptest.NewRecorder()
@@ -47,14 +45,12 @@ func TestAbuseEndpoints(t *testing.T) {
 				t.Errorf("submit abuse %d: got %d, want 201", i, rec.Code)
 			}
 		} else {
-			// The 6th request (since 1 + 5 = 6) should be rate-limited
 			if rec.Code != http.StatusTooManyRequests {
 				t.Errorf("expected 429 for rate-limited request, got %d (%s)", rec.Code, rec.Body.String())
 			}
 		}
 	}
 
-	// 3. List abuse reports (Admin)
 	reqList := httptest.NewRequest(http.MethodGet, "/api/abuse?status=open", nil)
 	for _, c := range cookies {
 		reqList.AddCookie(c)
@@ -73,7 +69,6 @@ func TestAbuseEndpoints(t *testing.T) {
 		t.Error("expected at least one abuse report in the list")
 	}
 
-	// 4. Update abuse report status (Admin)
 	reportID := reports[0].ID
 	updateBody := `{"status":"reviewed"}`
 	reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/abuse/%d", reportID), strings.NewReader(updateBody))
@@ -96,10 +91,6 @@ func TestAbuseEndpoints(t *testing.T) {
 	}
 }
 
-// A report is owned by the workspace that owns the reported link, and only that
-// workspace's admins may change its status. Another workspace must get 404 and
-// leave the report untouched — the status write is scoped through orgDB, not
-// applied against the raw record.
 func TestAbuseStatusUpdateIsOrgScoped(t *testing.T) {
 	srv, db := newTestHandler(t)
 	org1 := sessionCookies(t, 1, 1)

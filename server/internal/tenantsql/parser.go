@@ -1,5 +1,3 @@
-// Package tenantsql provides a secure, fail-closed SQL parser and validator for tenant-isolated views.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 package tenantsql
 
 import (
@@ -11,16 +9,10 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-// DefaultViewPrefix is the default required table/view prefix for tenant SQL validation.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 const DefaultViewPrefix = "tenant_"
 
-// MaxSQLLength is the maximum allowed byte length for input SQL queries (10KB = 10240 bytes).
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 const MaxSQLLength = 10 * 1024
 
-// DefaultAllowedFunctions is the default whitelist of allowed SQL functions.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 var DefaultAllowedFunctions = []string{
 	"count",
 	"sum",
@@ -35,14 +27,10 @@ var DefaultAllowedFunctions = []string{
 	"strftime",
 }
 
-// Parser validates tenant SQL queries against strict fail-closed safety rules.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 type Parser interface {
 	Validate(sql string) error
 }
 
-// Option configures the tenant SQL Parser.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 type Option func(*parserOptions)
 
 type parserOptions struct {
@@ -51,17 +39,12 @@ type parserOptions struct {
 	allowedViews     map[string]bool
 }
 
-// WithViewPrefix sets the required view/table prefix (default: "tenant_").
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 func WithViewPrefix(prefix string) Option {
 	return func(opts *parserOptions) {
 		opts.viewPrefix = prefix
 	}
 }
 
-// WithAllowedFunctions sets the allowed function names whitelist (overriding defaults).
-// Passing an empty slice or nil will disallow all functions.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 func WithAllowedFunctions(names []string) Option {
 	return func(opts *parserOptions) {
 		opts.allowedFunctions = make(map[string]bool, len(names))
@@ -74,8 +57,6 @@ func WithAllowedFunctions(names []string) Option {
 	}
 }
 
-// WithAllowedViews sets the allowed view/table names whitelist.
-// If set with a non-empty slice, any referenced view not in this list will fail validation.
 func WithAllowedViews(names []string) Option {
 	return func(opts *parserOptions) {
 		opts.allowedViews = make(map[string]bool, len(names))
@@ -94,11 +75,6 @@ type parserImpl struct {
 	allowedViews     map[string]bool
 }
 
-// rejectUnknownTableExpr enforces the explicit table-shape guard: only plain
-// view names and derived subqueries may appear in FROM. Anything else (e.g. a
-// table-valued function such as FROM pragma_table_info('t'), should a future
-// parser version start accepting it) is rejected here rather than relying on
-// the parser's current inability to parse it.
 func rejectUnknownTableExpr(expr sqlparser.SimpleTableExpr) error {
 	switch expr.(type) {
 	case nil:
@@ -112,8 +88,6 @@ func rejectUnknownTableExpr(expr sqlparser.SimpleTableExpr) error {
 	}
 }
 
-// NewParser creates a new Parser with the provided options.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 func NewParser(opts ...Option) Parser {
 	defaultFuncs := make(map[string]bool, len(DefaultAllowedFunctions))
 	for _, fn := range DefaultAllowedFunctions {
@@ -138,10 +112,7 @@ func NewParser(opts ...Option) Parser {
 	}
 }
 
-// Validate executes the 6-stage validation pipeline on the given SQL string.
-// Note: Pre-P3 API subject to change (P3 前 API 易变).
 func (p *parserImpl) Validate(sql string) (err error) {
-	// Stage 1: Empty / Too Long (>10KB) check
 	trimmed := strings.TrimSpace(sql)
 	if trimmed == "" {
 		return errors.New("sql statement cannot be empty")
@@ -150,8 +121,6 @@ func (p *parserImpl) Validate(sql string) (err error) {
 		return fmt.Errorf("sql statement exceeds maximum allowed length of %d bytes (got %d bytes)", MaxSQLLength, len(sql))
 	}
 
-	// Stage 2: sqlparser.Parse wrapped in defer recover()
-	// Recovered panic is converted to equivalent parse failure error, never leaked.
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("sql parsing failed: %v", r)
@@ -163,13 +132,11 @@ func (p *parserImpl) Validate(sql string) (err error) {
 		return fmt.Errorf("sql parsing failed: %v", parseErr)
 	}
 
-	// Stage 3: Statement type whitelist (only *sqlparser.Select)
 	selectStmt, ok := stmt.(*sqlparser.Select)
 	if !ok {
 		return fmt.Errorf("disallowed statement type %s: only SELECT statements are permitted", statementTypeName(stmt))
 	}
 
-	// Stage 4 & Stage 5: Walk AST extracting table names and function calls
 	walkErr := sqlparser.Walk(func(node sqlparser.SQLNode) (bool, error) {
 		if node == nil {
 			return true, nil
@@ -270,7 +237,6 @@ func (p *parserImpl) Validate(sql string) (err error) {
 		return walkErr
 	}
 
-	// Stage 6: Multi-statement check (semicolon followed by content -> reject)
 	if err := checkSingleStatement(sql); err != nil {
 		return err
 	}
@@ -278,8 +244,6 @@ func (p *parserImpl) Validate(sql string) (err error) {
 	return nil
 }
 
-// parseFunc is indirected solely so tests can inject a panicking parser and
-// prove the recovery path; production always uses sqlparser.Parse.
 var parseFunc = sqlparser.Parse
 
 func parseSafely(sql string) (stmt sqlparser.Statement, err error) {
@@ -351,8 +315,6 @@ func statementTypeName(stmt sqlparser.Statement) string {
 	}
 }
 
-// ExtractReferencedViews extracts all unique table/view names referenced in a SELECT query.
-// It uses parseSafely to recover from parser panics and returns lowercased view names in appearance order.
 func ExtractReferencedViews(sql string) (views []string, err error) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -30,12 +30,10 @@ func TestCoverageLiftBackupDefaultPath(t *testing.T) {
 		DBDriver: "sqlite",
 		DBDSN:    dbPath,
 	}
-	// Backup with empty outputPath exercises default backup filename creation
 	err = Backup(cfg, "")
 	if err != nil {
 		t.Fatalf("backup with default filename failed: %v", err)
 	}
-	// Default backup filename matches octarq-backup-sqlite-*.db
 	matches, _ := filepath.Glob("octarq-backup-sqlite-*.db")
 	for _, m := range matches {
 		_ = os.Remove(m)
@@ -134,7 +132,6 @@ func TestCoverageLiftMySQLUnixSocket(t *testing.T) {
 }
 
 func TestCoverageLiftRestoreErrors(t *testing.T) {
-	// 1. restorePostgres with .dump suffix when pg_restore not in PATH
 	t.Setenv("PATH", t.TempDir())
 	pgCfg := &config.Config{
 		DBDriver: "postgres",
@@ -150,7 +147,6 @@ func TestCoverageLiftRestoreErrors(t *testing.T) {
 		t.Fatalf("expected pg_restore not found error, got: %v", err)
 	}
 
-	// 2. restoreMySQL open error
 	installFakeTool(t, "mysql", `exit 0`)
 	myCfg := &config.Config{
 		DBDriver: "mysql",
@@ -161,7 +157,6 @@ func TestCoverageLiftRestoreErrors(t *testing.T) {
 		t.Fatalf("expected open backup file error, got: %v", err)
 	}
 
-	// 3. restoreSQLite rename failure (target file is an existing directory)
 	validDB := filepath.Join(tmpDir, "valid.db")
 	db, err := sql.Open("sqlite", validDB)
 	if err != nil {
@@ -193,14 +188,10 @@ func TestCoverageLiftMigrateAndBackfill(t *testing.T) {
 
 	gdb.Create(&models.Setting{Key: models.BaseDomainSetting, Value: "example.com"})
 
-	// Seed settings and workspace settings to exercise lines 114, 126, 129
 	gdb.Create(&models.Setting{Key: "catch_all", Value: "val1"})
 	gdb.Create(&models.Setting{Key: "auto_wrap_links", Value: "val2"})
 	gdb.Create(&models.WorkspaceSetting{OrgID: 1, Key: "catch_all", Value: "existing_val"})
 
-	// Also seed domains for backfillTenantSubdomainLinkHosts
-	// 1. domain with for_link = false and len(LinkHosts) > 0 (exercises line 233)
-	// 2. domain with for_link = false, empty LinkHosts, but nonexistent OrgID (exercises line 237)
 	gdb.Create(&models.Org{Slug: "myorg"})
 	gdb.Create(&tenantDomainRow{
 		ID:        101,
@@ -211,7 +202,7 @@ func TestCoverageLiftMigrateAndBackfill(t *testing.T) {
 	})
 	gdb.Create(&tenantDomainRow{
 		ID:        102,
-		OrgID:     9999, // Unknown org
+		OrgID:     9999,
 		Name:      "sub2.example.com",
 		ForLink:   false,
 		LinkHosts: models.HostList{},
@@ -221,7 +212,6 @@ func TestCoverageLiftMigrateAndBackfill(t *testing.T) {
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
-	// Check migrated setting
 	var ws models.WorkspaceSetting
 	if err := gdb.Where("org_id = 1 AND key = ?", "auto_wrap_links").First(&ws).Error; err != nil {
 		t.Fatalf("expected migrated auto_wrap_links setting, got: %v", err)

@@ -13,7 +13,6 @@ func TestChangeEmailSuccess(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := registerUser(t, srv, db, "user1@example.com", "password123")
 
-	// Mark user verified initially
 	if err := db.Model(&models.User{}).Where("email = ?", "user1@example.com").Update("email_verified", true).Error; err != nil {
 		t.Fatalf("failed to update email_verified: %v", err)
 	}
@@ -32,7 +31,6 @@ func TestChangeEmailSuccess(t *testing.T) {
 		t.Fatal("expected EmailVerified to be false after email change, got true")
 	}
 
-	// Verify old email no longer exists for this user
 	var oldUser models.User
 	if err := db.Where("email = ?", "user1@example.com").First(&oldUser).Error; err == nil {
 		t.Fatal("old email still exists in DB")
@@ -163,7 +161,6 @@ func TestChangeEmailInstanceAdminLifecycle(t *testing.T) {
 	disableEmailVerification(t, db)
 	enableMail(t, db)
 
-	// 1. Initial admin login
 	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("admin login: got %d (%s)", rec.Code, rec.Body.String())
@@ -178,31 +175,26 @@ func TestChangeEmailInstanceAdminLifecycle(t *testing.T) {
 		t.Fatal("expected IsInstanceAdmin to be true")
 	}
 
-	// 2. Change admin email first time
 	rec = do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-v1@example.com","currentPassword":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("first change email: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 3. Change admin email second time (verifies CheckAdminPassword does not bind to AdminUser)
 	rec = do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-v2@example.com","currentPassword":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("second change email: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 4. Change email with wrong password
 	rec = do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-v3@example.com","currentPassword":"wrongpassword"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for wrong admin password, got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 5. Login using new email + admin password
 	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"admin-v2@example.com","password":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login with updated admin email failed: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 6. Login using original config username + admin password (must not create duplicate user)
 	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login with original admin username failed: got %d (%s)", rec.Code, rec.Body.String())

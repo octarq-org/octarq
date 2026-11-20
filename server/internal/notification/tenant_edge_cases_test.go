@@ -29,7 +29,6 @@ func TestNotification_SendDirectTo_And_PackageEmit(t *testing.T) {
 	SetDefaultRouter(r)
 	t.Cleanup(func() { SetDefaultRouter(oldDefault) })
 
-	// Test r.SendDirectTo
 	err := r.SendDirectTo(context.Background(), "test_direct", plugin.NotificationRecipient{
 		UserID: "user_99",
 		OrgID:  "12",
@@ -47,7 +46,6 @@ func TestNotification_SendDirectTo_And_PackageEmit(t *testing.T) {
 		t.Errorf("SendDirectTo payload mismatch: %+v", receivedPayload)
 	}
 
-	// Test package-level SendDirect
 	ctxWithTenant := plugin.WithOrgID(context.Background(), 12)
 	err = SendDirect(ctxWithTenant, "test_direct", `{"custom":"param"}`, "Package SendDirect msg")
 	if err != nil {
@@ -57,7 +55,6 @@ func TestNotification_SendDirectTo_And_PackageEmit(t *testing.T) {
 		t.Errorf("package SendDirect mismatch: %+v, %+v", receivedRecipient, receivedPayload)
 	}
 
-	// Test package-level SendDirectWithTenant
 	err = SendDirectWithTenant(context.Background(), 15, "test_direct", `{}`, "Tenant msg")
 	if err != nil {
 		t.Fatalf("package SendDirectWithTenant failed: %v", err)
@@ -66,7 +63,6 @@ func TestNotification_SendDirectTo_And_PackageEmit(t *testing.T) {
 		t.Errorf("package SendDirectWithTenant mismatch: %+v, %+v", receivedRecipient, receivedPayload)
 	}
 
-	// Test package-level SendDirectTo
 	err = SendDirectTo(context.Background(), "test_direct", plugin.NotificationRecipient{
 		UserID: "user_100",
 		OrgID:  "16",
@@ -78,7 +74,6 @@ func TestNotification_SendDirectTo_And_PackageEmit(t *testing.T) {
 		t.Errorf("package SendDirectTo mismatch: %+v", receivedRecipient)
 	}
 
-	// Test error when channel is not registered
 	err = r.SendDirectTo(context.Background(), "non_existent_channel", plugin.NotificationRecipient{}, plugin.NotificationPayload{})
 	if err == nil || (!strings.Contains(err.Error(), "channel not registered") && !strings.Contains(err.Error(), "unknown notification channel type")) {
 		t.Errorf("expected unknown channel error, got %v", err)
@@ -88,7 +83,6 @@ func TestNotification_SendDirectTo_And_PackageEmit(t *testing.T) {
 func TestNotification_PreferencesEdgeCases(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Test SavePreferences errors
 	if err := SavePreferences(context.Background(), nil, "user1", []PreferenceItem{}); err == nil {
 		t.Error("expected error with nil db in SavePreferences")
 	}
@@ -96,7 +90,6 @@ func TestNotification_PreferencesEdgeCases(t *testing.T) {
 		t.Error("expected error with empty userID in SavePreferences")
 	}
 
-	// Test ResetPreferences
 	if err := ResetPreferences(context.Background(), nil, "user1"); err == nil {
 		t.Error("expected error with nil db in ResetPreferences")
 	}
@@ -131,7 +124,6 @@ func TestTelegramChannel_OrgPayloadFallback(t *testing.T) {
 	ch.SetVaultService(&stubVaultService{secrets: map[uint]map[string]any{
 		1: {"botToken": "invalid-token"},
 	}})
-	// targetOrg resolved from payload.OrgID when recipient.OrgID is empty
 	err := ch.Send(context.Background(), plugin.NotificationRecipient{}, plugin.NotificationPayload{
 		OrgID: "50",
 		Body:  "alert",
@@ -140,7 +132,6 @@ func TestTelegramChannel_OrgPayloadFallback(t *testing.T) {
 		t.Errorf("expected initialization error resolving org from payload, got %v", err)
 	}
 
-	// unparseable orgID
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{OrgID: "abc"}, plugin.NotificationPayload{Body: "alert"})
 	if err == nil || !strings.Contains(err.Error(), "missing telegram credentials") {
 		t.Errorf("expected missing credentials for unparseable orgID, got %v", err)
@@ -150,7 +141,6 @@ func TestTelegramChannel_OrgPayloadFallback(t *testing.T) {
 func TestMultiTenant_WebhookChannel_ContextOrgID_And_SystemFallback(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Org 1 (system default)
 	db.Create(&models.NotificationChannel{
 		OrgID:   1,
 		Type:    "webhook",
@@ -158,7 +148,6 @@ func TestMultiTenant_WebhookChannel_ContextOrgID_And_SystemFallback(t *testing.T
 		Enabled: true,
 	})
 
-	// Org 80 (tenant)
 	db.Create(&models.NotificationChannel{
 		OrgID:   80,
 		Type:    "webhook",
@@ -168,14 +157,12 @@ func TestMultiTenant_WebhookChannel_ContextOrgID_And_SystemFallback(t *testing.T
 
 	ch := NewWebhookChannel(db)
 
-	// 1. Context OrgID resolution when recipient.OrgID and payload.OrgID are empty
 	ctx80 := plugin.WithOrgID(context.Background(), 80)
 	err := ch.Send(ctx80, plugin.NotificationRecipient{}, plugin.NotificationPayload{Body: "tenant alert"})
 	if err != nil && strings.Contains(err.Error(), "missing webhook url") {
 		t.Errorf("expected webhookURL to be resolved from context OrgID, got error: %v", err)
 	}
 
-	// 2. System-level alert fallback: when eventType is "system", falls back to Org 1
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{}, plugin.NotificationPayload{
 		EventType: "system",
 		Body:      "kernel error",

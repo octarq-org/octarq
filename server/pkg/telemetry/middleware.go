@@ -46,7 +46,6 @@ func (rw *responseWriter) Flush() {
 	}
 }
 
-// HTTPMiddleware creates a middleware that instruments incoming HTTP requests with tracing & metrics.
 func HTTPMiddleware(tracerName string) func(http.Handler) http.Handler {
 	if tracerName == "" {
 		tracerName = "github.com/octarq-org/octarq/server/http"
@@ -71,12 +70,10 @@ func HTTPMiddleware(tracerName string) func(http.Handler) http.Handler {
 			)
 			defer span.End()
 
-			// Expose trace ID on response header for client-side debugging
 			if sc := span.SpanContext(); sc.IsValid() {
 				w.Header().Set("X-Trace-Id", sc.TraceID().String())
 			}
 
-			// In-flight gauge
 			tel := Global()
 			if tel.Metrics != nil && tel.Metrics.HTTPRequestsInFlight != nil {
 				tel.Metrics.HTTPRequestsInFlight.Add(ctx, 1)
@@ -93,7 +90,6 @@ func HTTPMiddleware(tracerName string) func(http.Handler) http.Handler {
 
 			duration := time.Since(start)
 
-			// Record span status & attributes
 			span.SetAttributes(
 				semconv.HTTPResponseStatusCode(rw.status),
 				attribute.Int64("http.response_content_length", rw.bytes),
@@ -105,7 +101,6 @@ func HTTPMiddleware(tracerName string) func(http.Handler) http.Handler {
 				span.SetStatus(codes.Ok, "")
 			}
 
-			// Record server metrics
 			if tel.Metrics != nil {
 				tel.Metrics.RecordHTTPRequest(ctx, r.Method, r.URL.Path, rw.status, duration, rw.bytes)
 			}
@@ -113,7 +108,6 @@ func HTTPMiddleware(tracerName string) func(http.Handler) http.Handler {
 	}
 }
 
-// TraceLogHandler returns a slog.Handler middleware that enriches log records with active trace_id and span_id.
 type TraceLogHandler struct {
 	slog.Handler
 }

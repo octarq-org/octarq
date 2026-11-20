@@ -13,8 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
-// TestGenerateValidSpec boots the real composition root, generates the spec,
-// and asserts the output a downstream consumer would see.
 func TestGenerateValidSpec(t *testing.T) {
 	var buf bytes.Buffer
 	if err := openapi.Generate(&buf, builtin.Default()); err != nil {
@@ -22,7 +20,6 @@ func TestGenerateValidSpec(t *testing.T) {
 	}
 	raw := buf.Bytes()
 
-	// ---- valid JSON ----
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		preview := string(raw)
@@ -32,7 +29,6 @@ func TestGenerateValidSpec(t *testing.T) {
 		t.Fatalf("output is not valid JSON: %v\nfirst 500 bytes:\n%s", err, preview)
 	}
 
-	// ---- paths count ≥ 100 ----
 	paths, ok := doc["paths"].(map[string]any)
 	if !ok {
 		t.Fatal("missing or non-object 'paths' key in spec")
@@ -41,8 +37,6 @@ func TestGenerateValidSpec(t *testing.T) {
 		t.Errorf("paths count = %d, want ≥ 90 (guard against regression to the old hand-written spec; workforce and harness routes moved to Pro)", n)
 	}
 
-	// ---- representative routes exist with correct methods ----
-	// One from each major surface: auth, links, mail, dns, extra paths, abuse.
 	checks := []struct {
 		path   string
 		method string
@@ -75,9 +69,6 @@ func TestGenerateValidSpec(t *testing.T) {
 		}
 	}
 
-	// ---- no log pollution in output ----
-	// Regression guard for issue #1: GORM's default logger writes "record not
-	// found" to stdout, making the output non-parsable JSON.
 	out := string(raw)
 	if strings.Contains(out, "record not found") {
 		t.Error("output contains GORM log line 'record not found'; stdout is polluted")
@@ -143,12 +134,10 @@ func TestMarshal_WithOpenAPIContributor(t *testing.T) {
 		t.Fatal("missing paths in spec")
 	}
 
-	// Contributed endpoint should be present
 	if _, ok := paths["/api/contributed/endpoint"]; !ok {
 		t.Error("expected /api/contributed/endpoint to be merged from contributor")
 	}
 
-	// Generated endpoint should NOT be overridden by contributor
 	schemaPath, ok := paths["/api/tenant/schema"].(map[string]any)
 	if !ok {
 		t.Fatal("missing /api/tenant/schema")
@@ -161,7 +150,6 @@ func TestMarshal_WithOpenAPIContributor(t *testing.T) {
 		t.Error("contributor overrode generated /api/tenant/schema summary")
 	}
 
-	// Contributed schema should be present
 	components, ok := parsed["components"].(map[string]any)
 	if !ok {
 		t.Fatal("missing components")
@@ -281,7 +269,6 @@ func (p duplicatePlugin) Models() []any                     { return nil }
 func (p duplicatePlugin) Mount(plugin.Mux, *plugin.Context) {}
 
 func TestDocument_PluginCollisionError(t *testing.T) {
-	// Two plugins with the same name trigger preflightNameCollisions error
 	plugins := []plugin.Plugin{
 		duplicatePlugin{name: "dup"},
 		duplicatePlugin{name: "dup"},

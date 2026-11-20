@@ -5,20 +5,7 @@ import (
 	"testing"
 )
 
-// registeredPublicEndpoints is the reviewed inventory of routes reachable
-// without a dashboard session, together with how each one authenticates its
-// caller instead. Every entry was checked against its handler; the reasoning
-// is written up in the AUDIT-public-endpoints audit (kept outside this repo).
-//
-// THIS LIST IS A REVIEW GATE, NOT A CONFIG. Adding a line here makes a route
-// publicly reachable in the eyes of this test, so a diff that grows it is a
-// diff that needs a security read. Do not paste in whatever the failure
-// message printed — that defeats the only purpose the list has.
 var registeredPublicEndpoints = map[string]string{
-	// Sign-in and account recovery. These cannot require a session by
-	// definition; each is rate-limited by the middleware's auth tier and the
-	// token-bearing ones (invite / reset / verify) validate a single-use
-	// hashed token before doing anything.
 	"POST /api/auth/login":               "credentials + optional TOTP; auth-tier rate limited",
 	"POST /api/auth/register":            "gated by the instance's registration setting",
 	"POST /api/auth/2fa/verify":          "consumes a pending 2FA challenge",
@@ -31,35 +18,16 @@ var registeredPublicEndpoints = map[string]string{
 	"GET /api/auth/verify-email":         "single-use hashed verification token",
 	"POST /api/auth/resend-verification": "always answers 200 so it cannot enumerate accounts",
 
-	// Liveness. No tenant data, no side effects.
 	"GET /api/health": "liveness probe",
 	"GET /api/status": "liveness probe",
 
-	// Abuse reporting. Registered outside /api/, so this gate never saw it at
-	// all. Public by design — a takedown request comes from a stranger — but it
-	// writes a row, so the handler rate-limits it with its own 5/hour
-	// abuseLimiter (internal/api/abuse.go), and the middleware additionally
-	// gives POST /abuse the auth-tier budget (internal/server/middleware.go).
 	"POST /abuse": "public by design; rate-limited as its own tier",
 
-	// File download with optional temporary signed token
 	"GET /api/files/{id}/download": "session or HMAC-SHA256 signed temporary download token",
 
-	// Tenant workspace full data export with optional 15-minute signed token
 	"GET /api/account/export": "session (owner/admin) or HMAC-SHA256 signed temporary download token",
 }
 
-// TestPublicEndpointRegistry fails when the set of routes reachable without a
-// session stops matching the reviewed inventory above.
-//
-// Two mechanisms can make a route public — Metadata["public"] on the operation,
-// and a prefix in publicPathPrefixes — and neither leaves a trace anywhere a
-// reviewer would look. A plugin author adding Metadata["public"] to the wrong
-// operation, or mounting a route under the /api/webhook/ subtree, publishes an
-// unauthenticated endpoint and nothing says so. This test says so.
-//
-// When it fails: do not edit the map to match. Open the handler, work out
-// whether it authenticates its own caller, and only then write the line.
 func TestPublicEndpointRegistry(t *testing.T) {
 	h, _, _ := newTestHandlerRaw(t)
 
@@ -89,13 +57,6 @@ func TestPublicEndpointRegistry(t *testing.T) {
 	}
 }
 
-// TestPublicPrefixesAreNarrow pins the blast radius of subtree exemptions.
-//
-// Exact paths exempt one endpoint each. A subtree exempts everything beneath it,
-// including routes that do not exist yet, so each one is a standing invitation
-// to publish something by accident. There is exactly one, it is /api/webhook/,
-// and it has to be a subtree because webhook URLs carry the workspace slug and
-// a per-mailbox token as path segments.
 func TestPublicPrefixesAreNarrow(t *testing.T) {
 	if len(publicSubtreePrefixes) != 1 || publicSubtreePrefixes[0] != "/api/webhook/" {
 		t.Errorf("expected exactly one subtree exemption (/api/webhook/), got %v.\n"+
@@ -111,13 +72,6 @@ func TestPublicPrefixesAreNarrow(t *testing.T) {
 	}
 }
 
-// TestLogoutAllIsNotExemptByPrefix pins the bug that motivated exact matching.
-//
-// The old gate matched "/api/auth/logout" as a prefix, which also matched
-// "/api/auth/logout-all" — an endpoint that deletes every session a user has.
-// It was never exploitable, because logoutAll re-authenticates on its own
-// (auth.go:245), but the gate was not the reason. Reintroduce prefix matching
-// and this goes red.
 func TestLogoutAllIsNotExemptByPrefix(t *testing.T) {
 	if isPublicPath("/api/auth/logout-all") {
 		t.Error("/api/auth/logout-all must require a session — it deletes every session " +
@@ -132,11 +86,8 @@ func TestIsPublicPathRequiresSessionByDefault(t *testing.T) {
 		"/api/mailboxes",
 		"/api/auth/me",
 		"/api/auth/password",
-		// Near-misses: these share a prefix with a public route up to a point
-		// and must still be gated.
 		"/api/authx/login",
 		"/api/webhooks",
-		// Build info fingerprints the instance's version for CVE scanning.
 		"/api/instance/build",
 	} {
 		if isPublicPath(path) {
@@ -145,10 +96,6 @@ func TestIsPublicPathRequiresSessionByDefault(t *testing.T) {
 	}
 }
 
-// TestPublicGETMatcher pins what CORS is allowed to attach to: public GET
-// endpoints and only those. A non-public GET, or a public route that is not a
-// GET (login is public but mutating), must never qualify — CORS is a read-only
-// concession and the whitelist must not widen it into a write path.
 func TestPublicGETMatcher(t *testing.T) {
 	h, _, _ := newTestHandlerRaw(t)
 	publicGET := PublicGETMatcher(h.Huma())
@@ -163,7 +110,7 @@ func TestPublicGETMatcher(t *testing.T) {
 		"/api/auth/me",
 		"/api/links",
 		"/api/mailboxes",
-		"/api/auth/login", // public, but POST — never a CORS read
+		"/api/auth/login",
 		"/api/auth/logout",
 	} {
 		if publicGET(path) {

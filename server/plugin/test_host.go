@@ -7,19 +7,15 @@ import (
 	"net/http"
 )
 
-// TestHost is a configurable Host implementation for unit and integration testing.
 type TestHost struct {
-	SessionMock  HostSession
-	CryptoMock   CryptoVault
-	SettingsMock SettingsStore
-	EventsMock   EventSpine
-	TenantDBMock func(orgID uint) *TenantDB
-	// HarnessSpecFn is an optional mock for the Host's HarnessSpec.
-	HarnessSpecFn func(ctx context.Context, orgID uint) (json.RawMessage, error)
-	// LookupCredentialMock is an optional mock for the Host's LookupCredential.
+	SessionMock          HostSession
+	CryptoMock           CryptoVault
+	SettingsMock         SettingsStore
+	EventsMock           EventSpine
+	TenantDBMock         func(orgID uint) *TenantDB
+	HarnessSpecFn        func(ctx context.Context, orgID uint) (json.RawMessage, error)
 	LookupCredentialMock func(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
-	// WorkforceMock is an optional mock for the Host's Workforce ledger.
-	WorkforceMock Workforce
+	WorkforceMock        Workforce
 }
 
 func (h *TestHost) Session() HostSession {
@@ -50,8 +46,6 @@ func (h *TestHost) Events() EventSpine {
 	return noopEvents{}
 }
 
-// HarnessSpec returns the mocked published harness of the workspace. Without
-// a mock the workspace has published none, which is the normal state.
 func (h *TestHost) HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error) {
 	if h != nil && h.HarnessSpecFn != nil {
 		return h.HarnessSpecFn(ctx, orgID)
@@ -70,13 +64,9 @@ func (h *TestHost) LookupCredential(ctx context.Context, orgID uint, query Crede
 	if h != nil && h.LookupCredentialMock != nil {
 		return h.LookupCredentialMock(ctx, orgID, query)
 	}
-	// No mock means no resolver is mounted, which is "standalone Core", not
-	// "the credential is missing".
 	return nil, ErrCredentialResolverUnavailable
 }
 
-// Workforce returns the mocked ledger. Without a mock the host has none, and
-// every call reports ErrWorkforceUnavailable rather than a zero answer.
 func (h *TestHost) Workforce() Workforce {
 	if h != nil && h.WorkforceMock != nil {
 		return h.WorkforceMock
@@ -86,7 +76,6 @@ func (h *TestHost) Workforce() Workforce {
 
 var _ Host = (*TestHost)(nil)
 
-// TestSession is a configurable HostSession implementation for testing.
 type TestSession struct {
 	UserIDFn          func(*http.Request) uint
 	OrgIDFn           func(*http.Request) uint
@@ -156,15 +145,11 @@ func (s *TestSession) RevokeUserOrgSessions(userID, orgID uint) int {
 
 var _ HostSession = (*TestSession)(nil)
 
-// TestCrypto is a configurable CryptoVault implementation for testing.
 type TestCrypto struct {
-	EncryptFn func([]byte) (string, error)
-	DecryptFn func(string) ([]byte, error)
-	// The AAD mocks default to EncryptFn and DecryptFn.
-	EncryptWithAADFn func(plaintext, aad []byte) (string, error)
-	DecryptWithAADFn func(encoded string, aad []byte) ([]byte, error)
-	// Subject mocks default to an unavailable error. A test that needs
-	// subject namespaces sets them.
+	EncryptFn         func([]byte) (string, error)
+	DecryptFn         func(string) ([]byte, error)
+	EncryptWithAADFn  func(plaintext, aad []byte) (string, error)
+	DecryptWithAADFn  func(encoded string, aad []byte) ([]byte, error)
 	SubjectVaultFn    func(ownerID uint, subject string) (CryptoVault, error)
 	ShredSubjectKeyFn func(ownerID uint, subject string) error
 	HasSubjectKeyFn   func(ownerID uint, subject string) bool
@@ -221,7 +206,6 @@ func (c *TestCrypto) HasSubjectKey(ownerID uint, subject string) bool {
 
 var _ CryptoVault = (*TestCrypto)(nil)
 
-// TestSettings is a configurable SettingsStore implementation for testing.
 type TestSettings struct {
 	GetWorkspaceSettingFn func(orgID uint, key string) string
 	SetWorkspaceSettingFn func(orgID uint, key, value string) error
@@ -259,7 +243,6 @@ func (s *TestSettings) SetGlobalSetting(key, value string) error {
 
 var _ SettingsStore = (*TestSettings)(nil)
 
-// TestEvents is a configurable EventSpine implementation for testing.
 type TestEvents struct {
 	PublishEventFn         func(orgID uint, event string, data any)
 	RegisterWebhookEventFn func(WebhookEventDef)

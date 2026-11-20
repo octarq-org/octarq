@@ -17,18 +17,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// roundTripFunc adapts a closure to http.RoundTripper so goth's google
-// provider — which fetches the profile over http.DefaultClient — can be
-// answered with a fixed profile instead of a live IdP.
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
-// oauthTestEnv wires what an /auth/callback/{provider} round-trip needs in a
-// test handler: Google OAuth settings, a registered domain (so the callback
-// resolves an origin), a stubbed provider profile fetch, and a pre-completed
-// goth session under the name the handler will look it up by. It returns the
-// goth session cookies to carry on the callback request.
 func oauthTestEnv(t *testing.T, h *Handler, db *gorm.DB, email string) []*http.Cookie {
 	t.Helper()
 	auth.InitGothStore("secret")
@@ -56,11 +48,6 @@ func oauthTestEnv(t *testing.T, h *Handler, db *gorm.DB, email string) []*http.C
 	})
 	t.Cleanup(func() { http.DefaultTransport = origTransport })
 
-	// The callback resolves origin from the registered domain, so the goth
-	// provider name is "<provider>@https://app.acme.example" (see
-	// OAuthHandler.prepare). Seed the finished OAuth round-trip under it.
-	// AuthURL must be set — gothic's state validation refuses a session whose
-	// AuthURL is empty — and carries no state, so no ?state= is required.
 	const gothName = "google@https://app.acme.example"
 	const gothSessionJSON = `{"AccessToken":"test-access-token","AuthURL":"https://accounts.google.com/o/oauth2/auth"}`
 	seedRec := httptest.NewRecorder()
@@ -71,8 +58,6 @@ func oauthTestEnv(t *testing.T, h *Handler, db *gorm.DB, email string) []*http.C
 	return seedRec.Result().Cookies()
 }
 
-// oauthCallbackAs runs the real /auth/callback/google route carrying the
-// seeded goth session, and returns the response.
 func oauthCallbackAs(t *testing.T, srv http.Handler, cookies []*http.Cookie) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "/auth/callback/google", nil)
@@ -103,23 +88,15 @@ func challengeCookie(cookies []*http.Cookie) *http.Cookie {
 	return nil
 }
 
-// Guard test 1 (core): a TOTP-enabled account arriving through the OAuth
-// callback must NOT receive a session. The callback redirects to the same 2FA
-// page password login uses, storing the short-lived challenge in an HttpOnly
-// cookie; only /api/auth/2fa/verify with the code mints the session.
 func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	disableEmailVerification(t, db)
 	enableMail(t, db)
 
-	// Register bob and enroll TOTP through the real API.
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"bob@example.com","password":"secret-pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
 	}
-	// Sign-up no longer hands out a session (the account is activated from the
-	// mailbox, and the answer must not say whether the address was free), so
-	// the tests that need a session sign in for it.
 	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"bob@example.com","password":"secret-pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login: got %d (%s)", rec.Code, rec.Body.String())
@@ -154,8 +131,6 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 		t.Fatal("OAuth callback set a session cookie while 2FA is pending")
 	}
 
-	// The challenge arrives in an HttpOnly cookie with a Max-Age matching the
-	// 10-minute TTL, not in the redirect URL.
 	challenge := challengeCookie(cb.Result().Cookies())
 	if challenge == nil || !challenge.HttpOnly {
 		t.Fatalf("OAuth callback set no 2FA challenge cookie, or it is not HttpOnly: %+v", challenge)
@@ -163,14 +138,10 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	if challenge.MaxAge != int((10 * time.Minute).Seconds()) {
 		t.Fatalf("challenge cookie MaxAge = %d, want %d (10-minute TTL)", challenge.MaxAge, int((10 * time.Minute).Seconds()))
 	}
-	// Guard (this fix): the challenge value must never appear in the redirect
-	// Location — the URL is what proxy access logs and browser history record.
 	if strings.Contains(loc, challenge.Value) {
 		t.Fatalf("challenge value leaked into the redirect Location %q", loc)
 	}
 
-	// The verify endpoint reads the challenge from the cookie: with the cookie
-	// but no code the login must fail without issuing a session.
 	rec = do(srv, "POST", "/api/auth/2fa/verify", []*http.Cookie{challenge}, `{"code":"000000"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("challenge without code: got %d, want 401", rec.Code)
@@ -178,22 +149,16 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	if sess := sessionCookie(rec.Result().Cookies()); sess != nil {
 		t.Fatal("challenge without code set a session cookie")
 	}
-	// A wrong code is retryable: the challenge cookie must NOT be cleared, or a
-	// typo would force a full OAuth restart.
 	if c := challengeCookie(rec.Result().Cookies()); c != nil {
 		t.Fatalf("wrong code cleared the challenge cookie (MaxAge=%d), want it kept for retry", c.MaxAge)
 	}
 
-	// Guard: the challenge is read from the cookie — a request carrying only
-	// the code, no challenge cookie, cannot complete an OAuth login.
 	code, _ = totp.GenerateCode(setup.Secret, time.Now())
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"code":"`+code+`"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("verify without challenge cookie: got %d, want 401", rec.Code)
 	}
 
-	// The shared verify2FA endpoint completes the login: challenge cookie +
-	// TOTP code mints a usable session and spends the challenge.
 	code, _ = totp.GenerateCode(setup.Secret, time.Now())
 	rec = do(srv, "POST", "/api/auth/2fa/verify", []*http.Cookie{challenge}, `{"code":"`+code+`"}`)
 	if rec.Code != http.StatusOK {
@@ -204,7 +169,6 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 		t.Fatal("2fa verify via challenge set no session cookie")
 		return
 	}
-	// Guard: the spent challenge cookie is cleared in the same response.
 	c := challengeCookie(rec.Result().Cookies())
 	if c == nil || c.MaxAge >= 0 {
 		t.Fatalf("spent challenge cookie was not cleared after successful verify: got %+v", c)
@@ -214,8 +178,6 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	}
 }
 
-// Guard test 2: an account without TOTP keeps the pre-fix behaviour — the
-// OAuth callback signs it straight in.
 func TestOAuthCallbackWithoutTwoFactorStillSignsIn(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	disableEmailVerification(t, db)

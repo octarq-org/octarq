@@ -11,8 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// setBaseDomain writes the shared tenant-subdomain base as the instance
-// settings API would.
 func setBaseDomain(t *testing.T, db *gorm.DB, base string) {
 	t.Helper()
 	if err := db.Save(&models.Setting{Key: models.BaseDomainSetting, Value: base}).Error; err != nil {
@@ -20,8 +18,6 @@ func setBaseDomain(t *testing.T, db *gorm.DB, base string) {
 	}
 }
 
-// Guard 1: with no base domain configured, creating an org provisions no
-// domains row — behaviour identical to today.
 func TestCreateOrgWithNoBaseProvisionsNothing(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
@@ -41,9 +37,6 @@ func TestCreateOrgWithNoBaseProvisionsNothing(t *testing.T) {
 	}
 }
 
-// The base domain is a runtime instance setting: setting it through the admin
-// API must (a) round-trip and (b) make the workspace settings report the org's
-// tenant subdomain.
 func TestInstanceSettingsBaseDomainRoundTrip(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
@@ -82,7 +75,6 @@ func TestInstanceSettingsBaseDomainRoundTrip(t *testing.T) {
 		t.Fatalf("tenantSubdomain = %q, want %q", s.TenantSubdomain, want)
 	}
 
-	// Clearing the setting turns the feature off again.
 	rec = do(srv, "PUT", "/api/instance-settings", cookies, `{"baseDomain":""}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("clear base domain: got %d", rec.Code)
@@ -94,8 +86,6 @@ func TestInstanceSettingsBaseDomainRoundTrip(t *testing.T) {
 	}
 }
 
-// Guard 2: with a base domain configured, POST /api/orgs provisions the
-// <slug>.<base> row and origin resolves the hostname to the new org.
 func TestCreateOrgProvisionsTenantSubdomain(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
@@ -123,8 +113,6 @@ func TestCreateOrgProvisionsTenantSubdomain(t *testing.T) {
 	}
 }
 
-// Guard 2 via the self-serve register path — the most common way a new tenant
-// arrives on a cloud instance.
 func TestRegisterProvisionsTenantSubdomain(t *testing.T) {
 	srv, db := newTestHandler(t)
 	disableEmailVerification(t, db)
@@ -150,9 +138,6 @@ func TestRegisterProvisionsTenantSubdomain(t *testing.T) {
 	}
 }
 
-// Trap 4: renaming the slug must move the tenant subdomain — the old address
-// goes offline (it must not keep resolving, and must not be claimable), and
-// the new one is provisioned for the same org.
 func TestRenameMovesTenantSubdomain(t *testing.T) {
 	db, do, owner, _, _ := orgSlugFixture(t)
 	setBaseDomain(t, db, "app.example.com")
@@ -178,17 +163,12 @@ func TestRenameMovesTenantSubdomain(t *testing.T) {
 	}
 }
 
-// Trap 6: a subdomain collision must fail the whole operation with a clear
-// conflict, and roll everything back — the slug stays, and the org's existing
-// address keeps resolving.
 func TestRenameCollisionOnSubdomainRollsBack(t *testing.T) {
 	db, do, owner, _, _ := orgSlugFixture(t)
 	setBaseDomain(t, db, "app.example.com")
 	if _, _, err := tenancy.Provision(db, 1, "owner-example-com"); err != nil {
 		t.Fatalf("provision org 1: %v", err)
 	}
-	// A stale row already claims the target address — e.g. a registration that
-	// predates the base domain and nobody cleaned up. The slug itself is free.
 	if err := db.Create(&testDomain{OrgID: 2, Name: "ghost.app.example.com"}).Error; err != nil {
 		t.Fatalf("seed stale subdomain: %v", err)
 	}

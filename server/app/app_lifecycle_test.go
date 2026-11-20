@@ -19,11 +19,6 @@ func TestAppLifecycleNew(t *testing.T) {
 		t.Fatalf("app.New() failed: %v", err)
 	}
 
-	// New() is documented as opening the database but not migrating it. Assert
-	// both halves: an absent file would mean db.Open never ran (and "no error"
-	// only meant nothing was attempted), while a populated schema would mean
-	// migration crept back into New() — Run() owns that, so plugin models
-	// registered after New() would be missing from a migration done here.
 	if _, err := os.Stat(dbPath); err != nil {
 		t.Fatalf("New() returned without opening the database: %v", err)
 	}

@@ -6,18 +6,15 @@ import (
 	"sync"
 )
 
-// TypedBus provides a type-safe in-memory event bus for inter-plugin communication.
 type TypedBus[T any] struct {
 	mu       sync.RWMutex
 	handlers []func(T) error
 }
 
-// NewTypedBus creates a new TypedBus instance for event type T.
 func NewTypedBus[T any]() *TypedBus[T] {
 	return &TypedBus[T]{}
 }
 
-// Subscribe registers an event handler.
 func (b *TypedBus[T]) Subscribe(h func(T) error) {
 	if h == nil {
 		return
@@ -27,7 +24,6 @@ func (b *TypedBus[T]) Subscribe(h func(T) error) {
 	b.handlers = append(b.handlers, h)
 }
 
-// Publish synchronously invokes all registered handlers and collects errors.
 func (b *TypedBus[T]) Publish(e T) []error {
 	b.mu.RLock()
 	handlers := make([]func(T) error, len(b.handlers))
@@ -43,8 +39,6 @@ func (b *TypedBus[T]) Publish(e T) []error {
 	return errs
 }
 
-// PublishAsync asynchronously invokes handlers in a separate goroutine without blocking the caller.
-// Each handler execution is guarded with recover to prevent panics from crashing the process.
 func (b *TypedBus[T]) PublishAsync(ctx context.Context, e T) {
 	b.mu.RLock()
 	handlers := make([]func(T) error, len(b.handlers))

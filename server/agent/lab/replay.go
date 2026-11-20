@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ScriptedCompleter implements harness.Completer using a predetermined sequence
-// of model replies. It records all system prompts and invocation history.
 type ScriptedCompleter struct {
 	mu              sync.Mutex
 	responses       []string
@@ -21,14 +19,12 @@ type ScriptedCompleter struct {
 	callCount       int
 }
 
-// NewScriptedCompleter constructs a ScriptedCompleter with given replies.
 func NewScriptedCompleter(responses []string) *ScriptedCompleter {
 	return &ScriptedCompleter{
 		responses: append([]string{}, responses...),
 	}
 }
 
-// Complete returns the next scripted response in order.
 func (c *ScriptedCompleter) Complete(_ context.Context, _ string, system string, _ []harness.Message) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -45,7 +41,6 @@ func (c *ScriptedCompleter) Complete(_ context.Context, _ string, system string,
 	return resp, nil
 }
 
-// CapturedSystem returns the most recent system prompt received, or empty string.
 func (c *ScriptedCompleter) CapturedSystem() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -55,28 +50,24 @@ func (c *ScriptedCompleter) CapturedSystem() string {
 	return c.capturedSystems[len(c.capturedSystems)-1]
 }
 
-// CapturedSystems returns a copy of all system prompts received.
 func (c *ScriptedCompleter) CapturedSystems() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]string{}, c.capturedSystems...)
 }
 
-// ExecutedToolCall records an execution invocation received by MockToolExecutor.
 type ExecutedToolCall struct {
 	OrgID    uint   `json:"org_id"`
 	Name     string `json:"name"`
 	ArgsJSON string `json:"args_json"`
 }
 
-// MockToolExecutor implements harness.ToolExecutor using a table of mocks.
 type MockToolExecutor struct {
 	mu    sync.Mutex
 	mocks map[string]ToolMockResponse
 	calls []ExecutedToolCall
 }
 
-// NewMockToolExecutor constructs a MockToolExecutor with the provided mocks.
 func NewMockToolExecutor(mocks map[string]ToolMockResponse) *MockToolExecutor {
 	m := make(map[string]ToolMockResponse, len(mocks))
 	for k, v := range mocks {
@@ -85,7 +76,6 @@ func NewMockToolExecutor(mocks map[string]ToolMockResponse) *MockToolExecutor {
 	return &MockToolExecutor{mocks: m}
 }
 
-// Execute looks up the tool mock and returns predetermined output or error.
 func (e *MockToolExecutor) Execute(_ context.Context, orgID uint, name string, argsJSON string) (string, error) {
 	e.mu.Lock()
 	e.calls = append(e.calls, ExecutedToolCall{OrgID: orgID, Name: name, ArgsJSON: argsJSON})
@@ -110,15 +100,12 @@ func (e *MockToolExecutor) Execute(_ context.Context, orgID uint, name string, a
 	return "{}", nil
 }
 
-// ExecutedCalls returns all recorded tool calls.
 func (e *MockToolExecutor) ExecutedCalls() []ExecutedToolCall {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return append([]ExecutedToolCall{}, e.calls...)
 }
 
-// EstimateTokens provides a strictly deterministic token count estimate (~4 chars/token).
-// It has zero dependency on time, random number generators, or external services.
 func EstimateTokens(text string) int {
 	if text == "" {
 		return 0
@@ -131,7 +118,6 @@ func EstimateTokens(text string) int {
 	return tokens
 }
 
-// TaskResult records the outcome and evidence of replaying one task under a candidate.
 type TaskResult struct {
 	TaskID          string               `json:"task_id"`
 	TaskTitle       string               `json:"task_title,omitempty"`
@@ -149,7 +135,6 @@ type TaskResult struct {
 	TraceEvents     []harness.TraceEvent `json:"trace_events,omitempty"`
 }
 
-// CandidateResult records all task outcomes for one candidate spec.
 type CandidateResult struct {
 	Candidate    Candidate    `json:"candidate"`
 	TaskResults  []TaskResult `json:"task_results"`
@@ -157,7 +142,6 @@ type CandidateResult struct {
 	CatalogCount int          `json:"catalog_count"`
 }
 
-// BuildLabCatalog filters and sorts tool descriptors for the given tool filter.
 func BuildLabCatalog(tools []harness.ToolDescriptor, filter harness.ToolFilter) harness.Catalog {
 	var out []harness.ToolDescriptor
 	for _, t := range tools {
@@ -171,7 +155,6 @@ func BuildLabCatalog(tools []harness.ToolDescriptor, filter harness.ToolFilter) 
 	return harness.Catalog{Tools: out}
 }
 
-// ResolveBaseCatalog returns taskSet.Catalog if present, or synthesizes descriptors from task mocks.
 func ResolveBaseCatalog(ts *TaskSet) []harness.ToolDescriptor {
 	if len(ts.Catalog) > 0 {
 		return ts.Descriptors()
@@ -198,11 +181,6 @@ func ResolveBaseCatalog(ts *TaskSet) []harness.ToolDescriptor {
 	return tools
 }
 
-// RunTask executes a single task under a candidate's harness spec.
-//
-// The candidate's spec names the execution profile, and the task runs under
-// exactly that profile. A step budget above the profile's ceiling is refused,
-// so a lab result never reports a budget the production runner would refuse.
 func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harness.ToolDescriptor) (TaskResult, error) {
 	catalog := BuildLabCatalog(baseCatalog, cand.Spec.ToolFilter())
 	maxSteps, err := cand.Spec.EffectiveMaxSteps(false)
@@ -262,11 +240,6 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 
 	judgement := task.Criteria.Judge(turn, session.History)
 
-	// The report is a deterministic artifact: two runs of the same candidate
-	// must produce the same bytes. A wall-clock duration is not part of an
-	// offline evaluation — the tools are mocks, so the time a call took
-	// measures the machine, not the candidate. The report therefore carries
-	// no duration.
 	traceEvents := tracer.Events()
 	for i := range traceEvents {
 		traceEvents[i].DurationMS = 0
@@ -289,7 +262,6 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 	}, nil
 }
 
-// RunCandidate evaluates all tasks in a TaskSet under one Candidate.
 func RunCandidate(ctx context.Context, cand Candidate, ts *TaskSet) (CandidateResult, error) {
 	baseCatalog := ResolveBaseCatalog(ts)
 	catalog := BuildLabCatalog(baseCatalog, cand.Spec.ToolFilter())

@@ -76,7 +76,6 @@ func TestDBOpenConnectionsMonitoring(t *testing.T) {
 		t.Errorf("expected octarq_db_open_connections 7, got:\n%s", rec.Body.String())
 	}
 
-	// Register a real SQL DB
 	gdb, err := gorm.Open(sqlite.Open(t.TempDir()+"/dbtest.db"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("gorm open: %v", err)
@@ -86,7 +85,7 @@ func TestDBOpenConnectionsMonitoring(t *testing.T) {
 		t.Fatalf("sql db: %v", err)
 	}
 	RegisterDB(sqlDB)
-	RegisterDB(nil) // nil guard test
+	RegisterDB(nil)
 
 	rec2 := httptest.NewRecorder()
 	DefaultPrometheusHandler().ServeHTTP(rec2, req)
@@ -109,5 +108,5 @@ func TestUpdateDBStatsNoTracked(t *testing.T) {
 		dbMu.Unlock()
 	})
 
-	updateDBStats() // should be no-op when trackedDBs is empty
+	updateDBStats()
 }

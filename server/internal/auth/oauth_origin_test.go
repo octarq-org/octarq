@@ -22,16 +22,6 @@ type testDomain struct {
 
 func (testDomain) TableName() string { return "domains" }
 
-// TestOAuthCallbackURLComesFromTheRequest covers the behaviour change operators
-// have to know about: redirect_uri is no longer one configured value, it is
-// derived from the hostname the login started on — and only from one this
-// instance has registered.
-//
-// A forged Host must not reach the provider at all. redirect_uri is the address
-// the provider sends the user back to WITH the authorization code, so a
-// redirect_uri an attacker chose is the OAuth-shaped form of the same takeover
-// the password-reset link guards against. (Providers reject unregistered
-// redirect_uris themselves, but that is their check, not ours.)
 func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
@@ -50,13 +40,6 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	if err := db.Create(&testDomain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
 		t.Fatalf("seed domain: %v", err)
 	}
-	// Seeding the row directly bypasses the register path, which is what
-	// normally invalidates origin's cache. Package tests share one database and
-	// therefore one cache namespace, so any earlier test that asked about a host
-	// while the domains table was empty has already cached "this instance has
-	// registered no domains" — the entry that switches on the fallback honouring
-	// the request Host verbatim. Read back here, a forged Host reaches the
-	// provider and this test's whole point evaporates.
 	origin.ClearDomainCache("acme.example")
 
 	h := NewOAuthHandler(db, m, &testAuthVault{secrets: map[string]string{"instance.oauth.google": "google-secret"}})
@@ -87,9 +70,6 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 		}
 	})
 
-	// The state cookie carries the CSRF nonce for the round-trip. Marked Secure
-	// over plain HTTP the browser drops it and the callback fails with "could
-	// not find a matching session"; unmarked over HTTPS the nonce is cleartext.
 	t.Run("state cookie Secure follows the request scheme", func(t *testing.T) {
 		for _, secure := range []bool{false, true} {
 			rec := begin("app.acme.example", secure)

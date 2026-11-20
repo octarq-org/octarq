@@ -28,8 +28,6 @@ type LogoutAllOutput struct {
 	Body LogoutAllOutputBody
 }
 
-// logoutAll deletes every session row for the caller and clears the cookie.
-// POST /api/auth/logout-all
 func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*LogoutAllOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -80,8 +78,6 @@ type ListSessionsOutput struct {
 	Body []SessionRow
 }
 
-// GET /api/auth/sessions — list sessions for the current user, newest first.
-// The session matching the caller's cookie is flagged isCurrent: true.
 func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*ListSessionsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -121,8 +117,6 @@ func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*
 	return &ListSessionsOutput{Body: out}, nil
 }
 
-// locationFromGeo joins the non-empty parts of a geo lookup, city first.
-// Both empty yields "".
 func locationFromGeo(country, city string) string {
 	parts := make([]string, 0, 2)
 	if city != "" {
@@ -134,17 +128,13 @@ func locationFromGeo(country, city string) string {
 	return strings.Join(parts, ", ")
 }
 
-// maskIPServer redacts the last octet/group of an IP (GDPR-style).
-// Localhost addresses are left as-is since they carry no PII.
 func maskIPServer(ip string) string {
 	if ip == "::1" || ip == "127.0.0.1" {
 		return ip
 	}
-	// IPv4
 	if parts := strings.Split(ip, "."); len(parts) == 4 {
 		return parts[0] + "." + parts[1] + "." + parts[2] + ".*"
 	}
-	// IPv6
 	if idx := strings.LastIndex(ip, ":"); idx >= 0 {
 		return ip[:idx] + ":*"
 	}
@@ -170,10 +160,6 @@ type RevokeSessionOutput struct {
 	Body RevokeSessionOutputBody
 }
 
-// DELETE /api/auth/sessions/{id} — revoke a specific session row.
-// With stateful cookies, just deleting the row is sufficient: the next
-// request from that device will find no matching session and get a 401.
-// If the caller revokes their OWN session, the cookie is also cleared.
 func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) (*RevokeSessionOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -195,7 +181,6 @@ func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) 
 	}
 	h.auditAs(r, oid, uid, "user.session_revoke", "session", sess.ID, nil)
 
-	// If the caller just revoked their own session, clear the cookie too.
 	isSelf := h.auth.SessionID(r) == sess.ID
 	if isSelf {
 		h.auth.Clear(r, w)
@@ -248,15 +233,12 @@ func (i *MeInput) Resolve(ctx huma.Context) []error {
 }
 
 type MeOutputBody struct {
-	Email         string `json:"email"`
-	Username      string `json:"username,omitempty"`
-	OrgID         uint   `json:"orgId"`
-	Role          string `json:"role"`
-	EmailVerified bool   `json:"emailVerified"`
-	// IsInstanceAdmin is the instance identity of the caller, reported where
-	// the session is: the tenant settings response still carries a copy (the
-	// frontend reads it there today); this field is the new, correct source.
-	IsInstanceAdmin bool `json:"isInstanceAdmin"`
+	Email           string `json:"email"`
+	Username        string `json:"username,omitempty"`
+	OrgID           uint   `json:"orgId"`
+	Role            string `json:"role"`
+	EmailVerified   bool   `json:"emailVerified"`
+	IsInstanceAdmin bool   `json:"isInstanceAdmin"`
 }
 
 type MeOutput struct {
@@ -281,8 +263,6 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	out.Body.Email = user.Email
 	out.Body.Username = user.Email
 	out.Body.OrgID = h.orgID(r)
-	// The role this credential can actually use — a member-capped token should
-	// not report its holder as an owner to whatever is reading /me.
 	out.Body.Role = string(h.effectiveRole(r))
 	out.Body.EmailVerified = user.EmailVerified
 	out.Body.IsInstanceAdmin = user.IsInstanceAdmin

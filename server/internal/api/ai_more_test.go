@@ -65,25 +65,21 @@ func TestAISummarizeEmailAndSuggestSlugFlows(t *testing.T) {
 	srv, _ := newAITestHandler(t, `["my-cool-blog","awesome-post"]`)
 	cookies := sessionCookies(t, 1, 1)
 
-	// 1. Suggest slug empty target -> 400
 	rec := do(srv, "POST", "/api/ai/assist/suggest-slug", cookies, `{"target":""}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("empty target suggest slug: got %d, want 400", rec.Code)
 	}
 
-	// 2. Suggest slug with title -> 200
 	rec = do(srv, "POST", "/api/ai/assist/suggest-slug", cookies, `{"target":"https://example.com/blog","title":"My Cool Blog"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("suggest slug with title: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 3. Summarize email - not found (no email plugin service) -> 404
 	rec = do(srv, "POST", "/api/ai/assist/summarize-email/999", cookies, "")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("summarize non-existent email: got %d, want 404", rec.Code)
 	}
 
-	// 4. Summarize email - with email getter service mounted and long body (>8000 chars)
 	reg := plugin.NewRegistry()
 	longBody := strings.Repeat("Important invoice details. ", 400)
 	reg.Provide(plugin.ServiceMailEmailGet, plugin.EmailGetter(func(orgID, id uint) (string, string, string, bool) {
@@ -98,16 +94,12 @@ func TestAISummarizeEmailAndSuggestSlugFlows(t *testing.T) {
 		return dummyLLM{reply: "Invoice for services due in 30 days."}, nil
 	})
 
-	// 5. Test failing LLM resolver
 	hFail, _, _ := newTestHandlerRaw(t)
 	hFail.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) {
 		return failingLLM{}, nil
 	})
 
-	// 6. Nil Ctx calls
 	ctx := context.Background()
-	// aiStatus is readable without a request context: it reports whether AI is
-	// configured, so a nil Ctx must still yield a status rather than an error.
 	if out, err := h.aiStatus(ctx, &AIStatusInput{Ctx: nil}); err != nil {
 		t.Errorf("aiStatus with nil Ctx = %v, want no error", err)
 	} else if out == nil {

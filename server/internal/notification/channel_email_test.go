@@ -41,7 +41,6 @@ func TestEmailChannel_SendSuccess(t *testing.T) {
 
 	ctx := context.Background()
 
-	// 1. Send with recipient.Config["email"]
 	rec := plugin.NotificationRecipient{
 		OrgID: "42",
 		Config: map[string]any{
@@ -62,7 +61,6 @@ func TestEmailChannel_SendSuccess(t *testing.T) {
 		t.Errorf("expected html with br and correct text body, got html=%s, text=%s", sentHTML, sentText)
 	}
 
-	// 2. Send with recipient.Config["to"] and default title
 	recTo := plugin.NotificationRecipient{
 		Config: map[string]any{
 			"to":    "target@example.com",
@@ -80,7 +78,6 @@ func TestEmailChannel_SendSuccess(t *testing.T) {
 		t.Errorf("unexpected send values: to=%q org=%d sub=%q", sentTo, sentOrgID, sentSub)
 	}
 
-	// 3. Send with org_id alternate key and fallback to 1
 	recDefaultOrg := plugin.NotificationRecipient{
 		Config: map[string]any{
 			"email":  "test@example.com",
@@ -128,13 +125,11 @@ func TestEmailChannel_DBLookup(t *testing.T) {
 func TestEmailChannel_Errors(t *testing.T) {
 	ch := NewEmailChannel(nil, nil)
 
-	// Missing recipient email
 	err := ch.Send(context.Background(), plugin.NotificationRecipient{}, plugin.NotificationPayload{})
 	if err == nil || !strings.Contains(err.Error(), "cannot be resolved") {
 		t.Errorf("expected cannot be resolved error, got: %v", err)
 	}
 
-	// Nil sender
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{
 		OrgID:  "1",
 		Config: map[string]any{"email": "valid@example.com"},
@@ -143,7 +138,6 @@ func TestEmailChannel_Errors(t *testing.T) {
 		t.Errorf("expected no sender error, got: %v", err)
 	}
 
-	// Missing or invalid orgID
 	chWithSender := NewEmailChannel(nil, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
 		return nil
 	})
@@ -154,7 +148,6 @@ func TestEmailChannel_Errors(t *testing.T) {
 		t.Errorf("expected missing org context error, got: %v", err)
 	}
 
-	// Sender returned error
 	ch.SetSender(func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
 		return errors.New("smtp timeout")
 	})
@@ -192,7 +185,7 @@ func TestEmailChannel_TenantIsolationSpoofGuard(t *testing.T) {
 				OrgID: "42",
 				Config: map[string]any{
 					"email": "victim@example.com",
-					"orgId": float64(999), // malicious attempt to hijack tenant 999 SMTP sender
+					"orgId": float64(999),
 				},
 			},
 			expectedOrg: 42,
@@ -203,7 +196,7 @@ func TestEmailChannel_TenantIsolationSpoofGuard(t *testing.T) {
 				OrgID: "42",
 				Config: map[string]any{
 					"email":  "victim@example.com",
-					"org_id": float64(888), // malicious attempt to hijack tenant 888 SMTP sender
+					"org_id": float64(888),
 				},
 			},
 			expectedOrg: 42,

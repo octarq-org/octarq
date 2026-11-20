@@ -22,14 +22,6 @@ type InstanceReadinessOutput struct {
 	Body []readiness.Check
 }
 
-// instanceReadiness returns the instance's capability checks as structured
-// data — the same judgment the startup log prints (readiness.Evaluate),
-// rendered for the dashboard instead of the log stream. The API vocabulary is
-// ok|degraded|blocked; the log-only dev status collapses to ok, with the dev
-// caveat still spelled out in detail. Like every other /api/instance* route it
-// is instance-admin only: the checks describe the whole deployment, and the
-// registration check in particular reveals whether the instance can be signed
-// up to — an enumeration signal a tenant member must not read.
 func (h *Handler) instanceReadiness(ctx context.Context, input *InstanceReadinessInput) (*InstanceReadinessOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")

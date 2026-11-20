@@ -7,16 +7,13 @@ import (
 	"testing"
 )
 
-// TestGatedMux_PanicReturns500 registers a plugin route that panics and
-// asserts the caller receives a 500 JSON response. If the product-code
-// recover in gatedMux.wrap is removed, this test crashes the process.
 func TestGatedMux_PanicReturns500(t *testing.T) {
 	real := http.NewServeMux()
 	gm := &gatedMux{
 		real:   real,
 		plugin: "crash-test",
 		enabled: func(_ *http.Request, _ string) (bool, bool) {
-			return true, true // always allowed
+			return true, true
 		},
 	}
 	gm.HandleFunc("/api/boom", func(w http.ResponseWriter, _ *http.Request) {
@@ -41,8 +38,6 @@ func TestGatedMux_PanicReturns500(t *testing.T) {
 	}
 }
 
-// TestGatedMux_ErrAbortHandlerRepanics ensures http.ErrAbortHandler
-// is not swallowed by the recovery logic.
 func TestGatedMux_ErrAbortHandlerRepanics(t *testing.T) {
 	real := http.NewServeMux()
 	gm := &gatedMux{
@@ -71,9 +66,6 @@ func TestGatedMux_ErrAbortHandlerRepanics(t *testing.T) {
 	}
 }
 
-// TestGatedMux_PanicAfterPartialWrite verifies that when a handler writes
-// part of the response before panicking, the recovery does not attempt a
-// second WriteHeader (which would be superfluous).
 func TestGatedMux_PanicAfterPartialWrite(t *testing.T) {
 	real := http.NewServeMux()
 	gm := &gatedMux{
@@ -92,7 +84,6 @@ func TestGatedMux_PanicAfterPartialWrite(t *testing.T) {
 	rec := httptest.NewRecorder()
 	real.ServeHTTP(rec, httptest.NewRequest("GET", "/api/partial", nil))
 
-	// The first WriteHeader (200) wins; the recovery should NOT overwrite it.
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 (first WriteHeader wins), got %d", rec.Code)
 	}

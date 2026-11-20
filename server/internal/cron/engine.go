@@ -21,11 +21,10 @@ type jobEntry struct {
 	handler  func(ctx context.Context) error
 	lastRun  time.Time
 	nextRun  time.Time
-	status   string // "idle" | "running" | "error"
+	status   string
 	lastErr  string
 }
 
-// Engine implements the in-process cron scheduling engine and plugin.CronService.
 type Engine struct {
 	guard   Guard
 	mu      sync.RWMutex
@@ -35,12 +34,10 @@ type Engine struct {
 	wg      sync.WaitGroup
 }
 
-// New creates a new Engine with a Guard derived from redisURL.
 func New(redisURL string) *Engine {
 	return NewEngine(NewGuard(redisURL))
 }
 
-// NewEngine creates a new Engine with the specified Guard.
 func NewEngine(guard Guard) *Engine {
 	if guard == nil {
 		guard = NewLocalGuard()
@@ -51,7 +48,6 @@ func NewEngine(guard Guard) *Engine {
 	}
 }
 
-// Register registers a new cron task with the given spec and handler.
 func (e *Engine) Register(name string, spec string, handler func(ctx context.Context) error) error {
 	if name == "" {
 		return errors.New("cron: job name cannot be empty")
@@ -83,7 +79,6 @@ func (e *Engine) Register(name string, spec string, handler func(ctx context.Con
 	return nil
 }
 
-// Unregister removes a registered cron task.
 func (e *Engine) Unregister(name string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -95,7 +90,6 @@ func (e *Engine) Unregister(name string) error {
 	return nil
 }
 
-// List returns a snapshot of all registered cron jobs sorted alphabetically by name.
 func (e *Engine) List() []plugin.CronJob {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -119,7 +113,6 @@ func (e *Engine) List() []plugin.CronJob {
 	return result
 }
 
-// Start launches the background scheduling loop.
 func (e *Engine) Start(ctx context.Context) error {
 	e.mu.Lock()
 	if e.running {
@@ -182,7 +175,6 @@ func (e *Engine) executeJob(ctx context.Context, j *jobEntry) {
 		return
 	}
 	if !ok {
-		// Lock held by another node or active job
 		return
 	}
 	defer release()
@@ -216,7 +208,6 @@ func (e *Engine) executeJob(ctx context.Context, j *jobEntry) {
 	}
 }
 
-// RunJob runs a job once immediately outside its schedule.
 func (e *Engine) RunJob(ctx context.Context, name string) error {
 	e.mu.RLock()
 	j, exists := e.jobs[name]
@@ -235,7 +226,6 @@ func (e *Engine) RunJob(ctx context.Context, name string) error {
 	return nil
 }
 
-// Stop stops the scheduling loop and waits gracefully for currently running jobs to complete.
 func (e *Engine) Stop(ctx context.Context) error {
 	e.mu.Lock()
 	if !e.running {

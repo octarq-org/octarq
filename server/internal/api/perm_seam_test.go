@@ -11,13 +11,11 @@ import (
 func TestRequirePermNilInputs(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/test", nil)
 
-	// r == nil -> false
 	var h *Handler
 	if h.RequirePerm(nil, "dns.records.delete", "admin") {
 		t.Fatal("expected RequirePerm(nil, ...) to return false, got true")
 	}
 
-	// h == nil and no resolver -> false (fail-closed)
 	plugin.ResetPermRegistry()
 	defer plugin.ResetPermRegistry()
 	if h.RequirePerm(req, "dns.records.delete", "admin") {
@@ -72,7 +70,6 @@ func TestRequirePermResolverPriority(t *testing.T) {
 		reqOwner.AddCookie(c)
 	}
 
-	// 1. Resolver is decided=true, allow=false -> must refuse even an owner.
 	plugin.SetPermResolver(func(r *http.Request, permKey string) (allow, decided bool) {
 		if permKey == "dns.records.delete" {
 			return false, true
@@ -84,7 +81,6 @@ func TestRequirePermResolverPriority(t *testing.T) {
 		t.Fatal("expected decided=true, allow=false resolver to refuse owner, but got allowed")
 	}
 
-	// 2. Resolver is decided=false -> fallback to role check (owner >= admin -> allowed).
 	plugin.SetPermResolver(func(r *http.Request, permKey string) (allow, decided bool) {
 		return false, false
 	})

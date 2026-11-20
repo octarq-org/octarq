@@ -9,7 +9,6 @@ func TestNewRootCmd(t *testing.T) {
 	if cmd.Use != "plugin-gen" {
 		t.Errorf("Use = %q, want plugin-gen", cmd.Use)
 	}
-	// Ensure gen subcommand exists
 	found := false
 	for _, c := range cmd.Commands() {
 		if c.Name() == "gen" {
@@ -47,7 +46,6 @@ func TestNewRootCmd_ExecuteGen(t *testing.T) {
 		t.Fatalf("Execute gen failed: %v", err)
 	}
 
-	// Error case with invalid name
 	cmdErr := newRootCmd()
 	cmdErr.SetArgs([]string{"gen", "invalid_name", "--dir", tmpDir})
 	if err := cmdErr.Execute(); err == nil {

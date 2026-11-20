@@ -11,16 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestAIChatStream_TheSpecAllowlistIsEnforcedAtExecution is the test that
-// matters most for a published harness: the allowlist is a control, not a
-// hint.
-//
-// The prompt narrows the advertised tools; the guard is what makes the
-// promise true when the model decides to call something else. Before the
-// guard existed, a workspace that published "read_things only" still had an
-// assistant that could run any read tool — and the offline lab, which
-// enforced the allowlist, reported the candidate as restricted while
-// production was not.
 func TestAIChatStream_TheSpecAllowlistIsEnforcedAtExecution(t *testing.T) {
 	var allowedExecuted, deniedExecuted bool
 	src := &fakeEndpointSource{
@@ -66,8 +56,6 @@ func TestAIChatStream_TheSpecAllowlistIsEnforcedAtExecution(t *testing.T) {
 	}
 }
 
-// TestAIChatStream_TheSpecAllowlistPermitsTheListedTool is the positive
-// control for the test above: the allowlist narrows, it does not disable.
 func TestAIChatStream_TheSpecAllowlistPermitsTheListedTool(t *testing.T) {
 	var executed bool
 	src := &fakeEndpointSource{

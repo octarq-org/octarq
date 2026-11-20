@@ -13,8 +13,6 @@ func TestTenantMenu_SwitchOrg(t *testing.T) {
 	srv, db := newTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// Admin user starts with org 1
-
 	org2 := models.Org{Name: "Org 2", Slug: "org2"}
 	db.Create(&org2)
 	db.Create(&models.OrgMember{OrgID: org2.ID, UserID: 1, Role: "member"})
@@ -122,13 +120,11 @@ func TestTenantMenu_GetUpdateUserSettings(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// Set a setting
 	rec := do(srv, "PUT", "/api/user/settings", cookies, `{"key":"theme","value":"dark"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update setting failed: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// Get settings
 	rec = do(srv, "GET", "/api/user/settings", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get settings failed: got %d", rec.Code)
@@ -191,10 +187,8 @@ func TestTenantMenu_ListActions(t *testing.T) {
 	}
 }
 
-// Add dummy coverage to reach some 401s and nil contexts
 func TestTenantMenu_NilCtxPaths(t *testing.T) {
 	srv, _ := newTestHandler(t)
-	// Testing Unauth responses
 	unauthPaths := []struct{ method, path, body string }{
 		{"POST", "/api/auth/switch-org", `{"orgId":1}`},
 		{"GET", "/api/orgs", ""},

@@ -20,8 +20,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// generateSecureToken creates a 32-byte (64-character hex) random token
-// and its hex-encoded SHA-256 hash for database storage.
 func generateSecureToken() (rawToken, hashHex string, err error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -33,15 +31,11 @@ func generateSecureToken() (rawToken, hashHex string, err error) {
 	return rawToken, hashHex, nil
 }
 
-// hashToken returns the hex-encoded SHA-256 digest of a raw token string.
 func hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
 }
 
-// sendPasswordResetEmail best-effort delivers a password reset link to the user
-// through the instance's system sender. Password reset must not depend on the
-// recipient's workspace: the request arrives before anyone is authenticated.
 func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("A password reset was requested for your Octarq account.\n\nSet a new password:\n%s\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.", resetURL)
@@ -53,14 +47,6 @@ func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
 	log.Printf("password reset email skipped for %s: mail plugin not mounted", to)
 }
 
-// sendAccountExistsEmail tells the owner of an address that a sign-up for it
-// did not create a second account. The recipient already knows the address is
-// theirs; whoever asked for the sign-up learns nothing from this message,
-// because it goes to the mailbox and not to the requester.
-//
-// The link is the sign-in page, not a session: handing out a link that signs
-// someone in would turn a public endpoint into a password reset for every
-// registered address.
 func (h *Handler) sendAccountExistsEmail(to, signInURL string) {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("An Octarq account already uses this address.\n\nSign in instead:\n%s\n\nIf you did not try to create an account, you can ignore this email.", signInURL)
@@ -72,12 +58,6 @@ func (h *Handler) sendAccountExistsEmail(to, signInURL string) {
 	log.Printf("account-exists email skipped for %s: mail plugin not mounted", to)
 }
 
-// mailReady reports whether this instance can actually deliver system mail:
-// the mail plugin's mail.ready service answers "is the system sender
-// available"; "service absent" (no mail plugin, or a plugin that cannot
-// answer) means not ready. Registration's verification gate and both readiness
-// reports consume this — promising a verification email that can never arrive
-// locks a fresh instance out of its own sign-up.
 func (h *Handler) mailReady() bool {
 	fn, ok := plugin.LookupServiceAs[plugin.MailReady](h.LookupService, plugin.ServiceMailReady)
 	if !ok {
@@ -86,10 +66,6 @@ func (h *Handler) mailReady() bool {
 	return fn()
 }
 
-// sendVerificationEmail best-effort delivers an email verification link to the
-// user through the instance's system sender. It deliberately carries no org:
-// registration sends it before the user has any workspace membership, and
-// resolving the org's sender there would find none and drop the mail.
 func (h *Handler) sendVerificationEmail(to, verifyURL string) {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("Confirm your email address for Octarq:\n\n%s\n\nThis link expires in 24 hours. If you didn't create this account, you can ignore this email.", verifyURL)
@@ -100,8 +76,6 @@ func (h *Handler) sendVerificationEmail(to, verifyURL string) {
 	}
 	log.Printf("verification email skipped for %s: mail plugin not mounted", to)
 }
-
-// --- Forgot Password ---
 
 type ForgotPasswordInputBody struct {
 	Email string `json:"email"`
@@ -125,17 +99,12 @@ type ForgotPasswordOutput struct {
 	Body ForgotPasswordOutputBody
 }
 
-// POST /api/auth/forgot (public) — requests a password reset link.
-// ALWAYS returns 200 {ok: true} to prevent email enumeration.
 func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput) (*ForgotPasswordOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	// Own budget, not the login one: every request counts here (there is no
-	// "failed" reset), so spending login's 5-per-15min would let anyone behind a
-	// shared IP be locked out of logging in by a few reset requests.
 	if !h.recoveryLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
@@ -154,21 +123,6 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 		return out, nil
 	}
 
-	// An empty hash means the account has no password of its own: it signs in
-	// through an identity provider (or is the env-configured bootstrap admin, or
-	// is still holding an unredeemed invite). changePassword and changeEmail both
-	// already refuse this account for the same reason, and the emailed reset had
-	// to as well — it was the one door that let a local password be minted for an
-	// account the IdP is supposed to be the sole authority for, routing around
-	// whatever sign-in policy (MFA, device trust, deprovisioning) that IdP
-	// enforces. Invited users have their own redemption path, /api/auth/invite/accept.
-	//
-	// The refusal is silent by construction: the same 200 {ok:true} as every
-	// other outcome. Those two endpoints can say WHY because they answer an
-	// already-authenticated caller about their own account; this one is public,
-	// so a distinguishable response would turn it into an oracle for "which of
-	// these addresses is an SSO account" — and, since unknown addresses also
-	// return 200 here, for which addresses exist at all.
 	if user.PasswordHash == "" {
 		return out, nil
 	}
@@ -179,10 +133,6 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 	}
 
 	expiry := time.Now().Add(1 * time.Hour)
-	// Mailing a link whose token never reached the database would send the user
-	// to an "invalid or expired token" page with no way to tell why, so fail
-	// loudly instead. A 500 here is enumeration-safe: it is reached only after a
-	// storage fault, and an unknown address returned 200 long before this point.
 	if err := h.db.Model(&user).Updates(map[string]any{
 		"reset_token_hash":   tokenHash,
 		"reset_token_expiry": expiry,
@@ -190,16 +140,11 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 		return nil, huma.Error500InternalServerError("Could not save reset token; retry the request")
 	}
 
-	// h.origin is "" when the request came in on a hostname this instance has
-	// not registered — including a forged one. The link degrades to a relative
-	// path rather than carrying a live reset token to an attacker (CWE-640).
 	resetURL := fmt.Sprintf("%s/admin/reset?token=%s", h.origin(r), rawToken)
 	h.sendPasswordResetEmail(user.Email, resetURL)
 
 	return out, nil
 }
-
-// --- Reset Password ---
 
 type ResetPasswordInputBody struct {
 	Token    string `json:"token"`
@@ -224,16 +169,12 @@ type ResetPasswordOutput struct {
 	Body ResetPasswordOutputBody
 }
 
-// POST /api/auth/reset (public) — completes password reset using secret token.
 func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) (*ResetPasswordOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	// Same budget as forgot/resend: an unauthenticated endpoint where every
-	// request counts (there is no successful attempt to exempt), so a burst of
-	// junk or real requests cannot burn unbounded CPU/DB/email for one IP.
 	if !h.recoveryLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
@@ -263,13 +204,6 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 		return nil, huma.Error500InternalServerError("Could not process password; retry the request")
 	}
 
-	// Update user password & clear reset token. No session_epoch bump: nothing
-	// read that column, so it never revoked anything — the session deletion
-	// below is what does.
-	//
-	// Order matters: the sessions must outlive a failed write. Revoking first (or
-	// unconditionally) logs the user out of every device while leaving the old
-	// password in place, and the ok:true response tells them the opposite.
 	if err := h.db.Model(&user).Updates(map[string]any{
 		"password_hash":      string(pwHash),
 		"reset_token_hash":   "",
@@ -292,8 +226,6 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 	return out, nil
 }
 
-// --- Verify Email ---
-
 type VerifyEmailInput struct {
 	Ctx   huma.Context `hidden:"true"`
 	Token string       `query:"token"`
@@ -304,7 +236,6 @@ func (i *VerifyEmailInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-// GET /api/auth/verify-email (public) — verifies email token and 302 redirects to login.
 func (h *Handler) verifyEmail(ctx context.Context, input *VerifyEmailInput) (*struct{}, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -328,8 +259,6 @@ func (h *Handler) verifyEmail(ctx context.Context, input *VerifyEmailInput) (*st
 		return nil, nil
 	}
 
-	// Claiming verified=1 on a failed write leaves the account unverified with a
-	// token that has apparently been spent. Stay in the redirect contract.
 	if err := h.db.Model(&user).Updates(map[string]any{
 		"email_verified":      true,
 		"verify_token_hash":   "",
@@ -342,8 +271,6 @@ func (h *Handler) verifyEmail(ctx context.Context, input *VerifyEmailInput) (*st
 	http.Redirect(w, r, "/admin/login?verified=1", http.StatusFound)
 	return nil, nil
 }
-
-// --- Resend Verification Email ---
 
 type ResendVerificationInputBody struct {
 	Email string `json:"email"`
@@ -368,17 +295,12 @@ type ResendVerificationOutput struct {
 	Body ResendVerificationOutputBody
 }
 
-// POST /api/auth/resend-verification (public) — resends email verification link.
-// ALWAYS returns 200 {ok: true}. Rate-limited via recoveryLimiter.
 func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificationInput) (*ResendVerificationOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	// Own budget, not the login one: every request counts here (there is no
-	// "failed" reset), so spending login's 5-per-15min would let anyone behind a
-	// shared IP be locked out of logging in by a few reset requests.
 	if !h.recoveryLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
@@ -400,9 +322,6 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 
 	if user.EmailVerified {
-		// The address has a usable account, so there is no verification link
-		// to send. The mailbox still gets the message that says so, which is
-		// what the sign-up page promised: a message, and the next step in it.
 		h.sendAccountExistsEmail(user.Email, h.origin(r)+"/admin/login")
 		return out, nil
 	}
@@ -413,9 +332,6 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 
 	expiry := time.Now().Add(24 * time.Hour)
-	// Same reasoning as forgotPassword: an unstored token makes the mailed link
-	// dead on arrival. Unknown and already-verified addresses returned 200 above,
-	// so this 500 says nothing about the account.
 	if err := h.db.Model(&user).Updates(map[string]any{
 		"verify_token_hash":   tokenHash,
 		"verify_token_expiry": expiry,

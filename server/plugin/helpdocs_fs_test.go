@@ -39,9 +39,6 @@ func TestLoadHelpDocsFrontmatterOverridesSlug(t *testing.T) {
 	}
 }
 
-// A page with no frontmatter at all is a shape that can occur in downstream
-// module docs, so it must degrade to something serveable rather than an
-// untitled ghost entry.
 func TestLoadHelpDocsBareMarkdownFallsBackToFileName(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
 		"docs/infra.md": {Data: []byte("# Infra\n\nbody")},
@@ -55,9 +52,6 @@ func TestLoadHelpDocsBareMarkdownFallsBackToFileName(t *testing.T) {
 	}
 }
 
-// The one thing the naming contract must never get wrong: a translation is not
-// a page. Getting this backwards puts every doc in the sidebar twice, once per
-// language, which is what makes it worth a test of its own.
 func TestLoadHelpDocsTranslationsAreNotPages(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
 		"docs/mcp.mdx":    {Data: []byte("---\ntitle: MCP\n---\nen")},
@@ -75,8 +69,6 @@ func TestLoadHelpDocsTranslationsAreNotPages(t *testing.T) {
 	}
 }
 
-// ".zh" is a language; ".v2" is part of the name. Only the closed list of
-// language suffixes may steal a file's page-hood.
 func TestLoadHelpDocsDottedNameIsNotATranslation(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
 		"docs/api.v2.mdx": {Data: []byte("---\ntitle: API v2\n---\nbody")},
@@ -86,8 +78,6 @@ func TestLoadHelpDocsDottedNameIsNotATranslation(t *testing.T) {
 	}
 }
 
-// Subdirectories organise files without appearing in any URL, and .md/.mdx are
-// interchangeable — downstream plugins can write .md, while core plugins write .mdx.
 func TestLoadHelpDocsWalksSubdirectoriesAndBothExtensions(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
 		"docs/top.mdx":              {Data: []byte("---\ntitle: Top\n---\na")},
@@ -105,9 +95,6 @@ func TestLoadHelpDocsWalksSubdirectoriesAndBothExtensions(t *testing.T) {
 	}
 }
 
-// One unparseable page must not take the rest of the plugin's docs down with
-// it — a help system that fails closed on a typo is worse than one that serves
-// nine pages and logs about the tenth.
 func TestLoadHelpDocsSurvivesABadPage(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
 		"docs/good.mdx": {Data: []byte("---\ntitle: Good\n---\nok")},
@@ -130,7 +117,6 @@ func TestLoadHelpDocsSorted(t *testing.T) {
 		"docs/a.mdx": {Data: []byte("---\ntitle: A\ncategory: start\norder: 99\n---\n")},
 	})
 	if len(got) != 2 || got[0].Slug != "a" {
-		// "start" sorts before "services" regardless of per-doc order.
 		t.Errorf("docs not sorted by category then order: %v", got)
 	}
 }

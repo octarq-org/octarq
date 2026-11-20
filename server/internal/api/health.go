@@ -26,10 +26,6 @@ type HealthOutput struct {
 	Body HealthOutputBody
 }
 
-// health answers 200 whenever the process serves requests. It does not touch
-// the database or any other dependency: a supervisor restarts a process on
-// this answer, and a dependency outage must not restart a healthy process.
-// Dependency state lives in subsystemStatus, behind GET /api/status.
 func (h *Handler) health(ctx context.Context, input *HealthInput) (*HealthOutput, error) {
 	out := &HealthOutput{}
 	out.Body.Status = "healthy"
@@ -48,7 +44,7 @@ func (i *StatusStatusInput) Resolve(ctx huma.Context) []error {
 
 type StatusSubsystemItem struct {
 	Name   string `json:"name"`
-	Status string `json:"status"` // ok | degraded | down | na
+	Status string `json:"status"`
 	Detail string `json:"detail,omitempty"`
 }
 
@@ -56,18 +52,14 @@ type StatusStatusOutputBody struct {
 	Overall    string                `json:"overall"`
 	Subsystems []StatusSubsystemItem `json:"subsystems"`
 	Time       string                `json:"time"`
-	// Version and Revision name the binary that answered. Both are empty for a
-	// build the toolchain did not stamp, so a client hides the line.
-	Version  string `json:"version,omitempty"`
-	Revision string `json:"revision,omitempty"`
+	Version    string                `json:"version,omitempty"`
+	Revision   string                `json:"revision,omitempty"`
 }
 
 type StatusStatusOutput struct {
 	Body StatusStatusOutputBody
 }
 
-// subsystemStatus returns public health status of core subsystems (database, mail, queue, overall).
-// It is rate-limited and returns only status enums without exposing internal details.
 func (h *Handler) subsystemStatus(ctx context.Context, input *StatusStatusInput) (*StatusStatusOutput, error) {
 	if input.Ctx != nil {
 		r, _ := humago.Unwrap(input.Ctx)

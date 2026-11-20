@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// inTempDir runs fn with the working directory pointing at a fresh temp dir,
-// so the generator's relative file writes never touch the repo.
 func inTempDir(t *testing.T, fn func(dir string)) {
 	t.Helper()
 	dir := t.TempDir()
@@ -32,8 +30,6 @@ func readFile(t *testing.T, path string) string {
 	return string(b)
 }
 
-// TestRunManifestErrors covers the two configuration refusals: an empty
-// manifest and a manifest that is not valid JSON.
 func TestRunManifestErrors(t *testing.T) {
 	inTempDir(t, func(dir string) {
 		t.Setenv("OCTARQ_PLUGINS", "   ")
@@ -51,9 +47,6 @@ func TestRunManifestErrors(t *testing.T) {
 	})
 }
 
-// TestRunFrontendOnlyManifest drives the npm-only path (no `go get`, so no
-// network): the frontend manifest is written with the npm specifiers and the
-// backend file regenerates to an empty composition.
 func TestRunFrontendOnlyManifest(t *testing.T) {
 	inTempDir(t, func(dir string) {
 		t.Setenv("OCTARQ_PLUGINS", `[{"npm":"@acme/octarq-plugin-hello"},{"npm":"@acme/octarq-plugin-stats"}]`)
@@ -76,10 +69,6 @@ func TestRunFrontendOnlyManifest(t *testing.T) {
 	})
 }
 
-// TestRunBackendManifestFailsGoGet drives the backend `go get` loop in a
-// module-less temp dir (as CI does when invoked outside a checkout), where the
-// resolution step fails immediately — offline and deterministically — and run
-// must surface that failure.
 func TestRunBackendManifestFailsGoGet(t *testing.T) {
 	inTempDir(t, func(dir string) {
 		t.Setenv("OCTARQ_PLUGINS", `[{"go":"example.invalid/octarq-plugin-x","npm":"@x/y"}]`)
@@ -94,8 +83,6 @@ func TestRunBackendManifestFailsGoGet(t *testing.T) {
 	})
 }
 
-// TestRunEmptyManifest writes a valid empty frontend manifest and an empty
-// backend composition for an explicit empty manifest.
 func TestRunEmptyManifest(t *testing.T) {
 	inTempDir(t, func(dir string) {
 		t.Setenv("OCTARQ_PLUGINS", "[]")
@@ -111,11 +98,8 @@ func TestRunEmptyManifest(t *testing.T) {
 	})
 }
 
-// TestRunWriteFailures covers the os.WriteFile error branches by putting
-// directories in the way of the generated files.
 func TestRunWriteFailures(t *testing.T) {
 	inTempDir(t, func(dir string) {
-		// writeBackend fails -> run surfaces it.
 		if err := os.Mkdir(genFile, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", genFile, err)
 		}
@@ -125,7 +109,6 @@ func TestRunWriteFailures(t *testing.T) {
 			return
 		}
 
-		// Frontend write fails on an empty manifest.
 		os.Remove(genFile)
 		if err := os.Mkdir(frontendFile, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", frontendFile, err)
@@ -138,8 +121,6 @@ func TestRunWriteFailures(t *testing.T) {
 	})
 }
 
-// TestWriteBackendEntries regenerates the Go plugin set for a backend manifest,
-// producing per-plugin aliases and &Plugin{} constructor lines.
 func TestWriteBackendEntries(t *testing.T) {
 	have := writeBackendEntries(t, []entry{
 		{Go: "github.com/octarq-org/octarq/server/examples/plugin-hello"},
@@ -153,8 +134,6 @@ func TestWriteBackendEntries(t *testing.T) {
 	}
 }
 
-// writeBackendEntries is a thin test driver for writeBackend that reads the
-// generated file back out of the temp dir.
 func writeBackendEntries(t *testing.T, entries []entry) string {
 	t.Helper()
 	var got string

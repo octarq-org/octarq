@@ -2,18 +2,13 @@ package eventbus
 
 import "sync"
 
-// EventDef describes a webhook event subscribers can select in the dashboard.
-// Core events are registered in this package's init; plugins contribute theirs
-// during Mount through the plugin.Context.RegisterWebhookEvent seam, so the
-// dashboard only offers events that can actually fire in this build.
 type EventDef struct {
-	Key         string `json:"key"`         // e.g. "link.click"
-	Group       string `json:"group"`       // e.g. "Links"
-	Title       string `json:"title"`       // e.g. "Link Clicked"
-	Description string `json:"description"` // when the event fires
+	Key         string `json:"key"`
+	Group       string `json:"group"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
-// EventGroup is one named group of event definitions, in registration order.
 type EventGroup struct {
 	Group  string     `json:"group"`
 	Events []EventDef `json:"events"`
@@ -26,9 +21,6 @@ var (
 	defsByGrp  = map[string][]EventDef{}
 )
 
-// RegisterEventDef adds an event definition to the registry. Registering the
-// same Key twice is a no-op, so a plugin mounted for both HTTP and MCP serving
-// contributes each event once.
 func RegisterEventDef(def EventDef) {
 	if def.Key == "" {
 		return
@@ -45,8 +37,6 @@ func RegisterEventDef(def EventDef) {
 	defsByGrp[def.Group] = append(defsByGrp[def.Group], def)
 }
 
-// EventGroups returns all registered event definitions grouped in registration
-// order — deterministic so the dashboard renders a stable list.
 func EventGroups() []EventGroup {
 	defsMu.RLock()
 	defer defsMu.RUnlock()
@@ -57,8 +47,6 @@ func EventGroups() []EventGroup {
 	return out
 }
 
-// Core events fired by octarq itself (workspace membership, authentication).
-// Feature events (links, mail, domains) are registered by their plugins.
 func init() {
 	for _, d := range []EventDef{
 		{Key: "member.invite", Group: "Member", Title: "Member Invited", Description: "A user was invited to the workspace"},

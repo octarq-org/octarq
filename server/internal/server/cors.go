@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-// originAllowed reports whether origin is an EXACT member of allow. Prefix and
-// substring matches are deliberately rejected: "https://octarq.org.evil.com"
-// must never pass because it merely contains "octarq.org".
 func originAllowed(origin string, allow []string) bool {
 	for _, a := range allow {
 		if origin == a {
@@ -17,17 +14,6 @@ func originAllowed(origin string, allow []string) bool {
 	return false
 }
 
-// applyCORS writes cross-origin headers for requests to public GET endpoints
-// whose Origin is in the configured allowlist, and short-circuits an approved
-// preflight. It returns true only when the request was a preflight that this
-// middleware already answered (204) and the router must not see.
-//
-// The security contract is deliberate and non-negotiable:
-//   - only GET endpoints the auth gate lets through unauthenticated;
-//   - the Origin must match the allowlist exactly;
-//   - Access-Control-Allow-Credentials is never set. These endpoints are public
-//     data; once credentials are allowed, any whitelisted origin that is ever
-//     compromised can act as the user against every API on the instance.
 func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
 	if mw.settings.PublicGET == nil {
 		return false
@@ -37,13 +23,10 @@ func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
 	}
 	origin := r.Header.Get("Origin")
 	if origin == "" {
-		// No Origin header: same-origin or non-browser client, no CORS needed.
 		return false
 	}
 
 	if r.Method == http.MethodOptions {
-		// Preflight. Only a GET read is ever on offer; a preflight asking for
-		// anything else is not answered (the browser will block the follow-up).
 		if !strings.EqualFold(r.Header.Get("Access-Control-Request-Method"), http.MethodGet) {
 			return false
 		}
@@ -67,8 +50,6 @@ func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodGet {
 		return false
 	}
-	// Vary on Origin whenever the response is origin-dependent, so a shared
-	// cache never serves a non-CORS copy to an allowed origin or vice versa.
 	if originAllowed(origin, mw.currentCORSOrigins()) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
@@ -76,27 +57,8 @@ func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-// contentSecurityPolicy is the baseline CSP applied to every response.
-//
-// script-src deliberately has NO 'unsafe-inline': without it, an XSS that finds
-// a single injection point cannot execute arbitrary inline scripts — CSP is a
-// real mitigation layer. The two inline scripts the dashboard genuinely ships
-// (the synchronous theme toggle and the campaign-forwarding snippet in
-// index.html) are allow-listed by their exact build-time SHA-256 hashes instead.
-// Rebuilding index.html changes those hashes; the hash values here must be
-// regenerated from the served index.html (see setSecurityHeaders' guard test,
-// which recomputes them from the embedded dist and fails if they drift).
-//
-// style-src KEEPS 'unsafe-inline': Tailwind injects its styles at runtime and
-// removing it would blank the whole dashboard.
-//
-// script-src carries: a plugin may ship a WebAssembly app
-// (the octarch Mission Control web target is one), and browsers refuse to
-// compile a module without it. The keyword permits compiling wasm bytes only;
-// it does not permit eval of JavaScript strings, which 'unsafe-eval' would.
 const contentSecurityPolicy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-XOdMZOShyEmv5lOxX1JVnl4Ve1llBlA5kNEaund+AXQ=' 'sha256-0la+svl4yiuBleyZsFu+6aWjFtuvmwtPoqXKtkLO42Q='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'"
 
-// setSecurityHeaders applies baseline hardening headers to every response.
 func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")

@@ -6,16 +6,6 @@ import (
 	"sync"
 )
 
-// Registry is the inter-plugin service registry backing Context.Provide and
-// Context.Lookup. The app creates exactly one per process and shares it across
-// every plugin's Context, so a service one plugin Provides is visible to all
-// others. Plugins never construct a Registry themselves — they only see the
-// Provide/Lookup funcs on Context; the type is exported for the app (and
-// tests) to wire.
-//
-// Concurrency: Mount runs plugin-by-plugin on a single goroutine, so Provide
-// is not raced in practice, but the registry locks anyway; Lookup takes a
-// read lock and is safe from any goroutine (Start, request handlers).
 type Registry struct {
 	mu              sync.RWMutex
 	svcs            map[string]any
@@ -23,20 +13,14 @@ type Registry struct {
 	errs            []error
 }
 
-// NewRegistry returns an empty registry.
 func NewRegistry() *Registry {
 	return &Registry{svcs: make(map[string]any)}
 }
 
-// Provide registers svc under name ("<pluginName>.<service>" by convention).
-// A duplicate name is not overwritten; it is recorded as an error that Err
-// returns, so the app can refuse startup after the mount phase instead of
-// two plugins silently fighting over a name.
 func (r *Registry) Provide(name string, svc any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Special handling for HealthProvider to allow multiple plugins to register health checks
 	if name == ServiceHealthProvider {
 		if hp, ok := svc.(HealthProvider); ok {
 			for _, existing := range r.healthProviders {
@@ -96,7 +80,6 @@ func (r *Registry) Provide(name string, svc any) {
 	r.svcs[name] = svc
 }
 
-// Lookup returns the service registered under name, and whether it exists.
 func (r *Registry) Lookup(name string) (any, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -109,7 +92,6 @@ func (r *Registry) Lookup(name string) (any, bool) {
 	return svc, ok
 }
 
-// HealthProviders returns a copy of all registered HealthProviders.
 func (r *Registry) HealthProviders() []HealthProvider {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -118,10 +100,6 @@ func (r *Registry) HealthProviders() []HealthProvider {
 	return res
 }
 
-// Err reports any duplicate-Provide collisions recorded so far (nil if none).
-// The app checks it once, after every plugin has mounted, and refuses to
-// serve on a non-nil result — consistent with how other startup misconfig
-// (e.g. table collisions) is reported as a returned error, not a panic.
 func (r *Registry) Err() error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -134,10 +112,6 @@ func (r *Registry) Err() error {
 	return fmt.Errorf("%d plugin service collisions, first: %w", len(r.errs), r.errs[0])
 }
 
-// LookupAs resolves the named service and type-asserts it to T, returning
-// (zero, false) when the service is absent or has a different type. It is the
-// canonical consumer shape, paired with lazy (Start-time or per-request)
-// resolution.
 func LookupAs[T any](ctx *Context, name string) (T, bool) {
 	if ctx == nil || ctx.Lookup == nil {
 		var zero T
@@ -146,15 +120,6 @@ func LookupAs[T any](ctx *Context, name string) (T, bool) {
 	return LookupServiceAs[T](ctx.Lookup, name)
 }
 
-// LookupServiceAs is the underlying form of LookupAs, for callers that hold a
-// lookup func (a *Registry, or a Handler's LookupService) instead of a
-// *Context — e.g. the app assembly layer. It resolves name via lookup and
-// type-asserts the result to T, returning (zero, false) when the service is
-// absent or has a different type, or when lookup is nil. LookupAs delegates to
-// it so there is exactly one assertion implementation. Pair it with a named
-// contract type declared in this package (MailSender, EmailDispatcher, …) so a
-// provider signature drift fails at the Provide call site instead of silently
-// failing this assertion at runtime.
 func LookupServiceAs[T any](lookup func(name string) (any, bool), name string) (T, bool) {
 	var zero T
 	if lookup == nil {

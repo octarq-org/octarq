@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// DefaultBackupFilename returns a timestamped backup filename for the given driver.
 func DefaultBackupFilename(driver string, now time.Time) string {
 	ts := now.Format("20060102-150405")
 	if driver == "postgres" || driver == "mysql" {
@@ -22,7 +21,6 @@ func DefaultBackupFilename(driver string, now time.Time) string {
 	return fmt.Sprintf("octarq-backup-%s.db", ts)
 }
 
-// Backup performs an online, non-locking backup for SQLite, Postgres, or MySQL.
 func Backup(cfg *config.Config, outputPath string) error {
 	if outputPath == "" {
 		outputPath = DefaultBackupFilename(cfg.DBDriver, time.Now())
@@ -58,7 +56,6 @@ func backupSQLite(dsn, outputPath string) error {
 		}
 	}
 
-	// Remove existing output file if present so VACUUM INTO doesn't fail
 	_ = os.Remove(outputPath)
 
 	escapedPath := strings.ReplaceAll(outputPath, "'", "''")
@@ -164,7 +161,6 @@ func backupMySQL(dsn, outputPath string) error {
 	return nil
 }
 
-// VerifySQLiteIntegrity opens a SQLite database file and executes PRAGMA integrity_check.
 func VerifySQLiteIntegrity(dbPath string) error {
 	info, err := os.Stat(dbPath)
 	if err != nil {

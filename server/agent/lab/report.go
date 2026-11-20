@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// LabReport is the complete offline evaluation report.
 type LabReport struct {
 	TaskSetName           string            `json:"task_set_name"`
 	TotalTasks            int               `json:"total_tasks"`
@@ -21,7 +20,6 @@ type LabReport struct {
 	CandidateResults      []CandidateResult `json:"candidate_results"`
 }
 
-// BuildReport constructs the report by scoring and ranking candidate results.
 func BuildReport(ts *TaskSet, results []CandidateResult, preferredBaseline string) (*LabReport, error) {
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no candidate results to report")
@@ -38,7 +36,6 @@ func BuildReport(ts *TaskSet, results []CandidateResult, preferredBaseline strin
 	bestScore := rankedScores[0]
 	bestResult := candMap[bestScore.CandidateName]
 
-	// Determine baseline candidate
 	baselineName := preferredBaseline
 	if baselineName == "" {
 		if _, ok := candMap["baseline"]; ok {
@@ -56,7 +53,6 @@ func BuildReport(ts *TaskSet, results []CandidateResult, preferredBaseline strin
 		baselineName = baselineResult.Candidate.Name
 	}
 
-	// Baseline score
 	var baselineScore CandidateScore
 	for _, sc := range rankedScores {
 		if sc.CandidateName == baselineName {
@@ -97,7 +93,6 @@ func BuildReport(ts *TaskSet, results []CandidateResult, preferredBaseline strin
 	}, nil
 }
 
-// RenderMarkdown formats the LabReport into a comprehensive Markdown summary.
 func RenderMarkdown(r *LabReport) string {
 	var b strings.Builder
 
@@ -209,7 +204,6 @@ func RenderMarkdown(r *LabReport) string {
 	return b.String()
 }
 
-// WriteReportFiles exports report.json and report.md to the output directory.
 func WriteReportFiles(r *LabReport, outDir string) error {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("create report directory %q: %w", outDir, err)

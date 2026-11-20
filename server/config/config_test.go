@@ -12,9 +12,6 @@ import (
 	"testing"
 )
 
-// TestLoadAutoGeneratesSecrets checks the zero-config path: with neither the
-// secret key nor the admin password set, Load generates and persists both next
-// to the SQLite database instead of failing.
 func TestLoadAutoGeneratesSecrets(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "")
@@ -39,8 +36,6 @@ func TestLoadAutoGeneratesSecrets(t *testing.T) {
 	}
 }
 
-// TestLoadAutoSecretsStableAcrossRestart checks that a second Load reuses the
-// persisted secret and password (the KEK and login must not rotate on reboot).
 func TestLoadAutoSecretsStableAcrossRestart(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "")
@@ -64,8 +59,6 @@ func TestLoadAutoSecretsStableAcrossRestart(t *testing.T) {
 	}
 }
 
-// TestLoadEnvSecretsWin checks env-supplied values are used verbatim and never
-// written to disk.
 func TestLoadEnvSecretsWin(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
@@ -131,15 +124,6 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 }
 
-// TestSecretKeyFloor pins the one strictness rule left in Load: a secret key
-// shorter than MinSecretKeyLen refuses to start on a provisioned deployment and
-// only warns on a development one.
-//
-// The predicate is Config.Provisioned — an external Postgres or an external
-// Redis. It replaced IsProduction, which keyed on an https OCTARQ_BASE_URL or
-// OCTARQ_ADMIN_HOST, both of which this refactor deleted. The default sqlite
-// file with no Redis must stay lenient: it is what `go run .` and the
-// documented OCTARQ_SECRET_KEY=dev use.
 func TestSecretKeyFloor(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -182,9 +166,6 @@ func TestSecretKeyFloor(t *testing.T) {
 	}
 }
 
-// TestLoadDropsRemovedVariables pins that the three variables this refactor
-// deleted stay deleted: setting them must not resurrect any behaviour, and Load
-// must not fail on their presence in an operator's stale .env either.
 func TestLoadDropsRemovedVariables(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
@@ -246,8 +227,6 @@ KEY4=value4 # another comment
 	}
 }
 
-// setLevelEnv is the common environment for the log-level tests: a plain
-// sqlite dev boot whose only variable is the log level under test.
 func setLevelEnv(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
@@ -257,8 +236,6 @@ func setLevelEnv(t *testing.T) {
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
 }
 
-// TestLoadLogLevel checks OCTARQ_LOG_LEVEL is read and normalised
-// (case/whitespace-insensitive), defaulting to info.
 func TestLoadLogLevel(t *testing.T) {
 	cases := []struct {
 		env  string
@@ -285,9 +262,6 @@ func TestLoadLogLevel(t *testing.T) {
 	}
 }
 
-// TestLoadRejectsBadLogLevel pins the chosen invalid-value semantics: an
-// unrecognised OCTARQ_LOG_LEVEL is a fatal startup error that names the
-// variable, mirroring OCTARQ_DB_DRIVER's handling — never a silent fallback.
 func TestLoadRejectsBadLogLevel(t *testing.T) {
 	setLevelEnv(t)
 	t.Setenv("OCTARQ_LOG_LEVEL", "noisy")
@@ -301,11 +275,6 @@ func TestLoadRejectsBadLogLevel(t *testing.T) {
 	}
 }
 
-// TestLogLevelFeedsSlogLogger is the behavioural half of the guard: the level
-// resolved from OCTARQ_LOG_LEVEL must actually gate the slog logger, so that
-// with OCTARQ_LOG_LEVEL=error an info statement is dropped, and an unknown
-// value must surface as an error (never silently downgrade to a level that
-// would swallow the very debug logs the operator is reaching for).
 func TestLogLevelFeedsSlogLogger(t *testing.T) {
 	t.Setenv("OCTARQ_LOG_LEVEL", "error")
 	level, err := LogLevel()
@@ -409,8 +378,6 @@ func TestBackupS3Config(t *testing.T) {
 	}
 }
 
-// TestAdminPasswordFloor pins the rule: a supplied admin password shorter than
-// MinAdminPasswordLen refuses to start.
 func TestAdminPasswordFloor(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
@@ -428,8 +395,6 @@ func TestAdminPasswordFloor(t *testing.T) {
 	}
 }
 
-// TestGeneratedAdminPasswordStaysOutOfTheLog pins the privacy rule: journald
-// and container logs are readable by people who must not administer the host.
 func TestGeneratedAdminPasswordStaysOutOfTheLog(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("OCTARQ_SECRET_KEY", "")

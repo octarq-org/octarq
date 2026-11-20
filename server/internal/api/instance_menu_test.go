@@ -1,9 +1,5 @@
 package api
 
-// Guard tests for GET /api/instance/menus — the instance-console analog of
-// /api/menus. Case 4 (scope isolation) is the core guard of the seam: a plugin
-// must never be able to leak one scope's pages into the other shell.
-
 import (
 	"encoding/json"
 	"net/http"
@@ -12,9 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// dualScopePlugin implements both MenuProvider and InstanceMenuProvider so a
-// single test plugin can exercise both shells at once. EnabledByDefault keeps
-// it live for the caller's workspace (the tenant side is per-org gated).
 type dualScopePlugin struct {
 	name          string
 	tenantMenus   []plugin.MenuItem
@@ -30,8 +23,6 @@ func (d dualScopePlugin) Describe() plugin.Info {
 func (d dualScopePlugin) Menus() []plugin.MenuItem         { return d.tenantMenus }
 func (d dualScopePlugin) InstanceMenus() []plugin.MenuItem { return d.instanceMenus }
 
-// TestInstanceMenusRejectsAnonymous keeps the endpoint behind auth entirely —
-// 401 before the instance-admin check, so it can't be probed unauthenticated.
 func TestInstanceMenusRejectsAnonymous(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{dualScopePlugin{name: "hello"}})
@@ -41,8 +32,6 @@ func TestInstanceMenusRejectsAnonymous(t *testing.T) {
 	}
 }
 
-// TestInstanceMenusRequiresInstanceAdmin: an ordinary org owner must not read
-// the instance menu list — it reveals which deployment-wide surfaces exist.
 func TestInstanceMenusRequiresInstanceAdmin(t *testing.T) {
 	h, srv, db := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{dualScopePlugin{name: "hello"}})
@@ -54,8 +43,6 @@ func TestInstanceMenusRequiresInstanceAdmin(t *testing.T) {
 	}
 }
 
-// TestInstanceMenusServedToInstanceAdmin: the configured instance admin gets
-// the list, and the test plugin's InstanceMenus() entry is in it.
 func TestInstanceMenusServedToInstanceAdmin(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{
@@ -86,10 +73,6 @@ func TestInstanceMenusServedToInstanceAdmin(t *testing.T) {
 	}
 }
 
-// TestInstanceMenusScopeIsolation is the core guard: the SAME plugin
-// implementing both providers must never leak one scope's pages into the
-// other shell — /api/menus must not contain /instance-only, and
-// /api/instance/menus must not contain /tenant-only.
 func TestInstanceMenusScopeIsolation(t *testing.T) {
 	h, srv, db := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{
@@ -100,7 +83,6 @@ func TestInstanceMenusScopeIsolation(t *testing.T) {
 		},
 	})
 
-	// Instance side, as the instance admin.
 	rec := do(srv, "GET", "/api/instance/menus", loginCookies(t, srv), "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("instance admin: got %d, want 200", rec.Code)
@@ -115,7 +97,6 @@ func TestInstanceMenusScopeIsolation(t *testing.T) {
 		}
 	}
 
-	// Tenant side, as an org member of the same instance.
 	const org = uint(905)
 	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
 	rec = do(srv, "GET", "/api/menus", sessionCookies(t, ownerUID, org), "")
@@ -140,8 +121,6 @@ func TestInstanceMenusScopeIsolation(t *testing.T) {
 	}
 }
 
-// TestInstanceMenusSortedOrder pins the stable ordering contract: Order asc,
-// then ID asc.
 func TestInstanceMenusSortedOrder(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{
@@ -167,7 +146,7 @@ func TestInstanceMenusSortedOrder(t *testing.T) {
 	for _, m := range out {
 		ids = append(ids, m.ID)
 	}
-	want := []string{"a", "c", "b"} // Order 1 before Order 2; ties by ID
+	want := []string{"a", "c", "b"}
 	if len(ids) != len(want) {
 		t.Fatalf("menu count: got %v, want %v", ids, want)
 	}

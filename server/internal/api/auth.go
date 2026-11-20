@@ -43,7 +43,6 @@ type LoginOutput struct {
 	Body LoginOutputBody
 }
 
-// loginHuma is the huma-adapted login handler
 func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -104,10 +103,6 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	return out, nil
 }
 
-// bootstrapUserID finds or creates the user for the admin login. This account —
-// keyed on the configured OCTARQ_ADMIN_USER email — is the ONLY instance admin;
-// it is marked with IsInstanceAdmin here so the privilege is bound to a stable
-// identity rather than to org_id ordering (see isInstanceAdmin).
 func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	var user models.User
 	if err := h.db.Where("email = ?", username).First(&user).Error; errors.Is(err, gorm.ErrRecordNotFound) {
@@ -133,9 +128,6 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 			h.db.Model(&user).Updates(updates)
 		}
 	}
-	// Link to the bootstrap org as owner. Unconditional, because bootstrapOrgID
-	// now finds the admin's org *through* this membership: leave an admin user
-	// with no membership and every login would mint another org.
 	var member models.OrgMember
 	if err := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
@@ -143,16 +135,6 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	return user.ID
 }
 
-// bootstrapOrgID returns the ID of the admin's own org, creating it if it
-// doesn't exist yet.
-//
-// It resolves through the admin's own user row and membership, never db.First()
-// on orgs, so an OAuth user who signed in before the first admin password login
-// cannot accidentally become the admin's org. This used to key on a slug derived
-// from AdminUser; slugs are random now (models.AllocateOrgSlug), so the identity
-// that survives a restart is the admin credential's email, not its slug. Existing
-// instances resolve to the same org either way — the admin user row and its
-// owner membership were created alongside that org.
 func (h *Handler) bootstrapOrgID() uint {
 	var user models.User
 	if err := h.db.Where("email = ?", h.cfg.AdminUser).First(&user).Error; err == nil {
@@ -183,20 +165,12 @@ func (h *Handler) bootstrapOrgID() uint {
 	return org.ID
 }
 
-// memberOrgIDs returns the IDs of every workspace the user belongs to, for
-// fan-out of account-level events (join, password change, failed login) that
-// have no single-org request context.
 func (h *Handler) memberOrgIDs(userID uint) []uint {
 	var orgIDs []uint
 	h.db.Model(&models.OrgMember{}).Where("user_id = ?", userID).Pluck("org_id", &orgIDs)
 	return orgIDs
 }
 
-// publishLoginFailed emits auth.login_failed to every workspace the target
-// account belongs to, and records it in audit_logs for the same workspaces.
-// Unknown usernames publish nowhere — there is no org to notify, and firing on
-// arbitrary strings would let probes spam webhooks. The stored meta carries
-// email + reason only: never the attempted password nor any token.
 func (h *Handler) publishLoginFailed(r *http.Request, username, reason string) {
 	var user models.User
 	if h.db.Where("email = ?", strings.TrimSpace(username)).First(&user).Error != nil {
@@ -231,14 +205,6 @@ type AuthConfigOutput struct {
 	Body AuthConfigOutputBody
 }
 
-// GET /api/auth/config (public) returns whether Google and GitHub logins are
-// enabled, plus the branding the login screen should wear.
-//
-// Branding is resolved per workspace: the session's org when the caller already
-// has one, otherwise the workspace that owns the request hostname (a tenant on
-// their own domain sees their own brand; the shared host falls back to the
-// instance default). Host is client-controlled, so it selects PRESENTATION only
-// — no data and no privilege hangs off it here.
 func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*AuthConfigOutput, error) {
 	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.hasInstanceSecret(ctx, vaultKeyGoogleClientSecret, "clientSecret", "value")
 	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.hasInstanceSecret(ctx, vaultKeyGitHubClientSecret, "clientSecret", "value")
@@ -267,29 +233,11 @@ func (h *Handler) getAuthMethods(ctx context.Context, input *struct{}) (*AuthMet
 	return &AuthMethodsOutput{Body: auth.List()}, nil
 }
 
-// Errors authenticate reports to its callers, after it has separated the three
-// outcomes a sign-in can have.
 var (
-	// errInvalidCredentials means neither credential source matched.
 	errInvalidCredentials = errors.New("auth: invalid credentials")
-	// errNoWorkspace means the password is correct and the account belongs to
-	// no workspace.
-	errNoWorkspace = errors.New("auth: account belongs to no workspace")
+	errNoWorkspace        = errors.New("auth: account belongs to no workspace")
 )
 
-// authenticate resolves username+password to a (userID, orgID) pair. It accepts
-// two credential sources, in order:
-//  1. the instance admin credential (config-backed) → the admin's bootstrap org
-//  2. a database user carrying a bcrypt password hash (invited members and
-//     self-serve sign-ups) → the first org they belong to
-//
-// A correct password admits an account to the workspaces it already belongs
-// to, and to no others. Signing in never creates a membership: removing a
-// member deletes that row, so creating one here would hand the removed person
-// an owner seat on their next attempt.
-//
-// Callers arm the failed-login limiter on errInvalidCredentials only. A
-// correct password is not a failed attempt.
 func (h *Handler) authenticate(username, password string) (uid, orgID uint, err error) {
 	if h.auth.Check(username, password) {
 		orgID = h.bootstrapOrgID()

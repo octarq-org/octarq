@@ -9,10 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// A caller that composes its own preamble needs the tool list on its own.
-// The section must be rendered by the same code as the full prompt, and it
-// must say so when there is nothing to call — never an empty section, which
-// would read as "no tools are needed".
 func TestToolSection_RendersTheToolList(t *testing.T) {
 	src := &catalogSource{eps: []plugin.Endpoint{catalogEndpoint("read_things", "GET", "Read")}}
 

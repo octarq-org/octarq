@@ -8,7 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/tenantquery"
 )
 
-// Compile-time interface checks.
 var (
 	_ plugin.Plugin    = (*tenantquery.Plugin)(nil)
 	_ plugin.Describer = (*tenantquery.Plugin)(nil)
@@ -67,7 +66,6 @@ func TestTenantQuery_Characterization_Endpoints(t *testing.T) {
 		t.Fatal("query_tenant_sql endpoint was not registered")
 	}
 
-	// Verify describe_tenant_schema endpoint specifications
 	if describeEP.EndpointMethod() != "GET" {
 		t.Errorf("describe_tenant_schema method = %q, want GET", describeEP.EndpointMethod())
 	}
@@ -81,7 +79,6 @@ func TestTenantQuery_Characterization_Endpoints(t *testing.T) {
 		t.Error("describe_tenant_schema RequireAuth must be true")
 	}
 
-	// Verify query_tenant_sql endpoint specifications
 	if queryEP.EndpointMethod() != "POST" {
 		t.Errorf("query_tenant_sql method = %q, want POST", queryEP.EndpointMethod())
 	}
@@ -110,7 +107,6 @@ func TestTenantQuery_Characterization_FailClosedOnMissingContext(t *testing.T) {
 		t.Fatal("query_tenant_sql endpoint not found")
 	}
 
-	// Context without OrgID must fail closed
 	_, err := queryEP.Execute(context.Background(), tenantquery.QueryTenantSQLInput{
 		SQL: "SELECT * FROM tenant_links",
 	})

@@ -17,7 +17,6 @@ func (r *rejectingGuard) Acquire(ctx context.Context, jobName string, ttl time.D
 func TestEngine_RegisterUnregisterList(t *testing.T) {
 	engine := NewEngine(nil)
 
-	// Validation errors
 	if err := engine.Register("", "* * * * *", func(ctx context.Context) error { return nil }); err == nil {
 		t.Fatal("expected error for empty job name")
 	}
@@ -28,7 +27,6 @@ func TestEngine_RegisterUnregisterList(t *testing.T) {
 		t.Fatal("expected error for invalid spec")
 	}
 
-	// Register 2 jobs
 	err := engine.Register("b_job", "0 * * * *", func(ctx context.Context) error {
 		return nil
 	})
@@ -43,7 +41,6 @@ func TestEngine_RegisterUnregisterList(t *testing.T) {
 		t.Fatalf("unexpected register error: %v", err)
 	}
 
-	// List should be sorted alphabetically: a_job, b_job
 	jobs := engine.List()
 	if len(jobs) != 2 {
 		t.Fatalf("expected 2 jobs, got %d", len(jobs))
@@ -52,7 +49,6 @@ func TestEngine_RegisterUnregisterList(t *testing.T) {
 		t.Fatalf("expected jobs sorted, got %s, %s", jobs[0].Name, jobs[1].Name)
 	}
 
-	// Unregister
 	if err := engine.Unregister("nonexistent"); err == nil {
 		t.Fatal("expected error unregistering nonexistent job")
 	}
@@ -78,7 +74,6 @@ func TestEngine_LifecycleAndExecution(t *testing.T) {
 		t.Fatalf("register failed: %v", err)
 	}
 
-	// Double start error
 	if err := engine.Start(ctx); err != nil {
 		t.Fatalf("start failed: %v", err)
 	}
@@ -86,7 +81,6 @@ func TestEngine_LifecycleAndExecution(t *testing.T) {
 		t.Fatal("expected error on duplicate start")
 	}
 
-	// Wait for job to run at least once
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if atomic.LoadInt64(&counter) > 0 {
@@ -104,14 +98,12 @@ func TestEngine_LifecycleAndExecution(t *testing.T) {
 		t.Fatalf("expected last run updated, got %+v", jobs)
 	}
 
-	// Stop engine
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer stopCancel()
 	if err := engine.Stop(stopCtx); err != nil {
 		t.Fatalf("stop failed: %v", err)
 	}
 
-	// Stop when not running is a no-op
 	if err := engine.Stop(stopCtx); err != nil {
 		t.Fatalf("expected nil when stopping idle engine: %v", err)
 	}
@@ -121,7 +113,6 @@ func TestEngine_ExecutionFailureAndPanic(t *testing.T) {
 	engine := NewEngine(nil)
 	ctx := context.Background()
 
-	// Error job
 	_ = engine.Register("err_job", "* * * * *", func(ctx context.Context) error {
 		return errors.New("custom job failure")
 	})
@@ -133,7 +124,6 @@ func TestEngine_ExecutionFailureAndPanic(t *testing.T) {
 		t.Fatalf("expected error status and lastErr recorded, got %+v", jobs)
 	}
 
-	// Panic job
 	_ = engine.Register("panic_job", "* * * * *", func(ctx context.Context) error {
 		panic("kaboom")
 	})
@@ -141,7 +131,6 @@ func TestEngine_ExecutionFailureAndPanic(t *testing.T) {
 		t.Fatalf("expected panic error, got %v", err)
 	}
 
-	// Non-existent job
 	if err := engine.RunJob(ctx, "unknown"); err == nil {
 		t.Fatal("expected error for nonexistent job")
 	}
@@ -179,7 +168,6 @@ func TestEngine_StopTimeout(t *testing.T) {
 	_ = engine.Start(ctx)
 	<-started
 
-	// Attempt stop with already expired context
 	expiredCtx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	time.Sleep(10 * time.Millisecond)
 	cancel()
@@ -189,7 +177,6 @@ func TestEngine_StopTimeout(t *testing.T) {
 		t.Fatalf("expected context timeout on Stop, got %v", err)
 	}
 
-	// Unblock to allow clean exit
 	close(blocker)
 	_ = engine.Stop(context.Background())
 }

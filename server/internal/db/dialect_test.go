@@ -25,8 +25,6 @@ func allAppTestModels() []any {
 	return all
 }
 
-// TestMigrateAllAppModelsInSQLite verifies that every registered model in core,
-// eventbus, and idempotency migrates cleanly and supports binary byte slice roundtrips.
 func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 	t.Parallel()
 
@@ -41,7 +39,6 @@ func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 		t.Fatalf("Migrate failed with all app models: %v", err)
 	}
 
-	// Verify crucial tables exist
 	for _, tbl := range []string{
 		"orgs", "users", "settings", "idempotency_records",
 		"webhook_deliveries",
@@ -51,7 +48,6 @@ func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 		}
 	}
 
-	// Verify idempotency.Record with ResponseBody []byte roundtrips binary data
 	binaryResp := []byte("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}")
 	rec := &idempotency.Record{
 		OrgID:        1,
@@ -76,9 +72,6 @@ func TestMigrateAllAppModelsInSQLite(t *testing.T) {
 	}
 }
 
-// TestPostgresDialectDataTypeByteaAndNoBlob verifies that PostgreSQL dialect resolves
-// all []byte fields (e.g. idempotency.Record.ResponseBody, MailRawBlob.Data, Email.Raw)
-// to "bytea", and that NO field across all models resolves to invalid "blob".
 func TestPostgresDialectDataTypeByteaAndNoBlob(t *testing.T) {
 	t.Parallel()
 
@@ -94,13 +87,11 @@ func TestPostgresDialectDataTypeByteaAndNoBlob(t *testing.T) {
 		for _, f := range s.Fields {
 			dt := strings.ToLower(pgDialector.DataTypeOf(f))
 
-			// PostgreSQL MUST NOT receive "blob" type (causes SQLSTATE 42704)
 			if strings.Contains(dt, "blob") {
 				t.Errorf("model %s field %s resolves to invalid PostgreSQL type %q (must be bytea or text)",
 					s.Name, f.Name, dt)
 			}
 
-			// Specific binary fields must resolve to bytea
 			if (s.Name == "Record" && f.Name == "ResponseBody") ||
 				(s.Name == "MailRawBlob" && f.Name == "Data") ||
 				(s.Name == "Email" && f.Name == "Raw") {
@@ -113,8 +104,6 @@ func TestPostgresDialectDataTypeByteaAndNoBlob(t *testing.T) {
 	}
 }
 
-// TestMySQLDialectDataTypeBlob verifies that MySQL dialect resolves all []byte fields
-// to longblob / blob without error.
 func TestMySQLDialectDataTypeBlob(t *testing.T) {
 	t.Parallel()
 
@@ -144,8 +133,6 @@ func TestMySQLDialectDataTypeBlob(t *testing.T) {
 	}
 }
 
-// TestSQLiteDialectDataTypeBlob verifies that SQLite dialect resolves all []byte fields
-// to blob.
 func TestSQLiteDialectDataTypeBlob(t *testing.T) {
 	t.Parallel()
 

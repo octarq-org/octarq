@@ -8,12 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/csrf"
 )
 
-// TestCSRFGuard exercises both halves of the guard over one matrix: the
-// Origin/Referer check (which fires for ANY cookie-bearing request) and the
-// double-submit token (which fires only for the dashboard session cookie). The
-// cases the guard exists for are the octarq_customer rows — a second browser
-// session that the old session-cookie-only trigger left uncovered — and the
-// missing/wrong-token rows.
 func TestCSRFGuard(t *testing.T) {
 	secret := "test-secret"
 	guarded := CSRFGuard(secret, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,9 +25,9 @@ func TestCSRFGuard(t *testing.T) {
 		cookies    []*http.Cookie
 		origin     string
 		referer    string
-		header     string // X-CSRF-Token value
+		header     string
 		want       int
-		wantCookie bool // Whether we expect octarq_csrf to be set
+		wantCookie bool
 	}{
 		{"safe GET cross-origin passes and heals token", http.MethodGet, []*http.Cookie{sessionCookie}, "https://evil.example", "", "", http.StatusOK, true},
 		{"cookie + no origin/referer passes (non-browser)", http.MethodPost, []*http.Cookie{sessionCookie}, "", "", validCSRFToken, http.StatusOK, false},
@@ -47,9 +41,6 @@ func TestCSRFGuard(t *testing.T) {
 		{"DELETE cross origin blocked", http.MethodDelete, []*http.Cookie{sessionCookie}, "https://evil.example", "", validCSRFToken, http.StatusForbidden, false},
 		{"PATCH cross origin blocked", http.MethodPatch, []*http.Cookie{sessionCookie}, "https://evil.example", "", validCSRFToken, http.StatusForbidden, false},
 
-		// The buyer portal's own session. It never sees a token (nothing mints one
-		// for it), so it must pass on same-origin and be refused cross-origin
-		// purely on Origin — that is the hole the any-cookie trigger closes.
 		{"customer cookie + cross origin", http.MethodPost, []*http.Cookie{customerCookie}, "https://evil.example", "", "", http.StatusForbidden, false},
 		{"customer cookie + same origin", http.MethodPost, []*http.Cookie{customerCookie}, "https://" + host, "", "", http.StatusOK, false},
 		{"customer cookie + cross origin DELETE", http.MethodDelete, []*http.Cookie{customerCookie}, "https://evil.example", "", "", http.StatusForbidden, false},

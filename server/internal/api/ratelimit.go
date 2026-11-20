@@ -18,11 +18,6 @@ type rateLimiter struct {
 	rate  limiter.Rate
 }
 
-// newRateLimiter builds the counter store for one budget. Without a Redis URL
-// the counters live in this process. A configured Redis server that cannot be
-// reached returns an error: falling back to memory would multiply every budget
-// by the number of running instances, and the deployment would never learn that
-// its shared counters are gone.
 func newRateLimiter(redisURL string, prefix string, limit int, window time.Duration) (*rateLimiter, error) {
 	rate := limiter.Rate{
 		Limit:  int64(limit),
@@ -56,9 +51,6 @@ func (rl *rateLimiter) allow(ip string) bool {
 	ctx := context.Background()
 	limiterCtx, err := rl.store.Peek(ctx, ip, rl.rate)
 	if err != nil {
-		// Fail closed: a budget that cannot be read is not a budget the request
-		// has shown itself to be within. Allowing on a store error turns any
-		// counter outage into an unlimited window for credential stuffing.
 		slog.Error("rate limiter store read failed; denying the request", "key", ip, "err", err)
 		return false
 	}
@@ -79,19 +71,10 @@ func (rl *rateLimiter) reset(ip string) {
 	}
 }
 
-// accountLoginKey normalises a sign-in email into a rate-limit key, so case and
-// padding variants of one address share one budget. An empty result is never
-// used as a key: it would put every blank-email attempt in one shared bucket,
-// which is a lockout primitive rather than a credential-stuffing defence.
 func accountLoginKey(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// loginAllowed reports whether a sign-in attempt is within budget for both the
-// client IP and the account. A blank account key is checked on the IP budget
-// only. Charging the same failure to both budgets is what stops an attacker
-// with a pool of addresses: the IP budget caps one address, and the account
-// budget follows the target across all of them.
 func (h *Handler) loginAllowed(ip, account string) bool {
 	if !h.loginLimiter.allow(ip) {
 		return false
@@ -99,7 +82,6 @@ func (h *Handler) loginAllowed(ip, account string) bool {
 	return account == "" || h.loginAccountLimiter.allow(account)
 }
 
-// recordLoginFailure charges one failed sign-in to both budgets.
 func (h *Handler) recordLoginFailure(ip, account string) {
 	h.loginLimiter.recordFailure(ip)
 	if account != "" {
@@ -107,8 +89,6 @@ func (h *Handler) recordLoginFailure(ip, account string) {
 	}
 }
 
-// resetLoginFailures clears both budgets after a successful sign-in, so the
-// account's next attempt starts from zero.
 func (h *Handler) resetLoginFailures(ip, account string) {
 	h.loginLimiter.reset(ip)
 	if account != "" {

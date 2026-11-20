@@ -13,9 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
-// Route-registration guards: these hit the composed mux, so deleting the
-// huma.Register line turns them into 404s — direct handler-call tests cannot
-// see that regression.
 func TestProviderTestRoutesRegistered(t *testing.T) {
 	srv, _ := newTestHandler(t)
 
@@ -23,7 +20,6 @@ func TestProviderTestRoutesRegistered(t *testing.T) {
 	if rec.Code == http.StatusNotFound {
 		t.Error("/api/webhooks/{id}/test is not registered")
 	}
-	// Unauthenticated must be rejected before any lookup.
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("unauthenticated webhook test: got %d, want 401", rec.Code)
 	}
@@ -61,7 +57,6 @@ func TestWebhookTestEndpoint_AuthzAndScoping(t *testing.T) {
 		t.Fatalf("unknown webhook id: got %d, want 404", rec.Code)
 	}
 
-	// A foreign org's webhook id must read as not-found, not as a probe oracle.
 	hook := models.Webhook{OrgID: 2, Name: "other-org", URL: "https://example.com/wh", VaultItemID: 1, Events: "*", Enabled: true}
 	db.Create(&hook)
 	rec = do(srv, "POST", fmt.Sprintf("/api/webhooks/%d/test", hook.ID), adminCookies, "")
@@ -69,10 +64,8 @@ func TestWebhookTestEndpoint_AuthzAndScoping(t *testing.T) {
 		t.Fatalf("cross-org webhook test: got %d, want 404", rec.Code)
 	}
 
-	// Disabled webhooks refuse the test instead of pretending to verify.
 	disabled := models.Webhook{OrgID: 1, Name: "disabled", URL: "https://example.com/wh", VaultItemID: 1, Events: "*", Enabled: false}
 	db.Create(&disabled)
-	// gorm skips zero-value bools on Create, so pin enabled=false explicitly.
 	db.Model(&models.Webhook{}).Where("id = ?", disabled.ID).Update("enabled", false)
 	rec = do(srv, "POST", fmt.Sprintf("/api/webhooks/%d/test", disabled.ID), adminCookies, "")
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "disabled") {
@@ -137,7 +130,6 @@ func TestWebhookTestEndpoint_DeliversSignedEvent(t *testing.T) {
 		t.Error("delivery carried no v2 signature")
 	}
 
-	// A receiver that answers non-2xx must surface as a 400 with its reason.
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(500)
 	}))

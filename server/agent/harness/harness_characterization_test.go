@@ -7,7 +7,6 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// Compile-time interface checks:
 var (
 	_ harness.Tracer = (*harness.NopTracer)(nil)
 	_ harness.Guard  = (*harness.NopGuard)(nil)
@@ -38,7 +37,6 @@ func TestHarnessCharacterization_ProfilesAndLimits(t *testing.T) {
 		}
 	}
 
-	// Verify constant values
 	if harness.MaxStepsNormal != 8 {
 		t.Errorf("expected MaxStepsNormal=8, got %d", harness.MaxStepsNormal)
 	}
@@ -72,7 +70,6 @@ func TestHarnessCharacterization_NopTracerAndGuard(t *testing.T) {
 	var tr harness.Tracer = &harness.NopTracer{}
 	ctx := context.Background()
 
-	// All calls must be safe and no-op
 	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindTurnStart})
 	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindStep, Tool: "any_tool"})
 	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindTurnEnd, Status: harness.TurnStatusDone.String()})
@@ -97,8 +94,6 @@ func TestHarnessCharacterization_NewRunnerInstantiation(t *testing.T) {
 	if r == nil {
 		t.Fatal("NewRunner returned nil")
 	}
-	// harness.Runner conformance is statically guaranteed by NewRunner's
-	// signature; only the dynamic StreamRunner capability needs asserting.
 	if _, ok := r.(harness.StreamRunner); !ok {
 		t.Error("r must implement harness.StreamRunner")
 	}

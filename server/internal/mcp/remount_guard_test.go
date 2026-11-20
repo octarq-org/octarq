@@ -8,9 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// fakePlugin mimics every real plugin: it caches ctx.OrgID into a field at
-// Mount and uses that field to resolve the org of later HTTP requests
-// (plugins/links/plugin.go:120-122, plugins/mail/plugin.go:127-129, and every Pro module).
 type fakePlugin struct {
 	mu     sync.Mutex
 	mounts int
@@ -39,13 +36,9 @@ func (f *fakePlugin) resolve(r *http.Request) uint {
 	return fn(r)
 }
 
-// A networked MCP connection must NOT re-Mount shared plugin instances. Doing so
-// overwrites the org resolver every HTTP handler in the process relies on, so one
-// tenant's MCP session silently repoints every other tenant's REST requests.
 func TestNetworkedInstanceDoesNotRemountSharedPlugins(t *testing.T) {
 	f := &fakePlugin{}
 
-	// The app's HTTP boot mounts the shared instance with a per-REQUEST resolver.
 	httpOrg := func(r *http.Request) uint {
 		if r == nil {
 			return 0
@@ -68,7 +61,6 @@ func TestNetworkedInstanceDoesNotRemountSharedPlugins(t *testing.T) {
 	req.Header.Set("X-Org", "7")
 	before := f.resolve(req)
 
-	// Tenant 42 opens an MCP SSE/stream connection.
 	NewNetworkedServerInstance(nil, 42, []plugin.Plugin{f}, nil)
 
 	if f.mounts != mountsAfterBoot {

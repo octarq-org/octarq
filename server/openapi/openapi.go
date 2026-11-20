@@ -1,17 +1,3 @@
-// Package openapi renders octarq's published API specification.
-//
-// The document is GENERATED, not written. It is read off the live huma API
-// after the composition root has mounted every handler, so it describes exactly
-// the routes the binary serves — the same document a running instance answers
-// with at /openapi.json.
-//
-// This replaced a 1,835-line hand-written Go map literal. That literal
-// documented 24 of the 101 core paths and had no mechanism that could notice:
-// the CI "drift" guard re-ran the literal and compared it to itself, so it was
-// green while three quarters of the API — every API token endpoint, every
-// webhook endpoint, most of the auth surface — was undocumented, and while the
-// error shape it promised integrators (`{"error": "..."}`) matched no response
-// the server actually sent.
 package openapi
 
 import (
@@ -30,16 +16,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Generate boots the composition root with the given plugins, captures the
-// OpenAPI document huma built from their registrations, and writes it as
-// indented OpenAPI 3.0.3 JSON.
-//
-// It really does boot: the spec is a property of the mounted handlers, and the
-// only way to know what is mounted is to mount it. The boot is hermetic — a
-// throwaway SQLite file in a temp directory, no listener anyone can reach (Run
-// returns as soon as the passed context is done) — and every environment
-// variable it sets is set only when the caller left it unset, so an operator
-// generating the spec against their own configuration still can.
 func Generate(w io.Writer, plugins []plugin.Plugin) error {
 	doc, err := Document(plugins)
 	if err != nil {
@@ -53,7 +29,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 	return err
 }
 
-// Document boots the app and returns the huma-generated OpenAPI document.
 func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	tmp, err := os.MkdirTemp("", "octarq-openapi-")
 	if err != nil {
@@ -61,9 +36,6 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	}
 	defer os.RemoveAll(tmp)
 
-	// Defaults only — never an override. Generating the spec must not depend on
-	// (or disturb) a real deployment's configuration. Restore any environment
-	// variables we temporarily set when done.
 	origDriver, hadDriver := os.LookupEnv("OCTARQ_DB_DRIVER")
 	origDSN, hadDSN := os.LookupEnv("OCTARQ_DB_DSN")
 	origSecret, hadSecret := os.LookupEnv("OCTARQ_SECRET_KEY")
@@ -86,15 +58,7 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	setIfUnset("OCTARQ_DB_DSN", filepath.Join(tmp, "openapi.db"))
 	setIfUnset("OCTARQ_SECRET_KEY", "openapi-spec-generation-key-not-a-secret")
 	setIfUnset("OCTARQ_ADMIN_PASSWORD", "openapi-spec-generation-password")
-	// Port 0 so a generation run can never collide with a server already
-	// listening on the default or .env-configured port.
 	os.Setenv("OCTARQ_LISTEN", "127.0.0.1:0")
-	// Entity routes are generated from a declaration, so their paths are
-	// runtime values and do not belong in the published spec. An exported
-	// OCTARQ_ENTITIES in the developer's shell would otherwise put them there
-	// and fail the committed-spec diff check. An inline empty declaration wins
-	// over both the file variable and ./octarq.entities.json, which a developer
-	// following the help page has in the working directory.
 	os.Setenv("OCTARQ_ENTITIES", `{"entities":[]}`)
 	os.Setenv("OCTARQ_ENTITIES_FILE", "")
 
@@ -102,9 +66,6 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	if err != nil {
 		return nil, fmt.Errorf("boot for spec generation: %w", err)
 	}
-	// Silence GORM's default logger during spec generation. The default
-	// logger writes "record not found" warnings to os.Stdout (not stderr),
-	// which corrupts the JSON spec output when piped to a file.
 	a.DB().Logger = logger.Discard
 	for _, p := range plugins {
 		a.Use(p)
@@ -112,8 +73,6 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	capture := &specCapture{}
 	a.Use(capture)
 
-	// Run mounts everything, then returns immediately because the context is
-	// already done. Nothing is served; the mounting is the whole point.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := a.Run(ctx); err != nil {
@@ -125,13 +84,6 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	return capture.doc, nil
 }
 
-// Marshal renders the document as indented OpenAPI 3.0.3 JSON, merging in the
-// routes huma cannot see (see extraPaths and OpenAPIContributor below).
-//
-// 3.0.3 rather than the 3.1 huma emits natively: the reference explorer, the
-// SDK generators and oasdiff all have deeper 3.0 support, and a spec its
-// consumers half-understand is worth less than one they fully do. A running
-// instance serves both (/openapi.json is 3.1, /openapi-3.0.json is this).
 func Marshal(doc *huma.OpenAPI, plugins []plugin.Plugin) ([]byte, error) {
 	if doc == nil {
 		return nil, fmt.Errorf("marshal: nil OpenAPI document")
@@ -152,11 +104,6 @@ func Marshal(doc *huma.OpenAPI, plugins []plugin.Plugin) ([]byte, error) {
 	}
 	schemas := componentSchemas(m)
 
-	// Routes registered straight onto the mux never reach huma, so they are the
-	// one thing generation genuinely cannot see. They are described by hand
-	// here and by plugins through OpenAPIContributor — and in BOTH cases only
-	// filled in where huma produced nothing, so a stale hand-written entry can
-	// never override the generated truth.
 	for path, item := range extraPaths() {
 		if _, generated := paths[path]; !generated {
 			paths[path] = item
@@ -187,9 +134,6 @@ func Marshal(doc *huma.OpenAPI, plugins []plugin.Plugin) ([]byte, error) {
 		components["schemas"] = schemas
 	}
 
-	// Indented, with sorted keys (encoding/json sorts map keys), so the
-	// committed artifact diffs line by line and the CI drift check compares
-	// content rather than formatting noise.
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
@@ -232,15 +176,6 @@ func restoreEnv(key, orig string, had bool) {
 	}
 }
 
-// specCapture is a plugin whose only job is to hold on to the huma API it is
-// mounted with.
-//
-// It is how generation reads the finished document without the app package
-// growing a spec-shaped accessor: Mount hands every plugin the shared
-// huma.API, and the document is read after Run returns, by which point every
-// other plugin has registered. A plugin is already the supported way to reach
-// into the composition root, so the seam that lets Pro extend octarq is the
-// same seam that documents it.
 type specCapture struct {
 	doc *huma.OpenAPI
 }

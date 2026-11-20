@@ -16,23 +16,10 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// Single-step, user-triggered AI assists for the open-source build: suggest a
-// short-link slug, summarize one email on demand. The backend comes from the
-// LLM gateway plugin, which installs its resolver during Mount
-// (ctx.SetLLMResolverForOrg) — no configured provider, no AI, and the endpoints
-// say so instead of erroring. Unattended AI automation (per-email pipelines,
-// briefings) lives in downstream plugins, not here.
-
 const aiTimeout = 60 * time.Second
 
-// errLLMNotConfigured is what the handler returns when no resolver is
-// installed. The gateway installs one at Mount; a build without the gateway
-// therefore has no AI, which is the documented fail-closed state.
 var errLLMNotConfigured = errors.New("AI is not configured: add an LLM provider in Workspace → LLM Gateway")
 
-// SetLLMResolverForOrg swaps the resolver behind the AI assists using an org-aware
-// resolver. It backs plugin.Context.SetLLMResolverForOrg; registration happens during
-// plugin Mount (startup) while reads happen per request, hence the lock.
 func (h *Handler) SetLLMResolverForOrg(f func(orgID uint) (llmprovider.Provider, error)) {
 	if f == nil {
 		return
@@ -42,12 +29,6 @@ func (h *Handler) SetLLMResolverForOrg(f func(orgID uint) (llmprovider.Provider,
 	h.llmMu.Unlock()
 }
 
-// LLMProviderForOrg returns the provider the AI assists resolve for orgID.
-// It is the read side of SetLLMResolverForOrg and backs
-// plugin.Context.LLMProviderForOrg, so a plugin reads the same backend the
-// assists use instead of the OCTARQ_LLM_* environment. It returns
-// errLLMNotConfigured when no resolver is installed or the resolver returns no
-// usable provider.
 func (h *Handler) LLMProviderForOrg(orgID uint) (llmprovider.Provider, error) {
 	return h.llmFor(orgID)
 }
@@ -176,8 +157,6 @@ func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) 
 
 var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
-// parseSlugList extracts valid slugs from a model reply: strict JSON first,
-// then a defensive line/token sweep (models occasionally add prose or fences).
 func parseSlugList(text string) []string {
 	text = strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(text), "```json"), "```")
 	text = strings.TrimSuffix(text, "```")
@@ -237,8 +216,6 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	}
 	var fromAddr, subject, body string
 	var found bool
-	// Absent getter (mail not in this build) leaves found=false → 404;
-	// see plugin.EmailGetter.
 	if fn, ok := plugin.LookupServiceAs[plugin.EmailGetter](h.LookupService, plugin.ServiceMailEmailGet); ok {
 		fromAddr, subject, body, found = fn(orgID, input.ID)
 	}
@@ -250,7 +227,6 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 
-	// debt: naive 8000 runes, ceiling 8k → upgrade when model context >32k
 	const maxBody = 8000
 	runes := []rune(body)
 	if len(runes) > maxBody {

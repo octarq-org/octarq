@@ -69,7 +69,6 @@ func TestTypedBus_PublishAsync(t *testing.T) {
 
 	start := time.Now()
 	bus.PublishAsync(context.Background(), "async message")
-	// Verify non-blocking
 	if time.Since(start) > 50*time.Millisecond {
 		t.Fatalf("PublishAsync blocked the caller")
 	}

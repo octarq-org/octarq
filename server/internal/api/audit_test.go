@@ -13,8 +13,6 @@ func TestAuditLogs(t *testing.T) {
 	srv, db := newTestHandler(t)
 	adminCookies := loginCookies(t, srv)
 
-	// Seed audit logs
-	// Create logs with different created_at to test ordering (newest first)
 	now := time.Now()
 
 	logs := []models.AuditLog{
@@ -22,7 +20,7 @@ func TestAuditLogs(t *testing.T) {
 		{OrgID: 1, Action: "member.role", TargetType: "user", TargetID: 20, CreatedAt: now.Add(-5 * time.Minute)},
 		{OrgID: 1, Action: "link.update", TargetType: "link", TargetID: 11, CreatedAt: now.Add(-2 * time.Minute)},
 		{OrgID: 1, Action: "link.delete", TargetType: "link", TargetID: 12, CreatedAt: now},
-		{OrgID: 2, Action: "other.org", TargetType: "other", TargetID: 99, CreatedAt: now.Add(time.Minute)}, // Different org
+		{OrgID: 2, Action: "other.org", TargetType: "other", TargetID: 99, CreatedAt: now.Add(time.Minute)},
 	}
 
 	for _, l := range logs {

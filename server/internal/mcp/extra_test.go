@@ -62,7 +62,6 @@ func TestExportData_HandlerError(t *testing.T) {
 }
 
 func TestJsonResult_Error(t *testing.T) {
-	// Channels cannot be marshaled to JSON
 	ch := make(chan int)
 	_, _, err := jsonResult(ch)
 	if err == nil {
@@ -76,7 +75,7 @@ func TestRunAndRunWithPlugins(t *testing.T) {
 	t.Setenv("OCTARQ_DB_DSN", dbPath)
 	t.Setenv("OCTARQ_SECRET_KEY", "test-secret-key-1234567890123456")
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // pre-canceled context so StdioTransport does not block
+	cancel()
 	_ = Run(ctx)
 	_ = RunWithPlugins(ctx, nil, nil)
 }

@@ -11,11 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// The lab's helpers are the lab's own contract with the operator: what a
-// validation failure says, what the replay recorded, how the base catalog is
-// derived when the task set does not declare one. These tests pin that
-// behaviour so a refactor cannot quietly change what a report means.
-
 func TestFormatValidationError_ListsEveryViolation(t *testing.T) {
 	spec := harness.HarnessSpec{Version: 99, Name: ""}
 	err := harness.Validate(spec)
@@ -72,7 +67,6 @@ func TestEstimateTokens_IsDeterministicAndNeverZeroForText(t *testing.T) {
 	if got := EstimateTokens("abcde"); got != 2 {
 		t.Errorf("EstimateTokens(\"abcde\") = %d, want 2", got)
 	}
-	// Multi-byte runes count as one, not as their bytes.
 	if got := EstimateTokens("中文字"); got != 1 {
 		t.Errorf("EstimateTokens of three runes = %d, want 1", got)
 	}

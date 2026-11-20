@@ -11,7 +11,6 @@ import (
 
 func TestCoverageLift_JSONCodec_MarshalError(t *testing.T) {
 	codec := jsonCodec{}
-	// Channel types cannot be marshaled into JSON
 	_, err := codec.MarshalAppend(nil, make(chan int))
 	if err == nil {
 		t.Fatal("expected error when marshaling chan int, got nil")
@@ -53,7 +52,7 @@ func TestCoverageLift_IPCErrors(t *testing.T) {
 		OnReload: func(ctx context.Context) ([]string, error) {
 			return nil, errors.New("reload failed")
 		},
-		OnMetrics: nil, // Test nil OnMetrics
+		OnMetrics: nil,
 	}
 	go func() { _ = d.Serve(ctx, lis) }()
 
@@ -70,13 +69,11 @@ func TestCoverageLift_IPCErrors(t *testing.T) {
 
 	c := NewClient(path)
 
-	// 1. Reload error branch
 	_, err = c.Reload(context.Background())
 	if err == nil {
 		t.Fatal("expected error from failed OnReload, got nil")
 	}
 
-	// 2. Metrics with nil OnMetrics (returns overall: "unknown")
 	rep, err := c.Metrics(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error when OnMetrics is nil: %v", err)
@@ -85,7 +82,6 @@ func TestCoverageLift_IPCErrors(t *testing.T) {
 		t.Fatalf("expected overall: unknown, got %q", rep.Overall)
 	}
 
-	// 3. Metrics with error OnMetrics
 	d.OnMetrics = func(ctx context.Context) (*MetricsReply, error) {
 		return nil, errors.New("metrics provider failed")
 	}

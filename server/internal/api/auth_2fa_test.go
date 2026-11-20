@@ -16,15 +16,12 @@ func TestVerify2FACoverage(t *testing.T) {
 	disableEmailVerification(t, db)
 	ctx := context.Background()
 
-	// Purge settings cache to ensure it reads from db
-
 	t.Run("Rate limit exceeded", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/auth/2fa/verify", nil)
 		req.RemoteAddr = "127.0.0.1:1234"
 		rec := httptest.NewRecorder()
 		humaCtx := humago.NewContext(nil, req, rec)
 
-		// Exhaust the rate limit
 		for i := 0; i < 15; i++ {
 			h.loginLimiter.recordFailure("127.0.0.1")
 		}
@@ -34,7 +31,6 @@ func TestVerify2FACoverage(t *testing.T) {
 			t.Errorf("expected rate limit error, got %v", err)
 		}
 
-		// Reset for further tests
 		h.loginLimiter.reset("127.0.0.1")
 	})
 
@@ -109,7 +105,6 @@ func TestVerify2FACoverage(t *testing.T) {
 	})
 
 	t.Run("Email Verification Required - non admin", func(t *testing.T) {
-		// Since sqlite might fail on insert with ON CONFLICT, use save
 		setting := models.Setting{Key: "require_email_verification", Value: "true"}
 		db.Save(&setting)
 
@@ -178,7 +173,7 @@ func TestVerify2FACoverage(t *testing.T) {
 }
 func TestVerify2FAResolve(t *testing.T) {
 	input := Verify2FAInput{}
-	errs := input.Resolve(nil) // It just sets the ctx
+	errs := input.Resolve(nil)
 	if len(errs) != 0 {
 		t.Errorf("expected 0 errors, got %d", len(errs))
 	}

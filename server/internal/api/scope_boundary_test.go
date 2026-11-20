@@ -1,21 +1,5 @@
 package api
 
-// Scope-boundary guards between the two configuration scopes:
-//
-//   - tenant (org): one copy per workspace; served by the /admin shell; the
-//     backend publishes it through GET /api/menus (internal/api/tenant_menu.go:709)
-//     with per-row org scoping.
-//   - instance (deployment): one copy for the whole install; served by the
-//     /instance console shell (web/src/pages/instance/console.tsx), gated by
-//     h.isInstanceAdmin (internal/api/settings.go:438).
-//
-// These tests lock the boundary from the outside: the tenant menu surface must
-// never point into instance territory, and the largest org role (owner) must
-// still be refused on the instance-settings endpoints — "org 里最大的角色说明
-// 不了实例权限" is the contract written on plugin.InstanceMenuProvider, and until
-// now nothing pinned the owner rung (only the member rung was covered, in
-// instance_readiness_test.go:248).
-
 import (
 	"encoding/json"
 	"net/http"
@@ -25,11 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// tenantMenuPlugin announces ordinary tenant-scoped sidebar entries, the shape
-// every feature plugin (dns, mail, links) uses. The boundary under test: none
-// of these may ever point into the /instance console or at a stale
-// /settings/instance path — instance navigation lives on the console shell's
-// own rail (web/src/pages/instance/console.tsx), never in the tenant /api/menus.
 type tenantMenuPlugin struct{}
 
 func (tenantMenuPlugin) Name() string                          { return "tenantmenu" }
@@ -43,10 +22,6 @@ func (tenantMenuPlugin) Menus() []plugin.MenuItem {
 	}
 }
 
-// TestTenantMenusNeverExposeInstancePaths asserts the tenant menu surface stays
-// tenant-scoped: every path served by GET /api/menus must sit under the /admin
-// shell's basename — never under the /instance console prefix, and free of the
-// old "/settings/instance" tenant-shell instance-settings remnants.
 func TestTenantMenusNeverExposeInstancePaths(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{tenantMenuPlugin{}})
@@ -80,12 +55,6 @@ func TestTenantMenusNeverExposeInstancePaths(t *testing.T) {
 	}
 }
 
-// TestInstanceSettingsRefuseOrgOwner locks the org-owner rung of the
-// instance-settings gate. The contract (plugin.InstanceMenuProvider) is that an
-// org role — including the most powerful one, owner — says nothing about
-// instance privilege: every self-serve signup is owner of their own org. The
-// member rung is already covered (instance_readiness_test.go:248); the owner
-// rung was not.
 func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 
@@ -93,18 +62,14 @@ func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
 	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
 	owner := sessionCookies(t, ownerUID, org)
 
-	// GET: an org owner must not read deployment-wide settings.
 	if rec := do(srv, "GET", "/api/instance-settings", owner, ""); rec.Code != http.StatusForbidden {
 		t.Errorf("org owner GET /api/instance-settings: got %d, want 403", rec.Code)
 	}
 
-	// PUT: an org owner must not mutate deployment-wide settings.
 	if rec := do(srv, "PUT", "/api/instance-settings", owner, `{"appName":"pwned"}`); rec.Code != http.StatusForbidden {
 		t.Errorf("org owner PUT /api/instance-settings: got %d, want 403", rec.Code)
 	}
 
-	// The configured instance admin still can: the gate is bound to the
-	// instance-admin flag, not to org membership or role.
 	if rec := do(srv, "GET", "/api/instance-settings", loginCookies(t, srv), ""); rec.Code != http.StatusOK {
 		t.Errorf("instance admin GET /api/instance-settings: got %d, want 200", rec.Code)
 	}

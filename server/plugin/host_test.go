@@ -182,7 +182,6 @@ func TestHostInterfaces(t *testing.T) {
 }
 
 func TestEnsureHost(t *testing.T) {
-	// 1. Nil context
 	hNil := plugin.EnsureHost(nil)
 	if hNil == nil {
 		t.Fatal("expected non-nil Host for nil ctx")
@@ -218,7 +217,6 @@ func TestEnsureHost(t *testing.T) {
 		t.Fatalf("expected empty setting, got %q", v)
 	}
 
-	// 2. Existing host preserved
 	existing := &mockHost{}
 	ctxWithHost := &plugin.Context{Host: existing}
 	if got := plugin.EnsureHost(ctxWithHost); got != existing {

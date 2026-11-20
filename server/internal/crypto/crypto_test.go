@@ -2,7 +2,6 @@ package crypto
 
 import "testing"
 
-// enveloped returns a Cipher in envelope mode backed by a fresh in-memory store.
 func enveloped(t *testing.T, secret string) *Cipher {
 	t.Helper()
 	c := New(secret)
@@ -56,7 +55,6 @@ func TestEncryptBeforeEnvelopeFails(t *testing.T) {
 }
 
 func TestSignVerify(t *testing.T) {
-	// Sign/Verify use the KEK and work without the envelope being enabled.
 	c := New("test-secret")
 	msg := []byte("authenticate me")
 	sig := c.Sign(msg)

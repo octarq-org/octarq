@@ -49,17 +49,14 @@ func setupTestDB(t *testing.T) *gorm.DB {
 func TestNewTenantDB_Validation(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Nil DB
 	if _, err := NewTenantDB(nil, 1); !errors.Is(err, ErrNilDB) {
 		t.Errorf("expected ErrNilDB, got %v", err)
 	}
 
-	// Zero OrgID
 	if _, err := NewTenantDB(db, 0); !errors.Is(err, ErrZeroOrgID) {
 		t.Errorf("expected ErrZeroOrgID, got %v", err)
 	}
 
-	// Valid creation
 	tdb, err := NewTenantDB(db, 42)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -71,7 +68,6 @@ func TestNewTenantDB_Validation(t *testing.T) {
 		t.Errorf("expected default column owner_id, got %s", tdb.DefaultColumn())
 	}
 
-	// Custom column option
 	tdbCustom, err := NewTenantDB(db, 42, WithTenantColumn("org_id"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -84,19 +80,16 @@ func TestNewTenantDB_Validation(t *testing.T) {
 func TestTenantDBFromContext(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Nil context
 	var nilCtx context.Context
 	if _, err := TenantDBFromContext(nilCtx, db); !errors.Is(err, ErrMissingTenantContext) {
 		t.Errorf("expected ErrMissingTenantContext for nil ctx, got %v", err)
 	}
 
-	// Unauthenticated context (OrgID 0)
 	ctxBg := context.Background()
 	if _, err := TenantDBFromContext(ctxBg, db); !errors.Is(err, ErrMissingTenantContext) {
 		t.Errorf("expected ErrMissingTenantContext for empty ctx, got %v", err)
 	}
 
-	// Authenticated context
 	ctxAuth := WithOrgID(ctxBg, 100)
 	tdb, err := TenantDBFromContext(ctxAuth, db)
 	if err != nil {
@@ -114,27 +107,22 @@ func TestTenantDB_ResolveColumn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// nil model fallback
 	if col := tdb.ResolveColumn(nil); col != "owner_id" {
 		t.Errorf("expected owner_id fallback for nil, got %s", col)
 	}
 
-	// mockLegacyModel (has column:owner_id)
 	if col := tdb.ResolveColumn(&mockLegacyModel{}); col != "owner_id" {
 		t.Errorf("expected owner_id for mockLegacyModel, got %s", col)
 	}
 
-	// mockOrgModel (has column:org_id)
 	if col := tdb.ResolveColumn(&mockOrgModel{}); col != "org_id" {
 		t.Errorf("expected org_id for mockOrgModel, got %s", col)
 	}
 
-	// mockCustomScopedModel (implements TenantScoped)
 	if col := tdb.ResolveColumn(&mockCustomScopedModel{}); col != "account_id" {
 		t.Errorf("expected account_id for mockCustomScopedModel, got %s", col)
 	}
 
-	// Slice of models
 	if col := tdb.ResolveColumn(&[]mockOrgModel{}); col != "org_id" {
 		t.Errorf("expected org_id for slice of mockOrgModel, got %s", col)
 	}
@@ -143,7 +131,6 @@ func TestTenantDB_ResolveColumn(t *testing.T) {
 func TestTenantDB_CrossTenantIsolation_Queries(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Seed data for Tenant 1 and Tenant 2
 	t1Model := mockLegacyModel{OwnerID: 1, Name: "tenant1_item", SecretVal: "secret1"}
 	t2Model := mockLegacyModel{OwnerID: 2, Name: "tenant2_item", SecretVal: "secret2"}
 	if err := db.Create(&t1Model).Error; err != nil {
@@ -156,7 +143,6 @@ func TestTenantDB_CrossTenantIsolation_Queries(t *testing.T) {
 	tdb1, _ := NewTenantDB(db, 1)
 	tdb2, _ := NewTenantDB(db, 2)
 
-	// 1. Find all: Tenant 1 should only see its own records
 	var t1Results []mockLegacyModel
 	if err := tdb1.Find(&t1Results).Error; err != nil {
 		t.Fatalf("tdb1.Find failed: %v", err)
@@ -165,14 +151,12 @@ func TestTenantDB_CrossTenantIsolation_Queries(t *testing.T) {
 		t.Errorf("tdb1.Find leaked records: got %+v", t1Results)
 	}
 
-	// 2. IDOR Attempt: Tenant 2 queries Tenant 1's ID directly via First
 	var idorTarget mockLegacyModel
 	err := tdb2.First(&idorTarget, "id = ?", t1Model.ID).Error
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Errorf("expected ErrRecordNotFound on cross-tenant IDOR read, got %v", err)
 	}
 
-	// 3. Count: Tenant 1 count should be exactly 1
 	var cnt int64
 	if err := tdb1.Model(&mockLegacyModel{}).Count(&cnt).Error; err != nil {
 		t.Fatal(err)
@@ -186,7 +170,6 @@ func TestTenantDB_AutomaticTenantInjectionOnCreate(t *testing.T) {
 	db := setupTestDB(t)
 	tdb1, _ := NewTenantDB(db, 1)
 
-	// Case 1: Zero OwnerID is automatically populated with tdb1.OrgID
 	newItem := mockLegacyModel{Name: "auto_scoped_item"}
 	if err := tdb1.Create(&newItem).Error; err != nil {
 		t.Fatalf("tdb1.Create failed: %v", err)
@@ -195,7 +178,6 @@ func TestTenantDB_AutomaticTenantInjectionOnCreate(t *testing.T) {
 		t.Errorf("expected OwnerID 1, got %d", newItem.OwnerID)
 	}
 
-	// Verify in DB
 	var fetched mockLegacyModel
 	if err := db.First(&fetched, "id = ?", newItem.ID).Error; err != nil {
 		t.Fatal(err)
@@ -204,14 +186,12 @@ func TestTenantDB_AutomaticTenantInjectionOnCreate(t *testing.T) {
 		t.Errorf("persisted OwnerID expected 1, got %d", fetched.OwnerID)
 	}
 
-	// Case 2: Explicit conflicting tenant ID is blocked
 	tamperedItem := mockLegacyModel{OwnerID: 999, Name: "spoofed_item"}
 	err := tdb1.Create(&tamperedItem).Error
 	if !errors.Is(err, ErrTenantMismatch) {
 		t.Errorf("expected ErrTenantMismatch on spoofed tenant create, got %v", err)
 	}
 
-	// Verify tamperedItem was NOT inserted
 	var count int64
 	db.Model(&mockLegacyModel{}).Where("name = ?", "spoofed_item").Count(&count)
 	if count != 0 {
@@ -222,7 +202,6 @@ func TestTenantDB_AutomaticTenantInjectionOnCreate(t *testing.T) {
 func TestTenantDB_CrossTenantDeletePrevention(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Seed Tenant 1 and Tenant 2 data
 	t1Model := mockLegacyModel{OwnerID: 1, Name: "t1_delete_target"}
 	t2Model := mockLegacyModel{OwnerID: 2, Name: "t2_protected"}
 	db.Create(&t1Model)
@@ -230,7 +209,6 @@ func TestTenantDB_CrossTenantDeletePrevention(t *testing.T) {
 
 	tdb1, _ := NewTenantDB(db, 1)
 
-	// Tenant 1 attempts to delete Tenant 2's item by ID
 	res := tdb1.Delete(&mockLegacyModel{}, "id = ?", t2Model.ID)
 	if res.Error != nil {
 		t.Fatalf("delete error: %v", res.Error)
@@ -239,13 +217,11 @@ func TestTenantDB_CrossTenantDeletePrevention(t *testing.T) {
 		t.Errorf("cross-tenant delete succeeded! RowsAffected: %d", res.RowsAffected)
 	}
 
-	// Verify Tenant 2's item is still in DB
 	var checkT2 mockLegacyModel
 	if err := db.First(&checkT2, "id = ?", t2Model.ID).Error; err != nil {
 		t.Errorf("tenant 2 record was unexpectedly deleted: %v", err)
 	}
 
-	// Tenant 1 deletes its own item
 	resT1 := tdb1.Delete(&mockLegacyModel{}, "id = ?", t1Model.ID)
 	if resT1.RowsAffected != 1 {
 		t.Errorf("expected 1 row deleted for own tenant, got %d", resT1.RowsAffected)
@@ -273,7 +249,6 @@ func TestTenantDB_TransactionScoping(t *testing.T) {
 		t.Fatalf("transaction failed: %v", err)
 	}
 
-	// Verify rollback on error
 	_ = tdb1.Transaction(func(tx *TenantDB) error {
 		_ = tx.Create(&mockLegacyModel{Name: "rollback_item"}).Error
 		return errors.New("simulated error")
@@ -290,7 +265,6 @@ func TestTenantDB_AutoDetectOrgIDColumn(t *testing.T) {
 	db := setupTestDB(t)
 	tdb, _ := NewTenantDB(db, 5)
 
-	// mockOrgModel uses `org_id` column
 	orgItem := mockOrgModel{Details: "org_model_test"}
 	if err := tdb.Create(&orgItem).Error; err != nil {
 		t.Fatalf("failed to create mockOrgModel: %v", err)
@@ -299,7 +273,6 @@ func TestTenantDB_AutoDetectOrgIDColumn(t *testing.T) {
 		t.Errorf("expected auto-injected OrgID 5, got %d", orgItem.OrgID)
 	}
 
-	// Query using Scoped - should use `org_id = 5`
 	var found []mockOrgModel
 	if err := tdb.Find(&found).Error; err != nil {
 		t.Fatalf("failed to query mockOrgModel: %v", err)
@@ -346,7 +319,6 @@ func TestTenantDB_ExecuteSQL(t *testing.T) {
 func TestTenantDB_RefusesUnscopedQueries(t *testing.T) {
 	db := setupTestDB(t)
 
-	// 1. Refusal to instantiate without tenant scope (fail-closed)
 	if _, err := NewTenantDB(db, 0); !errors.Is(err, ErrZeroOrgID) {
 		t.Fatalf("expected ErrZeroOrgID when creating TenantDB with orgID=0, got %v", err)
 	}
@@ -354,13 +326,11 @@ func TestTenantDB_RefusesUnscopedQueries(t *testing.T) {
 		t.Fatalf("expected ErrMissingTenantContext when creating TenantDB from empty context, got %v", err)
 	}
 
-	// 2. Direct ExecuteSQL refuses unscoped execution if OrgID is zero
 	zeroTDB := &TenantDB{db: db, orgID: 0}
 	if _, _, err := zeroTDB.ExecuteSQL("SELECT 1"); err == nil || !strings.Contains(err.Error(), "missing workspace context") {
 		t.Fatalf("expected missing workspace context error when executing SQL with zero orgID, got %v", err)
 	}
 
-	// 3. Populate data across multiple tenants and unscoped records
 	db.Create(&mockLegacyModel{OwnerID: 10, Name: "tenant10_data"})
 	db.Create(&mockLegacyModel{OwnerID: 20, Name: "tenant20_data"})
 	db.Create(&mockLegacyModel{OwnerID: 0, Name: "unscoped_data"})
@@ -370,7 +340,6 @@ func TestTenantDB_RefusesUnscopedQueries(t *testing.T) {
 		t.Fatalf("failed to create tdb10: %v", err)
 	}
 
-	// 4. Verify all query paths strictly inject tenant scope
 	var results []mockLegacyModel
 	if err := tdb10.Find(&results).Error; err != nil {
 		t.Fatalf("tdb10.Find failed: %v", err)
@@ -379,7 +348,6 @@ func TestTenantDB_RefusesUnscopedQueries(t *testing.T) {
 		t.Fatalf("tdb10 leaked unscoped or cross-tenant records: %+v", results)
 	}
 
-	// 5. Verify Table() queries cannot escape tenant scoping
 	var count int64
 	if err := tdb10.Table("mock_legacy_models").Where("1 = 1").Count(&count).Error; err != nil {
 		t.Fatalf("Table count failed: %v", err)

@@ -11,7 +11,6 @@ import (
 )
 
 func TestTestHostAndMocks(t *testing.T) {
-	// 1. Nil receivers
 	var nilHost *plugin.TestHost
 	if nilHost.Session() == nil || nilHost.Settings() == nil || nilHost.Events() == nil {
 		t.Fatal("expected non-nil noop fallback from nil TestHost")
@@ -68,7 +67,6 @@ func TestTestHostAndMocks(t *testing.T) {
 	nilEvents.RegisterWebhookEvent(plugin.WebhookEventDef{})
 	nilEvents.OnEmail(nil)
 
-	// 2. Empty structs (default mock behaviors)
 	emptyHost := &plugin.TestHost{}
 	if emptyHost.Session() == nil || emptyHost.Settings() == nil || emptyHost.Events() == nil {
 		t.Fatal("expected non-nil noop fallback from empty TestHost")
@@ -124,7 +122,6 @@ func TestTestHostAndMocks(t *testing.T) {
 	emptyEvents.RegisterWebhookEvent(plugin.WebhookEventDef{})
 	emptyEvents.OnEmail(nil)
 
-	// 3. Configured CryptoVault callbacks
 	configuredCrypto := &plugin.TestCrypto{
 		EncryptWithAADFn: func(p, a []byte) (string, error) { return "aad:" + string(p) + "/" + string(a), nil },
 		DecryptWithAADFn: func(s string, a []byte) ([]byte, error) { return []byte(s + "/" + string(a)), nil },
@@ -146,7 +143,6 @@ func TestTestHostAndMocks(t *testing.T) {
 		t.Fatalf("configured ShredSubjectKey error = %v, want the mock error", err)
 	}
 
-	// 4. Configured mock callbacks
 	calledEvent := false
 	calledEmail := false
 	calledWebhook := false
@@ -223,7 +219,6 @@ func TestTestHostAndMocks(t *testing.T) {
 }
 
 func TestContextHelpersAndTenantDB(t *testing.T) {
-	// UserID context helpers
 	ctx := context.Background()
 	if plugin.UserIDFromContext(ctx) != 0 {
 		t.Fatal("expected 0 UserID for background ctx")
@@ -233,7 +228,6 @@ func TestContextHelpersAndTenantDB(t *testing.T) {
 		t.Fatalf("expected 88 UserID, got %d", plugin.UserIDFromContext(ctx))
 	}
 
-	// TenantDBFor
 	var nilCtx *plugin.Context
 	if nilCtx.TenantDBFor(1) != nil {
 		t.Fatal("expected nil TenantDB from nil Context")
@@ -251,12 +245,10 @@ func TestContextHelpersAndTenantDB(t *testing.T) {
 		t.Fatal("expected nil TenantDB result")
 	}
 
-	// NewTenantDB nil check
 	if _, err := plugin.NewTenantDB(nil, 1); err == nil {
 		t.Fatal("expected error from NewTenantDB with nil DB")
 	}
 
-	// RegisterTenantView
 	plugin.RegisterTenantView(nil, plugin.TenantView{Name: "v"})
 	plugin.RegisterTenantView(&plugin.Context{}, plugin.TenantView{Name: "v"})
 	registered := false

@@ -79,9 +79,6 @@ func TestValidateAcceptsAWellFormedSpec(t *testing.T) {
 	}
 }
 
-// TestValidateAcceptsTypedDefaultsAndKnownTiers is the positive half of the two
-// checks above: a default that parses and a tier the license ladder knows must
-// pass, or the refusals would be indistinguishable from "this is unsupported".
 func TestValidateAcceptsTypedDefaultsAndKnownTiers(t *testing.T) {
 	spec := validSpec()
 	spec.Fields = append(spec.Fields,
@@ -110,9 +107,6 @@ func TestValidateRejectsBadFields(t *testing.T) {
 	}{
 		{"bad slug", base(func(s *ontology.Spec) { s.Slug = "Widget!" }), ontology.CodeSlugInvalid},
 		{"reserved slug", base(func(s *ontology.Spec) { s.Slug = "settings" }), ontology.CodeSlugReserved},
-		// applied_specs maps to ont_applied_specs, the bookkeeping table itself.
-		// Declaring it would have the reconciler compare a table against a
-		// declaration it wrote about other tables.
 		{"bookkeeping slug", base(func(s *ontology.Spec) { s.Slug = "applied_specs" }), ontology.CodeSlugReserved},
 		{"empty label", base(func(s *ontology.Spec) { s.Label = "  " }), ontology.CodeLabelRequired},
 		{"no fields", base(func(s *ontology.Spec) { s.Fields = nil }), ontology.CodeFieldsEmpty},
@@ -278,8 +272,6 @@ func contains(hay []string, needle string) bool {
 	return false
 }
 
-// TestScopeDefaultsToTheWorkspace pins that a declaration written before scopes
-// existed, or one that says nothing about scope, is a workspace-wide table.
 func TestScopeDefaultsToTheWorkspace(t *testing.T) {
 	if got := ontology.ScopeOf(ontology.Spec{}); got != ontology.ScopeOrg {
 		t.Fatalf("ScopeOf(empty) = %q, want %q", got, ontology.ScopeOrg)
@@ -290,8 +282,6 @@ func TestScopeDefaultsToTheWorkspace(t *testing.T) {
 	}
 }
 
-// TestUnknownScopeIsRefused pins the closed set: a typo in the scope would
-// otherwise build a table with no owner column and isolate nothing.
 func TestUnknownScopeIsRefused(t *testing.T) {
 	spec := validSpec()
 	spec.Scope = "personal"
@@ -300,9 +290,6 @@ func TestUnknownScopeIsRefused(t *testing.T) {
 	}
 }
 
-// TestScopeCannotChangeOnAnExistingTable pins that scope is a column, not a
-// declaration detail. Recording the new scope while the table kept the old
-// column would let one member's rows be read by the whole workspace.
 func TestScopeCannotChangeOnAnExistingTable(t *testing.T) {
 	old := validSpec()
 	next := validSpec()
@@ -312,21 +299,17 @@ func TestScopeCannotChangeOnAnExistingTable(t *testing.T) {
 		t.Fatalf("ValidateTransition = %v, want %s", err, ontology.CodeScopeImmutable)
 	}
 
-	// The reverse direction too: dropping the owner column is the same ALTER.
 	user := validSpec()
 	user.Scope = ontology.ScopeUser
 	if err := ontology.ValidateTransition(user, old, 0); !hasCode(err, ontology.CodeScopeImmutable) {
 		t.Fatalf("ValidateTransition = %v, want %s", err, ontology.CodeScopeImmutable)
 	}
 
-	// An unchanged scope is not a transition.
 	if err := ontology.ValidateTransition(old, validSpec(), 0); err != nil {
 		t.Fatalf("ValidateTransition of an unchanged declaration = %v, want nil", err)
 	}
 }
 
-// TestUserIDIsAReservedColumn pins that the owner column cannot be declared as a
-// field, whether or not the entity is user-scoped.
 func TestUserIDIsAReservedColumn(t *testing.T) {
 	spec := validSpec()
 	spec.Fields = append(spec.Fields, ontology.Field{Name: "user_id", Type: ontology.TypeInteger})

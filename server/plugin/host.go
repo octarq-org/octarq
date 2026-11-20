@@ -7,13 +7,9 @@ import (
 	"net/http"
 )
 
-// HostSession 封装租户与用户会话、角色门禁及身份鉴权
 type HostSession interface {
 	UserID(r *http.Request) uint
 	OrgID(r *http.Request) uint
-	// PersonalOrgID returns the caller's personal org (kind = personal), or 0
-	// when the account has none. Personal assets live there, not in the team
-	// workspace the session is currently bound to.
 	PersonalOrgID(r *http.Request) uint
 	OrgRole(r *http.Request) string
 	RequireRole(r *http.Request, min string) bool
@@ -22,27 +18,16 @@ type HostSession interface {
 	RevokeUserOrgSessions(userID, orgID uint) int
 }
 
-// CryptoVault 封装实例级密钥加解密信封
 type CryptoVault interface {
 	Encrypt(plaintext []byte) (string, error)
 	Decrypt(encoded string) ([]byte, error)
-	// EncryptWithAAD seals plaintext and binds aad to the ciphertext.
-	// A ciphertext sealed with one aad does not open with another.
 	EncryptWithAAD(plaintext, aad []byte) (string, error)
-	// DecryptWithAAD reverses EncryptWithAAD.
 	DecryptWithAAD(encoded string, aad []byte) ([]byte, error)
-	// SubjectVault returns a vault whose DEK belongs to (ownerID, subject).
-	// The vault never falls back to the instance DEK.
 	SubjectVault(ownerID uint, subject string) (CryptoVault, error)
-	// ShredSubjectKey destroys the subject's DEK. Data under it becomes
-	// permanently unreadable. Other subjects keep working.
 	ShredSubjectKey(ownerID uint, subject string) error
-	// HasSubjectKey reports whether a wrapped DEK exists for (ownerID, subject)
-	// without creating one on miss.
 	HasSubjectKey(ownerID uint, subject string) bool
 }
 
-// SettingsStore 封装工作区及全局持久化配置读写
 type SettingsStore interface {
 	GetWorkspaceSetting(orgID uint, key string) string
 	SetWorkspaceSetting(orgID uint, key, value string) error
@@ -50,68 +35,41 @@ type SettingsStore interface {
 	SetGlobalSetting(key, value string) error
 }
 
-// WorkspaceSettings is an alias for SettingsStore for naming flexibility.
 type WorkspaceSettings = SettingsStore
 
-// EventSpine 封装事件发布、Webhook 声明及邮件事件响应
 type EventSpine interface {
 	PublishEvent(orgID uint, event string, data any)
 	RegisterWebhookEvent(def WebhookEventDef)
 	OnEmail(handler func(EmailEvent))
 }
 
-// Host 聚合宿主运行时核心能力
 type Host interface {
 	Session() HostSession
 	Crypto() CryptoVault
 	Settings() SettingsStore
 	Events() EventSpine
 	TenantDB(orgID uint) *TenantDB
-	// HarnessSpec 返回该工作区已发布的 agent harness（规范 JSON 文档）。
-	//
-	// 返回 nil 文档表示工作区没有发布过 harness，调用方应使用内置默认值。
-	// 用 JSON 而不是类型化返回值，是因为 harness 包依赖本包（plugin.Endpoint），
-	// 直接引用它的类型会形成导入环；调用方用 harness.DecodeSpec 解码即可。
-	//
-	// 返回 error 表示已发布的 harness 读不出来 —— 调用方必须 fail closed，
-	// 绝不能悄悄换一个 harness 继续跑。
 	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
-	// LookupCredential resolves and decrypts third-party integration credentials for orgID.
-	// Returns ErrCredentialNotFound when the mounted resolver has no matching
-	// credential, and ErrCredentialResolverUnavailable when no resolver is
-	// mounted at all (standalone Core OSS). Callers must keep the two apart:
-	// only "unavailable" means "use the local registry"; "not found" means the
-	// credential the caller asked for does not exist.
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
-	// Workforce returns the agent ledger: turn authorisation, spend, and
-	// approval decisions. A plugin that runs agents reports here instead of
-	// keeping a second budget counter and a second approval table.
 	Workforce() Workforce
 }
 
-// Credential represents a decrypted third-party integration credential.
 type Credential struct {
 	ID           uint            `json:"id"`
 	OrgID        uint            `json:"orgId"`
-	ProviderType string          `json:"providerType"` // dns, communication, storage, payment, llm
-	Provider     string          `json:"provider"`     // cloudflare, dnspod, smtp, resend, telegram, slack, etc.
+	ProviderType string          `json:"providerType"`
+	Provider     string          `json:"provider"`
 	Name         string          `json:"name"`
-	ConfigJSON   json.RawMessage `json:"configJson"` // Decrypted JSON configuration payload
+	ConfigJSON   json.RawMessage `json:"configJson"`
 	IsDefault    bool            `json:"isDefault"`
 }
 
-// CredentialQuery specifies lookup criteria for integration credentials.
 type CredentialQuery struct {
-	ID           uint   `json:"id,omitempty"`           // Explicit integration ID (optional)
-	ProviderType string `json:"providerType,omitempty"` // Filter by provider type (e.g. "dns", "communication")
-	Provider     string `json:"provider,omitempty"`     // Filter by provider name (e.g. "cloudflare", "slack")
+	ID           uint   `json:"id,omitempty"`
+	ProviderType string `json:"providerType,omitempty"`
+	Provider     string `json:"provider,omitempty"`
 }
 
-// ErrCredentialNotFound indicates the requested credential does not exist.
 var ErrCredentialNotFound = errors.New("credential not found")
 
-// ErrCredentialResolverUnavailable indicates no credential resolver is mounted
-// on this host (standalone Core OSS). Callers use only this sentinel to decide
-// that the local registry is authoritative; a mounted resolver that answers
-// not found must be an error, never a reason to read another registry.
 var ErrCredentialResolverUnavailable = errors.New("credential resolver unavailable")

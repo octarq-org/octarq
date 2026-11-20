@@ -32,7 +32,6 @@ func TestCleanup(t *testing.T) {
 		calledWithDays = retentionDays
 	}
 
-	// 1. Check with negative/zero retention days - should not call cleanups
 	retentionDays := func() int { return 0 }
 	Start(ctx, retentionDays, mockCleanup)
 
@@ -40,7 +39,6 @@ func TestCleanup(t *testing.T) {
 		t.Errorf("cleanup should not run when retentionDays is 0, got called with %d", calledWithDays)
 	}
 
-	// 2. Check with retention days = 3
 	retentionDays = func() int { return 3 }
 	Start(ctx, retentionDays, mockCleanup)
 

@@ -13,7 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// mockPlugin implements plugin.Plugin & plugin.Describer for testing plugin-contributed notification channel types.
 type mockPlugin struct {
 	name     string
 	title    string
@@ -52,7 +51,6 @@ func TestNotificationChannelTypes_FilteringAndSecrets(t *testing.T) {
 		category: plugin.CategoryMessaging,
 	}
 
-	// Explicitly register descriptor in notify package for mock plugin
 	notify.RegisterWithDescriptor(notify.Descriptor{
 		Type:        p.name,
 		Title:       p.title,
@@ -69,12 +67,9 @@ func TestNotificationChannelTypes_FilteringAndSecrets(t *testing.T) {
 	org1Cookies := sessionCookies(t, 1, 1)
 	org2Cookies := sessionCookies(t, 2, 2)
 
-	// Org 1: Enable mocknotify plugin explicitly
 	db.Create(&models.PluginSetting{OrgID: 1, Plugin: "mocknotify", Enabled: true})
-	// Org 2: Disable mocknotify plugin explicitly
 	db.Create(&models.PluginSetting{OrgID: 2, Plugin: "mocknotify", Enabled: false})
 
-	// 1 & 2: Test /api/notification-channel-types for Org 1 vs Org 2
 	rec1 := do(srv, http.MethodGet, "/api/notification-channel-types", org1Cookies, "")
 	if rec1.Code != http.StatusOK {
 		t.Fatalf("org1 channel types failed: %d — %s", rec1.Code, rec1.Body.String())
@@ -112,7 +107,6 @@ func TestNotificationChannelTypes_FilteringAndSecrets(t *testing.T) {
 		t.Errorf("org2 with disabled plugin must omit mocknotify from type list")
 	}
 
-	// 3: Roundtrip create -> list -> test -> delete for plugin-provided channel type
 	createBody := `{"name":"My Mock Channel","type":"mocknotify","config":"{\"secretKey\":\"super-secret-123\",\"targetUrl\":\"https://example.com/hook\"}"}`
 	recCreate := do(srv, http.MethodPost, "/api/notification-channels", org1Cookies, createBody)
 	if recCreate.Code != http.StatusCreated {
@@ -124,7 +118,6 @@ func TestNotificationChannelTypes_FilteringAndSecrets(t *testing.T) {
 		t.Fatalf("unexpected created channel: %+v", created)
 	}
 
-	// 4: Verify secrets in list response are redacted ("super-secret-123" -> "[REDACTED]")
 	recList := do(srv, http.MethodGet, "/api/notification-channels", org1Cookies, "")
 	if recList.Code != http.StatusOK {
 		t.Fatalf("list channels failed: %d", recList.Code)

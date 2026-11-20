@@ -2,23 +2,15 @@ package plugin
 
 import "testing"
 
-// TestPageLimitClampsOverMaxToMax is the guard for the bug this helper exists
-// to kill: an over-limit request must be clamped DOWN TO THE MAXIMUM, never
-// dropped back to the default. Returning the default there hands a paginating
-// client a short page it reads as the end of the collection.
 func TestPageLimitClampsOverMaxToMax(t *testing.T) {
 	if got := PageLimit(1000, 50, 500); got != 500 {
 		t.Fatalf("PageLimit(1000, def=50, max=500) = %d, want 500 (the max, not the default)", got)
 	}
-	// One past the ceiling is the boundary the old code got wrong most quietly.
 	if got := PageLimit(501, 50, 500); got != 500 {
 		t.Fatalf("PageLimit(501, def=50, max=500) = %d, want 500", got)
 	}
 }
 
-// TestPageLimitNeverReturnsLessThanDefaultForLargerRequest states the invariant
-// behind the clamp: asking for MORE must never yield FEWER rows than asking for
-// nothing at all.
 func TestPageLimitNeverReturnsLessThanDefaultForLargerRequest(t *testing.T) {
 	def, max := 50, 500
 	base := PageLimit(0, def, max)

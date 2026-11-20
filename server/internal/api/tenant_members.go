@@ -1,8 +1,3 @@
-// Package api provides member management handlers.
-//
-// Invariant: Changing a member's role (promote/demote) or removing a member must
-// immediately invalidate all stateful sessions (user_sessions) for that user in
-// that org (org_id), preventing stale sessions from continuing to act on previous roles.
 package api
 
 import (
@@ -34,8 +29,6 @@ type ListOrgMembersOutput struct {
 	Body []MemberItem
 }
 
-// listOrgMembers lists all members and their roles for the current active organization.
-// GET /api/org/members
 func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput) (*ListOrgMembersOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -59,10 +52,6 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		JoinedAt        time.Time
 	}
 	var rows []queryResult
-	// joined_at is the membership row's own timestamp. Selecting
-	// users.created_at here instead — which this did — reported the account's
-	// registration date, so one person showed the same "joined" date in every
-	// workspace they belong to.
 	err = h.db.Table("org_members").
 		Select("users.id as user_id, users.email, org_members.role, users.invite_token_hash, org_members.created_at as joined_at").
 		Joins("JOIN users ON users.id = org_members.user_id").
@@ -72,9 +61,6 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		return nil, huma.Error500InternalServerError("Could not load workspace members; retry the request")
 	}
 	for _, row := range rows {
-		// Pending means an unredeemed invite. An empty password hash alone is
-		// NOT pending: the bootstrap instance admin authenticates against the
-		// configured env password and never stores a hash.
 		isPending := row.InviteTokenHash != ""
 		item := MemberItem{
 			UserID:  row.UserID,
@@ -82,8 +68,6 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 			Role:    row.Role,
 			Pending: isPending,
 		}
-		// Zero means the row predates the column: omit the field rather than
-		// serialising the zero time as a join date.
 		if !row.JoinedAt.IsZero() {
 			t := row.JoinedAt
 			item.JoinedAt = &t
@@ -112,8 +96,6 @@ type AddOrgMemberOutput struct {
 	Body map[string]any
 }
 
-// addOrgMember adds or invites a user to the active organization.
-// POST /api/org/members  {"email": "user@example.com", "role": "member"}
 func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*AddOrgMemberOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -141,8 +123,6 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	if role != "owner" && role != "admin" && role != "member" {
 		role = "member"
 	}
-	// Only an owner may grant or revoke the owner role — an admin can't mint
-	// owners (or promote itself) and thereby take over the workspace.
 	if authz.Role(role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 		return nil, huma.Error403Forbidden("Workspace owner role required to grant owner permissions")
 	}
@@ -159,10 +139,6 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		rawInviteToken = hex.EncodeToString(tokenBytes)
 		expiresAt := time.Now().Add(24 * time.Hour)
 
-		// The raw invite token is a 192-bit secret delivered only to the invited
-		// mailbox (sendInviteEmail) and shown once to the operator right here. Only
-		// its SHA-256 hash is persisted; the accept endpoint looks up by hash, so a
-		// DB read cannot hand out a live invite.
 		user = models.User{
 			Email:           email,
 			PasswordHash:    "",
@@ -177,14 +153,9 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	var existing models.OrgMember
 	memErr := h.db.Where("org_id = ? AND user_id = ?", orgID, user.ID).First(&existing).Error
 	if memErr == nil {
-		// Re-grading an existing owner (demote, or re-affirm) is an owner-only act,
-		// so an admin can't strip the owner's role out from under them.
 		if authz.Role(existing.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 			return nil, huma.Error403Forbidden("Workspace owner role required to modify an owner's role")
 		}
-		// Re-inviting the sole owner at a lower role demotes them, and this path
-		// had no last-owner guard — the workspace could be left with nobody able
-		// to grant the role back. Same rule as PATCH and DELETE.
 		if authz.Role(existing.Role) == authz.RoleOwner && authz.Role(role) != authz.RoleOwner {
 			if err := h.requireAnotherOwner(orgID, user.ID); err != nil {
 				return nil, err
@@ -235,11 +206,6 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	eventbus.Publish(orgID, "member.invite", map[string]any{"userId": user.ID, "email": user.Email, "role": role, "pending": user.InviteTokenHash != ""})
 
 	if isNew {
-		// The invite link goes to the invited mailbox and NOWHERE else. It used
-		// to come back in this response too, "so the operator can deliver it
-		// out-of-band" — but redeeming it sets a password AND marks the address
-		// verified (acceptInvite, auth.go), so the response handed the inviter a
-		// working credential for an address they do not control.
 		acceptURL := "/admin/invite/accept?token=" + rawInviteToken
 		if base := h.origin(r); base != "" {
 			acceptURL = base + acceptURL

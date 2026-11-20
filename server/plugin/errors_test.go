@@ -45,19 +45,16 @@ func TestAgentError_FormatAndUnwrap(t *testing.T) {
 		t.Logf("Formatted MCP Error:\n%s", mcpMsg)
 	}
 
-	// Test Error() without guidance
 	aeNoGuidance := NewAgentError(400, "BAD_REQUEST", "Bad request occurred", "", false)
 	if aeNoGuidance.Error() != "[BAD_REQUEST] Bad request occurred" {
 		t.Errorf("expected [BAD_REQUEST] Bad request occurred, got %s", aeNoGuidance.Error())
 	}
 
-	// Test Error() without code and guidance
 	aeMsgOnly := &AgentError{Message: "Only message"}
 	if aeMsgOnly.Error() != "Only message" {
 		t.Errorf("expected 'Only message', got %s", aeMsgOnly.Error())
 	}
 
-	// Test Error() on nil
 	var nilErr *AgentError
 	if nilErr.Error() != "" {
 		t.Errorf("expected empty string for nil AgentError.Error(), got %s", nilErr.Error())
@@ -81,7 +78,6 @@ func TestAgentError_NilAndPlain(t *testing.T) {
 }
 
 func TestAgentError_ToProblem(t *testing.T) {
-	// 1. 409 SLUG_EXISTS with non-empty instance URI
 	ae409 := NewAgentError(
 		409,
 		"SLUG_EXISTS",
@@ -117,7 +113,6 @@ func TestAgentError_ToProblem(t *testing.T) {
 		t.Errorf("expected Retryable false, got true")
 	}
 
-	// Verify JSON serialization
 	b409, err := json.Marshal(prob409)
 	if err != nil {
 		t.Fatalf("failed to marshal 409 Problem: %v", err)
@@ -130,7 +125,6 @@ func TestAgentError_ToProblem(t *testing.T) {
 		t.Errorf("unmarshaled problem mismatch: %+v != %+v", unmarshaled409, *prob409)
 	}
 
-	// 2. 429 RATE_LIMIT_EXCEEDED with empty instance parameter
 	ae429 := NewAgentError(
 		429,
 		"RATE_LIMIT_EXCEEDED",
@@ -166,7 +160,6 @@ func TestAgentError_ToProblem(t *testing.T) {
 		t.Errorf("expected Retryable true, got false")
 	}
 
-	// Verify JSON serialization
 	b429, err := json.Marshal(prob429)
 	if err != nil {
 		t.Fatalf("failed to marshal 429 Problem: %v", err)
@@ -179,7 +172,6 @@ func TestAgentError_ToProblem(t *testing.T) {
 		t.Errorf("unmarshaled problem mismatch: %+v != %+v", unmarshaled429, *prob429)
 	}
 
-	// 3. Nil receiver safety
 	var nilAE *AgentError
 	if nilAE.ToProblem("instance") != nil {
 		t.Errorf("expected nil Problem for nil AgentError")

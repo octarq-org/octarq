@@ -15,21 +15,16 @@ import (
 )
 
 const (
-	// ResourceURILinksTrending ranks the workspace's short links by clicks.
-	ResourceURILinksTrending = "octarq://links/trending"
-	// ResourceTemplateMailboxLatest addresses the newest message of one mailbox.
+	ResourceURILinksTrending      = "octarq://links/trending"
 	ResourceTemplateMailboxLatest = "octarq://mailboxes/{id}/latest"
 )
 
-// TrendingLinksResource is the payload of octarq://links/trending.
 type TrendingLinksResource struct {
 	OrgID       uint            `json:"org_id"`
 	Links       []TopLinkMetric `json:"links"`
 	GeneratedAt time.Time       `json:"generated_at"`
 }
 
-// MailboxLatestResource is the payload of octarq://mailboxes/{id}/latest: the
-// newest message metadata plus the unread count. Bodies stay behind the tools.
 type MailboxLatestResource struct {
 	OrgID       uint                `json:"org_id"`
 	MailboxID   uint                `json:"mailbox_id"`
@@ -39,7 +34,6 @@ type MailboxLatestResource struct {
 	GeneratedAt time.Time           `json:"generated_at"`
 }
 
-// MailboxLatestEmail carries one message's metadata (never the raw body).
 type MailboxLatestEmail struct {
 	ID         uint      `json:"id"`
 	From       string    `json:"from"`
@@ -47,8 +41,6 @@ type MailboxLatestEmail struct {
 	ReceivedAt time.Time `json:"received_at"`
 }
 
-// subscriptionTracker records resources/subscribe interest so push
-// notifications only fan out to URIs a client actually watches.
 type subscriptionTracker struct {
 	mu   sync.Mutex
 	subs map[string]int
@@ -82,8 +74,6 @@ func (t *subscriptionTracker) watched(uri string) bool {
 	return t.subs[uri] > 0
 }
 
-// registerExtraResources wires the trending + mailbox-latest endpoints and the
-// resources/subscribe capability onto the server.
 func (s *server) registerExtraResources(srv *mcp.Server) {
 	srv.AddResource(&mcp.Resource{
 		URI:         ResourceURILinksTrending,
@@ -102,7 +92,6 @@ func (s *server) registerExtraResources(srv *mcp.Server) {
 	}, s.handleResourceMailboxLatest)
 }
 
-// handleSubscribe/handleUnsubscribe back the resources/subscribe capability.
 func (s *server) handleSubscribe(_ context.Context, req *mcp.SubscribeRequest) error {
 	if req == nil || req.Params == nil || req.Params.URI == "" {
 		return errors.New("missing subscribe URI")
@@ -125,8 +114,6 @@ func (s *server) handleUnsubscribe(_ context.Context, req *mcp.UnsubscribeReques
 	return nil
 }
 
-// notifyResourceUpdated pushes notifications/resources/updated to subscribed
-// sessions. It is a no-op when nobody watches the URI.
 func (s *server) notifyResourceUpdated(ctx context.Context, uri string) {
 	if s.subs == nil || !s.subs.watched(uri) {
 		return
@@ -139,12 +126,10 @@ func (s *server) notifyResourceUpdated(ctx context.Context, uri string) {
 	}
 }
 
-// NotifyMailboxLatest announces a new arrival without polling.
 func (s *server) NotifyMailboxLatest(ctx context.Context, mailboxID uint) {
 	s.notifyResourceUpdated(ctx, fmt.Sprintf("octarq://mailboxes/%d/latest", mailboxID))
 }
 
-// NotifyLinksTrending announces a traffic spike.
 func (s *server) NotifyLinksTrending(ctx context.Context) {
 	s.notifyResourceUpdated(ctx, ResourceURILinksTrending)
 }

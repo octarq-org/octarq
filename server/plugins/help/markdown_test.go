@@ -5,10 +5,6 @@ import (
 	"testing"
 )
 
-// The corpus is written for Astro Starlight, whose asides are :::type blocks.
-// Before this conversion the viewer had no idea what they were, so goldmark
-// passed them through as literal ":::tip" paragraphs — the reader saw the markup
-// instead of the callout.
 func TestRenderMarkdownConvertsAsides(t *testing.T) {
 	html, err := renderMarkdown(":::tip\nSet up Short Links first.\n:::\n")
 	if err != nil {
@@ -17,7 +13,6 @@ func TestRenderMarkdownConvertsAsides(t *testing.T) {
 	if strings.Contains(html, ":::") {
 		t.Errorf("aside markup leaked into the output: %s", html)
 	}
-	// The viewer styles callouts off the GFM tag, so that is what has to survive.
 	if !strings.Contains(html, "[!TIP]") {
 		t.Errorf("expected a GFM TIP alert, got: %s", html)
 	}
@@ -36,9 +31,7 @@ func TestConvertAsidesTagMapping(t *testing.T) {
 		"caution":   "WARNING",
 		"danger":    "CAUTION",
 		"important": "IMPORTANT",
-		// GFM has no alert for an unknown type; a note is the harmless landing
-		// spot, and beats rendering the raw ":::whatever" line.
-		"whatever": "NOTE",
+		"whatever":  "NOTE",
 	}
 	for kind, want := range cases {
 		got := convertAsides(":::" + kind + "\nbody\n:::\n")
@@ -48,8 +41,6 @@ func TestConvertAsidesTagMapping(t *testing.T) {
 	}
 }
 
-// A multi-paragraph aside must stay one callout: a bare blank line would end the
-// blockquote and split it into two, the second one unlabelled.
 func TestConvertAsidesKeepsBlankLinesInside(t *testing.T) {
 	got := convertAsides(":::caution\nfirst\n\nsecond\n:::\n")
 	if strings.Contains(got, "\n\nsecond") {
@@ -60,8 +51,6 @@ func TestConvertAsidesKeepsBlankLinesInside(t *testing.T) {
 	}
 }
 
-// A shell snippet may legitimately contain a ":::" line, and must reach the
-// reader verbatim rather than being eaten as a directive.
 func TestConvertAsidesIgnoresFencedCode(t *testing.T) {
 	src := "```sh\n:::tip\necho hi\n```\n"
 	if got := convertAsides(src); got != src {
@@ -69,8 +58,6 @@ func TestConvertAsidesIgnoresFencedCode(t *testing.T) {
 	}
 }
 
-// Starlight allows a custom title, which GFM cannot express. Dropping it would
-// lose the one line that says what the callout is about.
 func TestConvertAsidesKeepsCustomTitle(t *testing.T) {
 	got := convertAsides(":::tip[Next Steps]\nbody\n:::\n")
 	if !strings.Contains(got, "> [!TIP]") || !strings.Contains(got, "**Next Steps**") {
@@ -78,8 +65,6 @@ func TestConvertAsidesKeepsCustomTitle(t *testing.T) {
 	}
 }
 
-// Writers also frequently write space-separated titles like ":::note 架构说明".
-// Ensure the tag is correctly detected and title preserved rather than dropped.
 func TestConvertAsidesKeepsSpaceSeparatedTitle(t *testing.T) {
 	got := convertAsides(":::note 架构说明\nbody\n:::\n")
 	if !strings.Contains(got, "> [!NOTE]") || !strings.Contains(got, "**架构说明**") {

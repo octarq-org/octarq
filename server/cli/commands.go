@@ -11,12 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Subcommand constructors for standalone CLI actions.
-//
-// This file groups the constructors for child commands attached to the root CLI:
-// server, mcp, openapi, backup, restore, plugin, status, reload, top, setup,
-// version, and shell completion.
-
 func newServerCmd(d Deps) *cobra.Command {
 	var port, host, configPath string
 	cmd := &cobra.Command{
@@ -139,9 +133,6 @@ func newRestoreCommand(d Deps) *cobra.Command {
 }
 
 func newPluginCommand(d Deps) *cobra.Command {
-	// The `plugin new` argument orderings (name-first and flags-first) are
-	// legacy behavior pinned by CLI tests; keep stdlib flag parsing inside
-	// the existing body and route the raw remainder through untouched.
 	cmd := &cobra.Command{
 		Use:                "plugin",
 		Short:              "Plugin utilities (new: scaffold a plugin skeleton)",

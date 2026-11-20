@@ -6,12 +6,6 @@ import (
 	"time"
 )
 
-// TestSend delivers one synthetic "webhook.test" event to url and waits for
-// the single attempt's result — no retry loop, no fan-out semaphore, no
-// persisted delivery-log row. It backs the dashboard's per-webhook "send test"
-// button: an operator verifies URL reachability, vault secret resolution and the
-// receiver's signature check in one round trip instead of waiting for a real
-// business event.
 func TestSend(ctx context.Context, orgID, webhookID uint, url string, vaultItemID uint) error {
 	signedAt := nowFn()
 	body, err := json.Marshal(EventPayload{

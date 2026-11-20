@@ -206,36 +206,30 @@ func TestCLIRemoteBackupAndRestore(t *testing.T) {
 	sdb, _ := gdb.DB()
 	sdb.Close()
 
-	// 1. Run backup with --remote
 	code := runBackupCommand([]string{"--remote", "--out", backupOutPath})
 	if code != 0 {
 		t.Fatalf("runBackupCommand --remote failed: code %d", code)
 	}
 
-	// Encrypted file must not be valid raw sqlite
 	if err := db.VerifySQLiteIntegrity(backupOutPath); err == nil {
 		t.Fatal("expected encrypted backup file to fail VerifySQLiteIntegrity")
 	}
 
-	// Verify object uploaded to S3
 	remoteKey := filepath.Base(backupOutPath)
 	if _, ok := mock.objects[remoteKey]; !ok {
 		t.Fatalf("expected remote key %q in mock S3", remoteKey)
 	}
 
-	// 2. Mutate DB
 	gdb2, _ := gorm.Open(sqlite.Open(sourceDBPath), &gorm.Config{})
 	gdb2.Model(&AppItem{}).Where("id = 1").Update("data", "MutatedData")
 	sdb2, _ := gdb2.DB()
 	sdb2.Close()
 
-	// 3. Restore from S3 via latest
 	restoreCode := runRestoreCommand([]string{"--from-s3", "latest", "--yes"})
 	if restoreCode != 0 {
 		t.Fatalf("runRestoreCommand --from-s3 latest failed: code %d", restoreCode)
 	}
 
-	// 4. Verify restored DB content
 	gdbRestored, err := gorm.Open(sqlite.Open(sourceDBPath), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open restored db failed: %v", err)
@@ -253,7 +247,6 @@ func TestCLIRemoteBackupAndRestore(t *testing.T) {
 		t.Errorf("expected 'OriginalRemoteData', got %q", item.Data)
 	}
 
-	// 5. Mutate again, close db handle, then test restore with specific key
 	gdbRestored.Model(&AppItem{}).Where("id = 1").Update("data", "MutatedAgain")
 	sqlDBRestored, _ := gdbRestored.DB()
 	sqlDBRestored.Close()
@@ -303,24 +296,20 @@ func TestCLILocalEncryptedBackupAndRestore(t *testing.T) {
 	sdb, _ := gdb.DB()
 	sdb.Close()
 
-	// Backup with --encrypt
 	code := runBackupCommand([]string{"--out", backupOutPath, "--encrypt"})
 	if code != 0 {
 		t.Fatalf("runBackupCommand --encrypt failed: %d", code)
 	}
 
-	// Verify it is not raw sqlite
 	if err := db.VerifySQLiteIntegrity(backupOutPath); err == nil {
 		t.Fatal("expected local encrypted backup to fail VerifySQLiteIntegrity")
 	}
 
-	// Mutate
 	gdb2, _ := gorm.Open(sqlite.Open(sourceDBPath), &gorm.Config{})
 	gdb2.Model(&LocalItem{}).Where("id = 1").Update("val", "MutatedLocal")
 	sdb2, _ := gdb2.DB()
 	sdb2.Close()
 
-	// Restore with --decrypt
 	restoreCode := runRestoreCommand([]string{"--in", backupOutPath, "--decrypt", "--yes"})
 	if restoreCode != 0 {
 		t.Fatalf("runRestoreCommand with --decrypt failed: %d", restoreCode)
@@ -347,24 +336,20 @@ func TestCLIBackupAndRestoreErrors(t *testing.T) {
 	t.Setenv("OCTARQ_DB_DSN", dbPath)
 	t.Setenv("OCTARQ_SECRET_KEY", "test-secret-key-16-bytes")
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "test-admin-password")
-	t.Setenv("OCTARQ_BACKUP_S3_BUCKET", "") // unconfigured S3
+	t.Setenv("OCTARQ_BACKUP_S3_BUCKET", "")
 
-	// 1. --remote without S3 config should exit 1
 	if code := runBackupCommand([]string{"--remote"}); code != 1 {
 		t.Errorf("expected backup --remote without S3 config to exit 1, got %d", code)
 	}
 
-	// 2. --from-s3 without S3 config should exit 1
 	if code := runRestoreCommand([]string{"--from-s3", "latest", "--yes"}); code != 1 {
 		t.Errorf("expected restore --from-s3 without S3 config to exit 1, got %d", code)
 	}
 
-	// 3. restore without --in or --from-s3 should exit 1
 	if code := runRestoreCommand([]string{}); code != 1 {
 		t.Errorf("expected restore without target to exit 1, got %d", code)
 	}
 
-	// 4. Interactive restore cancelled by user
 	inReader := strings.NewReader("no\n")
 	if code := runRestoreCommandWithInput([]string{"--in", "dummy.db"}, inReader); code != 1 {
 		t.Errorf("expected restore cancelled by user to exit 1, got %d", code)

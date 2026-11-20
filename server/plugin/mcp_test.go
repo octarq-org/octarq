@@ -23,10 +23,8 @@ func TestAddMCPTool_ConflictDetection(t *testing.T) {
 		InputSchema: map[string]any{"type": "object"},
 	}
 
-	// Registering normally should succeed
 	plugin.AddMCPTool(srv, "plugin_a", tool1, handler)
 
-	// Registering the exact same tool name from a DIFFERENT plugin should panic
 	tool2 := &mcp.Tool{
 		Name:        "test_tool_unique",
 		Description: "A conflicting tool",
@@ -51,8 +49,6 @@ func TestAddMCPTool_ConflictDetection(t *testing.T) {
 		t.Errorf("expected panic when registering duplicate tool from a different plugin, but it succeeded")
 	}
 
-	// Registering the same tool name from the SAME plugin should be allowed
-	// (this happens when a new networked instance calls RegisterMCP again)
 	func() {
 		defer func() {
 			if r := recover(); r != nil {

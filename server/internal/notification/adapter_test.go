@@ -30,7 +30,6 @@ func TestLegacyNotifierAdapter(t *testing.T) {
 		t.Errorf("ConfigSchema() should be nil")
 	}
 
-	// 1. Send with _raw_config
 	rec := plugin.NotificationRecipient{
 		UserID: "1",
 		Config: map[string]interface{}{
@@ -48,7 +47,6 @@ func TestLegacyNotifierAdapter(t *testing.T) {
 		t.Errorf("got cfg=%q text=%q, want `{\"foo\":\"bar\"}` and World", calledCfg, calledText)
 	}
 
-	// 2. Send with structured map config and empty body (falls back to Title)
 	rec2 := plugin.NotificationRecipient{
 		UserID: "2",
 		Config: map[string]interface{}{
@@ -65,7 +63,6 @@ func TestLegacyNotifierAdapter(t *testing.T) {
 		t.Errorf("got cfg=%q text=%q", calledCfg, calledText)
 	}
 
-	// 3. Error case
 	payload3 := plugin.NotificationPayload{
 		Body: "fail",
 	}
@@ -73,13 +70,11 @@ func TestLegacyNotifierAdapter(t *testing.T) {
 		t.Error("expected error, got nil")
 	}
 
-	// 4. Nil function case
 	nilAdapter := &LegacyNotifierAdapter{ChannelName: "nil_ch"}
 	if err := nilAdapter.Send(context.Background(), rec, payload); err == nil {
 		t.Error("expected error for nil SendFunc, got nil")
 	}
 
-	// 5. Default title derived from name
 	adapterDefaultTitle := NewLegacyNotifierAdapter("slack", "", fn)
 	if adapterDefaultTitle.DisplayName() != "Slack" {
 		t.Errorf("expected Slack, got %q", adapterDefaultTitle.DisplayName())

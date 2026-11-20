@@ -18,15 +18,11 @@ func check(t *testing.T, checks []Check, id string) Check {
 	return Check{}
 }
 
-// TestEvaluateAllStates drives every capability state the report can express:
-// degraded/ok on domains and mail, blocked registration when verification is
-// required without a sender, the dev-vs-degraded secret-key split by domain
-// registration, and the dev hardening row for unprovisioned instances.
 func TestEvaluateAllStates(t *testing.T) {
 	cfg := &config.Config{
 		DBDriver:  "sqlite",
 		DBDSN:     "/data/octarq.db",
-		SecretKey: "short", // below MinSecretKeyLen: the dev/degraded split depends on it
+		SecretKey: "short",
 	}
 
 	t.Run("unprovisioned with short key and no domains", func(t *testing.T) {
@@ -44,7 +40,6 @@ func TestEvaluateAllStates(t *testing.T) {
 		if got := check(t, checks, "secret-key"); got.Status != StatusDev {
 			t.Errorf("secret-key = %q, want dev", got)
 		}
-		// The hardening row only appears for unprovisioned instances.
 		if got := check(t, checks, "hardening").Status; got != StatusDev {
 			t.Errorf("hardening = %q, want dev", got)
 		}
@@ -109,8 +104,6 @@ func TestEvaluateAllStates(t *testing.T) {
 	})
 }
 
-// TestRedactDSN covers the three renderings: sqlite paths are shown, empty
-// DSNs say not configured, everything else is withheld.
 func TestRedactDSN(t *testing.T) {
 	if got := redactDSN("sqlite", "/data/db.sqlite"); got != "/data/db.sqlite" {
 		t.Errorf("sqlite DSN = %q", got)

@@ -17,32 +17,25 @@ import (
 )
 
 var (
-	dbMu sync.RWMutex
-	db   *gorm.DB
-	// SSRF-hardened: webhook URLs are tenant-supplied, so delivery must not reach
-	// internal services or cloud metadata (relaxable for trusted self-hosted
-	// receivers via OCTARQ_ALLOW_PRIVATE_WEBHOOKS).
+	dbMu         sync.RWMutex
+	db           *gorm.DB
 	httpClient   = safehttp.NewWebhookClient(10 * time.Second)
 	vaultMu      sync.RWMutex
 	vaultService plugin.VaultService
 )
 
-// getDB returns the current DB handle under a read lock.
 func getDB() *gorm.DB {
 	dbMu.RLock()
 	defer dbMu.RUnlock()
 	return db
 }
 
-// Init initializes the eventbus with the shared GORM database connection.
 func Init(gdb *gorm.DB) {
 	dbMu.Lock()
 	db = gdb
 	dbMu.Unlock()
 }
 
-// SetVaultService registers the VaultService used to resolve webhook signing
-// secrets before HMAC-signing deliveries.
 func SetVaultService(vs plugin.VaultService) {
 	vaultMu.Lock()
 	vaultService = vs
@@ -55,9 +48,6 @@ func getVaultService() plugin.VaultService {
 	return vaultService
 }
 
-// signingSecret resolves the plaintext HMAC secret for a webhook's vault item.
-// A missing vault service or unresolvable vault item is a hard error rather
-// than signing with an empty or placeholder secret.
 func signingSecret(ctx context.Context, orgID, vaultItemID uint) (string, error) {
 	if vaultItemID == 0 {
 		return "", errors.New("webhook has no vault secret")
@@ -77,7 +67,6 @@ func signingSecret(ctx context.Context, orgID, vaultItemID uint) (string, error)
 	return s, nil
 }
 
-// EventPayload defines the JSON structure sent to webhook endpoints.
 type EventPayload struct {
 	Event     string    `json:"event"`
 	Timestamp time.Time `json:"timestamp"`
@@ -85,15 +74,7 @@ type EventPayload struct {
 	Data      any       `json:"data"`
 }
 
-// Publish dispatches an event asynchronously to all subscribed webhooks.
-//
-// Each (event, hook) pair becomes one delivery with its own id, retry budget
-// and persisted log row. Fan-out is bounded by deliverySem: a tenant with a
-// long hook list queues rather than spawning a goroutine per hook.
 func Publish(orgID uint, event string, data any) {
-	// Mirror to the in-process event spine so in-process subscribers receive
-	// the event even when no webhooks are registered. This is the only allowed
-	// touch to this function (spec §3.9, additive-only).
 	if raw, err := json.Marshal(data); err == nil {
 		PublishEnvelope(Envelope{
 			OrgID:   orgID,
@@ -154,8 +135,6 @@ func Publish(orgID uint, event string, data any) {
 			deliverySem <- struct{}{}
 			go func(d delivery) {
 				defer func() { <-deliverySem }()
-				// Detached from the query context on purpose: the retry budget
-				// outlives the 30s lookup window by design.
 				deliverCtx, cancelDeliver := context.WithTimeout(context.Background(), deliveryBudget)
 				defer cancelDeliver()
 				deliverWithRetry(deliverCtx, d)
@@ -164,11 +143,8 @@ func Publish(orgID uint, event string, data any) {
 	}()
 }
 
-// deliveryBudget caps the whole attempt+backoff loop for one delivery, so a
-// permanently dead receiver cannot pin a slot in deliverySem forever.
 var deliveryBudget = 15 * time.Minute
 
-// webhookVaultItemID loads the VaultItemID for a hook.
 func webhookVaultItemID(ctx context.Context, orgID, webhookID uint) (uint, error) {
 	gdb := getDB()
 	if gdb == nil {
@@ -185,7 +161,6 @@ func webhookVaultItemID(ctx context.Context, orgID, webhookID uint) (uint, error
 	return hook.VaultItemID, nil
 }
 
-// isSubscribed checks if the comma-separated subscriptions string matches the event.
 func isSubscribed(subs, event string) bool {
 	if subs == "*" {
 		return true

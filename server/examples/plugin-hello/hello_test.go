@@ -9,8 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestGreeterService exposes the greeter both directly and through a registry,
-// the documented lookup path for consumers.
 func TestGreeterService(t *testing.T) {
 	var g Greeter = greeter{}
 	if got := g.Greet("world"); got != "hello, world!" {
@@ -28,8 +26,6 @@ func TestGreeterService(t *testing.T) {
 	}
 }
 
-// TestPluginDescription pins the example's identity: name, models, describe and
-// both menu scopes it declares.
 func TestPluginDescription(t *testing.T) {
 	p := Plugin{}
 
@@ -59,9 +55,6 @@ func TestPluginDescription(t *testing.T) {
 	}
 }
 
-// TestMountRegistersRouteAndService mounts the plugin on a real mux with a
-// pass-through Guard and asserts the /api/hello/ping route answers with the
-// plugin's JSON envelope.
 func TestMountRegistersRouteAndService(t *testing.T) {
 	mux := http.NewServeMux()
 	reg := plugin.NewRegistry()
@@ -92,8 +85,6 @@ func TestMountRegistersRouteAndService(t *testing.T) {
 	}
 }
 
-// TestMountToleratesNilProvide covers hosts whose Context predates the Provide
-// field: the plugin must still mount routes without panicking.
 func TestMountToleratesNilProvide(t *testing.T) {
 	mux := http.NewServeMux()
 	Plugin{}.Mount(mux, &plugin.Context{

@@ -31,36 +31,28 @@ func setupCharTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// TestCharacterization_TenantDB_FailClosedGuards locks all fail-closed constructor
-// and context extraction behaviors.
 func TestCharacterization_TenantDB_FailClosedGuards(t *testing.T) {
 	t.Parallel()
 
 	db := setupCharTestDB(t)
 
-	// 1. Nil DB
 	if _, err := tenantsql.NewTenantDB(nil, 42); err != tenantsql.ErrNilDB {
 		t.Errorf("NewTenantDB(nil, 42) = %v, want ErrNilDB", err)
 	}
 
-	// 2. Zero OrgID
 	if _, err := tenantsql.NewTenantDB(db, 0); err != tenantsql.ErrZeroOrgID {
 		t.Errorf("NewTenantDB(db, 0) = %v, want ErrZeroOrgID", err)
 	}
 
-	// 3. Nil context: the nil-context guard must fail closed. Nil is the exact
-	// input under test here, not an oversight (see nolint below).
 	if _, err := tenantsql.TenantDBFromContext(nil, db); err != tenantsql.ErrMissingTenantContext { //nolint:staticcheck // SA1012: nil is the exact input under test (nil-context fail-closed guard)
 		t.Errorf("TenantDBFromContext(nil, db) = %v, want ErrMissingTenantContext", err)
 	}
 
-	// 4. Empty context (zero org ID)
 	emptyCtx := context.Background()
 	if _, err := tenantsql.TenantDBFromContext(emptyCtx, db); err != tenantsql.ErrMissingTenantContext {
 		t.Errorf("TenantDBFromContext(emptyCtx, db) = %v, want ErrMissingTenantContext", err)
 	}
 
-	// 5. Valid context
 	validCtx := tenantsql.WithOrgID(emptyCtx, 100)
 	tdb, err := tenantsql.TenantDBFromContext(validCtx, db)
 	if err != nil || tdb == nil {
@@ -71,8 +63,6 @@ func TestCharacterization_TenantDB_FailClosedGuards(t *testing.T) {
 	}
 }
 
-// TestCharacterization_TenantDB_WriteMismatchGuards locks cross-tenant write
-// rejection on both struct entities and map updates.
 func TestCharacterization_TenantDB_WriteMismatchGuards(t *testing.T) {
 	t.Parallel()
 
@@ -82,9 +72,8 @@ func TestCharacterization_TenantDB_WriteMismatchGuards(t *testing.T) {
 		t.Fatalf("NewTenantDB: %v", err)
 	}
 
-	// 1. Creating entity with conflicting non-zero OwnerID must fail with ErrTenantMismatch
 	conflicting := &charTestModel{
-		OwnerID: 999, // Mismatched! Bound is 10.
+		OwnerID: 999,
 		Name:    "evil_cross_tenant_insert",
 	}
 	err = tdb.Create(conflicting).Error
@@ -92,7 +81,6 @@ func TestCharacterization_TenantDB_WriteMismatchGuards(t *testing.T) {
 		t.Errorf("expected ErrTenantMismatch on cross-tenant Create, got %v", err)
 	}
 
-	// 2. Updating with conflicting map key must fail with ErrTenantMismatch
 	err = tdb.Updates(map[string]any{
 		"owner_id": uint(999),
 	}).Error
@@ -100,7 +88,6 @@ func TestCharacterization_TenantDB_WriteMismatchGuards(t *testing.T) {
 		t.Errorf("expected ErrTenantMismatch on cross-tenant Updates map, got %v", err)
 	}
 
-	// 3. Creating entity with zero OwnerID automatically populates bound orgID
 	valid := &charTestModel{
 		OwnerID: 0,
 		Name:    "legit_item",
@@ -113,20 +100,16 @@ func TestCharacterization_TenantDB_WriteMismatchGuards(t *testing.T) {
 	}
 }
 
-// TestCharacterization_Execute_SecurityGuards locks tenant SQL execution
-// pipeline prerequisites (context, dialects, limits).
 func TestCharacterization_Execute_SecurityGuards(t *testing.T) {
 	t.Parallel()
 
 	db := setupCharTestDB(t)
 
-	// 1. Missing context org ID
 	_, _, err := tenantsql.Execute(context.Background(), db, nil, "SELECT * FROM tenant_links")
 	if err == nil || !strings.Contains(err.Error(), "missing workspace context") {
 		t.Errorf("expected missing workspace context error, got %v", err)
 	}
 
-	// 2. Nil DB
 	ctx := tenantsql.WithOrgID(context.Background(), 1)
 	_, _, err = tenantsql.Execute(ctx, nil, nil, "SELECT * FROM tenant_links")
 	if err == nil || !strings.Contains(err.Error(), "database handle is nil") {
@@ -134,7 +117,6 @@ func TestCharacterization_Execute_SecurityGuards(t *testing.T) {
 	}
 }
 
-// TestCharacterization_SensitiveColumns locks sensitive column names and redaction value.
 func TestCharacterization_SensitiveColumns(t *testing.T) {
 	t.Parallel()
 

@@ -60,7 +60,6 @@ func (p *Plugin) ensureCollection(ctx context.Context, orgID uint, scope plugin.
 		Kind:  kind,
 	}
 	if err := p.db.WithContext(ctx).Create(&col).Error; err != nil {
-		// Handle concurrent creation race cleanly.
 		if err2 := p.db.WithContext(ctx).
 			Where("org_id = ? AND scope = ? AND slug = ?", orgID, scope, slug).
 			First(&col).Error; err2 == nil {
@@ -160,7 +159,6 @@ func (p *Plugin) fieldKeysForVersions(ctx context.Context, items []VaultItem) ma
 	return out
 }
 
-// PutSecret creates a new secret item (or creates a new version if KeyName collides in the same path).
 func (p *Plugin) PutSecret(ctx context.Context, req plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
 	if p.db == nil {
 		return nil, errors.New("vault: database unavailable")
@@ -175,7 +173,6 @@ func (p *Plugin) PutSecret(ctx context.Context, req plugin.PutSecretRequest) (*p
 	return p.putSecretInternal(ctx, req, scope)
 }
 
-// PutInstanceSecret stores an instance-wide secret (org_id = 0, scope = instance).
 func (p *Plugin) PutInstanceSecret(ctx context.Context, req plugin.PutSecretRequest) (*plugin.VaultItemMeta, error) {
 	if p.db == nil {
 		return nil, errors.New("vault: database unavailable")
@@ -228,8 +225,6 @@ func (p *Plugin) putSecretInternal(ctx context.Context, req plugin.PutSecretRequ
 	folder := normalizeFolderPath(req.FolderPath)
 	keyName := strings.TrimSpace(req.KeyName)
 
-	// If keyName is specified and already exists in this exact (org, scope, [owner_user_id], collection, env, folder),
-	// append a new immutable version instead of duplicating.
 	if keyName != "" {
 		var existing VaultItem
 		q := p.db.WithContext(ctx).Where(
@@ -324,7 +319,6 @@ func (p *Plugin) putSecretInternal(ctx context.Context, req plugin.PutSecretRequ
 	return &out, nil
 }
 
-// UpdateSecret creates a new encrypted version for an org-scoped vault item.
 func (p *Plugin) UpdateSecret(ctx context.Context, orgID, itemID uint, name *string, metadata map[string]any, payload map[string]any, isDefault *bool, changeNote string, actorUserID uint) (*plugin.VaultItemMeta, error) {
 	if p.db == nil {
 		return nil, errors.New("vault: database unavailable")
@@ -457,7 +451,6 @@ func (p *Plugin) updateSecretInternal(ctx context.Context, row VaultItem, name *
 	return &out, nil
 }
 
-// RollbackVersion creates a new head version copied from a previous historical version.
 func (p *Plugin) RollbackVersion(ctx context.Context, orgID, itemID uint, targetVersion int, actorUserID uint) (*plugin.VaultItemMeta, error) {
 	if p.db == nil || orgID == 0 || itemID == 0 {
 		return nil, errors.New("vault: invalid rollback parameters")
@@ -652,7 +645,6 @@ func (p *Plugin) ListItems(ctx context.Context, orgID uint, filter plugin.VaultF
 	return out, nil
 }
 
-// DeleteSecret hard-deletes the item and all version rows, then cryptographically shreds its SubjectVault DEK.
 func (p *Plugin) DeleteSecret(ctx context.Context, orgID, itemID uint) error {
 	if p.db == nil || orgID == 0 || itemID == 0 {
 		return errors.New("vault: invalid organization or item ID")
@@ -667,7 +659,6 @@ func (p *Plugin) DeleteSecret(ctx context.Context, orgID, itemID uint) error {
 	return p.deleteItemRow(ctx, row)
 }
 
-// DeleteInstanceSecret hard-deletes an instance-scoped secret by keyName and shreds its SubjectVault DEK.
 func (p *Plugin) DeleteInstanceSecret(ctx context.Context, keyName string) error {
 	if p.db == nil {
 		return errors.New("vault: database unavailable")
@@ -702,7 +693,6 @@ func (p *Plugin) deleteItemRow(ctx context.Context, row VaultItem) error {
 	return nil
 }
 
-// ComputeTOTP generates the active RFC-6238 verification code for a twofa_totp or login item.
 func (p *Plugin) ComputeTOTP(ctx context.Context, orgID, itemID uint) (string, int, error) {
 	sec, err := p.GetSecret(ctx, orgID, itemID)
 	if err != nil {
@@ -711,7 +701,6 @@ func (p *Plugin) ComputeTOTP(ctx context.Context, orgID, itemID uint) (string, i
 	return computeTOTPCode(sec.Payload, time.Now())
 }
 
-// LookupCredential satisfies plugin.CredentialResolver across all plugins and core services.
 func (p *Plugin) LookupCredential(ctx context.Context, orgID uint, q plugin.CredentialQuery) (*plugin.Credential, error) {
 	if p.db == nil {
 		return nil, errors.New("vault: database unavailable")
@@ -795,6 +784,5 @@ func (p *Plugin) exportData(orgID uint) map[string]any {
 	if err != nil {
 		return map[string]any{"items": []plugin.VaultItemMeta{}}
 	}
-	// Never export plaintext secrets or ciphertexts in workspace metadata export.
 	return map[string]any{"items": items}
 }

@@ -31,8 +31,6 @@ type ListAuditLogsOutput struct {
 	Body []models.AuditLog
 }
 
-// listAuditLogs returns audit log entries for the session org, newest first.
-// Query params: action=link.create, targetType=link, actorId=1, since=..., until=..., limit=50, offset=0
 func (h *Handler) listAuditLogs(ctx context.Context, input *ListAuditLogsInput) (*ListAuditLogsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")

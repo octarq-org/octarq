@@ -35,7 +35,6 @@ var (
 	globalTelemetry *Telemetry
 )
 
-// Telemetry manages OpenTelemetry tracing and metrics lifecycle.
 type Telemetry struct {
 	Config             Config
 	TracerProvider     *traceSdk.TracerProvider
@@ -46,7 +45,6 @@ type Telemetry struct {
 	shutdownFuncs      []func(context.Context) error
 }
 
-// Global returns the active global Telemetry instance, or a no-op instance if uninitialized.
 func Global() *Telemetry {
 	globalMu.RLock()
 	defer globalMu.RUnlock()
@@ -58,12 +56,10 @@ func Global() *Telemetry {
 	}
 }
 
-// Init initializes OpenTelemetry SDK with the supplied configuration.
 func Init(ctx context.Context, cfg Config) (*Telemetry, error) {
 	globalMu.Lock()
 	defer globalMu.Unlock()
 
-	// If disabled, setup no-op providers and propagators
 	if !cfg.Enabled {
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 		t := &Telemetry{
@@ -84,13 +80,11 @@ func Init(ctx context.Context, cfg Config) (*Telemetry, error) {
 		Resource: res,
 	}
 
-	// 1. TextMapPropagator setup (W3C Trace Context + W3C Baggage)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
 
-	// 2. TracerProvider setup
 	tp, tpShutdown, err := initTracerProvider(ctx, cfg, res)
 	if err != nil {
 		return nil, fmt.Errorf("telemetry: init tracer provider: %w", err)
@@ -103,7 +97,6 @@ func Init(ctx context.Context, cfg Config) (*Telemetry, error) {
 		}
 	}
 
-	// 3. MeterProvider setup
 	mp, promExp, mpShutdown, err := initMeterProvider(ctx, cfg, res)
 	if err != nil {
 		return nil, fmt.Errorf("telemetry: init meter provider: %w", err)
@@ -117,7 +110,6 @@ func Init(ctx context.Context, cfg Config) (*Telemetry, error) {
 		}
 	}
 
-	// 4. Initialize pre-defined metric instruments
 	meter := otel.GetMeterProvider().Meter("github.com/octarq-org/octarq")
 	metrics, err := NewMetrics(meter)
 	if err != nil {
@@ -215,7 +207,6 @@ func createOTLPTraceExporter(ctx context.Context, cfg Config) (traceSdk.SpanExpo
 		return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))
 	}
 
-	// gRPC
 	cleanEndpoint := strings.TrimPrefix(endpoint, "grpc://")
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(cleanEndpoint),
@@ -255,7 +246,6 @@ func initMeterProvider(ctx context.Context, cfg Config, res *resource.Resource) 
 		}
 		readers = append(readers, metricSdk.NewPeriodicReader(exp, metricSdk.WithInterval(15*time.Second)))
 	default:
-		// Default to prometheus exporter if no other exporter is chosen
 		exp, err := promExporter.New()
 		if err != nil {
 			return nil, nil, nil, err
@@ -341,7 +331,6 @@ func parseSampler(samplerName string, ratio float64) traceSdk.Sampler {
 	}
 }
 
-// PrometheusHandler returns an http.Handler that serves Prometheus metrics.
 func (t *Telemetry) PrometheusHandler() http.Handler {
 	if t != nil && t.PrometheusExporter != nil {
 		return promhttp.Handler()
@@ -349,7 +338,6 @@ func (t *Telemetry) PrometheusHandler() http.Handler {
 	return http.NotFoundHandler()
 }
 
-// Shutdown flushes and closes all configured providers.
 func (t *Telemetry) Shutdown(ctx context.Context) error {
 	var errs []error
 	for _, fn := range t.shutdownFuncs {
@@ -360,7 +348,6 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Tracer returns a named tracer.
 func Tracer(name string) trace.Tracer {
 	if name == "" {
 		name = "github.com/octarq-org/octarq"
@@ -368,7 +355,6 @@ func Tracer(name string) trace.Tracer {
 	return otel.GetTracerProvider().Tracer(name)
 }
 
-// NoopTracer returns a no-op tracer.
 func NoopTracer() trace.Tracer {
 	return noopTrace.NewTracerProvider().Tracer("noop")
 }

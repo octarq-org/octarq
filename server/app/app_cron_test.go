@@ -24,7 +24,6 @@ func TestAppCronSetupAndExecution(t *testing.T) {
 		t.Fatalf("app.New() failed: %v", err)
 	}
 
-	// Auto-migrate the tables needed for cron jobs
 	if err := a.gdb.AutoMigrate(&models.Session{}, &models.Token{}, &models.AuditLog{}); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
@@ -35,11 +34,9 @@ func TestAppCronSetupAndExecution(t *testing.T) {
 		Cron:         cronEngine,
 	}
 
-	// Nil safety checks
 	a.Setup(nil, nil)
 	a.setupBuiltinCron(&plugin.Context{}, nil)
 
-	// Setup built-in cron jobs
 	a.Setup(pctx, nil)
 
 	jobs := cronEngine.List()
@@ -50,7 +47,6 @@ func TestAppCronSetupAndExecution(t *testing.T) {
 		t.Fatalf("unexpected jobs in list: %+v", jobs)
 	}
 
-	// Test session_cleanup execution
 	now := time.Now()
 	expiredSession := &models.Session{
 		UserID:    1,
@@ -100,7 +96,6 @@ func TestAppCronSetupAndExecution(t *testing.T) {
 		t.Fatalf("expected 1 active token remaining, got %d", tokenCount)
 	}
 
-	// Test log_rotation execution
 	oldLog := &models.AuditLog{
 		OrgID:     1,
 		ActorID:   1,
@@ -116,7 +111,6 @@ func TestAppCronSetupAndExecution(t *testing.T) {
 	a.gdb.Create(oldLog)
 	a.gdb.Create(recentLog)
 
-	// Test log_rotation with nil apiHandler (defaults to no-op)
 	if err := cronEngine.RunJob(ctx, "log_rotation"); err != nil {
 		t.Fatalf("log_rotation with nil handler failed: %v", err)
 	}

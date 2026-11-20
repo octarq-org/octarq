@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-// A role the OpenAI wire format has no message for is refused, not dropped.
 func TestGeminiRefusesARoleItCannotTranslate(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -23,7 +22,6 @@ func TestGeminiRefusesARoleItCannotTranslate(t *testing.T) {
 	}
 }
 
-// A file part points at a URL only Google can read, so it is refused by name.
 func TestGeminiRefusesAFilePart(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 
@@ -38,8 +36,6 @@ func TestGeminiRefusesAFilePart(t *testing.T) {
 	}
 }
 
-// An image travels as a data URI, and a thought stays behind: no OpenAI field
-// carries reasoning.
 func TestGeminiSendsImagesAndDropsThoughts(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -69,8 +65,6 @@ func TestGeminiSendsImagesAndDropsThoughts(t *testing.T) {
 	}
 }
 
-// The calling mode maps onto the OpenAI choice for every mode, including the
-// one that names no function.
 func TestGeminiToolChoiceModes(t *testing.T) {
 	cases := []struct {
 		name string
@@ -94,8 +88,6 @@ func TestGeminiToolChoiceModes(t *testing.T) {
 	}
 }
 
-// sameJSON compares two values by their JSON encoding, which is what the
-// provider sees.
 func sameJSON(t *testing.T, a, b any) bool {
 	t.Helper()
 	ea, _ := json.Marshal(a)
@@ -103,8 +95,6 @@ func sameJSON(t *testing.T, a, b any) bool {
 	return string(ea) == string(eb)
 }
 
-// A JSON schema request keeps the schema; a bare JSON request asks for an
-// object; anything else sets no format at all.
 func TestGeminiResponseFormatModes(t *testing.T) {
 	schema := geminiResponseFormat(&gemGeneration{
 		ResponseJSONSchema: json.RawMessage(`{"type":"object"}`),
@@ -133,7 +123,6 @@ func mustJSON(t *testing.T, v any) string {
 	return string(raw)
 }
 
-// A declaration without a name cannot become an OpenAI tool.
 func TestGeminiRefusesAToolWithoutAName(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 
@@ -145,7 +134,6 @@ func TestGeminiRefusesAToolWithoutAName(t *testing.T) {
 	}
 }
 
-// A client that asks about one model gets it, and an unknown name is a 404.
 func TestGeminiAnswersAModelLookup(t *testing.T) {
 	u := &upstream{listBody: `{"data":[{"id":"m-one"}]}`}
 	f := geminiFixture(t, u)
@@ -163,7 +151,6 @@ func TestGeminiAnswersAModelLookup(t *testing.T) {
 	}
 }
 
-// The list fails closed: no provider is a 503, a provider that refuses is a 502.
 func TestGeminiListFailsClosed(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	if status, body := f.do(t, http.MethodGet, "/v1beta/models", ""); status != http.StatusServiceUnavailable {
@@ -177,7 +164,6 @@ func TestGeminiListFailsClosed(t *testing.T) {
 	}
 }
 
-// A provider that refuses the turn is reported in the Gemini error shape.
 func TestGeminiReportsAProviderRefusal(t *testing.T) {
 	u := &upstream{chatBody: `{"error":"slow down"}`, chatCode: http.StatusTooManyRequests}
 	f := geminiFixture(t, u)
@@ -193,8 +179,6 @@ func TestGeminiReportsAProviderRefusal(t *testing.T) {
 	}
 }
 
-// An answer that is not a completion is refused rather than shown as an empty
-// turn.
 func TestGeminiRefusesAnAnswerThatIsNotACompletion(t *testing.T) {
 	u := &upstream{chatBody: `not json`}
 	f := geminiFixture(t, u)
@@ -206,7 +190,6 @@ func TestGeminiRefusesAnAnswerThatIsNotACompletion(t *testing.T) {
 	}
 }
 
-// Tool arguments that are not JSON cannot become a functionCall.
 func TestGeminiRefusesToolArgumentsThatAreNotJSON(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"",
 		"tool_calls":[{"id":"call_0","type":"function","function":{"name":"read","arguments":"{"}}]},
@@ -220,8 +203,6 @@ func TestGeminiRefusesToolArgumentsThatAreNotJSON(t *testing.T) {
 	}
 }
 
-// The same failure inside a stream closes it with an error frame the client can
-// read, instead of a frame its parser rejects.
 func TestGeminiStreamsTheToolArgumentFailure(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_0","type":"function","function":{"name":"read","arguments":"{"}}]}}]}`,
@@ -239,7 +220,6 @@ func TestGeminiStreamsTheToolArgumentFailure(t *testing.T) {
 	}
 }
 
-// doRaw returns the raw body, which is what a stream is.
 func doRaw(t *testing.T, f *httpFixture, path string) (int, string) {
 	t.Helper()
 	resp, err := http.Post(f.server.URL+path, "application/json",
@@ -252,8 +232,6 @@ func doRaw(t *testing.T, f *httpFixture, path string) (int, string) {
 	return resp.StatusCode, string(raw)
 }
 
-// A refusing provider ends the stream before any frame, in the Gemini error
-// shape.
 func TestGeminiStreamReportsAProviderRefusal(t *testing.T) {
 	u := &upstream{chatBody: `{"error":"down"}`, chatCode: http.StatusServiceUnavailable}
 	f := geminiFixture(t, u)
@@ -267,7 +245,6 @@ func TestGeminiStreamReportsAProviderRefusal(t *testing.T) {
 	}
 }
 
-// The non-SSE stream form answers a JSON array, as the protocol says.
 func TestGeminiStreamWithoutSSEAnswersAnArray(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"hi"},"finish_reason":"length"}]}`}
 	f := geminiFixture(t, u)
@@ -282,8 +259,6 @@ func TestGeminiStreamWithoutSSEAnswersAnArray(t *testing.T) {
 	}
 }
 
-// A response with no choices is still a valid turn, and a content filter is
-// reported as SAFETY.
 func TestGeminiMapsEmptyAndFilteredAnswers(t *testing.T) {
 	u := &upstream{chatBody: `{"choices":[]}`}
 	f := geminiFixture(t, u)
@@ -309,8 +284,6 @@ func TestGeminiMapsEmptyAndFilteredAnswers(t *testing.T) {
 	}
 }
 
-// A history that answers a call it did not carry keeps a stable id, so the
-// provider can pair the two.
 func TestGeminiAnswersAnOrphanFunctionResponse(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -327,8 +300,6 @@ func TestGeminiAnswersAnOrphanFunctionResponse(t *testing.T) {
 	}
 }
 
-// The context meter counts a whole turn: system prompt, tools, calls, results
-// and images.
 func TestGeminiCountsAWholeTurn(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 
@@ -351,7 +322,6 @@ func TestGeminiCountsAWholeTurn(t *testing.T) {
 	}
 }
 
-// A path segment with an action but no model cannot be served.
 func TestGeminiRefusesAPathWithoutAModel(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 
@@ -361,7 +331,6 @@ func TestGeminiRefusesAPathWithoutAModel(t *testing.T) {
 	}
 }
 
-// A request outside a workspace cannot be attributed, so the action refuses.
 func TestGeminiRefusesAnUnattributedRequest(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 	f.plugin.pctx = nil
@@ -371,7 +340,6 @@ func TestGeminiRefusesAnUnattributedRequest(t *testing.T) {
 	}
 }
 
-// The provider selector is parsed strictly, on the list and on the action.
 func TestGeminiRefusesAnInvalidProviderSelector(t *testing.T) {
 	f := geminiFixture(t, &upstream{})
 
@@ -383,7 +351,6 @@ func TestGeminiRefusesAnInvalidProviderSelector(t *testing.T) {
 	}
 }
 
-// A workspace with no provider cannot serve a Gemini turn either.
 func TestGeminiActionRefusesWithoutAProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 
@@ -397,7 +364,6 @@ func TestGeminiActionRefusesWithoutAProvider(t *testing.T) {
 	}
 }
 
-// A model lookup reads the provider's list, so a refusal is reported.
 func TestGeminiModelLookupReportsAProviderRefusal(t *testing.T) {
 	u := &upstream{listBody: `{"error":"nope"}`, listCode: http.StatusInternalServerError}
 	f := geminiFixture(t, u)
@@ -407,8 +373,6 @@ func TestGeminiModelLookupReportsAProviderRefusal(t *testing.T) {
 	}
 }
 
-// A function response that carries no object still has to say something, and
-// the tool message gets an empty object rather than nothing.
 func TestGeminiAnswersAFunctionResponseWithoutAnObject(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -426,8 +390,6 @@ func TestGeminiAnswersAFunctionResponseWithoutAnObject(t *testing.T) {
 	}
 }
 
-// A declaration that names no parameters still becomes a tool with an object
-// schema, and a call whose arguments are literally null becomes an empty one.
 func TestGeminiDefaultsAnEmptySchemaAndEmptyArguments(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -456,8 +418,6 @@ func TestGeminiDefaultsAnEmptySchemaAndEmptyArguments(t *testing.T) {
 	}
 }
 
-// A turn made only of thoughts carries no text, so the provider still receives
-// one user message rather than an empty request.
 func TestGeminiSendNoTextFromAThoughtOnlyTurn(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"}}]}`}
 	f := geminiFixture(t, u)
@@ -478,7 +438,6 @@ func TestGeminiSendNoTextFromAThoughtOnlyTurn(t *testing.T) {
 	}
 }
 
-// A provider that cannot be reached is reported, not retried.
 func TestGeminiReportsAnUnreachableProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	createProvider(t, f, ProviderInput{Name: "stub", Backend: "openai", APIKey: "k-test",
@@ -491,7 +450,6 @@ func TestGeminiReportsAnUnreachableProvider(t *testing.T) {
 	}
 }
 
-// A model path that carries an action is not a model.
 func TestGeminiModelLookupRefuses(t *testing.T) {
 	f := geminiFixture(t, &upstream{listBody: `{"data":[{"id":"m-one"}]}`})
 	if status, body := f.do(t, http.MethodGet, "/v1beta/models/m-one:generateContent", ""); status != http.StatusNotFound {
@@ -499,7 +457,6 @@ func TestGeminiModelLookupRefuses(t *testing.T) {
 	}
 }
 
-// A workspace with no provider cannot answer a lookup either.
 func TestGeminiModelLookupNeedsAProvider(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	if status, body := f.do(t, http.MethodGet, "/v1beta/models/m-one", ""); status != http.StatusServiceUnavailable {
@@ -507,7 +464,6 @@ func TestGeminiModelLookupNeedsAProvider(t *testing.T) {
 	}
 }
 
-// A tool call that streams with no arguments is still a call with an object.
 func TestGeminiStreamsACallWithoutArguments(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_0","type":"function","function":{"name":"ping"}}]}}]}`,
@@ -526,8 +482,6 @@ func TestGeminiStreamsACallWithoutArguments(t *testing.T) {
 	}
 }
 
-// An answer whose tool call carries no arguments becomes a call with an empty
-// object, not an invalid one.
 func TestGeminiAnswersACallWithoutArguments(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"",
 		"tool_calls":[{"id":"call_0","type":"function","function":{"name":"ping","arguments":""}}]},

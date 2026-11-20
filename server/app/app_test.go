@@ -18,7 +18,6 @@ func TestSettingsStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	// Drop the shared in-memory DB on cleanup so -count=2 re-runs stay isolated.
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
@@ -78,14 +77,12 @@ func (customModelB) TableName() string { return "custom_table" }
 func TestPreflightCollisionsUnit(t *testing.T) {
 	t.Parallel()
 
-	// 1. Name collision error
 	p1 := testDummyPlugin{name: "dupe"}
 	p2 := testDummyPlugin{name: "dupe"}
 	if err := preflightNameCollisions([]plugin.Plugin{p1, p2}); err == nil {
 		t.Error("expected error for duplicate plugin names")
 	}
 
-	// 2. Table collision error
 	pa := testDummyPlugin{name: "pA", models: []any{customModelA{}}}
 	pb := testDummyPlugin{name: "pB", models: []any{customModelB{}}}
 	if err := preflightTableCollisions(nil, []plugin.Plugin{pa, pb}); err == nil {
@@ -113,7 +110,6 @@ func TestGatedMuxExtra(t *testing.T) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	// 1. Allowed request
 	req1 := httptest.NewRequest(http.MethodGet, "/test-func", nil)
 	rec1 := httptest.NewRecorder()
 	realMux.ServeHTTP(rec1, req1)
@@ -121,7 +117,6 @@ func TestGatedMuxExtra(t *testing.T) {
 		t.Errorf("allowed request expected 200, got %d", rec1.Code)
 	}
 
-	// 2. Disabled request -> 404
 	req2 := httptest.NewRequest(http.MethodGet, "/test-func", nil)
 	req2.Header.Set("X-Disabled", "true")
 	rec2 := httptest.NewRecorder()

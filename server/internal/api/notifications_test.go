@@ -14,20 +14,17 @@ import (
 func TestNotificationsAPI(t *testing.T) {
 	_, srv, db := newTestHandlerWithInstance(t)
 
-	// Ensure router is initialized
 	router := notification.NewRouter(db)
 	notification.SetDefaultRouter(router)
 
 	user1Cookies := sessionCookies(t, 1, 1)
 	user2Cookies := sessionCookies(t, 2, 1)
 
-	// 1. Unauthorized request
 	recUnauth := do(srv, http.MethodGet, "/api/notifications", nil, "")
 	if recUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthorized, got %d", recUnauth.Code)
 	}
 
-	// 2. Seed notifications for user 1 and user 2
 	t1 := time.Now().Add(-2 * time.Hour)
 	t2 := time.Now().Add(-1 * time.Hour)
 	t3 := time.Now()
@@ -79,7 +76,6 @@ func TestNotificationsAPI(t *testing.T) {
 		t.Fatalf("create nOther: %v", err)
 	}
 
-	// 3. GET /api/notifications - List all for user 1
 	recList := do(srv, http.MethodGet, "/api/notifications", user1Cookies, "")
 	if recList.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", recList.Code, recList.Body.String())
@@ -91,12 +87,10 @@ func TestNotificationsAPI(t *testing.T) {
 	if len(listResp) != 3 {
 		t.Fatalf("expected 3 notifications for user 1, got %d", len(listResp))
 	}
-	// Verify sort order created_at DESC (n3, then n2, then n1)
 	if listResp[0].ID != n3.ID || listResp[1].ID != n2.ID || listResp[2].ID != n1.ID {
 		t.Errorf("unexpected order: ids = [%d, %d, %d]", listResp[0].ID, listResp[1].ID, listResp[2].ID)
 	}
 
-	// 4. GET /api/notifications?unread_only=true
 	recUnread := do(srv, http.MethodGet, "/api/notifications?unread_only=true", user1Cookies, "")
 	if recUnread.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recUnread.Code)
@@ -114,7 +108,6 @@ func TestNotificationsAPI(t *testing.T) {
 		}
 	}
 
-	// 5. GET /api/notifications with limit and offset
 	recPage := do(srv, http.MethodGet, "/api/notifications?limit=1&offset=1", user1Cookies, "")
 	if recPage.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recPage.Code)
@@ -127,13 +120,11 @@ func TestNotificationsAPI(t *testing.T) {
 		t.Errorf("expected pageResp to contain n2, got %+v", pageResp)
 	}
 
-	// 6. PATCH /api/notifications/{id}/read
 	recMarkUnauth := do(srv, http.MethodPatch, "/api/notifications/1/read", nil, "")
 	if recMarkUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthorized, got %d", recMarkUnauth.Code)
 	}
 
-	// Mark user 1's n1 as read
 	recMark := do(srv, http.MethodPatch, "/api/notifications/1/read", user1Cookies, "")
 	if recMark.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", recMark.Code, recMark.Body.String())
@@ -146,43 +137,36 @@ func TestNotificationsAPI(t *testing.T) {
 		t.Errorf("expected n1.ReadAt to be set")
 	}
 
-	// Mark again (already read) -> should succeed idempotently
 	recMarkAgain := do(srv, http.MethodPatch, "/api/notifications/1/read", user1Cookies, "")
 	if recMarkAgain.Code != http.StatusOK {
 		t.Fatalf("expected 200 on repeat mark read, got %d", recMarkAgain.Code)
 	}
 
-	// User 1 trying to mark User 2's notification as read -> 404
 	recMarkOther := do(srv, http.MethodPatch, "/api/notifications/4/read", user1Cookies, "")
 	if recMarkOther.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for marking other user's notification, got %d", recMarkOther.Code)
 	}
 
-	// Mark non-existent notification as read -> 404
 	recMarkMissing := do(srv, http.MethodPatch, "/api/notifications/999999/read", user1Cookies, "")
 	if recMarkMissing.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for missing notification, got %d", recMarkMissing.Code)
 	}
 
-	// 7. DELETE /api/notifications/{id}
 	recDelUnauth := do(srv, http.MethodDelete, "/api/notifications/1", nil, "")
 	if recDelUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthorized, got %d", recDelUnauth.Code)
 	}
 
-	// User 1 deletes User 2's notification -> 404
 	recDelOther := do(srv, http.MethodDelete, "/api/notifications/4", user1Cookies, "")
 	if recDelOther.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for deleting other user's notification, got %d", recDelOther.Code)
 	}
 
-	// User 1 deletes non-existent notification -> 404
 	recDelMissing := do(srv, http.MethodDelete, "/api/notifications/999999", user1Cookies, "")
 	if recDelMissing.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for deleting missing notification, got %d", recDelMissing.Code)
 	}
 
-	// User 1 deletes n1 -> 200
 	recDel := do(srv, http.MethodDelete, "/api/notifications/1", user1Cookies, "")
 	if recDel.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", recDel.Code, recDel.Body.String())
@@ -193,7 +177,6 @@ func TestNotificationsAPI(t *testing.T) {
 		t.Errorf("expected n1 to be deleted from DB, but count = %d", count)
 	}
 
-	// User 2's notification is still intact
 	recListUser2 := do(srv, http.MethodGet, "/api/notifications", user2Cookies, "")
 	if recListUser2.Code != http.StatusOK {
 		t.Fatalf("expected 200 for user 2 list, got %d", recListUser2.Code)
@@ -213,7 +196,6 @@ func TestRegisteredChannelsAPI(t *testing.T) {
 
 	userCookies := sessionCookies(t, 1, 1)
 
-	// 1. GET /api/notification-preferences/channels
 	recUnauth := do(srv, http.MethodGet, "/api/notification-preferences/channels", nil, "")
 	if recUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthorized, got %d", recUnauth.Code)
@@ -246,7 +228,6 @@ func TestRegisteredChannelsAPI(t *testing.T) {
 		t.Errorf("expected in_app and email channels, got %+v", channels)
 	}
 
-	// 2. GET /api/notification-channels?registered=true
 	recReg := do(srv, http.MethodGet, "/api/notification-channels?registered=true", userCookies, "")
 	if recReg.Code != http.StatusOK {
 		t.Fatalf("expected 200 for registered=true, got %d", recReg.Code)
@@ -264,42 +245,34 @@ func TestNotificationsDirectHandlerErrors(t *testing.T) {
 	h, _, _ := newTestHandlerWithInstance(t)
 	ctx := context.Background()
 
-	// Missing huma context on listNotifications
 	if _, err := h.listNotifications(ctx, &ListNotificationsInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on markNotificationRead
 	if _, err := h.markNotificationRead(ctx, &MarkNotificationReadInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on deleteNotification
 	if _, err := h.deleteNotification(ctx, &DeleteNotificationInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on getNotificationPreferences
 	if _, err := h.getNotificationPreferences(ctx, &GetNotificationPreferencesInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on updateNotificationPreferences
 	if _, err := h.updateNotificationPreferences(ctx, &UpdateNotificationPreferencesInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on listRegisteredChannels
 	if _, err := h.listRegisteredChannels(ctx, &ListRegisteredChannelsInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on markAllNotificationsRead
 	if _, err := h.markAllNotificationsRead(ctx, &MarkAllNotificationsReadInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
 
-	// Missing huma context on resetNotificationPreferences
 	if _, err := h.resetNotificationPreferences(ctx, &ResetNotificationPreferencesInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
@@ -309,7 +282,6 @@ func TestNotificationsReadAllAndRoutesReset(t *testing.T) {
 	_, srv, db := newTestHandlerWithInstance(t)
 	user1Cookies := sessionCookies(t, 1, 1)
 
-	// Seed unread notifications
 	db.Create(&models.Notification{
 		UserID:    "1",
 		OrgID:     "1",
@@ -327,7 +299,6 @@ func TestNotificationsReadAllAndRoutesReset(t *testing.T) {
 		CreatedAt: time.Now(),
 	})
 
-	// 1. Test POST /api/notifications/read-all
 	recReadAll := do(srv, http.MethodPost, "/api/notifications/read-all", user1Cookies, "")
 	if recReadAll.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", recReadAll.Code, recReadAll.Body.String())
@@ -338,7 +309,6 @@ func TestNotificationsReadAllAndRoutesReset(t *testing.T) {
 		t.Errorf("expected 0 unread notifications after read-all, got %d", unreadCount)
 	}
 
-	// 2. Test GET & PUT via /api/notifications/routes
 	routesPutBody := `{
 		"preferences": [
 			{"eventPattern": "system.*", "channels": ["in_app"]},
@@ -360,7 +330,6 @@ func TestNotificationsReadAllAndRoutesReset(t *testing.T) {
 		t.Fatalf("expected 2 routes, got %d", len(routes))
 	}
 
-	// 3. Test POST /api/notifications/routes/reset
 	recReset := do(srv, http.MethodPost, "/api/notifications/routes/reset", user1Cookies, "")
 	if recReset.Code != http.StatusOK {
 		t.Fatalf("expected 200 on reset routes, got %d", recReset.Code)

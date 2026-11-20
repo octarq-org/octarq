@@ -18,14 +18,12 @@ import (
 
 var toolNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-]{1,64}$`)
 
-// The token body is URL-safe base64 (without padding) so it is copy/paste friendly.
 func newRawToken() string {
-	b := make([]byte, 24) // 24 bytes -> 32 url-safe chars
+	b := make([]byte, 24)
 	rand.Read(b)
 	return "oct_" + base64.RawURLEncoding.EncodeToString(b)
 }
 
-// tokenPrefix is the short, non-secret identifier shown in the list.
 func tokenPrefix(raw string) string {
 	if len(raw) <= 8 {
 		return raw
@@ -46,17 +44,6 @@ type ListTokensOutput struct {
 	Body []models.Token
 }
 
-// listTokens returns the caller's own tokens. Everyone's, including an admin's,
-// stops at their own row.
-//
-// A token is a personal credential: it acts as the person who minted it and
-// carries at most their role (models.Token.UserID). Requiring an admin to issue
-// one meant a member automating their own work had to be handed a credential
-// that answered as somebody else — worse for audit and for blast radius than
-// the thing the gate was guarding. Scoping by owner is what replaces it, and it
-// is not an admin-shaped scope: a workspace admin has no more business reading
-// (or renaming, or re-scoping) a colleague's credential than anyone else. What
-// they keep is member removal, which revokes that person's tokens with them.
 func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*ListTokensOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -79,18 +66,11 @@ type CreateTokenInputBody struct {
 	Name          string `json:"name"`
 	Note          string `json:"note,omitempty"`
 	ExpiresInDays int    `json:"expiresInDays,omitempty"`
-	// Role narrows the token below its holder; it can never widen it. Omitted
-	// means "member" — the least privilege that still works — so a caller who
-	// does not think about it gets a narrow token rather than a copy of their
-	// own account.
-	Role string `json:"role,omitempty"`
+	Role          string `json:"role,omitempty"`
 
-	// IsAgent marks this token as a machine agent service account.
-	// When true, tool executions over MCP are strictly restricted to AllowedTools.
 	IsAgent      bool     `json:"is_agent,omitempty" doc:"Marks this token as an agent service account restricted to AllowedTools"`
 	AllowedTools []string `json:"allowed_tools,omitempty" doc:"Whitelisted MCP tool names permitted for this agent token"`
 
-	// Support camelCase from JS clients
 	IsAgentCamel      *bool     `json:"isAgent,omitempty" hidden:"true"`
 	AllowedToolsCamel *[]string `json:"allowedTools,omitempty" hidden:"true"`
 }
@@ -134,9 +114,6 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	if err != nil {
 		return nil, err
 	}
-	// No admin gate: any member may mint a token for themselves. The cap below
-	// is what keeps that safe — the token can never out-rank the person minting
-	// it, so a member's token is a member's token.
 	role := authz.Role(strings.TrimSpace(input.Body.Role))
 	if role == "" {
 		role = authz.RoleMember
@@ -144,14 +121,9 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	if !validTokenRole(role) {
 		return nil, huma.Error400BadRequest("Role must be one of: member, admin, owner")
 	}
-	// A token must not out-rank the caller minting it, or an admin could mint an
-	// owner token and use it to walk straight past the gate that just checked them.
 	if !h.callerHoldsRole(r, role) {
 		return nil, huma.Error403Forbidden("Cannot create a token with permissions exceeding your role; select a lower or equal role")
 	}
-	// The token acts as this person from here on. Minting it while
-	// unattributable would be the one way to create authority that outlives the
-	// account it came from.
 	uid := h.auth.UserID(r)
 	if uid == 0 {
 		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
@@ -209,7 +181,6 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 		"isAgent":      tok.IsAgent,
 		"allowedTools": tok.AllowedTools,
 	})
-	// The raw token is returned ONLY here; it is never stored or shown again.
 	return &CreateTokenOutput{
 		Body: map[string]any{
 			"id":           tok.ID,
@@ -306,9 +277,6 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	if err != nil {
 		return nil, err
 	}
-	// Someone else's token is not yours to rename, re-scope or extend — it does
-	// not exist as far as this endpoint is concerned, which is why this is a 404
-	// and not a 403: a 403 would confirm the id.
 	var tok models.Token
 	if err := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r)).
 		First(&tok).Error; err != nil {
@@ -468,9 +436,6 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	}, nil
 }
 
-// validTokenRole reports whether role is one a token may be minted with.
-// It deliberately rejects "" — an empty role is never minted, so the switch
-// covers every mintable value.
 func validTokenRole(role authz.Role) bool {
 	switch role {
 	case authz.RoleMember, authz.RoleAdmin, authz.RoleOwner:

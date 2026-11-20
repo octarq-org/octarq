@@ -9,8 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// seedUser inserts a user row directly, for tests that need an account on an
-// instance whose sign-up path is closed (no mail sender) or irrelevant.
 func seedUser(t *testing.T, db *gorm.DB, email string, verified bool) {
 	t.Helper()
 	u := models.User{Email: email, EmailVerified: verified, PasswordHash: "x"}
@@ -19,24 +17,15 @@ func seedUser(t *testing.T, db *gorm.DB, email string, verified bool) {
 	}
 }
 
-// TestResendVerificationMailSignalAndAntiEnumeration verifies that /api/auth/resend-verification
-// reports mailConfigured=false when no SMTP sender is configured (even if the mail plugin is mounted)
-// or when the mail plugin is not mounted, and reports mailConfigured=true only when an SMTP sender is
-// present. Crucially, across unknown, unverified, verified, and empty email inputs, the status code
-// and response body MUST be identical byte-for-byte to prevent email enumeration.
 func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 	t.Run("MailPluginMountedWithoutSMTPSender", func(t *testing.T) {
 		h, srv, db := newTestHandlerRaw(t)
 		disableEmailVerification(t, db)
 
-		// Real-world scenario: mail plugin is mounted in standard build, but no SMTP sender is configured.
 		if h.mailReady() {
 			t.Fatal("expected mailReady to be false when no SMTP sender is configured")
 		}
 
-		// Seed the accounts directly: an instance that cannot send mail does
-		// not accept sign-ups any more, and this test is about the resend
-		// endpoint, not about how an account comes into being.
 		seedUser(t, db, "unverified@nosmtp.com", false)
 		seedUser(t, db, "verified@nosmtp.com", true)
 
@@ -56,7 +45,6 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 			}
 		}
 
-		// Strict anti-enumeration check: response bodies must be byte-for-byte identical.
 		if recUnknown.Body.String() != recUnverified.Body.String() {
 			t.Fatalf("body mismatch between unknown and unverified:\nunknown: %s\nunverified: %s",
 				recUnknown.Body.String(), recUnverified.Body.String())
@@ -87,7 +75,6 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 		disableEmailVerification(t, db)
 		enableMail(t, db)
 
-		// Seed an SMTP sender
 		if err := db.Create(&testSMTPSender{
 			OrgID: 1, Name: "relay", Host: "127.0.0.1", Port: 25,
 			User: "u", Pass: "enc", FromEmail: "noreply@example.com",
@@ -125,7 +112,6 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 			}
 		}
 
-		// Strict anti-enumeration check: response bodies must be byte-for-byte identical.
 		if recUnknown.Body.String() != recUnverified.Body.String() {
 			t.Fatalf("body mismatch between unknown and unverified:\nunknown: %s\nunverified: %s",
 				recUnknown.Body.String(), recUnverified.Body.String())
@@ -159,9 +145,6 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 			t.Fatal("expected mailReady to be false when mail plugin is not mounted")
 		}
 
-		// Seed the accounts directly: an instance that cannot send mail does
-		// not accept sign-ups any more, and this test is about the resend
-		// endpoint, not about how an account comes into being.
 		seedUser(t, db, "unverified@nomail.com", false)
 		seedUser(t, db, "verified@nomail.com", true)
 
@@ -181,7 +164,6 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 			}
 		}
 
-		// Strict anti-enumeration check: response bodies must be byte-for-byte identical.
 		if recUnknown.Body.String() != recUnverified.Body.String() {
 			t.Fatalf("body mismatch between unknown and unverified:\nunknown: %s\nunverified: %s",
 				recUnknown.Body.String(), recUnverified.Body.String())

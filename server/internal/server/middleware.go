@@ -19,8 +19,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ResponseWriter wrapper (capture status + byte count)
-
 type statusRecorder struct {
 	http.ResponseWriter
 	status int
@@ -43,48 +41,27 @@ func (sr *statusRecorder) Write(b []byte) (int, error) {
 	return sr.ResponseWriter.Write(b)
 }
 
-// Flush lets the wrapper stay transparent to streaming handlers.
 func (sr *statusRecorder) Flush() {
 	if f, ok := sr.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// Middleware
-
-// Rate-limit defaults (requests per minute per IP), used until the first
-// settings refresh and when a setting is absent. Kept in sync with the API
-// layer's defaults for the same settings keys.
 const (
 	defaultAuthRPM     = 60
 	defaultAPIRPM      = 600
 	defaultRedirectRPM = 6000
 )
 
-// settingsRefreshInterval bounds how often the edge middleware re-reads its
-// DB-backed runtime settings (rate limits, metrics token). The redirect hot
-// path must never query the settings table per request.
 const settingsRefreshInterval = 30 * time.Second
 
-// RuntimeSettings supplies the DB-backed runtime configuration the edge
-// middleware needs. All funcs are optional (nil = built-in defaults); they are
-// polled at most once per settingsRefreshInterval.
 type RuntimeSettings struct {
-	// MetricsToken returns the /metrics bearer token. /metrics is not served
-	// while this is empty.
 	MetricsToken func() string
-	// RateLimits returns the per-IP RPM budgets for the auth/api/redirect tiers.
-	RateLimits func() (authRPM, apiRPM, redirectRPM int)
-	// CORSOrigins returns the exact origins allowed to read public GET API
-	// endpoints cross-origin. nil/empty = CORS disabled (no headers ever sent).
-	CORSOrigins func() []string
-	// PublicGET reports whether a path hosts a public GET endpoint — the only
-	// routes CORS is ever granted to. nil disables CORS.
-	PublicGET func(path string) bool
+	RateLimits   func() (authRPM, apiRPM, redirectRPM int)
+	CORSOrigins  func() []string
+	PublicGET    func(path string) bool
 }
 
-// middleware bundles the edge concerns (request IDs, rate limiting, metrics,
-// access logging) wrapped around the router.
 type middleware struct {
 	limiter  *rateLimiter
 	metrics  *metrics
@@ -111,9 +88,6 @@ func newMiddleware(rs RuntimeSettings) *middleware {
 	return mw
 }
 
-// refreshConfig re-reads the DB-backed runtime settings at most once per
-// settingsRefreshInterval, so setting changes apply without a restart while the
-// hot path stays off the database.
 func (mw *middleware) refreshConfig(now time.Time) {
 	mw.confMu.Lock()
 	defer mw.confMu.Unlock()
@@ -135,28 +109,24 @@ func (mw *middleware) refreshConfig(now time.Time) {
 	}
 }
 
-// currentMetricsToken returns the cached metrics token.
 func (mw *middleware) currentMetricsToken() string {
 	mw.confMu.Lock()
 	defer mw.confMu.Unlock()
 	return mw.metricsToken
 }
 
-// currentCORSOrigins returns the cached cross-origin allowlist.
 func (mw *middleware) currentCORSOrigins() []string {
 	mw.confMu.Lock()
 	defer mw.confMu.Unlock()
 	return mw.corsOrigins
 }
 
-// handle applies the edge middleware and then dispatches to next.
 func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	start := time.Now()
 	ip := clientIP(r)
 	mw.refreshConfig(start)
 	setSecurityHeaders(w, r)
 
-	// 0. OpenTelemetry incoming trace context extraction & server span
 	ctx := telemetry.ExtractHTTP(r.Context(), r.Header)
 	spanName := fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Path)
 	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/http", spanName,
@@ -176,7 +146,6 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 		w.Header().Set("X-Trace-Id", sc.TraceID().String())
 	}
 
-	// 1. Request ID: reuse a sane inbound one, else generate.
 	rid := sanitizeRequestID(r.Header.Get("X-Request-Id"))
 	if rid == "" {
 		rid = newRequestID()
@@ -185,16 +154,12 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	span.SetAttributes(attribute.String("octarq.request_id", rid))
 	r = r.WithContext(context.WithValue(ctx, RequestIDKey, rid))
 
-	// 1.5. Cross-origin reads of public GET endpoints. An approved preflight
-	// short-circuits here (before rate limiting — preflights are cheap and
-	// browsers batch them); everything else falls through to normal routing.
 	if mw.applyCORS(w, r) {
 		telemetry.SetOK(span)
 		mw.finish(r, ip, rid, http.StatusNoContent, start)
 		return
 	}
 
-	// 2. Gated metrics endpoint.
 	if r.Method == http.MethodGet && r.URL.Path == "/metrics" {
 		if !mw.metricsEnabled() {
 			http.NotFound(w, r)
@@ -206,7 +171,6 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 		return
 	}
 
-	// 3. Rate limit by tier.
 	t := tierFor(r)
 	ok, retry := mw.limiter.allow(t, ip, start)
 	mw.setRateLimitHeaders(w, t, ip, start)
@@ -223,7 +187,6 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 		return
 	}
 
-	// 4. Dispatch with status capture + in-flight gauge.
 	mw.metrics.inFlight.Add(1)
 	tel := telemetry.Global()
 	if tel.Metrics != nil && tel.Metrics.HTTPRequestsInFlight != nil {
@@ -250,21 +213,6 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	mw.finish(r, ip, rid, sr.status, start)
 }
 
-// redactPathSecrets returns a path safe to write to the access log.
-//
-// The inbound-mail webhook carries the org's secret as the LAST path segment —
-// POST /api/webhook/{orgSlug}/email/inbound/{token} and its siblings. Putting
-// the secret in the URL is deliberate and argued at octarq-plugins/mail/webhook.go:
-// SendGrid Inbound Parse and Mailgun routes let you configure a URL and nothing
-// else, so a custom auth header is not on the table, and the token rotates from
-// Mail settings. Logging it verbatim was not deliberate: it left every tenant's
-// inbound-mail credential in plaintext in the access log, readable by anyone
-// with log access and shipped onward to whatever aggregator collects them.
-//
-// OPERATOR CAVEAT: this only redacts octarq's own log line. Any reverse proxy,
-// CDN, or load balancer in front of octarq logs the full request URI and will
-// still record the token. Suppress the path (or the whole webhook route) in the
-// proxy's access-log config too, and rotate the token if those logs leaked.
 func redactPathSecrets(path string) string {
 	if !strings.HasPrefix(path, "/api/webhook/") {
 		return path
@@ -276,7 +224,6 @@ func redactPathSecrets(path string) string {
 	return path[:i+1] + "[redacted]"
 }
 
-// finish emits the edge access-log line.
 func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start time.Time) {
 	attrs := []any{
 		"method", r.Method,
@@ -292,18 +239,8 @@ func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start 
 	slog.InfoContext(r.Context(), "request", attrs...)
 }
 
-// serveMetrics gates and serves metrics. When client requests ?format=json,
-// it returns the JSON expvar snapshot. Otherwise, it defaults to standard Prometheus
-// text exposition format.
-//
-// A bearer token is the only credential the endpoint accepts. A loopback peer
-// is not a credential: a reverse proxy on the same host makes every remote
-// client a loopback peer, which turned "loopback-only" into "public" for every
-// deployment behind a local proxy.
 func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 	if mw.currentMetricsToken() == "" {
-		// No token configured: the endpoint is off, exactly as if it were
-		// disabled, so a missing credential never exposes the counters.
 		http.NotFound(w, r)
 		return
 	}

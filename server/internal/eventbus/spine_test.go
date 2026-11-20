@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// resetSpine clears global spine state between tests.
 func resetSpine(t *testing.T) {
 	t.Helper()
 	spMu.Lock()
@@ -18,15 +17,12 @@ func resetSpine(t *testing.T) {
 	atomic.StoreUint64(&droppedCnt, 0)
 }
 
-// ── Test 1: default buffer size is 64 ────────────────────────────────────────
-
 func TestSpine_DefaultBuffer(t *testing.T) {
 	resetSpine(t)
 
 	ch, cancel := Subscribe(SubscribeOpts{})
 	defer cancel()
 
-	// Should be able to send 64 items without blocking.
 	for i := 0; i < defaultSpineBuffer; i++ {
 		PublishEnvelope(Envelope{OrgID: 1, Key: "test.event"})
 	}
@@ -46,19 +42,15 @@ func TestSpine_DefaultBuffer(t *testing.T) {
 	}
 }
 
-// ── Test 2: Keys filter works ─────────────────────────────────────────────────
-
 func TestSpine_KeysFilter(t *testing.T) {
 	resetSpine(t)
 
 	ch, cancel := Subscribe(SubscribeOpts{Keys: []string{"link.click"}})
 	defer cancel()
 
-	// Send two different event types.
 	PublishEnvelope(Envelope{OrgID: 1, Key: "link.click"})
-	PublishEnvelope(Envelope{OrgID: 1, Key: "member.join"}) // should be filtered out
+	PublishEnvelope(Envelope{OrgID: 1, Key: "member.join"})
 
-	// Give publisher goroutine time to finish (PublishEnvelope is synchronous but just in case).
 	time.Sleep(20 * time.Millisecond)
 
 	select {
@@ -70,15 +62,12 @@ func TestSpine_KeysFilter(t *testing.T) {
 		t.Fatal("expected at least one envelope")
 	}
 
-	// No second envelope should have arrived.
 	select {
 	case extra := <-ch:
 		t.Errorf("unexpected envelope with key %q", extra.Key)
 	default:
 	}
 }
-
-// ── Test 3: Full buffer — drop-oldest-per-EntityKey, then fallback ────────────
 
 func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 	resetSpine(t)
@@ -87,11 +76,6 @@ func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 	ch, cancel := Subscribe(SubscribeOpts{BufferSize: bufSize})
 	defer cancel()
 
-	// Fill the buffer with a foreign entity occupying the global head so that
-	// per-entity drop and overall head-drop are observably different:
-	// seq0 = "other" (global head), seq1..3 = "link:1".
-	// (An all-same-entity buffer cannot distinguish the two semantics — both
-	// drop seq0 — which is why this scenario must stay mixed.)
 	publish := func(seq int, entity string) {
 		PublishEnvelope(Envelope{
 			OrgID:     1,
@@ -105,8 +89,6 @@ func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 		publish(i, "link:1")
 	}
 
-	// Overflow with entity "link:1" — must drop seq 1 (oldest same entity),
-	// NOT seq 0 (global head belongs to another entity).
 	beforeDrop := DroppedTotal()
 	publish(4, "link:1")
 	if DroppedTotal() <= beforeDrop {
@@ -149,18 +131,16 @@ func TestSpine_BackpressureFallbackDropHead(t *testing.T) {
 	ch, cancel := Subscribe(SubscribeOpts{BufferSize: bufSize})
 	defer cancel()
 
-	// Fill with mixed entity keys so no match for the incoming entity.
 	for i := 0; i < bufSize; i++ {
 		PublishEnvelope(Envelope{
 			OrgID:     1,
 			Key:       "link.click",
-			EntityKey: "link:" + itoa(i), // all different
+			EntityKey: "link:" + itoa(i),
 			Payload:   json.RawMessage(`{"seq":` + itoa(i) + `}`),
 		})
 	}
 
 	before := DroppedTotal()
-	// Send with a new EntityKey — fallback: drop the overall head (seq 0).
 	PublishEnvelope(Envelope{
 		OrgID:     1,
 		Key:       "link.click",
@@ -171,7 +151,6 @@ func TestSpine_BackpressureFallbackDropHead(t *testing.T) {
 		t.Errorf("expected droppedCnt to increase")
 	}
 
-	// Drain and verify seq 0 is gone and seq 99 is present.
 	got := make([]int, 0, bufSize)
 	drain := time.After(500 * time.Millisecond)
 drainLoop:
@@ -202,8 +181,6 @@ drainLoop:
 	}
 }
 
-// ── Test 4: cancel is idempotent, no panic, no goroutine leak ─────────────────
-
 func TestSpine_CancelIdempotent(t *testing.T) {
 	resetSpine(t)
 
@@ -211,12 +188,10 @@ func TestSpine_CancelIdempotent(t *testing.T) {
 
 	ch, cancel := Subscribe(SubscribeOpts{BufferSize: 8})
 
-	// Double-cancel must not panic.
 	cancel()
 	cancel()
 	cancel()
 
-	// Channel must be closed.
 	select {
 	case _, ok := <-ch:
 		if ok {
@@ -226,7 +201,6 @@ func TestSpine_CancelIdempotent(t *testing.T) {
 		t.Error("channel was not closed after cancel")
 	}
 
-	// Subscriber must be removed from the registry.
 	spMu.RLock()
 	count := len(spSubs)
 	spMu.RUnlock()
@@ -234,7 +208,6 @@ func TestSpine_CancelIdempotent(t *testing.T) {
 		t.Errorf("expected 0 subscribers after cancel, got %d", count)
 	}
 
-	// Goroutine count should not grow (allow small scheduling slack).
 	runtime.Gosched()
 	time.Sleep(20 * time.Millisecond)
 	goroutinesAfter := runtime.NumGoroutine()
@@ -244,7 +217,6 @@ func TestSpine_CancelIdempotent(t *testing.T) {
 }
 
 func TestSpine_CancelWhilePublishing(t *testing.T) {
-	// Race between cancel and concurrent PublishEnvelope must not panic.
 	resetSpine(t)
 
 	_, cancel := Subscribe(SubscribeOpts{BufferSize: 8})
@@ -252,7 +224,6 @@ func TestSpine_CancelWhilePublishing(t *testing.T) {
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 
-	// Publisher goroutine.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -267,22 +238,18 @@ func TestSpine_CancelWhilePublishing(t *testing.T) {
 	}()
 
 	time.Sleep(5 * time.Millisecond)
-	cancel() // cancel while publisher is running — must not panic
+	cancel()
 	close(stop)
 	wg.Wait()
 }
 
-// ── Test 5: old Publish → subscribers receive equivalent Envelope + webhook OK ─
-
 func TestSpine_PublishBridgesToEnvelope(t *testing.T) {
 	resetSpine(t)
-	// Use nil DB so only the spine path runs (no webhook fan-out).
 	Init(nil)
 
 	ch, cancel := Subscribe(SubscribeOpts{Keys: []string{"link.click"}})
 	defer cancel()
 
-	// Publish via the legacy API.
 	data := map[string]any{"url": "https://example.com"}
 	Publish(1, "link.click", data)
 
@@ -297,7 +264,6 @@ func TestSpine_PublishBridgesToEnvelope(t *testing.T) {
 		if len(env.Payload) == 0 {
 			t.Error("expected non-empty Payload")
 		}
-		// Verify Payload round-trips.
 		var m map[string]any
 		if err := json.Unmarshal(env.Payload, &m); err != nil {
 			t.Errorf("Payload is not valid JSON: %v", err)
@@ -309,8 +275,6 @@ func TestSpine_PublishBridgesToEnvelope(t *testing.T) {
 		t.Fatal("timed out waiting for envelope from legacy Publish")
 	}
 }
-
-// ── Concurrency / race detector pass ─────────────────────────────────────────
 
 func TestSpine_ConcurrentPublish(t *testing.T) {
 	resetSpine(t)
@@ -345,13 +309,8 @@ func TestSpine_ConcurrentPublish(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	// No assertions beyond "it didn't panic and the race detector is happy".
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-// itoa converts an int to its decimal string representation without importing
-// strconv (keeps the test file dependency-light).
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

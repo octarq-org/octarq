@@ -207,7 +207,6 @@ func TestParser_RejectedQueries(t *testing.T) {
 func TestParser_PanicIsolation(t *testing.T) {
 	p := NewParser()
 
-	// Complex CTE forms that are known risk areas for xwb1989/sqlparser
 	panicCandidates := []struct {
 		name string
 		sql  string
@@ -235,7 +234,6 @@ func TestParser_PanicIsolation(t *testing.T) {
 			}()
 
 			err := p.Validate(tc.sql)
-			// CTEs unsupported by xwb1989 must be safely rejected with an error without crashing
 			if err == nil {
 				t.Fatalf("expected error for unsupported complex CTE %q, got nil", tc.sql)
 				return
@@ -248,12 +246,10 @@ func TestParser_ConfigurableOptions(t *testing.T) {
 	t.Run("custom view prefix", func(t *testing.T) {
 		p := NewParser(WithViewPrefix("v_tenant_"))
 
-		// Allowed with new prefix
 		if err := p.Validate("SELECT * FROM v_tenant_users"); err != nil {
 			t.Fatalf("expected valid with v_tenant_ prefix, got error: %v", err)
 		}
 
-		// Disallowed with old prefix
 		if err := p.Validate("SELECT * FROM tenant_users"); err == nil {
 			t.Fatalf("expected error for tenant_users when prefix is v_tenant_")
 			return
@@ -263,12 +259,10 @@ func TestParser_ConfigurableOptions(t *testing.T) {
 	t.Run("custom allowed functions whitelist", func(t *testing.T) {
 		p := NewParser(WithAllowedFunctions([]string{"count", "sum"}))
 
-		// Allowed functions
 		if err := p.Validate("SELECT count(id), sum(val) FROM tenant_users"); err != nil {
 			t.Fatalf("expected valid for count/sum, got error: %v", err)
 		}
 
-		// Disallowed function
 		if err := p.Validate("SELECT avg(val) FROM tenant_users"); err == nil {
 			t.Fatalf("expected error for avg() when only count/sum are allowed")
 			return
@@ -278,12 +272,10 @@ func TestParser_ConfigurableOptions(t *testing.T) {
 	t.Run("empty allowed functions whitelist rejects all functions", func(t *testing.T) {
 		p := NewParser(WithAllowedFunctions([]string{}))
 
-		// Queries without functions should succeed
 		if err := p.Validate("SELECT id, name FROM tenant_users"); err != nil {
 			t.Fatalf("expected valid for column selection, got: %v", err)
 		}
 
-		// Queries with any function should fail
 		if err := p.Validate("SELECT count(id) FROM tenant_users"); err == nil {
 			t.Fatalf("expected error for count() when function whitelist is empty")
 			return
@@ -315,7 +307,6 @@ func TestParser_NoErrorRawSQLLeak(t *testing.T) {
 	}
 }
 
-// ⑥ 默认函数白名单下，特殊表达式（group_concat/substr/convert/match/限定函数）全部拒绝。
 func TestParser_SpecialFunctionsRejectedByDefault(t *testing.T) {
 	p := NewParser()
 	cases := []string{
@@ -334,7 +325,6 @@ func TestParser_SpecialFunctionsRejectedByDefault(t *testing.T) {
 	}
 }
 
-// ⑦ 显式扩白后同一批查询放行。
 func TestParser_AllowedSpecialFunctionsViaOptions(t *testing.T) {
 	p := NewParser(WithAllowedFunctions([]string{
 		"count", "group_concat", "substr", "substring", "convert", "cast",
@@ -353,7 +343,6 @@ func TestParser_AllowedSpecialFunctionsViaOptions(t *testing.T) {
 	}
 }
 
-// ⑧ 非 SELECT 语句类型的拒绝文案覆盖各语句标签。
 func TestParser_StatementTypeLabels(t *testing.T) {
 	p := NewParser()
 	cases := map[string]string{
@@ -380,7 +369,6 @@ func TestParser_StatementTypeLabels(t *testing.T) {
 	}
 }
 
-// ⑨ 三段式列限定名（db.tbl.col）按跨库引用拒绝。
 func TestParser_QualifiedColumnRejected(t *testing.T) {
 	p := NewParser()
 	err := p.Validate("SELECT mydb.tenant_users.id FROM tenant_users")
@@ -389,7 +377,6 @@ func TestParser_QualifiedColumnRejected(t *testing.T) {
 	}
 }
 
-// ⑩ 尾随内容拒绝。
 func TestParser_TrailingContentRejected(t *testing.T) {
 	p := NewParser()
 	if err := p.Validate("SELECT id FROM tenant_users WHERE 1=1 extra_here"); err == nil {
@@ -397,7 +384,6 @@ func TestParser_TrailingContentRejected(t *testing.T) {
 	}
 }
 
-// ⑪ 注入必崩解析器，证明 recover 路径把 panic 转为普通解析失败。
 func TestParseSafely_RecoversPanic(t *testing.T) {
 	old := parseFunc
 	parseFunc = func(string) (sqlparser.Statement, error) {
@@ -429,13 +415,11 @@ func TestParser_WithAllowedViews(t *testing.T) {
 }
 
 func TestParser_SpecialFunctionsAndStatements(t *testing.T) {
-	// Test match function allowed
 	p := NewParser(WithAllowedFunctions([]string{"match"}))
 	if err := p.Validate("SELECT MATCH(title) AGAINST('test') FROM tenant_links"); err != nil {
 		t.Errorf("expected MATCH to pass when allowed, got %v", err)
 	}
 
-	// Test nil statement type name
 	if name := statementTypeName(nil); name != "unknown" {
 		t.Errorf("expected unknown for nil statement, got %s", name)
 	}

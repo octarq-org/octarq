@@ -11,8 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
-// tokenCompleter reports token usage and asks for a tool every round, so a
-// budget test can drive the loop without a real provider.
 type tokenCompleter struct {
 	input  int
 	output int
@@ -37,8 +35,6 @@ func newBudgetTurn() (*Session, *Turn) {
 	return &Session{ID: "s", OrgID: 1}, &Turn{Input: "go"}
 }
 
-// TestBudgetStopsTheLoopAtTheTokenCeiling pins the check that MaxSteps cannot
-// make: a round that returns a lot of tokens is stopped before the next one.
 func TestBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 	comp := &tokenCompleter{input: 40, output: 20}
 	r := newTestRunner(t, comp, &fakeExecutor{},
@@ -53,8 +49,6 @@ func TestBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 	if turn.Status != TurnStatusFailed {
 		t.Errorf("turn status = %s, want failed", turn.Status)
 	}
-	// Two rounds fit under 100 tokens (60, then 120 crosses it); the third
-	// round must not start.
 	if comp.calls != 2 {
 		t.Fatalf("completer called %d times, want 2", comp.calls)
 	}
@@ -62,7 +56,7 @@ func TestBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 
 func TestBudgetStopsTheLoopAtTheCostCeiling(t *testing.T) {
 	comp := &tokenCompleter{input: 1000, output: 0}
-	cost := func(in, _, _ int) float64 { return float64(in) / 10000 } // 0.10 per round
+	cost := func(in, _, _ int) float64 { return float64(in) / 10000 }
 	r := newTestRunner(t, comp, &fakeExecutor{},
 		WithBudget(Budget{MaxCostUSD: 0.15, Cost: cost}),
 	)
@@ -77,9 +71,6 @@ func TestBudgetStopsTheLoopAtTheCostCeiling(t *testing.T) {
 	}
 }
 
-// TestBudgetRefusesACostCeilingItCannotPrice pins fail-closed: a cost ceiling
-// with no price would never trip, and an operator reading the spec would believe
-// a limit was in force. The turn is refused before the first model call.
 func TestBudgetRefusesACostCeilingItCannotPrice(t *testing.T) {
 	comp := &tokenCompleter{input: 1, output: 1}
 	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{MaxCostUSD: 1}))
@@ -111,15 +102,11 @@ func TestBudgetStopsTheLoopAtTheWallClockCeiling(t *testing.T) {
 	}
 }
 
-// TestZeroBudgetLeavesTheTurnUnbounded keeps the default: a zero Budget is what
-// a workspace that published no ceilings asked for.
 func TestZeroBudgetLeavesTheTurnUnbounded(t *testing.T) {
 	comp := &tokenCompleter{input: 1_000_000, output: 1_000_000}
 	r := newTestRunner(t, comp, &fakeExecutor{}, WithBudget(Budget{}))
 	s, turn := newBudgetTurn()
 
-	// The fake never stops asking for a tool, so the loop ends on MaxSteps —
-	// not on a budget.
 	err := r.Run(context.Background(), s, turn)
 	if errors.Is(err, ErrBudgetExceeded) || errors.Is(err, ErrBudgetUnpriceable) {
 		t.Fatalf("Run = %v, want the step ceiling, not a budget error", err)
@@ -129,9 +116,6 @@ func TestZeroBudgetLeavesTheTurnUnbounded(t *testing.T) {
 	}
 }
 
-// TestStreamBudgetStopsTheLoop pins that the streaming loop enforces the same
-// ceilings as the non-streaming one. Two loops that disagree about a safety
-// limit are a defect waiting for the first streaming client.
 func TestStreamBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 	chunk := llmprovider.ToolCallChunk{Index: 0, ID: "c1", Name: "noop", ArgsJSON: "{}"}
 	comp := &fakeStreamCompleter{
@@ -184,8 +168,6 @@ func TestHarnessSpecRejectsBadBudgets(t *testing.T) {
 	}
 }
 
-// TestSpecFingerprintCoversBudgets keeps recorded turns comparable: a spec that
-// only changes a ceiling is a different harness, and its fingerprint must say so.
 func TestSpecFingerprintCoversBudgets(t *testing.T) {
 	base := HarnessSpec{Version: HarnessSpecVersion, Name: "p"}
 	for _, variant := range []HarnessSpec{
@@ -210,14 +192,11 @@ func TestBudgetFromSpec(t *testing.T) {
 		t.Fatal("BudgetFromSpec dropped a price it was given")
 	}
 
-	// A cost ceiling over an unpriced model keeps Cost nil, and the runner
-	// refuses the turn rather than running it uncapped.
 	unpriced := BudgetFromSpec(HarnessSpec{MaxCostUSD: 0.25}, nil)
 	if unpriced.Cost != nil {
 		t.Fatal("BudgetFromSpec invented a price")
 	}
 
-	// Without a cost ceiling the price is not consulted at all.
 	noCeiling := BudgetFromSpec(HarnessSpec{MaxTokens: 10}, nil)
 	if noCeiling.Cost != nil {
 		t.Fatal("BudgetFromSpec set Cost without a cost ceiling")

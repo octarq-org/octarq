@@ -10,10 +10,8 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// DefaultInterval is the default polling interval for the health collector (30 seconds).
 const DefaultInterval = 30 * time.Second
 
-// ProviderHealthReport represents the health check report for an individual provider.
 type ProviderHealthReport struct {
 	Name     string                 `json:"name"`
 	Status   plugin.HealthStatus    `json:"status"`
@@ -23,15 +21,12 @@ type ProviderHealthReport struct {
 	Unit     string                 `json:"unit,omitempty"`
 }
 
-// HealthReport is the aggregated health check report containing overall system health,
-// all provider results, and the evaluation timestamp.
 type HealthReport struct {
 	Overall   plugin.HealthStatus    `json:"overall"`
 	Providers []ProviderHealthReport `json:"providers"`
 	CheckedAt string                 `json:"checked_at"`
 }
 
-// Collector periodically polls registered HealthProviders and aggregates their diagnostics.
 type Collector struct {
 	mu           sync.RWMutex
 	interval     time.Duration
@@ -43,7 +38,6 @@ type Collector struct {
 	timeout      time.Duration
 }
 
-// NewCollector constructs a new health Collector with the given interval and initial providers.
 func NewCollector(interval time.Duration, providers ...plugin.HealthProvider) *Collector {
 	if interval <= 0 {
 		interval = DefaultInterval
@@ -58,7 +52,6 @@ func NewCollector(interval time.Duration, providers ...plugin.HealthProvider) *C
 	return c
 }
 
-// RegisterProvider adds a HealthProvider to the collector.
 func (c *Collector) RegisterProvider(p plugin.HealthProvider) {
 	if p == nil {
 		return
@@ -73,22 +66,18 @@ func (c *Collector) RegisterProvider(p plugin.HealthProvider) {
 	c.providers = append(c.providers, p)
 }
 
-// RegisterProviders registers multiple HealthProvider instances.
 func (c *Collector) RegisterProviders(providers ...plugin.HealthProvider) {
 	for _, p := range providers {
 		c.RegisterProvider(p)
 	}
 }
 
-// SetProviderSource sets a dynamic function to discover additional HealthProviders
-// (e.g. from the plugin registry).
 func (c *Collector) SetProviderSource(source func() []plugin.HealthProvider) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.source = source
 }
 
-// SetTimeout configures the timeout for executing provider checks.
 func (c *Collector) SetTimeout(t time.Duration) {
 	if t > 0 {
 		c.mu.Lock()
@@ -97,7 +86,6 @@ func (c *Collector) SetTimeout(t time.Duration) {
 	}
 }
 
-// Start begins periodic polling of health providers in a background goroutine.
 func (c *Collector) Start(ctx context.Context) {
 	c.mu.Lock()
 	if c.running {
@@ -109,7 +97,6 @@ func (c *Collector) Start(ctx context.Context) {
 	interval := c.interval
 	c.mu.Unlock()
 
-	// Perform initial collection immediately
 	rep := c.Collect(ctx)
 	if rep.Overall == plugin.HealthError {
 		slog.Warn("monitor: initial collection reported error status")
@@ -135,7 +122,6 @@ func (c *Collector) Start(ctx context.Context) {
 	}()
 }
 
-// Stop terminates the background collection loop.
 func (c *Collector) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -146,7 +132,6 @@ func (c *Collector) Stop() {
 	close(c.stopCh)
 }
 
-// Collect executes checks across all providers and stores the aggregated result.
 func (c *Collector) Collect(ctx context.Context) HealthReport {
 	c.mu.RLock()
 	var allProviders []plugin.HealthProvider
@@ -209,7 +194,6 @@ func (c *Collector) Collect(ctx context.Context) HealthReport {
 
 	wg.Wait()
 
-	// Derive overall status
 	overall := plugin.HealthOK
 	for _, r := range results {
 		if r.Status == plugin.HealthError {
@@ -233,8 +217,6 @@ func (c *Collector) Collect(ctx context.Context) HealthReport {
 	return report
 }
 
-// LatestReport returns the most recently collected HealthReport.
-// If no report has been collected yet, it triggers an immediate synchronous collection.
 func (c *Collector) LatestReport(ctx context.Context) HealthReport {
 	c.mu.RLock()
 	report := c.latestReport

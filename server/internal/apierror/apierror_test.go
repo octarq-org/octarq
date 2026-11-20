@@ -16,7 +16,6 @@ import (
 func TestNewSuppresses5xxDetails(t *testing.T) {
 	internalErr := errors.New("sql: connection pool exhausted; table users corrupted at /var/lib/data")
 
-	// 500 error: internal details must not be in Details
 	e500 := New(http.StatusInternalServerError, "", "database error", internalErr)
 	if len(e500.Details) != 0 {
 		t.Errorf("500 error must not leak details into Details slice, got: %+v", e500.Details)
@@ -30,7 +29,6 @@ func TestNewSuppresses5xxDetails(t *testing.T) {
 		t.Errorf("unexpected 500 json: %s", string(b500))
 	}
 
-	// 400 error: user error details must be preserved
 	validationErr := errors.New("field 'email' is invalid")
 	e400 := New(http.StatusBadRequest, "", "validation failed", validationErr)
 	if len(e400.Details) != 1 {
@@ -157,7 +155,6 @@ func TestAdd(t *testing.T) {
 		t.Errorf("expected 'test error', got %q", e.Details[0].Message)
 	}
 
-	// Test huma.ErrorDetailer implementation
 	detailErr := &mockDetailer{msg: "detail message"}
 	e.Add(detailErr)
 	if len(e.Details) != 2 {
@@ -180,13 +177,11 @@ func TestWithRequestID(t *testing.T) {
 		t.Errorf("expected original error when ctx is nil, got %v", got)
 	}
 
-	// Context without request ID
 	eNoID := New(http.StatusBadRequest, "", "test").WithRequestID(context.Background())
 	if eNoID.RequestID != "" {
 		t.Errorf("expected empty request ID, got %q", eNoID.RequestID)
 	}
 
-	// Context with request ID
 	ctx := context.WithValue(context.Background(), server.RequestIDKey, "req-12345")
 	eWithID := New(http.StatusBadRequest, "", "test").WithRequestID(ctx)
 	if eWithID.RequestID != "req-12345" {

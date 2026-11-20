@@ -8,12 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
-// The streaming path and the non-streaming path are one loop with two
-// transports. A call the model wrote wrongly must be reported on both: a
-// model that believes it called a tool stops asking for the result.
-
-// lastToolMessage returns the content of the last tool message in the
-// history, or an empty string when the history holds none.
 func lastToolMessage(s *Session) string {
 	for i := len(s.History) - 1; i >= 0; i-- {
 		if s.History[i].Role == "tool" {

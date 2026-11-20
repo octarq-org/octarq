@@ -32,17 +32,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// hostRuntime implements plugin.Host.
 type hostRuntime struct {
 	session  plugin.HostSession
 	crypto   plugin.CryptoVault
 	settings plugin.SettingsStore
 	events   plugin.EventSpine
 	db       *gorm.DB
-	// services is the plugin service registry. The ledger and the published
-	// harness are business features supplied by a plugin, so this host never
-	// owns them: every call resolves the provider at call time, and a build
-	// without that plugin reports the fail-closed answer instead.
 	services *plugin.Registry
 }
 
@@ -61,13 +56,6 @@ func (h *hostRuntime) TenantDB(orgID uint) *plugin.TenantDB {
 	return tdb
 }
 
-// HarnessSpec returns the workspace's published agent harness as its
-// canonical JSON document.
-//
-// A nil document means the workspace has published none, or this build ships no
-// harness provider: the caller uses the built-in default. An error means a
-// published harness exists but could not be read — the caller must fail closed
-// rather than run a different harness.
 func (h *hostRuntime) HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error) {
 	if h == nil || h.services == nil {
 		return nil, nil
@@ -79,11 +67,6 @@ func (h *hostRuntime) HarnessSpec(ctx context.Context, orgID uint) (json.RawMess
 	return provider.HarnessSpec(ctx, orgID)
 }
 
-// LookupCredential resolves third-party integration credentials via the
-// ServiceCredentialResolver SPI (registered by the Pro integrations module).
-// Returns ErrCredentialResolverUnavailable when no resolver is registered
-// (standalone Core OSS) and ErrCredentialNotFound when the resolver has no
-// matching credential.
 func (h *hostRuntime) LookupCredential(ctx context.Context, orgID uint, query plugin.CredentialQuery) (*plugin.Credential, error) {
 	if h == nil || h.services == nil {
 		return nil, plugin.ErrCredentialResolverUnavailable
@@ -97,12 +80,6 @@ func (h *hostRuntime) LookupCredential(ctx context.Context, orgID uint, query pl
 
 var _ plugin.Host = (*hostRuntime)(nil)
 
-// Workforce returns the agent ledger plugins bill their turns against.
-//
-// The ledger is supplied by the workforce plugin, which registers it during
-// Mount. A build without that plugin has no ledger, and the returned service
-// reports ErrWorkforceUnavailable rather than a zero-cost answer: a turn nobody
-// billed is worse than a turn that was refused.
 func (h *hostRuntime) Workforce() plugin.Workforce {
 	if h == nil || h.services == nil {
 		return plugin.EnsureHost(nil).Workforce()
@@ -114,7 +91,6 @@ func (h *hostRuntime) Workforce() plugin.Workforce {
 	return ledger
 }
 
-// pluginContextParams collects dependencies needed to construct a plugin.Context.
 type pluginContextParams struct {
 	apiHandler      *api.Handler
 	gdb             *gorm.DB
@@ -137,8 +113,6 @@ type pluginContextParams struct {
 	plugins         []plugin.Plugin
 }
 
-// buildPluginContext constructs a unified plugin.Context with high-cohesion Host runtime capabilities
-// and delegates legacy closure fields directly to the underlying host components.
 func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	db := params.gdb
 	if db == nil && a != nil {
@@ -306,9 +280,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 			return params.apiHandler.LLMProviderForOrg(orgID)
 		},
 		RecordUsage: func(orgID uint, metric string, n int64) {
-			// Lazily resolved on every call: the provider (Pro's cloud module) may
-			// mount after the plugin that meters, so a Mount-time Lookup would
-			// silently never find it.
 			if params.services != nil {
 				if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](params.services.Lookup, plugin.ServiceCloudUsage); ok {
 					fn(orgID, metric, n)
@@ -395,17 +366,10 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		}
 	}
 
-	// Neither hook is HTTP-specific, so both are wired in every mode. An entity
-	// declared by a module resolves its owner through them at Mount; leaving
-	// them nil in the MCP process would refuse that boot.
 	pctx.FeatureActive = func(orgID uint, featureKey string) bool {
 		if plugin.FeatureIsCore(pluginsList, featureKey) {
 			return true
 		}
-		// Unlike the route gate, this answers for content that is listed
-		// before a workspace is chosen (help docs). PluginEnabled fails
-		// closed at orgID 0 by design, so ask for the declared default
-		// instead of inheriting a "disabled" that only means "no org yet".
 		if orgID == 0 {
 			if params.apiHandler != nil {
 				return params.apiHandler.FeatureDefaultEnabled(featureKey)
@@ -417,10 +381,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		}
 		return false
 	}
-	// Personal data is resolved per user, not per session org: the MCP and cron
-	// paths carry no request, so they need the same answer the HTTP session
-	// gives. A nil db or a user without a personal org yields 0, which plugins
-	// must treat as "refuse", never as "use the active org".
 	pctx.PersonalOrgID = func(userID uint) uint {
 		return auth.PersonalOrgID(db, userID)
 	}

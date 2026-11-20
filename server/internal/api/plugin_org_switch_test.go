@@ -1,14 +1,5 @@
 package api
 
-// Plugin toggles across a *workspace switch*.
-//
-// TestPluginToggleIsolatedPerOrg already covers the boundary, but it fabricates
-// one pre-baked session per org, each belonging to a different user. That is not
-// how the dashboard works: one user belongs to several orgs and moves between
-// them with POST /api/auth/switch-org, which re-issues the session cookie with a
-// new active org. These tests drive that real path, because a leak that only
-// shows up after a switch would be invisible to the pre-baked-session test.
-
 import (
 	"encoding/json"
 	"net/http"
@@ -17,7 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// switchTo performs the real workspace switch and returns the re-issued cookies.
 func switchTo(t *testing.T, srv http.Handler, cookies []*http.Cookie, orgID uint) []*http.Cookie {
 	t.Helper()
 	rec := do(srv, "POST", "/api/auth/switch-org", cookies, `{"orgId":`+itoa(orgID)+`}`)
@@ -31,22 +21,17 @@ func switchTo(t *testing.T, srv http.Handler, cookies []*http.Cookie, orgID uint
 	return fresh
 }
 
-// featureEnabled reads one feature's enabled flag as the dashboard's plugin
-// manager sees it.
 func featureEnabled(t *testing.T, srv http.Handler, cookies []*http.Cookie, key string) bool {
 	t.Helper()
 	return feature(t, srv, cookies, key).Enabled
 }
 
-// TestPluginToggleDoesNotLeakAcrossWorkspaceSwitch is the reported bug: toggle a
-// feature in workspace A, switch to workspace B, and B shows A's state.
 func TestPluginToggleDoesNotLeakAcrossWorkspaceSwitch(t *testing.T) {
 	h, srv, db := newTestHandlerWithInstance(t)
 	h.SetPlugins(mailDependsOnDNS())
 
 	const orgA, orgB = uint(911), uint(912)
 
-	// One user, member of both workspaces — the shape the switcher requires.
 	u := models.User{Email: t.Name() + "+multi@x.com"}
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatalf("create user: %v", err)
@@ -66,7 +51,6 @@ func TestPluginToggleDoesNotLeakAcrossWorkspaceSwitch(t *testing.T) {
 		t.Fatalf("dns should be on in workspace A right after enabling it")
 	}
 
-	// Switch to B on the same session.
 	sess = switchTo(t, srv, sess, orgB)
 
 	if featureEnabled(t, srv, sess, "dns") {
@@ -81,7 +65,6 @@ func TestPluginToggleDoesNotLeakAcrossWorkspaceSwitch(t *testing.T) {
 		}
 	}
 
-	// Toggling in B must not reach back into A.
 	if rec := do(srv, "PUT", "/api/plugins/links", sess, `{"enabled":true}`); rec.Code != http.StatusOK {
 		t.Fatalf("enable links in B: got %d", rec.Code)
 	}
@@ -94,10 +77,6 @@ func TestPluginToggleDoesNotLeakAcrossWorkspaceSwitch(t *testing.T) {
 	}
 }
 
-// TestMenusFollowWorkspaceSwitch: the sidebar is backend-driven, so /api/menus
-// must answer for the *switched-to* workspace. If it kept answering for the old
-// org, a user would see A's menus while looking at B's data — which is how a
-// leak like this gets noticed in the first place.
 func TestMenusFollowWorkspaceSwitch(t *testing.T) {
 	h, srv, db := newTestHandlerWithInstance(t)
 	h.SetPlugins(mailDependsOnDNS())

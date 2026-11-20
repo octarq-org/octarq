@@ -19,23 +19,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// PluginEnabled reports whether the given feature key is enabled for the
-// workspace. A row that was never toggled falls back to the feature's declared
-// default (FeatureDefaultEnabled). Used by the route gate (app wraps every
-// plugin handler with this check) and the menu filter. The key is a plugin's
-// group, or its name when ungrouped.
 func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
-	// No workspace in the session → fail closed, per the org-scoping invariant
-	// pinned by TestOrgIDNoDefaultAndFailClosed. Callers that legitimately have
-	// no workspace (help docs listed before an org is picked) ask
-	// FeatureDefaultEnabled directly instead of coming through here.
 	if orgID == 0 {
 		return false
 	}
 	var ps models.PluginSetting
 	err := h.db.Where("org_id = ? AND plugin = ?", orgID, featureKey).First(&ps).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Never toggled: fall back to the feature's declared default.
 		return h.FeatureDefaultEnabled(featureKey)
 	}
 	if err != nil {
@@ -44,13 +34,6 @@ func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
 	return ps.Enabled
 }
 
-// FeatureDefaultEnabled returns the pre-toggle default (Info.EnabledByDefault)
-// for the feature identified by key, or false if no such plugin is registered.
-// Any member declaring the default is enough: siblings sharing a feature key
-// toggle as one, so an opt-out half makes the whole feature opt-out.
-//
-// Exported because the app-level plugin Context wiring needs it for callers
-// that legitimately have no workspace to scope against.
 func (h *Handler) FeatureDefaultEnabled(featureKey string) bool {
 	for _, p := range h.plugins {
 		if plugin.FeatureKey(p) == featureKey && plugin.Describe(p).EnabledByDefault {
@@ -60,16 +43,10 @@ func (h *Handler) FeatureDefaultEnabled(featureKey string) bool {
 	return false
 }
 
-// pluginActive reports whether a plugin's routes/menus should be live for the
-// workspace: core plumbing is always on; every other plugin follows its
-// feature's per-workspace toggle.
 func (h *Handler) pluginActive(orgID uint, p plugin.Plugin) bool {
 	return h.featureActive(orgID, plugin.FeatureKey(p))
 }
 
-// featureActive answers for one feature key, which is what a menu entry carries
-// when it belongs to another plugin's feature. Core plumbing ignores the stored
-// toggle entirely, so asking about it is the same as asking about its plugin.
 func (h *Handler) featureActive(orgID uint, featureKey string) bool {
 	if plugin.FeatureIsCore(h.plugins, featureKey) {
 		return true
@@ -77,11 +54,6 @@ func (h *Handler) featureActive(orgID uint, featureKey string) bool {
 	return h.PluginEnabled(orgID, featureKey)
 }
 
-// activePlugins returns the plugins that are live for the workspace. The MCP
-// transport builds its tool list from this set, so turning a feature off also
-// removes its agent tools: the toggle is the customer's kill switch, and a
-// disabled plugin that keeps answering an MCP call would be a second, invisible
-// switch. orgID 0 yields no plugins, matching PluginEnabled's fail-closed rule.
 func (h *Handler) activePlugins(orgID uint) []plugin.Plugin {
 	if orgID == 0 {
 		return nil
@@ -95,13 +67,6 @@ func (h *Handler) activePlugins(orgID uint) []plugin.Plugin {
 	return out
 }
 
-// dependencyConflictError is the 409 returned when a workspace tries to disable
-// a feature that another enabled feature declares in its Requires set.
-//
-// It implements huma.StatusError so the dependent names ship as a real JSON
-// field. The UI lists them ("Mail is using DNS — turn Mail off first"), and
-// huma's generic `errors` array is a list of validation messages, not a place
-// to hide structured data a client has to parse back out.
 type dependencyConflictError struct {
 	Status     int      `json:"status"`
 	Title      string   `json:"title"`
@@ -116,8 +81,6 @@ func (e *dependencyConflictError) Error() string {
 	return fmt.Sprintf("%s is required by %s", e.Feature, strings.Join(e.Dependents, ", "))
 }
 
-// MarshalJSON fills the envelope fields lazily so callers only have to set
-// Feature and Dependents.
 func (e *dependencyConflictError) MarshalJSON() ([]byte, error) {
 	type alias dependencyConflictError
 	out := alias(*e)
@@ -127,7 +90,6 @@ func (e *dependencyConflictError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(out)
 }
 
-// pluginMenuOut mirrors a plugin menu link for the management UI.
 type pluginMenuOut struct {
 	ID       string `json:"id"`
 	Label    string `json:"label"`
@@ -139,22 +101,18 @@ type pluginMenuOut struct {
 	External bool   `json:"external"`
 }
 
-// featureOut is one toggleable feature in the plugin manager. Plugins sharing a
-// group collapse into a single feature whose menus are the union of members'.
 type featureOut struct {
-	Key         string   `json:"key"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Icon        string   `json:"icon,omitempty"`
-	Category    string   `json:"category,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Enabled     bool     `json:"enabled"`
-	// Core marks always-on plumbing. The row is listed but its switch is dead:
-	// updatePlugin answers 404 for a core key, so the UI renders it locked on.
-	Core       bool            `json:"core"`
-	Requires   []string        `json:"requires"`
-	RequiredBy []string        `json:"requiredBy"`
-	Menus      []pluginMenuOut `json:"menus"`
+	Key         string          `json:"key"`
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	Icon        string          `json:"icon,omitempty"`
+	Category    string          `json:"category,omitempty"`
+	Tags        []string        `json:"tags,omitempty"`
+	Enabled     bool            `json:"enabled"`
+	Core        bool            `json:"core"`
+	Requires    []string        `json:"requires"`
+	RequiredBy  []string        `json:"requiredBy"`
+	Menus       []pluginMenuOut `json:"menus"`
 }
 
 func (h *Handler) getFeatureDeps() (map[string]string, map[string][]string) {
@@ -185,12 +143,6 @@ func (h *Handler) getFeatureDeps() (map[string]string, map[string][]string) {
 	return nameToFeatureKey, requires
 }
 
-// listPlugins returns the features visible to the caller's workspace, grouped by
-// feature key, with its per-workspace enabled state and the menu links it owns
-// (so the UI can toggle it and the sidebar can hide the right items).
-//
-// Core plumbing is listed too, flagged Core and always Enabled (updatePlugin 404s on a core key).
-// GET /api/plugins
 type ListPluginsInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -236,9 +188,6 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 	}
 
-	// requiredBy counts only *enabled* dependents — a disabled feature must not
-	// lock one the workspace is free to turn off. Sorted because map iteration
-	// order would otherwise reshuffle the list on every request.
 	requiredBy := make(map[string][]string)
 	for fKey, reqs := range requires {
 		if effectiveEnabled[fKey] {
@@ -253,10 +202,6 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 
 	order := []string{}
 	byKey := map[string]*featureOut{}
-	// A menu entry may belong to another feature: the ontology plugin publishes
-	// one per declared entity on behalf of the plugin that declared it. Entries
-	// are collected with the feature that owns them and attached after the loop,
-	// so a card lists the pages its own toggle governs and no others.
 	type ownedMenu struct {
 		feature string
 		menu    pluginMenuOut
@@ -292,14 +237,11 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 				Icon:        info.Icon,
 				Category:    cat,
 				Tags:        info.Tags,
-				// Core plumbing ignores the stored toggle entirely (pluginActive
-				// short-circuits before reading it), so report what is actually
-				// running rather than a row that may say otherwise.
-				Enabled:    isCore || effectiveEnabled[key],
-				Core:       isCore,
-				Requires:   fReqs,
-				RequiredBy: fReqBy,
-				Menus:      []pluginMenuOut{},
+				Enabled:     isCore || effectiveEnabled[key],
+				Core:        isCore,
+				Requires:    fReqs,
+				RequiredBy:  fReqBy,
+				Menus:       []pluginMenuOut{},
 			}
 			byKey[key] = f
 			order = append(order, key)
@@ -343,8 +285,6 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 	}
 
-	// A key no plugin answers to has no card to show the entry on, so the entry
-	// is dropped rather than attached to whichever card was built last.
 	for _, om := range ownedMenus {
 		if f := byKey[om.feature]; f != nil {
 			f.Menus = append(f.Menus, om.menu)
@@ -385,9 +325,6 @@ type UpdatePluginOutput struct {
 	Body UpdatePluginOutputBody
 }
 
-// updatePlugin enables or disables a feature for the caller's workspace. Only an
-// owner or admin may change it, since it flips whole feature areas on or off.
-// PUT /api/plugins/{name}  {"enabled": true}   (name is the feature key)
 func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*UpdatePluginOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -443,10 +380,6 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 			}
 		}
 		if len(dependents) > 0 {
-			// Sorted so the message is stable across requests (map iteration
-			// order is not), and carried as a typed `dependents` field rather
-			// than smuggled through huma's validation-error list — the UI
-			// renders the names, so they need to survive as data.
 			sort.Strings(dependents)
 			return nil, &dependencyConflictError{Feature: key, Dependents: dependents}
 		}

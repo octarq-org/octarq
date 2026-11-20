@@ -27,8 +27,6 @@ func newStore(t *testing.T, opts ...Option) (*Store, *gorm.DB) {
 	return New(gdb, opts...), gdb
 }
 
-// countingHandler answers 201 with a body that changes every call, so a
-// replayed response is distinguishable from a re-executed one.
 func countingHandler(calls *atomic.Int32) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n := calls.Add(1)
@@ -51,8 +49,6 @@ func post(t *testing.T, h http.Handler, key, body string) *httptest.ResponseReco
 	return w
 }
 
-// TestReplayReturnsFirstResponseWithoutRunningHandler is the whole point: the
-// second POST with the same key must not send a second email.
 func TestReplayReturnsFirstResponseWithoutRunningHandler(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -81,7 +77,6 @@ func TestReplayReturnsFirstResponseWithoutRunningHandler(t *testing.T) {
 	}
 }
 
-// TestNoKeyMeansNoDeduplication: the mechanism is opt-in per request.
 func TestNoKeyMeansNoDeduplication(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -94,7 +89,6 @@ func TestNoKeyMeansNoDeduplication(t *testing.T) {
 	}
 }
 
-// TestSafeMethodsBypass: GET is already idempotent and must not be captured.
 func TestSafeMethodsBypass(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -109,8 +103,6 @@ func TestSafeMethodsBypass(t *testing.T) {
 	}
 }
 
-// TestKeyScopedPerOrgAndEndpoint: the same key string from another workspace,
-// or against another endpoint, is a different operation.
 func TestKeyScopedPerOrgAndEndpoint(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -135,8 +127,6 @@ func TestKeyScopedPerOrgAndEndpoint(t *testing.T) {
 	}
 }
 
-// TestKeyReuseWithDifferentBodyIsRejected: replaying an unrelated stored
-// response would be worse than an error.
 func TestKeyReuseWithDifferentBodyIsRejected(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -153,8 +143,6 @@ func TestKeyReuseWithDifferentBodyIsRejected(t *testing.T) {
 	}
 }
 
-// TestConcurrentDuplicateGetsConflictNotDoubleExecution covers the real race:
-// the client's retry arrives while the original is still running.
 func TestConcurrentDuplicateGetsConflictNotDoubleExecution(t *testing.T) {
 	s, _ := newStore(t)
 	var calls atomic.Int32
@@ -192,8 +180,6 @@ func TestConcurrentDuplicateGetsConflictNotDoubleExecution(t *testing.T) {
 	}
 }
 
-// TestServerErrorReleasesTheKey: a 500 must not be cached, or the client's
-// retry (the entire reason for the header) is answered with the failure.
 func TestServerErrorReleasesTheKey(t *testing.T) {
 	s, gdb := newStore(t)
 	var calls atomic.Int32
@@ -221,8 +207,6 @@ func TestServerErrorReleasesTheKey(t *testing.T) {
 	}
 }
 
-// TestPanicReleasesTheKey: a handler panic must not leave the key stuck
-// "in progress" forever.
 func TestPanicReleasesTheKey(t *testing.T) {
 	s, gdb := newStore(t)
 	h := s.Middleware(org7)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +225,6 @@ func TestPanicReleasesTheKey(t *testing.T) {
 	}
 }
 
-// TestExpiredKeyIsReclaimed: past the TTL the same key is a new operation.
 func TestExpiredKeyIsReclaimed(t *testing.T) {
 	now := time.Now()
 	s, _ := newStore(t, WithTTL(time.Minute), WithClock(func() time.Time { return now }))
@@ -284,8 +267,6 @@ func TestPurgeDropsExpiredOnly(t *testing.T) {
 	}
 }
 
-// TestUnscopedRequestBypasses: with no workspace resolved there is no tenant
-// namespace to file the key under, so it must not be stored globally.
 func TestUnscopedRequestBypasses(t *testing.T) {
 	s, gdb := newStore(t)
 	var calls atomic.Int32
@@ -315,8 +296,6 @@ func TestOversizedKeyRejected(t *testing.T) {
 	}
 }
 
-// TestHandlerStillSeesTheBody guards the body-buffering: reading the request
-// for hashing must not consume it out from under the handler.
 func TestHandlerStillSeesTheBody(t *testing.T) {
 	s, _ := newStore(t)
 	var got string
@@ -332,8 +311,6 @@ func TestHandlerStillSeesTheBody(t *testing.T) {
 	}
 }
 
-// TestOversizedResponseIsNotStored: replaying a truncated body would be worse
-// than not replaying, so a response past the ceiling is served but not kept.
 func TestOversizedResponseIsNotStored(t *testing.T) {
 	s, _ := newStore(t, WithMaxBody(16))
 	var calls atomic.Int32
@@ -362,8 +339,6 @@ func TestOversizedResponseIsNotStored(t *testing.T) {
 	}
 }
 
-// TestOversizedRequestRejected: a request too large to hash cannot be
-// de-duplicated, and answering it anyway would be a silent false promise.
 func TestOversizedRequestRejected(t *testing.T) {
 	s, _ := newStore(t, WithMaxBody(8))
 	var calls atomic.Int32
@@ -376,8 +351,6 @@ func TestOversizedRequestRejected(t *testing.T) {
 	}
 }
 
-// TestFlushingHandlerStillWorks: a streaming handler must keep streaming; its
-// response is simply not stored for replay.
 func TestFlushingHandlerStillWorks(t *testing.T) {
 	s, _ := newStore(t)
 	h := s.Middleware(org7)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -398,9 +371,6 @@ func TestFlushingHandlerStillWorks(t *testing.T) {
 	}
 }
 
-// TestRecordSchemaIsPortableToPostgres ensures ResponseBody does not carry an explicit
-// gorm:"type:blob" tag, which causes PostgreSQL migrations to fail with
-// ERROR: type "blob" does not exist (SQLSTATE 42704).
 func TestRecordSchemaIsPortableToPostgres(t *testing.T) {
 	_, gdb := newStore(t)
 	stmt := &gorm.Statement{DB: gdb}

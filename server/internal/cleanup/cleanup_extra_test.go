@@ -11,7 +11,6 @@ import (
 )
 
 func TestCleanup_NegativeDaysAndEmptySessions(t *testing.T) {
-	// 1. Start with negative retention days
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -23,10 +22,8 @@ func TestCleanup_NegativeDaysAndEmptySessions(t *testing.T) {
 		t.Error("expected cleanup not to be called for negative retention days")
 	}
 
-	// 2. pruneAuditLogs with negative days
-	pruneAuditLogs(nil, -1) // should return immediately without panicking on nil DB
+	pruneAuditLogs(nil, -1)
 
-	// 3. StartSessionCleanup with 0 expired sessions
 	dbPath := filepath.Join(t.TempDir(), "cleanup_extra.db")
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
@@ -40,7 +37,6 @@ func TestCleanup_NegativeDaysAndEmptySessions(t *testing.T) {
 	cancel2()
 	StartSessionCleanup(ctx2, db, func() int { return 30 })
 
-	// 4. StartSessionCleanup on DB where tables don't exist (triggers error branches)
 	errDBPath := filepath.Join(t.TempDir(), "cleanup_empty.db")
 	errDB, err := gorm.Open(sqlite.Open(errDBPath), &gorm.Config{})
 	if err != nil {

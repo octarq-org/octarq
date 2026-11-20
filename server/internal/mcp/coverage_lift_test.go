@@ -27,20 +27,17 @@ func (dummyTenantViewPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 func TestCoverageLiftRegisterTenantViewAndRunWithPlugins(t *testing.T) {
 	gdb := setupExtraResourcesTestDB(t)
 
-	// 1. RegisterTenantView in NewServerInstance
 	srv := NewServerInstance(gdb, 1, []plugin.Plugin{dummyTenantViewPlugin{}}, nil)
 	if srv == nil {
 		t.Fatalf("expected non-nil server")
 	}
 
-	// 2. RunWithPlugins config load error with invalid driver
 	t.Setenv("OCTARQ_DB_DRIVER", "invalid_driver")
 	err := RunWithPlugins(context.Background(), nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "mcp: load config") {
 		t.Errorf("expected mcp: load config error, got %v", err)
 	}
 
-	// 3. RunWithPlugins db open error with unopenable sqlite DSN
 	t.Setenv("OCTARQ_SECRET_KEY", "abcdefghijklmnopqrstuvwxyz1234567890")
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "octarq-test-pw")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
@@ -57,11 +54,10 @@ func TestCoverageLiftExtraResourceErrorPaths(t *testing.T) {
 
 	s := &server{
 		gdb:   gdb,
-		orgID: 0, // Unscoped, so resolveOrg will error without context org
+		orgID: 0,
 		subs:  nil,
 	}
 
-	// 1. handleSubscribe when s.subs is nil
 	err := s.handleSubscribe(ctx, &mcp.SubscribeRequest{
 		Params: &mcp.SubscribeParams{URI: "octarq://test"},
 	})
@@ -72,13 +68,11 @@ func TestCoverageLiftExtraResourceErrorPaths(t *testing.T) {
 		t.Fatalf("expected uri to be added to subscriptions")
 	}
 
-	// 2. handleUnsubscribe invalid params
 	err = s.handleUnsubscribe(ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "missing unsubscribe URI") {
 		t.Errorf("expected missing unsubscribe URI error, got %v", err)
 	}
 
-	// handleUnsubscribe with s.subs == nil
 	s.subs = nil
 	err = s.handleUnsubscribe(ctx, &mcp.UnsubscribeRequest{
 		Params: &mcp.UnsubscribeParams{URI: "octarq://test"},
@@ -87,7 +81,6 @@ func TestCoverageLiftExtraResourceErrorPaths(t *testing.T) {
 		t.Errorf("expected nil error when s.subs is nil, got %v", err)
 	}
 
-	// 3. handleResourceLinksTrending error paths
 	_, err = s.handleResourceLinksTrending(ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "missing request params") {
 		t.Errorf("expected missing request params error, got %v", err)
@@ -107,7 +100,6 @@ func TestCoverageLiftExtraResourceErrorPaths(t *testing.T) {
 		t.Errorf("expected resolveOrg error when orgID is 0, got nil")
 	}
 
-	// 4. handleResourceMailboxLatest error paths
 	_, err = s.handleResourceMailboxLatest(ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "missing request params") {
 		t.Errorf("expected missing request params error, got %v", err)
@@ -127,7 +119,6 @@ func TestCoverageLiftExtraResourceErrorPaths(t *testing.T) {
 		t.Errorf("expected resolveOrg error when orgID is 0, got nil")
 	}
 
-	// handleResourceMailboxLatest when gdb is nil
 	sNilDB := &server{gdb: nil, orgID: 1}
 	res, err := sNilDB.handleResourceMailboxLatest(ctx, &mcp.ReadResourceRequest{
 		Params: &mcp.ReadResourceParams{URI: "octarq://mailboxes/1/latest"},
@@ -136,7 +127,6 @@ func TestCoverageLiftExtraResourceErrorPaths(t *testing.T) {
 		t.Errorf("expected successful empty resource when gdb is nil, got %v", err)
 	}
 
-	// 5. marshalResource with unmarshalable object (channels)
 	_, err = marshalResource("octarq://test", make(chan int))
 	if err == nil {
 		t.Errorf("expected json marshal error, got nil")

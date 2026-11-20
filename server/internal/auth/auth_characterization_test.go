@@ -90,7 +90,6 @@ func TestCharacterization_SessionLifecycleAndRevocation(t *testing.T) {
 	db := newTestDB(t)
 	m := newTestManager(t, db)
 
-	// 1. Establish session from request
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/api/test", nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0")
 	rec := httptest.NewRecorder()
@@ -109,7 +108,6 @@ func TestCharacterization_SessionLifecycleAndRevocation(t *testing.T) {
 		t.Fatal("expected session cookie to be set")
 	}
 
-	// 2. Authenticate subsequent request
 	authedReq := httptest.NewRequest(http.MethodGet, "http://example.com/api/test", nil)
 	authedReq.AddCookie(sessionCookie)
 
@@ -123,10 +121,8 @@ func TestCharacterization_SessionLifecycleAndRevocation(t *testing.T) {
 		t.Fatalf("expected OrgID 20, got %d", got)
 	}
 
-	// 3. Touch session
 	m.TouchSession(authedReq)
 
-	// 4. Revoke user org sessions
 	revoked := m.RevokeUserOrgSessions(10, 20)
 	if revoked != 1 {
 		t.Fatalf("expected 1 session revoked, got %d", revoked)
@@ -166,7 +162,6 @@ func TestCharacterization_TokenBearerAuth(t *testing.T) {
 		t.Fatal("expected APIAuthed to return true for bearer token")
 	}
 
-	// Middleware check
 	authedReq, ok := m.AuthenticateRequest(req)
 	if !ok {
 		t.Fatal("expected AuthenticateRequest to succeed")
@@ -175,7 +170,6 @@ func TestCharacterization_TokenBearerAuth(t *testing.T) {
 		t.Fatalf("expected token ID %d, got %d", tok.ID, got)
 	}
 
-	// Revoke token
 	n := m.RevokeUserOrgTokens(15, 25)
 	if n != 1 {
 		t.Fatalf("expected 1 token revoked, got %d", n)

@@ -12,10 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestPurgeRemovesOnlyTheWorkspaceItWasGiven pins the seam the platform calls
-// before it deletes an org. A generated table is nobody else's to clean up: with
-// no service under plugin.PurgeServiceName("ontology"), every deleted workspace
-// leaves its declared rows behind, silently.
 func TestPurgeRemovesOnlyTheWorkspaceItWasGiven(t *testing.T) {
 	db := openDocDB(t, ticketDoc)
 	t.Setenv(EntitiesEnv, ticketDoc)
@@ -41,7 +37,6 @@ func TestPurgeRemovesOnlyTheWorkspaceItWasGiven(t *testing.T) {
 			plugin.PurgeServiceName("ontology"))
 	}
 
-	// One row per workspace, written the way the plugin writes them.
 	e := ticketEntity(t)
 	table := core.TableName("tickets")
 	for _, org := range []uint{1, 2} {
@@ -72,7 +67,6 @@ func TestPurgeRemovesOnlyTheWorkspaceItWasGiven(t *testing.T) {
 		}
 	}
 
-	// No workspace is not "delete nothing and report success".
 	if err := purge(0); err == nil {
 		t.Fatal("purge(0) = nil, want a refusal")
 	}

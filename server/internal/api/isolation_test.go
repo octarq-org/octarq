@@ -1,11 +1,5 @@
 package api
 
-// Tenant-isolation security tests.
-//
-// Every "cross-org" sub-test creates a resource as org 1, then attempts to
-// read / mutate / delete it as org 2 and asserts 404 (not 200/204/403).
-// Returning 404 instead of 403 is intentional — it avoids leaking existence.
-
 import (
 	"encoding/json"
 	"fmt"
@@ -22,7 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// sessionCookies returns the cookies that represent a session for (uid, orgID).
 func sessionCookies(t *testing.T, uid, orgID uint) []*http.Cookie {
 	t.Helper()
 	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
@@ -30,11 +23,6 @@ func sessionCookies(t *testing.T, uid, orgID uint) []*http.Cookie {
 	if err != nil {
 		t.Fatalf("sessionCookies open db: %v", err)
 	}
-	// A user who can log in and act on a workspace is a member of it, so give the
-	// session a matching membership row — without one, callerOrgRole resolves to
-	// "" and every role gate refuses, which is correct behaviour but not what
-	// these tests are about. FirstOrCreate so a test that seeded a specific role
-	// (see role_baseline_test.go) keeps it rather than being promoted to owner.
 	if uid != 0 && orgID != 0 {
 		var mem models.OrgMember
 		db.Where("org_id = ? AND user_id = ?", orgID, uid).
@@ -48,8 +36,6 @@ func sessionCookies(t *testing.T, uid, orgID uint) []*http.Cookie {
 	return rec.Result().Cookies()
 }
 
-// do is a small helper that fires a request against srv with optional cookies
-// and an optional JSON body, returning the response recorder.
 func do(srv http.Handler, method, path string, cookies []*http.Cookie, body string) *httptest.ResponseRecorder {
 	var bodyReader *strings.Reader
 	if body != "" {
@@ -69,8 +55,6 @@ func do(srv http.Handler, method, path string, cookies []*http.Cookie, body stri
 	return rec
 }
 
-// --- unauthenticated ---
-
 func TestUnauthenticated(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	endpoints := []struct{ method, path string }{
@@ -85,8 +69,6 @@ func TestUnauthenticated(t *testing.T) {
 		}
 	}
 }
-
-// --- token isolation ---
 
 func TestOrgIsolation_Tokens(t *testing.T) {
 	srv, _ := newTestHandler(t)
@@ -104,28 +86,20 @@ func TestOrgIsolation_Tokens(t *testing.T) {
 	json.Unmarshal(rec.Body.Bytes(), &tok)
 	path := fmt.Sprintf("/api/tokens/%d", tok.ID)
 
-	// Org 2 must not delete org 1's token.
 	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
 		t.Errorf("cross-org DELETE token: got %d, want 404", rec.Code)
 	}
-	// Org 2's token list must not include org 1's token.
 	if rec := do(srv, http.MethodGet, "/api/tokens", org2, ""); strings.Contains(rec.Body.String(), "org1tok") {
 		t.Error("org2 token list leaked org1's token")
 	}
-	// Org 1 can still delete its own token.
 	if rec := do(srv, http.MethodDelete, path, org1, ""); rec.Code != http.StatusOK {
 		t.Errorf("org1 self-delete token: got %d, want 200", rec.Code)
 	}
 }
 
-// --- bearer token org isolation ---
-//
-// A bearer token belongs to org 1. It must only see org 1's links, not org 2's.
-
 func TestBearerTokenOrgIsolation(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Token for Org 1
 	rawTok1 := "oct_bearertesttoken1111111111111111111"
 	db.Create(&models.Token{
 		OrgID:  1,
@@ -134,7 +108,6 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 		Prefix: rawTok1[:8],
 	})
 
-	// Token for Org 2
 	rawTok2 := "oct_bearertesttoken2222222222222222222"
 	db.Create(&models.Token{
 		OrgID:  2,
@@ -143,7 +116,6 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 		Prefix: rawTok2[:8],
 	})
 
-	// Test Token 1
 	req1 := httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
 	req1.Header.Set("Authorization", "Bearer "+rawTok1)
 	rec1 := httptest.NewRecorder()
@@ -157,7 +129,6 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 		t.Error("bearer token 1 leaked org2's token")
 	}
 
-	// Test Token 2
 	req2 := httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
 	req2.Header.Set("Authorization", "Bearer "+rawTok2)
 	rec2 := httptest.NewRecorder()
@@ -172,18 +143,10 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 	}
 }
 
-// --- email isolation ---
-// --- MCP token org-0 fail-closed ---
-//
-// The networked MCP tools default an unresolved org to tenant 1. A token
-// carrying owner_id 0 must therefore be refused at the auth boundary rather
-// than silently scoped to tenant 1's data.
-
 func TestMCPTokenZeroOrgRejected(t *testing.T) {
 	srv, db := newTestHandler(t)
 
 	rawTok := "oct_zeroorgtoken000000000000000000000"
-	// Force owner_id 0 past the column default via an explicit update.
 	tok := models.Token{OrgID: 1, Name: "zero-org", Hash: models.HashToken(rawTok), Prefix: rawTok[:8]}
 	if err := db.Create(&tok).Error; err != nil {
 		t.Fatalf("create token: %v", err)
@@ -200,22 +163,15 @@ func TestMCPTokenZeroOrgRejected(t *testing.T) {
 	}
 }
 
-// --- session revocation ---
-//
-// A user can list and revoke their own sessions; one tenant cannot revoke
-// another's session by ID, and a revoked session's cookie stops authenticating.
-
 func TestSessionRevocation(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	org1 := sessionCookies(t, 1, 1)
 	org2 := sessionCookies(t, 2, 2)
 
-	// The session works before revocation.
 	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusOK {
 		t.Fatalf("valid session rejected: %d", rec.Code)
 	}
 
-	// List org1's sessions and grab the id.
 	rec := do(srv, http.MethodGet, "/api/auth/sessions", org1, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list sessions: got %d — %s", rec.Code, rec.Body)
@@ -230,16 +186,13 @@ func TestSessionRevocation(t *testing.T) {
 	sid := sessions[0].ID
 	path := fmt.Sprintf("/api/auth/sessions/%d", sid)
 
-	// Org 2 must not revoke org 1's session (scoped by user_id → 404).
 	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
 		t.Errorf("cross-user revoke: got %d, want 404", rec.Code)
 	}
-	// The session must still work after the failed cross-user attempt.
 	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusOK {
 		t.Errorf("session wrongly killed by cross-user revoke: %d", rec.Code)
 	}
 
-	// Org 1 revokes its own session; the cookie stops authenticating.
 	if rec := do(srv, http.MethodDelete, path, org1, ""); rec.Code != http.StatusOK {
 		t.Fatalf("self revoke: got %d — %s", rec.Code, rec.Body)
 	}
@@ -248,18 +201,14 @@ func TestSessionRevocation(t *testing.T) {
 	}
 }
 
-// --- session token cannot be replayed after tampering ---
-
 func TestTamperedSessionIsRejected(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	org1 := sessionCookies(t, 1, 1)
 
-	// Confirm the unmodified cookie works.
 	if rec := do(srv, http.MethodGet, "/api/overview", org1, ""); rec.Code != http.StatusOK {
 		t.Fatalf("valid session rejected: %d", rec.Code)
 	}
 
-	// Corrupt the cookie value.
 	tampered := make([]*http.Cookie, len(org1))
 	copy(tampered, org1)
 	for i, c := range tampered {

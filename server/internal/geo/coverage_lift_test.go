@@ -56,7 +56,6 @@ func TestCoverageLift_AutoDownload_LoadFails(t *testing.T) {
 		return dummyFile, nil
 	}
 
-	// Should attempt r.Load(dummyFile), fail, log warning, and return cleanly
 	r.autoDownload(context.Background(), t.TempDir(), "test-license")
 	if r.db != nil {
 		t.Fatal("expected r.db to remain nil after failed load")
@@ -107,9 +106,9 @@ func TestCoverageLift_FetchChecksum_ReadError(t *testing.T) {
 
 func TestCoverageLift_Download_EmptyBaseURL(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // canceled context avoids hitting actual MaxMind network
+	cancel()
 	_, err := download(ctx, downloadOptions{
-		baseURL:    "", // triggers defaultBaseURL branch
+		baseURL:    "",
 		licenseKey: "dummy",
 	})
 	if err == nil {

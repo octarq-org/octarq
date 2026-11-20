@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// testEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
 type testEnvStore struct{ db *gorm.DB }
 
 func (s testEnvStore) Get(key string) (string, bool) {
@@ -46,11 +45,6 @@ func testManager(t *testing.T) *Manager {
 
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	// One process-wide database on purpose. Opening a *per-test* one means a
-	// *sql.DB per test, and origin's cache namespace is keyed on that pointer —
-	// Go reuses the address after a closed DB is collected, so the next test
-	// reads back a dead one's "no domain is registered here" and honours a
-	// forged Host. See origin.namespace.
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -109,14 +103,12 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 		}
 	}
 
-	// 1. Invalid token
 	reqBad := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	reqBad.AddCookie(&http.Cookie{Name: cookieName, Value: "garbage_token"})
 	if m.Authed(reqBad) {
 		t.Fatal("expected invalid token to be rejected")
 	}
 
-	// 2. Expired session (the DB stores only the SHA-256 hash of the cookie).
 	var s models.Session
 	if err := db.Where("token = ?", models.HashToken(tokCookie.Value)).First(&s).Error; err != nil {
 		t.Fatalf("failed to find session: %v", err)
@@ -132,7 +124,6 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 		t.Fatal("expected expired session to be rejected")
 	}
 
-	// 3. Clear session
 	rec2 := httptest.NewRecorder()
 	m.SetSession(rec2, httptest.NewRequest(http.MethodGet, "/", nil), 2, 42)
 	var tokCookie2 *http.Cookie
@@ -166,7 +157,6 @@ func TestRoleChangeInvalidatesSessions(t *testing.T) {
 		orgB = uint(102)
 	)
 
-	// Issue sessions for orgA and orgB
 	recA := httptest.NewRecorder()
 	m.SetSession(recA, httptest.NewRequest(http.MethodGet, "/", nil), uid, orgA)
 	var tokA *http.Cookie
@@ -197,18 +187,15 @@ func TestRoleChangeInvalidatesSessions(t *testing.T) {
 		t.Fatal("session B should be authed before revocation")
 	}
 
-	// Invalidate sessions for orgA
 	revoked := m.RevokeUserOrgSessions(uid, orgA)
 	if revoked == 0 {
 		t.Fatalf("RevokeUserOrgSessions revoked %d sessions, want >0", revoked)
 	}
 
-	// Session A must be unauthed now
 	if m.Authed(reqA) {
 		t.Fatal("session A should be unauthed after RevokeUserOrgSessions")
 	}
 
-	// Session B must still be authed (multi-org isolation)
 	if !m.Authed(reqB) {
 		t.Fatal("session B should remain authed after orgA revocation")
 	}
@@ -306,7 +293,6 @@ func TestRequireMiddleware(t *testing.T) {
 		fmt.Fprintf(w, "uid=%d,orgID=%d", uid, orgID)
 	}))
 
-	// Case 1: Unauthorized (no cookie, no bearer token)
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -314,7 +300,6 @@ func TestRequireMiddleware(t *testing.T) {
 		t.Errorf("expected 401, got %d", rec.Code)
 	}
 
-	// Case 2: Authorized via Session Cookie
 	recCookie := httptest.NewRecorder()
 	m.SetSession(recCookie, httptest.NewRequest(http.MethodGet, "/", nil), 42, 99)
 	reqCookie := httptest.NewRequest(http.MethodGet, "/api/test", nil)
@@ -330,7 +315,6 @@ func TestRequireMiddleware(t *testing.T) {
 		t.Errorf("expected 'uid=42,orgID=99', got '%s'", rec.Body.String())
 	}
 
-	// Case 3: Authorized via Bearer Token
 	raw := "oct_testtoken_require_middleware_9999"
 	tok := models.Token{
 		OrgID:  88,
@@ -354,9 +338,6 @@ func TestRequireMiddleware(t *testing.T) {
 	}
 }
 
-// TestRequireStampsTheUserIDForPlugins pins the key a plugin reads. The middleware
-// used to write only this package's own key, so plugin.UserIDFromContext — and
-// every reader built on it — answered 0 on every authenticated request.
 func TestRequireStampsTheUserIDForPlugins(t *testing.T) {
 	db := testDB(t)
 	m := testManager(t).WithDB(db)
@@ -366,7 +347,6 @@ func TestRequireStampsTheUserIDForPlugins(t *testing.T) {
 		got = plugin.UserIDFromContext(r.Context())
 	}))
 
-	// Session cookie.
 	recCookie := httptest.NewRecorder()
 	m.SetSession(recCookie, httptest.NewRequest(http.MethodGet, "/", nil), 42, 99)
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
@@ -378,7 +358,6 @@ func TestRequireStampsTheUserIDForPlugins(t *testing.T) {
 		t.Fatalf("plugin.UserIDFromContext after a session request = %d, want 42", got)
 	}
 
-	// Bearer token.
 	raw := "oct_testtoken_plugin_userid_1234"
 	tok := models.Token{
 		UserID: 7,

@@ -11,10 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// installFakeTool puts an executable shell script named `name` on PATH and
-// returns its full path. The script is invoked by the product's exec.Command,
-// so it exercises the full command construction, env and output paths without
-// needing a real Postgres server (or the postgresql-client tools).
 func installFakeTool(t *testing.T, name, script string) string {
 	t.Helper()
 	bin := t.TempDir()
@@ -66,7 +62,7 @@ func TestBackupPostgresToolMissing(t *testing.T) {
 
 func TestBackupPostgresInvalidDSN(t *testing.T) {
 	installFakeTool(t, "pg_dump", "exit 0")
-	err := Backup(postgresCfg("host=localhost user=x"), "out.sql") // no dbname
+	err := Backup(postgresCfg("host=localhost user=x"), "out.sql")
 	if err == nil || !strings.Contains(err.Error(), "invalid postgres DSN") {
 		t.Fatalf("expected invalid-DSN error, got %v", err)
 	}
@@ -162,8 +158,6 @@ func TestBackupSQLiteWritesIntoNestedDir(t *testing.T) {
 	sqlDB, _ := gdb.DB()
 	sqlDB.Close()
 
-	// The output path includes a fresh nested directory plus a single quote,
-	// exercising both MkdirAll and the VACUUM-path escaping.
 	out := filepath.Join(t.TempDir(), "sub/dir", "o'bri'en.db")
 	if err := Backup(&config.Config{DBDriver: "sqlite", DBDSN: dbPath}, out); err != nil {
 		t.Fatalf("Backup into nested dir: %v", err)
@@ -176,7 +170,6 @@ func TestBackupSQLiteWritesIntoNestedDir(t *testing.T) {
 func TestBackupSQLiteErrors(t *testing.T) {
 	dir := t.TempDir()
 
-	// MkdirAll fails when a parent path component is a file.
 	blocker := filepath.Join(dir, "afile")
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -186,7 +179,6 @@ func TestBackupSQLiteErrors(t *testing.T) {
 		t.Fatalf("expected mkdir error, got %v", err)
 	}
 
-	// VACUUM INTO fails when the destination directory is unwritable.
 	locked := filepath.Join(dir, "locked")
 	if err := os.Mkdir(locked, 0o755); err != nil {
 		t.Fatal(err)
@@ -265,7 +257,6 @@ func TestRestoreSQLiteCopyFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Target dir is a file, so writing the temp copy fails.
 	blocker := filepath.Join(t.TempDir(), "afile")
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -280,8 +271,6 @@ func TestRestoreSQLiteCopyFailure(t *testing.T) {
 func TestRestoreMoreEdgeCases(t *testing.T) {
 	dir := t.TempDir()
 
-	// Unsupported driver reaches the default branch when the input exists and
-	// is non-empty.
 	existing := filepath.Join(dir, "input.sql")
 	if err := os.WriteFile(existing, []byte("data"), 0o644); err != nil {
 		t.Fatal(err)
@@ -291,7 +280,6 @@ func TestRestoreMoreEdgeCases(t *testing.T) {
 		t.Fatalf("expected unsupported-driver error, got %v", err)
 	}
 
-	// An existing-but-empty input is rejected before any driver logic.
 	emptyFile := filepath.Join(dir, "empty.sql")
 	if err := os.WriteFile(emptyFile, nil, 0o644); err != nil {
 		t.Fatal(err)
@@ -301,7 +289,6 @@ func TestRestoreMoreEdgeCases(t *testing.T) {
 		t.Fatalf("expected empty-input error, got %v", err)
 	}
 
-	// backupSQLite with a directory as the source DSN fails at open time.
 	direntry := filepath.Join(dir, "src.db")
 	if err := os.Mkdir(direntry, 0o755); err != nil {
 		t.Fatal(err)
@@ -338,8 +325,6 @@ func TestVerifySQLiteIntegrityOnDirectory(t *testing.T) {
 }
 
 func TestOpenPostgresConnectsOrFails(t *testing.T) {
-	// An unreachable DSN must fail fast with an error, covering the postgres
-	// branch of Open.
 	_, err := Open(&config.Config{
 		DBDriver: "postgres",
 		DBDSN:    "postgres://u:p@127.0.0.1:1/nonexistent?sslmode=disable",

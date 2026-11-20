@@ -9,26 +9,22 @@ import (
 func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 	r := NewRouter(nil)
 
-	// 1. Initial 4 built-ins should be present in Descriptors
 	descs := r.Descriptors()
 	if len(descs) < 4 {
 		t.Fatalf("expected at least 4 descriptors, got %d", len(descs))
 	}
 
-	// Verify alphabetical sorting
 	for i := 1; i < len(descs); i++ {
 		if descs[i-1].Type > descs[i].Type {
 			t.Errorf("descriptors not sorted: %s > %s", descs[i-1].Type, descs[i].Type)
 		}
 	}
 
-	// 2. GetDescriptor for built-in
 	d, ok := r.GetDescriptor("telegram")
 	if !ok || d.Title != "Telegram" {
 		t.Errorf("expected telegram descriptor, got ok=%v, d=%+v", ok, d)
 	}
 
-	// 3. RegisterChannel errors on nil or empty
 	if err := r.RegisterChannel(nil); err == nil {
 		t.Error("expected error for nil channel, got nil")
 	}
@@ -43,7 +39,6 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Error("expected error for empty name in RegisterChannelWithDescriptor, got nil")
 	}
 
-	// 4. Register custom channel with descriptor
 	customCh := NewLegacyNotifierAdapter("sms", "SMS Service", func(ctx context.Context, cfgJSON, text string) error {
 		return nil
 	})
@@ -63,7 +58,6 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Errorf("unexpected custom descriptor: %+v", descAfter)
 	}
 
-	// 5. RegisterChannel without explicit descriptor derives defaults
 	pushCh := NewLegacyNotifierAdapter("push", "Push Notification", func(ctx context.Context, cfgJSON, text string) error {
 		return nil
 	})
@@ -75,7 +69,6 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Errorf("unexpected derived descriptor: %+v", pushDesc)
 	}
 
-	// 6. SendDirect success and unknown type
 	if err := r.SendDirect(context.Background(), "sms", `{"key":"val"}`, "hello"); err != nil {
 		t.Errorf("SendDirect failed: %v", err)
 	}
@@ -83,7 +76,6 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Errorf("expected unknown type error, got %v", err)
 	}
 
-	// 7. Test channel replacement via RegisterChannel
 	replacementEmail := NewLegacyNotifierAdapter("email", "Updated Email Service", func(ctx context.Context, cfgJSON, text string) error {
 		return nil
 	})

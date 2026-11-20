@@ -16,7 +16,6 @@ import (
 
 var nameRegex = regexp.MustCompile("^[a-z][a-z0-9-]*$")
 
-// ValidateName checks if the plugin name conforms to ^[a-z][a-z0-9-]*$.
 func ValidateName(name string) error {
 	if !nameRegex.MatchString(name) {
 		return fmt.Errorf("invalid plugin name %q: must match ^[a-z][a-z0-9-]*$", name)
@@ -102,7 +101,6 @@ app.Use({{.PackageName}}.Plugin{})
 ` + "```" + `
 `
 
-// Scaffold generates a new Octarq plugin boilerplate in <root>/<name>.
 func Scaffold(root, name, desc string) error {
 	if err := ValidateName(name); err != nil {
 		return err
@@ -134,7 +132,6 @@ func Scaffold(root, name, desc string) error {
 		Description: desc,
 	}
 
-	// 1. Render plugin.go
 	tmpl, err := template.New("plugin.go").Parse(pluginGoTmpl)
 	if err != nil {
 		return fmt.Errorf("parse plugin.go template: %w", err)
@@ -151,7 +148,6 @@ func Scaffold(root, name, desc string) error {
 		return fmt.Errorf("write plugin.go: %w", err)
 	}
 
-	// 2. Render go.mod
 	modTmpl, err := template.New("go.mod").Parse(goModTmpl)
 	if err != nil {
 		return fmt.Errorf("parse go.mod template: %w", err)
@@ -164,7 +160,6 @@ func Scaffold(root, name, desc string) error {
 		return fmt.Errorf("write go.mod: %w", err)
 	}
 
-	// 3. Render README.md
 	readmeTemplate, err := template.New("README.md").Parse(readmeTmpl)
 	if err != nil {
 		return fmt.Errorf("parse README.md template: %w", err)

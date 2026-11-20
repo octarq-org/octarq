@@ -9,8 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// tieredEndpoint is an EndpointSpec whose registration is observable, so a test
-// can tell whether MountMCP reached it.
 type tieredEndpoint struct {
 	plugin.EndpointSpec[struct{}, struct{}]
 	tier       string

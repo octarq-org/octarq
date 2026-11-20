@@ -9,7 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/notify"
 )
 
-// Compile-time interface assertions.
 var (
 	_ plugin.Plugin    = (*notify.Plugin)(nil)
 	_ plugin.Describer = (*notify.Plugin)(nil)
@@ -84,13 +83,11 @@ func TestNotify_Characterization_FailClosedInputs(t *testing.T) {
 		t.Fatal("notify endpoint not found")
 	}
 
-	// 1. Missing message must fail
 	ctx := plugin.WithOrgID(context.Background(), 1)
 	if _, err := ep.Execute(ctx, notify.NotifyInput{Message: "   "}); err == nil {
 		t.Error("expected error for empty message, got nil")
 	}
 
-	// 2. Missing org ID must fail
 	if _, err := ep.Execute(context.Background(), notify.NotifyInput{Message: "hello"}); err == nil {
 		t.Error("expected error for missing workspace orgID, got nil")
 	}

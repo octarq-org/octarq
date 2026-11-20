@@ -9,20 +9,6 @@ import (
 	"testing"
 )
 
-// TestOpenAPICommandStdoutIsParseableJSON guards the defect where
-// `octarq openapi > spec.json` wrote a file that was not JSON: the command boots
-// the app to read the live handler registrations, and GORM's default logger
-// wrote "record not found" to os.Stdout, interleaved with the document.
-//
-// It builds and executes the real binary rather than calling run() in-process,
-// and that is the whole point of the test. Two in-process formulations were
-// tried first and both stayed green with the fix reverted — the polluting query
-// only fires against the working directory's own database, so a test that calls
-// run() with a temp environment never reaches it. An assertion that cannot fail
-// is worse than no assertion, because it reads as coverage.
-//
-// The failure is silent by construction: go build, go vet and the command's own
-// exit code are all clean while the artifact is garbage. Only parsing catches it.
 func TestOpenAPICommandStdoutIsParseableJSON(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the binary; skipped under -short")
@@ -35,7 +21,7 @@ func TestOpenAPICommandStdoutIsParseableJSON(t *testing.T) {
 	}
 
 	cmd := exec.Command(bin, "openapi")
-	cmd.Dir = "." // the repo dir, whose database is what triggered the logging
+	cmd.Dir = "."
 	cmd.Env = append(os.Environ(), "OCTARQ_LISTEN=127.0.0.1:0")
 	cmd.Stderr = os.NewFile(0, os.DevNull)
 	out, err := cmd.Output()

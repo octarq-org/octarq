@@ -10,22 +10,18 @@ func TestAtLeast(t *testing.T) {
 		min  Role
 		want bool
 	}{
-		// Owner
 		{RoleOwner, RoleOwner, true},
 		{RoleOwner, RoleAdmin, true},
 		{RoleOwner, RoleMember, true},
 
-		// Admin
 		{RoleAdmin, RoleOwner, false},
 		{RoleAdmin, RoleAdmin, true},
 		{RoleAdmin, RoleMember, true},
 
-		// Member
 		{RoleMember, RoleOwner, false},
 		{RoleMember, RoleAdmin, false},
 		{RoleMember, RoleMember, true},
 
-		// Unknown or empty roles MUST fail closed
 		{"", RoleMember, false},
 		{"", RoleAdmin, false},
 		{"", RoleOwner, false},

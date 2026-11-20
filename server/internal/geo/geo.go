@@ -1,5 +1,3 @@
-// Package geo resolves a client IP into country/city (optional, via a MaxMind
-// GeoLite2 mmdb) and parses a User-Agent into device/browser/os.
 package geo
 
 import (
@@ -14,39 +12,14 @@ import (
 	geoip2 "github.com/oschwald/geoip2-golang"
 )
 
-// Resolver looks up geographic info; nil-safe when no database is configured.
-// The underlying reader is guarded by a mutex so a background auto-download
-// can hot-load the database after startup (see Open).
 type Resolver struct {
 	mu     sync.RWMutex
 	db     *geoip2.Reader
 	closed bool
-	cancel context.CancelFunc // stops a pending background download, if any
-	wg     sync.WaitGroup     // tracks background goroutines
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
-// Open builds the resolver for the given OCTARQ_GEOIP_DB value.
-//
-// Precedence (one mode line is logged saying which is active):
-//  1. path != "" (manual OCTARQ_GEOIP_DB): load that file; an error is
-//     returned to the caller (geo then stays disabled).
-//  2. An already-downloaded GeoLite2-City.mmdb in the data dir (next to the
-//     sqlite database): load it, skip downloading. If it is older than ~60
-//     days a warning suggests deleting it to trigger a fresh download.
-//  3. OCTARQ_MAXMIND_LICENSE_KEY set: return a no-op resolver immediately and
-//     auto-download GeoLite2-City from MaxMind in a background goroutine, then
-//     hot-load it. Geo lookups degrade gracefully (empty results) until ready.
-//     Failures log a warning (one retry) and leave geo disabled — never crash.
-//  4. Otherwise geo is disabled.
-//
-// The file is read into memory rather than memory-mapped: geoip2.Open uses
-// mmap, which fails with ENODEV ("no such device") on filesystems that don't
-// support it (some Docker bind mounts / overlay / network volumes). Reading
-// the bytes avoids that and works everywhere.
-//
-// The license key and data dir are read from the environment rather than
-// config.Config so the geo package stays self-contained: config.Load() has
-// already merged .env into the process environment by the time Open runs.
 func Open(path string) (*Resolver, error) {
 	if path != "" {
 		r := &Resolver{}
@@ -59,7 +32,6 @@ func Open(path string) (*Resolver, error) {
 	return openAuto(dataDirFromEnv(), os.Getenv("OCTARQ_MAXMIND_LICENSE_KEY"))
 }
 
-// openAuto handles precedence steps 2–4 (cached file, auto-download, disabled).
 func openAuto(dataDir, licenseKey string) (*Resolver, error) {
 	r := &Resolver{}
 	mode, cached := decideMode("", dataDir, licenseKey)
@@ -76,8 +48,6 @@ func openAuto(dataDir, licenseKey string) (*Resolver, error) {
 			}
 			return r, nil
 		}
-		// Corrupt/truncated file (e.g. an interrupted download from an old
-		// run): fall through to re-download when a key is available.
 		slog.Warn("geoip: cached database unusable, ignoring it", "path", cached, "err", err)
 		mode = modeDownload
 		if licenseKey == "" {
@@ -101,9 +71,6 @@ func openAuto(dataDir, licenseKey string) (*Resolver, error) {
 	return r, nil
 }
 
-// autoDownload fetches the database (one retry after a short delay) and
-// hot-loads it into the resolver. Runs in a background goroutine; all failure
-// paths log a warning and leave geo disabled.
 func (r *Resolver) autoDownload(ctx context.Context, dataDir, licenseKey string) {
 	opts := downloadOptions{licenseKey: licenseKey, dir: dataDir}
 	path, err := downloadFn(ctx, opts)
@@ -126,8 +93,6 @@ func (r *Resolver) autoDownload(ctx context.Context, dataDir, licenseKey string)
 	slog.Info("geoip: database downloaded and loaded", "path", path)
 }
 
-// Load reads the mmdb at path and installs it, replacing (and closing) any
-// previously loaded database. Safe to call concurrently with Locate.
 func (r *Resolver) Load(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -154,7 +119,6 @@ func (r *Resolver) Load(path string) error {
 	return nil
 }
 
-// Country, Region, and City for the given IP; empty strings when unavailable.
 func (r *Resolver) Locate(ip string) (country, region, city string) {
 	if r == nil {
 		return "", "", ""
@@ -206,14 +170,12 @@ func (r *Resolver) Close() {
 	r.wg.Wait()
 }
 
-// UAInfo is the parsed device/browser/os breakdown.
 type UAInfo struct {
 	Device  string
 	Browser string
 	OS      string
 }
 
-// ParseUA classifies a User-Agent string.
 func ParseUA(ua string) UAInfo {
 	p := useragent.Parse(ua)
 	device := "desktop"

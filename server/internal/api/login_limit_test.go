@@ -12,8 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// TestLoginLimitersTakeTheConfiguredBudget pins the wiring: the handler must
-// count against the config, not a constant of its own.
 func TestLoginLimitersTakeTheConfiguredBudget(t *testing.T) {
 	cfg := &config.Config{
 		AdminUser:            "admin",

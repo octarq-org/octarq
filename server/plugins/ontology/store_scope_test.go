@@ -11,8 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// noteDoc is a user-scoped declaration: a note belongs to one member of the
-// workspace, not to the workspace.
 const noteDoc = `{"entities":[{
   "slug":"notes","label":"Note","scope":"user",
   "fields":[{"name":"body","type":"text","required":true,"listColumn":true}],
@@ -25,7 +23,6 @@ const noteDoc = `{"entities":[{
   }
 }]}`
 
-// userScopedStore returns a store over a freshly created user-scoped table.
 func userScopedStore(t *testing.T) (*entity, *gorm.DB) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -45,9 +42,6 @@ func userScopedStore(t *testing.T) (*entity, *gorm.DB) {
 	return newEntity(specs[0]), db
 }
 
-// asUser returns a context carrying the caller's workspace and identity, the way
-// the platform's auth middleware does. A zero uid models a transport that
-// carries no identity.
 func asUser(orgID, userID uint) context.Context {
 	ctx := plugin.WithOrgID(context.Background(), orgID)
 	if userID != 0 {
@@ -56,9 +50,6 @@ func asUser(orgID, userID uint) context.Context {
 	return ctx
 }
 
-// TestUserScopedRowsBelongToOneMember pins the isolation this scope exists for:
-// two members of the same workspace share org_id and still cannot see each
-// other's records, by list or by id.
 func TestUserScopedRowsBelongToOneMember(t *testing.T) {
 	e, db := userScopedStore(t)
 	alice := asUser(1, 1)
@@ -73,12 +64,10 @@ func TestUserScopedRowsBelongToOneMember(t *testing.T) {
 	if id == "" {
 		t.Fatalf("created row has no id: %v", row)
 	}
-	// The owner column is written from the context, never from the body.
 	if got, _ := row[core.ColumnUserID].(int64); got != 1 {
 		t.Fatalf("stored %s = %v, want 1", core.ColumnUserID, row[core.ColumnUserID])
 	}
 
-	// The other member of the same workspace sees nothing.
 	rows, total, err := store{}.list(bob, org1, e, listParams{limit: 10})
 	if err != nil {
 		t.Fatalf("list as the other member: %v", err)
@@ -96,7 +85,6 @@ func TestUserScopedRowsBelongToOneMember(t *testing.T) {
 		t.Fatalf("delete as the other member = %v, want ErrNotFound", err)
 	}
 
-	// Nor does another workspace, even for the same user id.
 	rows, total, err = store{}.list(alice, org2, e, listParams{limit: 10})
 	if err != nil {
 		t.Fatalf("list as another workspace: %v", err)
@@ -105,7 +93,6 @@ func TestUserScopedRowsBelongToOneMember(t *testing.T) {
 		t.Fatalf("another workspace sees %d rows (total %d), want none", len(rows), total)
 	}
 
-	// The owner still sees it, unchanged.
 	got, err := (store{}).get(alice, org1, e, id)
 	if err != nil {
 		t.Fatalf("get as the owner: %v", err)
@@ -115,9 +102,6 @@ func TestUserScopedRowsBelongToOneMember(t *testing.T) {
 	}
 }
 
-// TestUserScopedStoreRefusesATransportWithNoUser pins fail-closed. stdio MCP
-// stamps a workspace and no identity; falling back to the whole workspace would
-// hand one member another's records.
 func TestUserScopedStoreRefusesATransportWithNoUser(t *testing.T) {
 	e, db := userScopedStore(t)
 	anonymous := asUser(1, 0)

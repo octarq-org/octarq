@@ -10,7 +10,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 )
 
-// instanceReadinessBody is the decoded wire shape of GET /api/instance/readiness.
 type readinessCheckWire struct {
 	ID      string `json:"id"`
 	Status  string `json:"status"`
@@ -40,18 +39,13 @@ func findCheck(checks []readinessCheckWire, id string) *readinessCheckWire {
 	return nil
 }
 
-// TestInstanceReadinessRequiresInstanceAdmin pins the gate: the checks describe
-// the whole deployment and whether sign-up even works, so a tenant member must
-// not read them.
 func TestInstanceReadinessRequiresInstanceAdmin(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Anonymous → 401.
 	if code, _ := getReadiness(t, srv, nil); code != http.StatusUnauthorized {
 		t.Fatalf("anonymous readiness: got %d, want 401", code)
 	}
 
-	// Plain member → 403.
 	const org = uint(101)
 	memberUID := seedOrgMember(t, db, org, "member@x.com", "member")
 	memberSession := sessionCookies(t, memberUID, org)
@@ -59,20 +53,14 @@ func TestInstanceReadinessRequiresInstanceAdmin(t *testing.T) {
 		t.Fatalf("member readiness: got %d, want 403", code)
 	}
 
-	// Instance admin → 200.
 	adminSession := loginCookies(t, srv)
 	if code, _ := getReadiness(t, srv, adminSession); code != http.StatusOK {
 		t.Fatalf("admin readiness: got %d, want 200", code)
 	}
 }
 
-// TestInstanceReadinessBlockedWithoutSystemSender is the guard for the
-// self-contradiction check: an instance that requires a verified email but has
-// no system sender has a broken registration flow, and the readiness API must
-// say blocked — not degraded, not ok.
 func TestInstanceReadinessBlockedWithoutSystemSender(t *testing.T) {
 	srv, _ := newTestHandler(t)
-	// require_email_verification defaults to on; no SMTPSender rows exist.
 
 	code, checks := getReadiness(t, srv, loginCookies(t, srv))
 	if code != http.StatusOK {
@@ -87,8 +75,6 @@ func TestInstanceReadinessBlockedWithoutSystemSender(t *testing.T) {
 	}
 }
 
-// TestInstanceReadinessOKWithSystemSender is the other direction: with a sender
-// configured, registration must read ok.
 func TestInstanceReadinessOKWithSystemSender(t *testing.T) {
 	srv, db := newTestHandler(t)
 	enableMail(t, db)
@@ -102,10 +88,6 @@ func TestInstanceReadinessOKWithSystemSender(t *testing.T) {
 	}
 }
 
-// TestInstanceReadinessOmitsSecrets is the API twin of the log-side
-// TestReadinessReportOmitsSecrets: the response travels to a browser session,
-// but the same rule holds — a KEK or DSN password landing in a JSON body is a
-// compromise nobody notices. Sentinel values make any hit unambiguous.
 func TestInstanceReadinessOmitsSecrets(t *testing.T) {
 	const (
 		secretKey   = "SENTINEL-SECRET-KEY-must-never-be-served-0123456789abcdef0123456789abcdef"
@@ -113,7 +95,7 @@ func TestInstanceReadinessOmitsSecrets(t *testing.T) {
 	)
 	cfg := &config.Config{
 		AdminUser:     "admin",
-		AdminPassword: "pw", // loginCookies logs in with admin/pw; readiness never reads this value
+		AdminPassword: "pw",
 		SecretKey:     secretKey,
 		DBDriver:      "postgres",
 		DBDSN:         "postgres://octarq:" + dsnPassword + "@db.internal:5432/octarq",
@@ -140,11 +122,9 @@ func TestInstanceReadinessOmitsSecrets(t *testing.T) {
 			t.Errorf("readiness API leaks the %s value:\n%s", name, body)
 		}
 	}
-	// The DSN is withheld, but the driver still names itself.
 	if !strings.Contains(body, "postgres") {
 		t.Errorf("readiness API should still name the database driver:\n%s", body)
 	}
-	// The response must carry the fixPath contract fields.
 	for _, id := range []string{"public-origin", "outbound-mail", "registration", "database"} {
 		if c := findCheck(checks, id); c == nil {
 			t.Errorf("readiness omits check %q", id)
@@ -152,14 +132,9 @@ func TestInstanceReadinessOmitsSecrets(t *testing.T) {
 	}
 }
 
-// TestMeReportsIsInstanceAdmin pins the new source of the instance identity:
-// /api/auth/me now answers it, so instance admin does not have to ride along
-// in the tenant settings response forever (the frontend still reads it there —
-// the old field is removed in a later batch once the frontend switches).
 func TestMeReportsIsInstanceAdmin(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Bootstrap admin → true.
 	rec := do(srv, "GET", "/api/auth/me", loginCookies(t, srv), "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("me as admin: got %d", rec.Code)
@@ -174,7 +149,6 @@ func TestMeReportsIsInstanceAdmin(t *testing.T) {
 		t.Fatal("me as admin: isInstanceAdmin = false, want true")
 	}
 
-	// Plain member → false.
 	const org = uint(101)
 	memberUID := seedOrgMember(t, db, org, "member@x.com", "member")
 	rec = do(srv, "GET", "/api/auth/me", sessionCookies(t, memberUID, org), "")
@@ -192,13 +166,10 @@ func TestMeReportsIsInstanceAdmin(t *testing.T) {
 	}
 }
 
-// TestInstanceSettingsSystemSenderIDRoundTrip pins the instance setting that
-// names the system sender: write it, read it back, clear it with 0.
 func TestInstanceSettingsSystemSenderIDRoundTrip(t *testing.T) {
 	srv, db := newTestHandler(t)
 	admin := loginCookies(t, srv)
 
-	// Unset initially.
 	rec := do(srv, "GET", "/api/instance-settings", admin, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get instance settings: got %d (%s)", rec.Code, rec.Body.String())
@@ -211,7 +182,6 @@ func TestInstanceSettingsSystemSenderIDRoundTrip(t *testing.T) {
 		t.Fatalf("fresh instance systemSenderId = %v, want 0", v)
 	}
 
-	// Set it.
 	rec = do(srv, "PUT", "/api/instance-settings", admin, `{"systemSenderId":7}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("put instance settings: got %d (%s)", rec.Code, rec.Body.String())
@@ -224,7 +194,6 @@ func TestInstanceSettingsSystemSenderIDRoundTrip(t *testing.T) {
 		t.Fatalf("stored value = %q, want 7", setting.Value)
 	}
 
-	// Read it back.
 	rec = do(srv, "GET", "/api/instance-settings", admin, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get instance settings: got %d", rec.Code)
@@ -236,7 +205,6 @@ func TestInstanceSettingsSystemSenderIDRoundTrip(t *testing.T) {
 		t.Fatalf("systemSenderId after set = %v, want 7", v)
 	}
 
-	// A plain member is refused.
 	const org = uint(101)
 	memberUID := seedOrgMember(t, db, org, "member@x.com", "member")
 	rec = do(srv, "PUT", "/api/instance-settings", sessionCookies(t, memberUID, org), `{"systemSenderId":7}`)
@@ -244,7 +212,6 @@ func TestInstanceSettingsSystemSenderIDRoundTrip(t *testing.T) {
 		t.Fatalf("member put instance settings: got %d, want 403", rec.Code)
 	}
 
-	// Clear with 0.
 	rec = do(srv, "PUT", "/api/instance-settings", admin, `{"systemSenderId":0}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("clear instance settings: got %d (%s)", rec.Code, rec.Body.String())

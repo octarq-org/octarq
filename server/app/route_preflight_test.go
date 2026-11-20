@@ -12,10 +12,6 @@ func okHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 }
 
-// TestDuplicateRouteIsRefusedNotPanicked is the whole reason this guard exists:
-// two plugins claiming one pattern used to reach http.ServeMux, which panics.
-// The registry must catch it first, keep the pattern off the real mux, and name
-// both plugins.
 func TestDuplicateRouteIsRefusedNotPanicked(t *testing.T) {
 	routes := newRouteRegistry()
 	real := http.NewServeMux()
@@ -25,7 +21,6 @@ func TestDuplicateRouteIsRefusedNotPanicked(t *testing.T) {
 
 	pro.Handle("POST /api/products", okHandler())
 
-	// Without the guard this second Handle panics inside ServeMux.
 	defer func() {
 		if rec := recover(); rec != nil {
 			t.Fatalf("duplicate route reached ServeMux and panicked: %v", rec)
@@ -45,7 +40,6 @@ func TestDuplicateRouteIsRefusedNotPanicked(t *testing.T) {
 	}
 }
 
-// TestDistinctRoutesAreAccepted: the guard must not invent collisions.
 func TestDistinctRoutesAreAccepted(t *testing.T) {
 	routes := newRouteRegistry()
 	real := http.NewServeMux()
@@ -59,7 +53,6 @@ func TestDistinctRoutesAreAccepted(t *testing.T) {
 	if err := routes.Err(); err != nil {
 		t.Fatalf("unexpected collision: %v", err)
 	}
-	// All three really reached the mux.
 	for _, tc := range []struct{ method, path string }{
 		{"GET", "/api/domains"}, {"POST", "/api/domains"}, {"GET", "/api/emails"},
 	} {
@@ -70,8 +63,6 @@ func TestDistinctRoutesAreAccepted(t *testing.T) {
 	}
 }
 
-// TestWhitespaceVariantsAreTheSameRoute: "GET  /api/x" and "GET /api/x" are one
-// pattern to ServeMux, so they must be one pattern to the guard.
 func TestWhitespaceVariantsAreTheSameRoute(t *testing.T) {
 	routes := newRouteRegistry()
 	if !routes.claim("a", "GET /api/thing", false) {
@@ -85,9 +76,6 @@ func TestWhitespaceVariantsAreTheSameRoute(t *testing.T) {
 	}
 }
 
-// TestThirdPartyMustUseReservedNamespace: an out-of-tree plugin claiming a bare
-// noun is what makes a future core route a breaking change, so it is refused —
-// and the error says where the route belongs.
 func TestThirdPartyMustUseReservedNamespace(t *testing.T) {
 	routes := newRouteRegistry()
 	real := http.NewServeMux()
@@ -111,8 +99,6 @@ func TestThirdPartyMustUseReservedNamespace(t *testing.T) {
 	}
 }
 
-// TestThirdPartyInsideNamespaceIsAccepted, and non-/api routes (a public
-// landing page, a callback) are not subject to the rule.
 func TestThirdPartyInsideNamespaceIsAccepted(t *testing.T) {
 	routes := newRouteRegistry()
 	real := http.NewServeMux()
@@ -127,9 +113,6 @@ func TestThirdPartyInsideNamespaceIsAccepted(t *testing.T) {
 	}
 }
 
-// TestInTreePluginsKeepBareNouns: the convention is enforced for third-party
-// plugins ONLY — the existing /api/domains, /api/emails, /api/products paths
-// must keep working.
 func TestInTreePluginsKeepBareNouns(t *testing.T) {
 	routes := newRouteRegistry()
 	real := http.NewServeMux()
@@ -152,7 +135,7 @@ func TestIsThirdPartyPkg(t *testing.T) {
 		{"github.com/octarq-org/octarq-extra/modules/commerce", false},
 		{"github.com/acme/octarq-shop", true},
 		{"example.com/internal/plugin", true},
-		{"", false}, // unknown provenance: do not impose the rule
+		{"", false},
 	}
 	for _, c := range cases {
 		if got := isThirdPartyPkg(c.pkg); got != c.want {
@@ -162,7 +145,6 @@ func TestIsThirdPartyPkg(t *testing.T) {
 }
 
 func TestPluginIsThirdPartyUsesPackagePath(t *testing.T) {
-	// A plugin declared in this repo is first-party by its package path.
 	if pluginIsThirdParty(&stubRoutePlugin{}) {
 		t.Error("an in-repo plugin was classified as third-party")
 	}
@@ -189,7 +171,6 @@ func TestPluginIsThirdParty_Nil(t *testing.T) {
 	}
 }
 
-// stubRoutePlugin is a minimal plugin.Plugin for the provenance check.
 type stubRoutePlugin struct{}
 
 func (*stubRoutePlugin) Name() string                      { return "stub" }

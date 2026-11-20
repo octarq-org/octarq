@@ -12,7 +12,6 @@ func TestMigrateLegacyCoreSecrets(t *testing.T) {
 	p, db, _ := setupVaultTest(t)
 	ctx := context.Background()
 
-	// Create legacy schemas/columns as they existed before unified vault cutover.
 	if err := db.Exec(`CREATE TABLE llm_gateway_providers (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		org_id INTEGER NOT NULL,
@@ -61,7 +60,6 @@ func TestMigrateLegacyCoreSecrets(t *testing.T) {
 	if err := p.MigrateLegacyCoreSecrets(ctx); err != nil {
 		t.Fatalf("MigrateLegacyCoreSecrets: %v", err)
 	}
-	// Run a second time to assert idempotency.
 	if err := p.MigrateLegacyCoreSecrets(ctx); err != nil {
 		t.Fatalf("MigrateLegacyCoreSecrets second run: %v", err)
 	}
@@ -101,12 +99,10 @@ func TestMigrateLegacyCoreSecrets(t *testing.T) {
 func TestMigrateLegacyCoreSecrets_ErrorsAndEdgeBranches(t *testing.T) {
 	ctx := context.Background()
 
-	// quoteCol with nil DB
 	if got := quoteCol(nil, "key"); got != `"key"` {
 		t.Fatalf("quoteCol(nil) = %q", got)
 	}
 
-	// Missing crypto fails closed
 	pNoCrypto := New()
 	if err := pNoCrypto.MigrateLegacyCoreSecrets(ctx); err != nil {
 		t.Fatalf("nil DB should return nil, got %v", err)
@@ -117,7 +113,6 @@ func TestMigrateLegacyCoreSecrets_ErrorsAndEdgeBranches(t *testing.T) {
 		t.Fatal("expected error when crypto is unavailable")
 	}
 
-	// Corrupted legacy ciphertexts fail closed per table
 	p, db2, _ := setupVaultTest(t)
 	db2.Exec(`CREATE TABLE llm_gateway_providers (id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL, name TEXT, backend TEXT, api_key_encr TEXT, vault_item_id INTEGER DEFAULT 0, base_url TEXT, model TEXT, cheap_model TEXT, is_default BOOLEAN)`)
 	db2.Exec(`INSERT INTO llm_gateway_providers (org_id, name, backend, api_key_encr, vault_item_id) VALUES (1, 'Bad', 'openai', 'not-valid-ciphertext', 0)`)

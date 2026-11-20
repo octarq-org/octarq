@@ -11,9 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// --- fakes ---
-
-// fakeCompleter returns pre-configured responses in sequence.
 type fakeCompleter struct {
 	responses []string
 	callCount int
@@ -28,9 +25,8 @@ func (f *fakeCompleter) Complete(_ context.Context, _ string, _ string, _ []Mess
 	return resp, nil
 }
 
-// fakeExecutor records calls and returns configurable outputs.
 type fakeExecutor struct {
-	calls   []string // tool names in order
+	calls   []string
 	outputs map[string]string
 	errs    map[string]error
 }
@@ -43,7 +39,6 @@ func (f *fakeExecutor) Execute(_ context.Context, _ uint, name string, _ string)
 	return f.outputs[name], nil
 }
 
-// denyGuard rejects a specific tool.
 type denyGuard struct {
 	denied string
 }
@@ -55,7 +50,6 @@ func (g *denyGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	return nil
 }
 
-// approvalGuard returns ErrApprovalRequired for specified tool.
 type approvalGuard struct {
 	tool string
 }
@@ -67,10 +61,6 @@ func (g *approvalGuard) Allow(_ context.Context, _ uint, tool, _ string) error {
 	return nil
 }
 
-// --- helpers ---
-
-// newTestRunner constructs a runner with options a test has already fixed. A
-// construction error there is a bug in the test, so it fails at once.
 func newTestRunner(t *testing.T, c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
 	t.Helper()
 	r, err := NewRunner(c, exec, opts...)
@@ -80,19 +70,13 @@ func newTestRunner(t *testing.T, c Completer, exec ToolExecutor, opts ...RunnerO
 	return r
 }
 
-// toolCallBlock builds a ```tool_call block for the fake completer.
 func toolCallBlock(name, args string) string {
 	return fmt.Sprintf("```tool_call\n{\"name\":%q,\"args\":%q}\n```", name, args)
 }
 
-// --- tests ---
-
-// Test 1: Loop terminates at MaxSteps and returns ErrMaxStepsExceeded.
 func TestRunner_MaxStepsExceeded(t *testing.T) {
 	t.Parallel()
 
-	// Build responses that always call a tool, forcing the loop to never stop
-	// on its own.
 	responses := make([]string, MaxStepsNormal+5)
 	for i := range responses {
 		responses[i] = toolCallBlock("noop", "{}")
@@ -120,7 +104,6 @@ func TestRunner_MaxStepsExceeded(t *testing.T) {
 	}
 }
 
-// Test 2: Every tool output in history is wrapped in an untrusted fence.
 func TestRunner_UntrustedFence(t *testing.T) {
 	t.Parallel()
 
@@ -143,7 +126,6 @@ func TestRunner_UntrustedFence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Check Step.OutputFenced
 	if len(turn.Steps) != 1 {
 		t.Fatalf("expected 1 step, got %d", len(turn.Steps))
 	}
@@ -152,7 +134,6 @@ func TestRunner_UntrustedFence(t *testing.T) {
 		t.Fatalf("step output not properly fenced: %q", fenced)
 	}
 
-	// Check that the fence appears in session history (tool message).
 	found := false
 	for _, m := range sess.History {
 		if m.Role == "tool" && strings.Contains(m.Content, "```untrusted\n") {
@@ -165,7 +146,6 @@ func TestRunner_UntrustedFence(t *testing.T) {
 	}
 }
 
-// Test 3: AgentError.AgentGuidance is preserved through Step.Err.
 func TestRunner_AgentErrorGuidancePreserved(t *testing.T) {
 	t.Parallel()
 
@@ -203,7 +183,6 @@ func TestRunner_AgentErrorGuidancePreserved(t *testing.T) {
 	}
 }
 
-// Test 4: Guard rejection prevents tool execution.
 func TestRunner_GuardDeniesExecution(t *testing.T) {
 	t.Parallel()
 
@@ -228,14 +207,12 @@ func TestRunner_GuardDeniesExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The executor should NOT have been called for the denied tool.
 	for _, name := range exec.calls {
 		if name == "dangerous_delete" {
 			t.Fatal("Guard denied tool was still executed")
 		}
 	}
 
-	// Step.Err should contain the denial reason.
 	if len(turn.Steps) < 1 {
 		t.Fatal("expected at least 1 step recording the guard denial")
 	}
@@ -248,7 +225,6 @@ func TestRunner_GuardDeniesExecution(t *testing.T) {
 	}
 }
 
-// Test 5: Profile step limits are honoured (reactor = 3 steps).
 func TestRunner_ReactorProfile(t *testing.T) {
 	t.Parallel()
 
@@ -276,7 +252,6 @@ func TestRunner_ReactorProfile(t *testing.T) {
 	}
 }
 
-// Test 6: Approval required guard veto halts turn with TurnStatusAwaitingApproval.
 func TestRunner_StopsOnApprovalRequired(t *testing.T) {
 	t.Parallel()
 
@@ -317,8 +292,6 @@ func TestRunner_StopsOnApprovalRequired(t *testing.T) {
 		t.Fatalf("expected step[0].Err to be ErrApprovalRequired, got %v", turn.Steps[0].Err)
 	}
 }
-
-// (Streaming tests moved to runner_stream_test.go to enforce < 460 LOC ceiling)
 
 func TestRunner_CompleterError(t *testing.T) {
 	t.Parallel()
@@ -375,13 +348,11 @@ func TestRunner_GenericToolError(t *testing.T) {
 func TestParseToolCalls_EdgeCases(t *testing.T) {
 	t.Parallel()
 
-	// Missing end marker
 	calls, rem, _ := parseToolCalls("```tool_call\n{\"name\":\"foo\"}")
 	if len(calls) != 0 || !strings.Contains(rem, "```tool_call") {
 		t.Errorf("missing end marker: calls=%v, rem=%q", calls, rem)
 	}
 
-	// Bad json line inside block
 	calls, rem, invalid := parseToolCalls("```tool_call\ninvalid json\n{\"name\":\"valid\",\"args\":\"{}\"}\n\n```")
 	if len(calls) != 1 || calls[0].Name != "valid" {
 		t.Errorf("invalid json line handling: calls=%v, rem=%q", calls, rem)
@@ -391,8 +362,6 @@ func TestParseToolCalls_EdgeCases(t *testing.T) {
 	}
 }
 
-// A call the model wrote wrongly is reported even when another call in the
-// same block did run: the model must learn about both.
 func TestRunner_InvalidCallIsReportedAlongsideTheValidOne(t *testing.T) {
 	t.Parallel()
 
@@ -426,8 +395,6 @@ func TestRunner_InvalidCallIsReportedAlongsideTheValidOne(t *testing.T) {
 	}
 }
 
-// A harness spec may tighten the step ceiling within its profile. A budget
-// above the profile's ceiling is refused at construction, never clamped.
 func TestRunner_WithMaxStepsTightensOrIsRefused(t *testing.T) {
 	t.Parallel()
 
@@ -436,7 +403,6 @@ func TestRunner_WithMaxStepsTightensOrIsRefused(t *testing.T) {
 		responses[i] = toolCallBlock("noop", "{}")
 	}
 
-	// Tightened: the turn stops at the override.
 	comp := &fakeCompleter{responses: responses}
 	exec := &fakeExecutor{outputs: map[string]string{"noop": "ok"}}
 	runner := newTestRunner(t, comp, exec, WithMaxSteps(2))
@@ -449,7 +415,6 @@ func TestRunner_WithMaxStepsTightensOrIsRefused(t *testing.T) {
 		t.Fatalf("expected 2 steps, got %d", len(turn.Steps))
 	}
 
-	// Loosened: the request is refused, not lowered to the ceiling.
 	_, err := NewRunner(&fakeCompleter{responses: responses}, &fakeExecutor{}, WithMaxSteps(MaxStepsNormal+10))
 	if !errors.Is(err, ErrMaxStepsExceedsProfile) {
 		t.Fatalf("expected ErrMaxStepsExceedsProfile, got %v", err)

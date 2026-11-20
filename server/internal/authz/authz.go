@@ -1,6 +1,5 @@
 package authz
 
-// Role is a workspace role, ordered by privilege.
 type Role string
 
 const (
@@ -9,8 +8,6 @@ const (
 	RoleOwner  Role = "owner"
 )
 
-// roleRank assigns a numeric rank to valid roles so privilege comparison is explicit.
-// Unknown or empty roles have rank 0.
 func roleRank(r Role) int {
 	switch r {
 	case RoleMember:
@@ -24,8 +21,6 @@ func roleRank(r Role) int {
 	}
 }
 
-// AtLeast reports whether role meets the minimum privilege level.
-// Unknown roles or empty strings return false (fail closed).
 func AtLeast(role, min Role) bool {
 	rRank := roleRank(role)
 	mRank := roleRank(min)

@@ -8,26 +8,15 @@ import (
 	"strings"
 )
 
-// Dialect renders the three SQL statements the ontology layer needs. Postgres
-// and SQLite share almost all of their syntax; MySQL differs in identifier
-// quoting and in what a column type may promise.
 type Dialect interface {
-	// Name is the dialect's identifier: "sqlite", "postgres" or "mysql".
 	Name() string
-	// Quote wraps an identifier in the dialect's quote characters.
 	Quote(ident string) string
-	// ColumnType maps a declared field type to a column definition.
 	ColumnType(FieldType) (string, error)
-	// SupportsIfNotExists reports whether the dialect accepts
-	// CREATE INDEX IF NOT EXISTS. MySQL does not.
 	SupportsIfNotExists() bool
 }
 
-// ErrUnknownDialect is returned when no builder matches the driver name.
 var ErrUnknownDialect = errors.New("ontology: unknown dialect")
 
-// DialectFor returns the builder for a driver name as it appears in
-// OCTARQ_DB_DRIVER.
 func DialectFor(driver string) (Dialect, error) {
 	switch strings.ToLower(strings.TrimSpace(driver)) {
 	case "sqlite", "sqlite3":
@@ -106,9 +95,6 @@ func (sqliteDialect) ColumnType(t FieldType) (string, error)   { return columnTy
 func (postgresDialect) ColumnType(t FieldType) (string, error) { return columnType("postgres", t) }
 func (mysqlDialect) ColumnType(t FieldType) (string, error)    { return columnType("mysql", t) }
 
-// PlatformColumns are the columns every generated table carries. A declaration
-// cannot name them (see ReservedColumnNames). ColumnUserID joins them only when
-// the entity is user-scoped.
 const (
 	ColumnID        = "id"
 	ColumnOrgID     = "org_id"
@@ -117,10 +103,6 @@ const (
 	ColumnUpdatedAt = "updated_at"
 )
 
-// ScopeColumns returns the columns that partition a table, in index order. Every
-// index the platform creates starts with them, so a unique field is unique
-// inside a workspace, and inside one member's rows when the entity is
-// user-scoped.
 func ScopeColumns(spec Spec) []string {
 	cols := []string{ColumnOrgID}
 	if ScopeOf(spec) == ScopeUser {
@@ -129,9 +111,6 @@ func ScopeColumns(spec Spec) []string {
 	return cols
 }
 
-// maxIdentLen is the smallest identifier limit across the three dialects
-// (Postgres and MySQL both stop at 63/64 bytes). Longer names are truncated and
-// suffixed with a hash so two long names never collapse into one.
 const maxIdentLen = 63
 
 func indexName(prefix, table, column string) string {
@@ -145,18 +124,10 @@ func indexName(prefix, table, column string) string {
 	return name[:keep] + "_" + suffix
 }
 
-// TenantIndexName is the name of the scope index every entity table carries.
-// Creation and reconciliation call this same function on purpose: a name longer
-// than maxIdentLen gains a hash suffix, so a reconciler that spelled
-// "idx_<table>_<column>" by hand would miss the index actually created and
-// re-create it on every boot.
 func TenantIndexName(spec Spec) string {
 	return indexName("idx", TableName(spec.Slug), strings.Join(ScopeColumns(spec), "_"))
 }
 
-// FieldIndexName is the name of the index for one declared field. The index
-// always starts with the scope columns, so a tenant's rows never collide across
-// tenants — nor, on a user-scoped entity, across members of one tenant.
 func FieldIndexName(spec Spec, f Field) string {
 	prefix := "idx"
 	if f.Unique {
@@ -166,16 +137,12 @@ func FieldIndexName(spec Spec, f Field) string {
 	return indexName(prefix, TableName(spec.Slug), strings.Join(cols, "_"))
 }
 
-// platformColumn is one column the platform adds to every generated table.
 type platformColumn struct {
 	name       string
 	typ        FieldType
 	constraint string
 }
 
-// CreateTableSQL returns the statements that create an entity's table: the table
-// itself, the scope index, and one index per declared index or unique field.
-// The caller runs them in order.
 func CreateTableSQL(d Dialect, spec Spec) ([]string, error) {
 	if d == nil {
 		return nil, errors.New("ontology: nil dialect")
@@ -251,10 +218,6 @@ func columnDefinition(d Dialect, f Field) (string, error) {
 	return def, nil
 }
 
-// defaultLiteral renders a declared default for its column type. Numbers stay
-// bare and booleans become the SQL keywords, so SQLite's INTEGER, Postgres's
-// BOOLEAN and MySQL's TINYINT(1) all receive a value of the right kind rather
-// than a string that the driver would coerce.
 func defaultLiteral(t FieldType, raw string) string {
 	raw = strings.TrimSpace(raw)
 	switch t {
@@ -270,9 +233,6 @@ func defaultLiteral(t FieldType, raw string) string {
 	}
 }
 
-// AddColumnSQL returns the statement that adds one field to an existing table.
-// When the table already holds rows the column carries its declared default, so
-// the ALTER cannot fail on a NOT NULL constraint.
 func AddColumnSQL(d Dialect, spec Spec, f Field) (string, error) {
 	if d == nil {
 		return "", errors.New("ontology: nil dialect")
@@ -288,9 +248,6 @@ func AddColumnSQL(d Dialect, spec Spec, f Field) (string, error) {
 		" ADD COLUMN " + d.Quote(f.Name) + " " + def, nil
 }
 
-// CreateIndexSQL returns a CREATE INDEX statement. Pass columns in query order:
-// for a tenant-scoped index that means org_id first. name may be empty, in which
-// case it is derived from the table and columns.
 func CreateIndexSQL(d Dialect, table string, columns []string, unique bool, name string) (string, error) {
 	if d == nil {
 		return "", errors.New("ontology: nil dialect")

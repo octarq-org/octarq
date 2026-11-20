@@ -15,8 +15,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// fakeCache is a tiny in-memory cache.Cache for exercising the session cache
-// hit/expiry paths that cache.New("") (a Noop) never reaches.
 type fakeCache struct {
 	mu sync.Mutex
 	m  map[string]any
@@ -52,8 +50,6 @@ func (f *fakeCache) Delete(_ context.Context, key string) error {
 
 func (f *fakeCache) IsRedis() bool { return false }
 
-// TestManagerTokenAndAdmin covers the small context/credential helpers: token
-// identity extraction and the constant-time admin check.
 func TestManagerTokenAndAdmin(t *testing.T) {
 	m := testManager(t)
 
@@ -75,7 +71,6 @@ func TestManagerTokenAndAdmin(t *testing.T) {
 		t.Errorf("TokenRoleFromContext = %q, want scoped", role)
 	}
 
-	// WithOrgID routes through the shared plugin package.
 	if got := plugin.OrgIDFromContext(WithOrgID(req.Context(), 7)); got != 7 {
 		t.Errorf("WithOrgID = %d, want 7", got)
 	}
@@ -94,8 +89,6 @@ func TestManagerTokenAndAdmin(t *testing.T) {
 	}
 }
 
-// TestTokenByRequestExpired validates that an expired bearer token row is not
-// admitted even when its hash matches.
 func TestTokenByRequestExpired(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -115,8 +108,6 @@ func TestTokenByRequestExpired(t *testing.T) {
 	}
 }
 
-// TestRevokeUserOrgTokens deletes exactly the tokens bound to one (user, org)
-// and leaves a token of the same user in another org alone.
 func TestRevokeUserOrgTokens(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -129,7 +120,6 @@ func TestRevokeUserOrgTokens(t *testing.T) {
 	seed("in-org", 5)
 	seed("other-org", 6)
 
-	// No-op guards.
 	if n := m.RevokeUserOrgTokens(0, 5); n != 0 {
 		t.Errorf("RevokeUserOrgTokens(user 0) = %d, want 0", n)
 	}
@@ -144,9 +134,6 @@ func TestRevokeUserOrgTokens(t *testing.T) {
 	}
 }
 
-// TestSetSessionFromRequestRefresh covers the same-fingerprint refresh: a
-// session with a matching cookie reuses its raw token while switching the org,
-// and one without a cookie rotates to a fresh token.
 func TestSetSessionFromRequestRefresh(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -160,7 +147,6 @@ func TestSetSessionFromRequestRefresh(t *testing.T) {
 		t.Fatal("no session cookie issued")
 	}
 
-	// Refreshing from the same browser with the same cookie reuses the token.
 	second := httptest.NewRequest(http.MethodGet, "/", nil)
 	second.Header.Set("User-Agent", "ua")
 	second.AddCookie(&http.Cookie{Name: cookieName, Value: cookie1})
@@ -177,7 +163,6 @@ func TestSetSessionFromRequestRefresh(t *testing.T) {
 		t.Errorf("row org after refresh = %d, want 9", s.OrgID)
 	}
 
-	// Same fingerprint but no cookie rotates to a fresh token.
 	third := httptest.NewRequest(http.MethodGet, "/", nil)
 	third.Header.Set("User-Agent", "ua")
 	recThird := httptest.NewRecorder()
@@ -197,8 +182,6 @@ func sessionCookie(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return ""
 }
 
-// TestSessionCacheHitAndExpiry proves sessionByToken prefers a live cache row
-// and drops an expired cached row before falling back to the database.
 func TestSessionCacheHitAndExpiry(t *testing.T) {
 	db := identityDB(t)
 	cache := newFakeCache()
@@ -211,7 +194,6 @@ func TestSessionCacheHitAndExpiry(t *testing.T) {
 		LastSeenAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
 	})
 
-	// A cache-only row (no DB row) proves the cache is consulted.
 	cache.Set(context.Background(), "session:"+hashed, &models.Session{
 		UserID: 77, OrgID: 78, Token: hashed,
 		LastSeenAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
@@ -222,7 +204,6 @@ func TestSessionCacheHitAndExpiry(t *testing.T) {
 		t.Errorf("UserID = %d, want the 77 from the cache row", uid)
 	}
 
-	// An expired cached row is evicted and the DB row wins (and is re-cached).
 	cached := &models.Session{
 		UserID: 88, OrgID: 88, Token: hashed,
 		LastSeenAt: time.Now().Add(-2 * time.Hour), ExpiresAt: time.Now().Add(-time.Hour),
@@ -238,8 +219,6 @@ func TestSessionCacheHitAndExpiry(t *testing.T) {
 	}
 }
 
-// TestTouchSessionUpdatesWithinGap forces the interval branch by backdating
-// LastSeenAt, and confirms a no-op for a missing cookie.
 func TestTouchSessionUpdatesWithinGap(t *testing.T) {
 	db := identityDB(t)
 	m := identityManager(t, db)
@@ -262,7 +241,6 @@ func TestTouchSessionUpdatesWithinGap(t *testing.T) {
 	}
 }
 
-// TestReporterIP honors proxy headers only when trustProxy is set.
 func TestReporterIP(t *testing.T) {
 	trustProxy.Store(false)
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -283,7 +261,6 @@ func TestReporterIP(t *testing.T) {
 	}
 }
 
-// TestTwoFAChallengeCookies covers the challenge cookie set/read/clear trio.
 func TestTwoFAChallengeCookies(t *testing.T) {
 	m := identityManager(t, identityDB(t))
 
@@ -326,7 +303,6 @@ func TestTwoFAChallengeCookies(t *testing.T) {
 	}
 }
 
-// TestMintChallengeRequiresSecret covers the no-secret-key refusal.
 func TestMintChallengeRequiresSecret(t *testing.T) {
 	m := New(&config.Config{SecretKey: ""}, crypto.New(""))
 	if _, err := m.NewTwoFAChallenge(1); err == nil {
@@ -335,8 +311,6 @@ func TestMintChallengeRequiresSecret(t *testing.T) {
 	}
 }
 
-// TestFirstOrPersonalOrg creates a personal org for a member-less user and
-// reuses an existing org for a member, and errors for a missing user.
 func TestFirstOrPersonalOrg(t *testing.T) {
 	db := identityDB(t)
 
@@ -370,7 +344,6 @@ func TestFirstOrPersonalOrg(t *testing.T) {
 	}
 }
 
-// TestIdentityNormalizeFailures rejects assertions missing parts of the key.
 func TestIdentityNormalizeFailures(t *testing.T) {
 	for _, id := range []plugin.ExternalIdentity{
 		{Issuer: "https://x", Subject: "s"},
@@ -392,8 +365,6 @@ func TestIdentityNormalizeFailures(t *testing.T) {
 	}
 }
 
-// TestResolveIdentityNoEmailClaim refuses an unbound identity without an email
-// claim before any provisioning happens.
 func TestResolveIdentityNoEmailClaim(t *testing.T) {
 	db := identityDB(t)
 	id := oidcID("https://idp.acme.com", "sub-x", "")
@@ -403,7 +374,6 @@ func TestResolveIdentityNoEmailClaim(t *testing.T) {
 	}
 }
 
-// TestLoginWithoutDatabase refuses login and bind when no DB is configured.
 func TestLoginWithoutDatabase(t *testing.T) {
 	m := testManager(t)
 	rec := httptest.NewRecorder()

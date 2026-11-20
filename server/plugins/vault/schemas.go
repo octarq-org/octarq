@@ -5,19 +5,17 @@ import (
 	"strings"
 )
 
-// SchemaField describes one form field in a credential or vault item template.
 type SchemaField struct {
 	Key       string `json:"key"`
 	Label     string `json:"label"`
-	Kind      string `json:"kind"` // text, secret, textarea, boolean, number, url
+	Kind      string `json:"kind"`
 	Required  bool   `json:"required,omitempty"`
 	Secret    bool   `json:"secret,omitempty"`
 	Default   any    `json:"default,omitempty"`
 	Hint      string `json:"hint,omitempty"`
-	NonSecret bool   `json:"nonSecret,omitempty"` // also mirrored into searchable metadata_json
+	NonSecret bool   `json:"nonSecret,omitempty"`
 }
 
-// ProviderSchema describes a typed provider template (for integrations or typed items).
 type ProviderSchema struct {
 	ID           string        `json:"id"`
 	Label        string        `json:"label"`
@@ -27,7 +25,6 @@ type ProviderSchema struct {
 	Fields       []SchemaField `json:"fields"`
 }
 
-// CategorySchema groups related schemas for UI tabs and discovery.
 type CategorySchema struct {
 	Key       string           `json:"key"`
 	Label     string           `json:"label"`
@@ -35,8 +32,6 @@ type CategorySchema struct {
 	Providers []ProviderSchema `json:"providers"`
 }
 
-// SchemasCatalog returns the authoritative schema catalog for all vault item types
-// and third-party service integrations.
 func SchemasCatalog() []CategorySchema {
 	return []CategorySchema{
 		{

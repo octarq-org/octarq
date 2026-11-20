@@ -10,17 +10,14 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// TaskSetVersion is the current schema version for task set files.
 const TaskSetVersion = 1
 
-// ToolMockResponse defines the predetermined output or error for a tool call.
 type ToolMockResponse struct {
 	Output    string `json:"output,omitempty"`
 	Error     string `json:"error,omitempty"`
 	ErrorCode string `json:"error_code,omitempty"`
 }
 
-// UnmarshalJSON permits either a string (shorthand for output) or an object.
 func (r *ToolMockResponse) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
@@ -36,7 +33,6 @@ func (r *ToolMockResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// TaskCriteria defines deterministic verification rules for a task run.
 type TaskCriteria struct {
 	ExpectedStatus string   `json:"expected_status,omitempty"`
 	ExpectedTools  []string `json:"expected_tools,omitempty"`
@@ -46,13 +42,11 @@ type TaskCriteria struct {
 	MaxToolErrors  *int     `json:"max_tool_errors,omitempty"`
 }
 
-// Judgement is the result of applying TaskCriteria to an executed turn.
 type Judgement struct {
 	Passed  bool     `json:"passed"`
 	Reasons []string `json:"reasons,omitempty"`
 }
 
-// Judge evaluates the turn and conversation history against the criteria.
 func (c TaskCriteria) Judge(turn *harness.Turn, history []harness.Message) Judgement {
 	var reasons []string
 
@@ -108,7 +102,6 @@ func (c TaskCriteria) Judge(turn *harness.Turn, history []harness.Message) Judge
 	}
 }
 
-// ParameterDef is the declarative parameter shape in task set JSON.
 type ParameterDef struct {
 	Name        string   `json:"name"`
 	Type        string   `json:"type,omitempty"`
@@ -117,7 +110,6 @@ type ParameterDef struct {
 	Enum        []string `json:"enum,omitempty"`
 }
 
-// ToDescriptor converts ParameterDef to harness.ParameterDescriptor.
 func (p ParameterDef) ToDescriptor() harness.ParameterDescriptor {
 	return harness.ParameterDescriptor{
 		Name:        p.Name,
@@ -128,7 +120,6 @@ func (p ParameterDef) ToDescriptor() harness.ParameterDescriptor {
 	}
 }
 
-// ToolDef is the declarative tool shape in task set JSON.
 type ToolDef struct {
 	Name             string         `json:"name"`
 	Summary          string         `json:"summary,omitempty"`
@@ -141,7 +132,6 @@ type ToolDef struct {
 	Parameters       []ParameterDef `json:"parameters,omitempty"`
 }
 
-// ToDescriptor converts ToolDef to harness.ToolDescriptor.
 func (t ToolDef) ToDescriptor() harness.ToolDescriptor {
 	var params []harness.ParameterDescriptor
 	for _, p := range t.Parameters {
@@ -160,7 +150,6 @@ func (t ToolDef) ToDescriptor() harness.ToolDescriptor {
 	}
 }
 
-// Task is a single reproducible evaluation case.
 type Task struct {
 	ID            string                      `json:"id"`
 	Title         string                      `json:"title,omitempty"`
@@ -170,7 +159,6 @@ type Task struct {
 	Criteria      TaskCriteria                `json:"criteria"`
 }
 
-// TaskSet is a collection of tasks and shared tool descriptors.
 type TaskSet struct {
 	Version     int       `json:"version"`
 	Name        string    `json:"name"`
@@ -179,7 +167,6 @@ type TaskSet struct {
 	Tasks       []Task    `json:"tasks"`
 }
 
-// Descriptors converts Catalog ToolDefs to harness ToolDescriptors.
 func (ts *TaskSet) Descriptors() []harness.ToolDescriptor {
 	if ts == nil {
 		return nil
@@ -191,7 +178,6 @@ func (ts *TaskSet) Descriptors() []harness.ToolDescriptor {
 	return out
 }
 
-// LoadTaskSet decodes and validates a task set file.
 func LoadTaskSet(path string) (*TaskSet, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -213,7 +199,6 @@ func LoadTaskSet(path string) (*TaskSet, error) {
 	return &ts, nil
 }
 
-// ValidateTaskSet enforces integrity constraints on the task set.
 func ValidateTaskSet(ts *TaskSet) error {
 	if ts == nil {
 		return errors.New("task set is nil")

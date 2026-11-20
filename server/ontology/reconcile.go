@@ -13,37 +13,19 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ErrUnmanagedTable is returned when an entity table exists but no bookkeeping
-// row says which declaration created it. Without the row there is nothing to
-// diff against, and guessing from column metadata is unsafe (SQLite stores
-// string, text, uuid and json all as TEXT).
 var ErrUnmanagedTable = errors.New("ontology: entity table exists without a bookkeeping row")
 
-// ErrBookkeepingMissing is returned when the bookkeeping table itself is absent.
-// The MCP composition does not run migrations, so this is the expected state
-// there: a server start is what applies schema.
 var ErrBookkeepingMissing = errors.New("ontology: schema was never applied by a server run")
 
-// Step is one entity's reconciliation result: the statements to run, plus the
-// bookkeeping row to write once they succeed.
 type Step struct {
 	Slug       string
 	Table      string
 	Statements []string
-	// Dirty reports whether the declaration differs from the stored one. Only a
-	// dirty entity rewrites its bookkeeping row, so AppliedAt keeps meaning
-	// "when this declaration took effect" rather than "when the server last
-	// booted".
-	Dirty   bool
-	existed bool // a bookkeeping row was already present
-	row     AppliedSpec
+	Dirty      bool
+	existed    bool
+	row        AppliedSpec
 }
 
-// Plan computes what must happen to every declared entity without writing
-// anything. Boot plans first and executes second, so a declaration that cannot
-// be applied leaves the database untouched instead of half-migrated.
-//
-// driver is the OCTARQ_DB_DRIVER value; db is used for reads only.
 func Plan(ctx context.Context, db *gorm.DB, driver string, specs []Spec) ([]Step, error) {
 	dial, err := DialectFor(driver)
 	if err != nil {
@@ -137,10 +119,6 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 	}
 	step.Dirty = applied.Hash != hash
 
-	// The row count only matters when the declaration changed: it is what turns
-	// "drop a column" from a rewrite into data loss. An unchanged declaration
-	// still gets its indexes checked, because a manual DROP INDEX must be
-	// repaired on the next boot.
 	if step.Dirty {
 		rows, err := countRows(ctx, db, table)
 		if err != nil {
@@ -160,11 +138,6 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 		return Step{}, err
 	}
 
-	// Every declared field must exist physically, whether it was just declared or
-	// has been declared all along. A column dropped by hand leaves the
-	// declaration describing a table that cannot answer its own queries, and the
-	// next boot is the only place that can notice: re-adding it is the repair,
-	// and a failure here is loud rather than a runtime error on the first read.
 	for _, f := range spec.Fields {
 		if cols[f.Name] {
 			continue
@@ -176,9 +149,6 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 		step.Statements = append(step.Statements, stmt)
 	}
 
-	// An index the bookkeeping says exists but the database lost (a manual drop,
-	// a restore from a partial dump) is re-created. The reverse case is refused
-	// by ValidateTransition.
 	if !idx[TenantIndexName(spec)] {
 		stmt, err := CreateIndexSQL(dial, table, ScopeColumns(spec), false, TenantIndexName(spec))
 		if err != nil {
@@ -186,10 +156,6 @@ func planOne(ctx context.Context, db *gorm.DB, dial Dialect, insp Inspector, spe
 		}
 		step.Statements = append(step.Statements, stmt)
 	}
-	// Driven by the new declaration, not the stored one: a field added in this
-	// run gets its index in the same run, and a field that just gained
-	// unique/indexed gets one too. Adding an index the old declaration did not
-	// carry is always safe; removing one is refused above.
 	for _, f := range spec.Fields {
 		if !f.Unique && !f.Indexed {
 			continue
@@ -219,14 +185,6 @@ func countRows(ctx context.Context, db *gorm.DB, table string) (int64, error) {
 	return n, nil
 }
 
-// Apply plans and then executes. A plan error writes nothing.
-//
-// Each entity's bookkeeping row is written as soon as that entity's statements
-// succeed, not once at the end. A failure part-way through would otherwise leave
-// the tables already created with no row describing them, and the next boot
-// refuses those tables as unmanaged — an instance that cannot start and cannot
-// be repaired without dropping data. MySQL commits DDL immediately anyway, so
-// per-step recording is also the only portable ordering.
 func Apply(ctx context.Context, db *gorm.DB, driver string, specs []Spec) error {
 	if len(specs) == 0 {
 		return nil
@@ -243,13 +201,6 @@ func Apply(ctx context.Context, db *gorm.DB, driver string, specs []Spec) error 
 	return nil
 }
 
-// applyStep runs one entity's statements and then records its declaration.
-//
-// A table this step created is claimed before the rest of its DDL is trusted: if
-// a later statement fails, the table is already the platform's, and the next
-// boot re-plans whatever is missing instead of refusing a table that no
-// declaration accounts for. The recorded declaration describes what the table
-// was meant to be, and the index check in Plan is what notices the difference.
 func applyStep(ctx context.Context, db *gorm.DB, step Step) error {
 	for _, stmt := range step.Statements {
 		if err := db.WithContext(ctx).Exec(stmt).Error; err != nil {
@@ -263,8 +214,6 @@ func applyStep(ctx context.Context, db *gorm.DB, step Step) error {
 		}
 	}
 	if step.existed && !step.Dirty {
-		// Nothing about the declaration changed — an index or a column was
-		// repaired, and the stored row already says this.
 		return nil
 	}
 	return record(ctx, db, step)

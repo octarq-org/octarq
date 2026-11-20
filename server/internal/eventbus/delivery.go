@@ -24,29 +24,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// WebhookDelivery is the persisted attempt log for one outbound webhook.
-//
-// It exists so a failed delivery is visible and replayable instead of being a
 // line in the process log that nobody reads. One row per (event, webhook)
-// pair; the row is created BEFORE the first HTTP attempt so a crash mid-flight
-// leaves evidence, and updated in place as attempts are made.
-//
-// Body is stored verbatim because it is the signed material: a replay must
-// re-send byte-identical content or the receiver's signature check fails.
 type WebhookDelivery struct {
-	ID uint `gorm:"primaryKey" json:"id"`
-	// DeliveryID is the value sent in X-Octarq-Delivery. Receivers dedupe on
-	// it, so it is unique and stable across retries AND across replays of the
-	// same delivery — a replay is the same delivery, not a new event.
-	DeliveryID string `gorm:"uniqueIndex;size:64;not null" json:"deliveryId"`
-	OrgID      uint   `gorm:"index;column:owner_id;not null" json:"-"`
-	WebhookID  uint   `gorm:"index;not null" json:"webhookId"`
-	Event      string `gorm:"size:128;not null" json:"event"`
-	URL        string `gorm:"size:1024;not null" json:"url"`
-	Body       string `gorm:"type:text" json:"-"`
-	// Status is one of pending, delivered, failed. "failed" is the dead-letter
-	// state: every attempt was used up and the event will not be retried
-	// without an operator-triggered Replay.
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	DeliveryID   string    `gorm:"uniqueIndex;size:64;not null" json:"deliveryId"`
+	OrgID        uint      `gorm:"index;column:owner_id;not null" json:"-"`
+	WebhookID    uint      `gorm:"index;not null" json:"webhookId"`
+	Event        string    `gorm:"size:128;not null" json:"event"`
+	URL          string    `gorm:"size:1024;not null" json:"url"`
+	Body         string    `gorm:"type:text" json:"-"`
 	Status       string    `gorm:"size:16;index;not null;default:'pending'" json:"status"`
 	Attempts     int       `gorm:"not null;default:0" json:"attempts"`
 	ResponseCode int       `gorm:"not null;default:0" json:"responseCode"`
@@ -56,35 +42,21 @@ type WebhookDelivery struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
-// Delivery status values.
 const (
 	StatusPending   = "pending"
 	StatusDelivered = "delivered"
 	StatusFailed    = "failed"
 )
 
-// Models returns the eventbus-owned models for the app's single AutoMigrate
-// pass (see app.Run).
 func Models() []any { return []any{&WebhookDelivery{}} }
 
-// Retry/fan-out policy. Package vars rather than consts so tests can shrink the
-// clock without waiting out real backoff.
 var (
-	// maxAttempts bounds total HTTP attempts per delivery. Exhausting it moves
-	// the row to the dead-letter state (StatusFailed) rather than retrying
-	// forever against an endpoint that is gone.
-	maxAttempts = 5
-	baseBackoff = 1 * time.Second
-	maxBackoff  = 5 * time.Minute
-	// maxConcurrentDeliveries bounds fan-out. Without it, one event with N
-	// subscribed hooks spawns N goroutines, each holding an HTTP connection —
-	// a burst of events times a long hook list is an unbounded goroutine and
-	// socket leak driven by tenant-controlled data.
+	maxAttempts             = 5
+	baseBackoff             = 1 * time.Second
+	maxBackoff              = 5 * time.Minute
 	maxConcurrentDeliveries = 16
 	deliverySem             = make(chan struct{}, maxConcurrentDeliveries)
 
-	// sleepFn is context-aware so a shutting-down process does not sit in a
-	// backoff nap.
 	sleepFn = func(ctx context.Context, d time.Duration) {
 		t := time.NewTimer(d)
 		defer t.Stop()
@@ -93,15 +65,10 @@ var (
 		case <-t.C:
 		}
 	}
-	// nowFn and newDeliveryID are seams for deterministic tests.
 	nowFn         = time.Now
 	newDeliveryID = func() string { return uuid.NewString() }
 )
 
-// backoffFor returns the wait before attempt n+1 (n is the number of attempts
-// already made): exponential from baseBackoff, capped at maxBackoff, with full
-// jitter so a fleet of receivers coming back at once is not stampeded by every
-// pending delivery retrying on the same tick.
 func backoffFor(attempt int) time.Duration {
 	if attempt < 1 {
 		attempt = 1
@@ -114,7 +81,6 @@ func backoffFor(attempt int) time.Duration {
 			break
 		}
 	}
-	// Full jitter: uniform in [d/2, d].
 	half := d / 2
 	if half <= 0 {
 		return d
@@ -126,23 +92,12 @@ func backoffFor(attempt int) time.Duration {
 	return half + time.Duration(n.Int64())
 }
 
-// signature computes the HMAC-SHA256 of material under secret, hex-encoded.
 func signature(secret string, material []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(material)
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// v2Material is the signed material for X-Octarq-Signature-V2:
-//
-//	"<unix-seconds>.<delivery-id>.<body>"
-//
-// Binding the timestamp and delivery id INTO the signature (rather than only
-// sending them as headers) is what makes a replay detectable: an attacker who
-// captures a delivery cannot move it forward in time or re-label it without
-// invalidating the signature, so a receiver can safely reject anything outside
-// its tolerance window (5 minutes is the recommended value) and dedupe on the
-// delivery id.
 func v2Material(ts time.Time, deliveryID string, body []byte) []byte {
 	prefix := strconv.FormatInt(ts.Unix(), 10) + "." + deliveryID + "."
 	out := make([]byte, 0, len(prefix)+len(body))
@@ -150,7 +105,6 @@ func v2Material(ts time.Time, deliveryID string, body []byte) []byte {
 	return append(out, body...)
 }
 
-// delivery is one webhook send: an event body addressed to one endpoint.
 type delivery struct {
 	DeliveryID  string
 	OrgID       uint
@@ -162,21 +116,17 @@ type delivery struct {
 	SignedAt    time.Time
 }
 
-// attemptResult carries what the delivery log records about one HTTP attempt.
 type attemptResult struct {
 	StatusCode int
 	Err        error
 }
 
-// attempt performs exactly one signed POST. A non-2xx response is an error:
-// the receiver did not accept the event, so the delivery is not done.
 func attempt(ctx context.Context, d delivery, attemptNo int) attemptResult {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.URL, bytes.NewReader(d.Body))
 	if err != nil {
 		return attemptResult{Err: err}
 	}
 	if err := safehttp.ValidateScheme(req.URL.Scheme); err != nil {
-		// Not retryable: the URL will not become valid on the next attempt.
 		return attemptResult{Err: fmt.Errorf("%w: %w", errPermanent, err)}
 	}
 	secret, err := signingSecret(ctx, d.OrgID, d.VaultItemID)
@@ -190,8 +140,6 @@ func attempt(ctx context.Context, d delivery, attemptNo int) attemptResult {
 	req.Header.Set("X-Octarq-Delivery", d.DeliveryID)
 	req.Header.Set("X-Octarq-Timestamp", strconv.FormatInt(d.SignedAt.Unix(), 10))
 	req.Header.Set("X-Octarq-Attempt", strconv.Itoa(attemptNo))
-	// v1 (body-only) stays for receivers written against the original scheme.
-	// It cannot detect replay on its own — see v2Material.
 	req.Header.Set("X-Octarq-Signature", "sha256="+signature(secret, d.Body))
 	req.Header.Set("X-Octarq-Signature-V2", "v2="+signature(secret, v2Material(d.SignedAt, d.DeliveryID, d.Body)))
 
@@ -200,7 +148,6 @@ func attempt(ctx context.Context, d delivery, attemptNo int) attemptResult {
 		return attemptResult{Err: err}
 	}
 	defer resp.Body.Close()
-	// Drain a bounded amount so the connection can be reused.
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -209,13 +156,8 @@ func attempt(ctx context.Context, d delivery, attemptNo int) attemptResult {
 	return attemptResult{StatusCode: resp.StatusCode}
 }
 
-// errPermanent marks a failure that retrying cannot fix (bad scheme, secret
-// that will not decrypt). Such a delivery dead-letters immediately instead of
-// burning maxAttempts on a guaranteed failure.
 var errPermanent = errors.New("permanent")
 
-// deliverWithRetry runs the attempt/backoff loop for one delivery and keeps the
-// persisted log in step with it.
 func deliverWithRetry(ctx context.Context, d delivery) {
 	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/eventbus", "eventbus.deliver_webhook",
 		trace.WithAttributes(
@@ -270,8 +212,6 @@ func deliverWithRetry(ctx context.Context, d delivery) {
 	recordResult(logRow, maxAttempts, StatusFailed, last)
 }
 
-// recordPending inserts the delivery log row. A DB failure here must not stop
-// the send: losing the audit row is bad, losing the event is worse.
 func recordPending(d delivery) *WebhookDelivery {
 	row := &WebhookDelivery{
 		DeliveryID: d.DeliveryID,
@@ -327,8 +267,6 @@ func truncate(s string, n int) string {
 	return s[:n]
 }
 
-// Deliveries returns this org's delivery log, newest first, for the dashboard.
-// status is optional ("" = all).
 func Deliveries(ctx context.Context, orgID uint, status string, limit int) ([]WebhookDelivery, error) {
 	gdb := getDB()
 	if gdb == nil {
@@ -345,10 +283,6 @@ func Deliveries(ctx context.Context, orgID uint, status string, limit int) ([]We
 	return out, q.Order("id DESC").Limit(limit).Find(&out).Error
 }
 
-// Replay re-sends a logged delivery with its ORIGINAL body and delivery id, so
-// a receiver that already processed it can dedupe rather than double-handle.
-// The signing timestamp is refreshed because the receiver's tolerance window
-// would otherwise reject the replay outright.
 func Replay(ctx context.Context, orgID uint, deliveryID string) error {
 	gdb := getDB()
 	if gdb == nil {

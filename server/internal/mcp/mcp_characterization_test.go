@@ -24,7 +24,6 @@ func newMCPCharTestDB(t *testing.T) *gorm.DB {
 func TestMCP_Characterization_ServerConstruction(t *testing.T) {
 	db := newMCPCharTestDB(t)
 
-	// 1. Basic server creation via NewServerInstance
 	mock := &mockMCPPlugin{name: "mock-mcp-char"}
 	srv := NewServerInstance(db, 1, []plugin.Plugin{mock}, nil)
 	if srv == nil {
@@ -37,17 +36,14 @@ func TestMCP_Characterization_ServerConstruction(t *testing.T) {
 		t.Error("expected plugin RegisterMCP to be called in NewServerInstance")
 	}
 
-	// 2. Networked server creation via NewNetworkedServerInstance
 	mockNet := &mockMCPPlugin{name: "mock-mcp-net"}
 	srvNet := NewNetworkedServerInstance(db, 1, []plugin.Plugin{mockNet}, func(string) (any, bool) { return nil, false })
 	if srvNet == nil {
 		t.Fatal("expected non-nil MCP server from NewNetworkedServerInstance()")
 	}
-	// Networked instances MUST NOT mount plugins
 	if mockNet.mountCalled {
 		t.Error("expected plugin Mount NOT to be called in NewNetworkedServerInstance")
 	}
-	// But must register tools
 	if !mockNet.registerCalled {
 		t.Error("expected plugin RegisterMCP to be called in NewNetworkedServerInstance")
 	}
@@ -71,7 +67,6 @@ func TestMCP_Characterization_SubscriptionLifecycle(t *testing.T) {
 		t.Error("expected uri not watched after remove")
 	}
 
-	// Server level subscribe/unsubscribe
 	s := &server{subs: &subscriptionTracker{}}
 	if err := s.handleSubscribe(context.Background(), &mcpsdk.SubscribeRequest{Params: &mcpsdk.SubscribeParams{URI: uri}}); err != nil {
 		t.Fatalf("handleSubscribe failed: %v", err)
@@ -92,7 +87,6 @@ func TestMCP_Characterization_SystemResources(t *testing.T) {
 	db := newMCPCharTestDB(t)
 	s := &server{gdb: db, orgID: 1}
 
-	// 1. Read octarq://metrics/traffic
 	resTraffic, err := s.handleResourceTraffic(context.Background(), &mcpsdk.ReadResourceRequest{
 		Params: &mcpsdk.ReadResourceParams{URI: ResourceURITrafficMetrics},
 	})
@@ -103,7 +97,6 @@ func TestMCP_Characterization_SystemResources(t *testing.T) {
 		t.Fatal("expected non-empty contents in traffic metrics resource")
 	}
 
-	// 2. Read octarq://domains/health
 	resDomains, err := s.handleResourceDomainsHealth(context.Background(), &mcpsdk.ReadResourceRequest{
 		Params: &mcpsdk.ReadResourceParams{URI: ResourceURIDomainsHealth},
 	})
@@ -114,7 +107,6 @@ func TestMCP_Characterization_SystemResources(t *testing.T) {
 		t.Fatal("expected non-empty contents in domains health resource")
 	}
 
-	// 3. Error on mismatched URI
 	_, err = s.handleResourceTraffic(context.Background(), &mcpsdk.ReadResourceRequest{
 		Params: &mcpsdk.ReadResourceParams{URI: "octarq://unknown"},
 	})

@@ -8,9 +8,6 @@ import (
 	"testing"
 )
 
-// Every purpose gets its own key. Two jobs sharing key material is what the
-// purpose labels exist to prevent, and a derivation that ignores its label
-// would make every caller's "different key" assumption false.
 func TestDeriveKeyIsPerPurpose(t *testing.T) {
 	secret := []byte("master-secret")
 
@@ -28,16 +25,12 @@ func TestDeriveKeyIsPerPurpose(t *testing.T) {
 		t.Fatal("two secrets must not derive the same purpose key")
 	}
 
-	// The KEK keeps its unlabelled SHA-256 derivation, so a labelled key that
-	// equalled it would put the DEK-wrapping key back on the signing path.
 	kek := sha256.Sum256(secret)
 	if bytes.Equal(first, kek[:]) {
 		t.Fatal("a purpose key must not equal the KEK derivation")
 	}
 }
 
-// Sign must produce an HMAC under the cookie-MAC subkey. Pinning the exact key
-// catches a signer that silently falls back to the KEK or the raw secret.
 func TestCipherSignUsesTheCookieMACSubkey(t *testing.T) {
 	const secret = "master-secret"
 	msg := []byte("session-token")

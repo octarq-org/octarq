@@ -23,8 +23,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// readOnlyGuard wraps a base Guard (e.g. RiskGuard) and rejects any tool
-// whose endpoint RiskLevel is not plugin.RiskLevelRead.
 type readOnlyGuard struct {
 	base harness.Guard
 	src  harness.EndpointSource
@@ -55,16 +53,10 @@ func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool, argsJSON st
 	return nil
 }
 
-// readOnlyTool keeps only the tools a read-only session may call. It mirrors
-// the readOnlyGuard rule exactly, so the compiled prompt and the guard agree
-// on the tool surface.
 func readOnlyTool(d harness.ToolDescriptor) bool {
 	return d.Risk == plugin.RiskLevelRead
 }
 
-// composeToolFilter combines the session policy with the spec's allowlist.
-// The policy can narrow the advertised surface, the spec can narrow it
-// further; neither can widen it.
 func composeToolFilter(policy harness.ToolFilter, spec harness.HarnessSpec) harness.ToolFilter {
 	specFilter := spec.ToolFilter()
 	if policy == nil {
@@ -78,14 +70,6 @@ func composeToolFilter(policy harness.ToolFilter, spec harness.HarnessSpec) harn
 	}
 }
 
-// harnessSpec resolves the published harness spec of a workspace.
-//
-// A workspace with no published spec gets the built-in default — that is the
-// product's normal state, not a fallback. A spec that fails validation is an
-// error: it is never silently replaced by the default.
-//
-// The published document comes from the host, which resolves it from whichever
-// plugin provides the harness store. A nil document means nobody published one.
 func (h *Handler) harnessSpec(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
 	if h == nil || h.host == nil {
 		return harness.HarnessSpec{}, errors.New("the agent harness is not configured on this instance")
@@ -107,11 +91,6 @@ func (h *Handler) harnessSpec(ctx context.Context, orgID uint) (harness.HarnessS
 	return spec, nil
 }
 
-// auditAgentTurn records the shape of an agent turn: which tools ran, whether
-// they worked, how long they took and what the turn cost.
-//
-// The trace deliberately keeps no tool arguments and no tool output — those
-// may carry workspace data and belong to the session, not to the audit log.
 func (h *Handler) auditAgentTurn(
 	r *http.Request,
 	orgID uint,
@@ -122,11 +101,6 @@ func (h *Handler) auditAgentTurn(
 	spec harness.HarnessSpec,
 	model string,
 ) {
-	// The step list comes from the trace, not from the turn. The trace knows
-	// the outcome of a step: a tool that ran and failed, a tool the policy
-	// denied, a tool held for approval. The turn knows only that something
-	// went wrong, so a dashboard built on the turn cannot tell a refusal
-	// from a failure.
 	steps := make([]map[string]any, 0, len(events))
 	for _, ev := range events {
 		if ev.Kind != harness.TraceKindStep {
@@ -160,16 +134,10 @@ func (h *Handler) auditAgentTurn(
 	h.auditAs(r, orgID, h.auth.UserID(r), "agent.turn", "agent_session", 0, meta)
 }
 
-// spendWriteTimeout bounds the detached ledger write. The turn has already run
-// when this happens, so a stalled database must not hold the stream open.
 const spendWriteTimeout = 10 * time.Second
 
-// spendSourceChat marks a turn that ran through the dashboard chat.
 const spendSourceChat = "chat"
 
-// recordTurnSpend writes one ledger row on a context that outlives the request.
-// A client that closes the tab cancels r.Context(), but the turn already ran and
-// the provider bills its tokens, so the spend must still reach the ledger.
 func recordTurnSpend(parent context.Context, ledger plugin.Workforce, orgID uint, in plugin.TurnSpend) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), spendWriteTimeout)
 	defer cancel()
@@ -177,9 +145,6 @@ func recordTurnSpend(parent context.Context, ledger plugin.Workforce, orgID uint
 	return err
 }
 
-// writeBillingRefusal answers a turn the agent budget cannot accept. Each
-// message names the next action an operator can take, and each code lets the
-// client translate that action instead of showing raw prose.
 func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, plugin.ErrWorkforceUnavailable):
@@ -197,24 +162,11 @@ func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
 	}
 }
 
-// AIChatStreamMessage is one message of the run input. Content stays raw so a
-// structured payload is refused with a clear reason instead of a decode error.
 type AIChatStreamMessage struct {
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
 }
 
-// AIChatStreamRequest is the request body for POST /api/ai/chat/stream.
-//
-// The body follows the AG-UI run input (threadId, runId, messages) and adds
-// the workspace options this product owns. There is deliberately no
-// system-prompt field: the prompt is compiled on the server from the endpoint
-// registry, so a caller cannot replace the agent's rules — not the tool-call
-// format, not the untrusted-data rule, not the tool list.
-//
-// Anything the server would ignore is refused rather than dropped: a caller
-// that sends client tools or run state learns that the server does not use
-// them, instead of believing it changed the run.
 type AIChatStreamRequest struct {
 	ThreadID string                `json:"threadId"`
 	RunID    string                `json:"runId"`
@@ -222,11 +174,7 @@ type AIChatStreamRequest struct {
 
 	Model    string `json:"model,omitempty"`
 	Thinking *bool  `json:"thinking,omitempty"`
-	// AgentID attributes the turn to a workforce agent. An attributed turn is
-	// priced and charged to that agent's budget. An absent value bills the
-	// workspace default agent when one is set, and leaves the turn unbilled
-	// when it is not.
-	AgentID string `json:"agentId,omitempty"`
+	AgentID  string `json:"agentId,omitempty"`
 
 	Tools          json.RawMessage `json:"tools,omitempty"`
 	State          json.RawMessage `json:"state,omitempty"`
@@ -235,9 +183,6 @@ type AIChatStreamRequest struct {
 	Resume         json.RawMessage `json:"resume,omitempty"`
 }
 
-// emptyJSON reports whether a raw field carries no value. Null, an empty
-// array and an empty object are all "nothing"; anything else is a payload the
-// server would otherwise drop.
 func emptyJSON(raw json.RawMessage) bool {
 	switch strings.TrimSpace(string(raw)) {
 	case "", "null", "[]", "{}":
@@ -246,8 +191,6 @@ func emptyJSON(raw json.RawMessage) bool {
 	return false
 }
 
-// parseRunInput validates the messages and splits them into history and the
-// turn input. The error string is the sentence the caller sees.
 func parseRunInput(msgs []AIChatStreamMessage) ([]harness.Message, string, string) {
 	if len(msgs) == 0 {
 		return nil, "", "Messages list cannot be empty; provide at least one message."
@@ -274,16 +217,10 @@ func parseRunInput(msgs []AIChatStreamMessage) ([]harness.Message, string, strin
 	return parsed[:len(parsed)-1], last.Content, ""
 }
 
-// SetEndpointSource configures the endpoint source for agent tool dispatch.
 func (h *Handler) SetEndpointSource(src harness.EndpointSource) {
 	h.endpointSource = src
 }
 
-// aiChatStream handles POST /api/ai/chat/stream via Server-Sent Events (SSE).
-//
-// Each SSE frame is one AG-UI event: an optional id line and one data line.
-// The path stays inside this product's own namespace: AG-UI is the wire
-// format, not the endpoint name.
 func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeErr(w, r, http.StatusMethodNotAllowed, "", "Method not allowed; use POST for streaming chat")
@@ -320,8 +257,6 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fail closed on run input this server does not use. A field that is
-	// silently dropped teaches a client that it controlled the run.
 	if !emptyJSON(req.Tools) {
 		writeErr(w, r, http.StatusBadRequest, "", "Client tools are not supported; the server compiles its own tool list.")
 		return
@@ -366,31 +301,17 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve the published harness spec before the response starts: an
-	// invalid spec must fail the request, not degrade into the built-in
-	// default halfway through a stream.
 	spec, err := h.harnessSpec(r.Context(), orgID)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
 		return
 	}
 
-	// The model is resolved here so the billing gate sees the exact model the
-	// runner will use.
 	model := p.DefaultModel()
 	if req.Model != "" {
 		model = req.Model
 	}
 
-	// A turn attributed to a workforce agent is billed to that agent. The
-	// price and the budget are checked before the stream starts: once the
-	// response is open, a refusal can no longer become an HTTP error.
-	//
-	// A caller that names an agent spends workspace money, so it carries the
-	// same authority as the workforce page that configures the agent. A turn
-	// that names none is not attributed and is not charged. The ledger comes
-	// from the host: a build without the workforce plugin has none, and naming
-	// an agent on such a build is refused instead of run free.
 	ledger := h.workforce()
 	billingAgent := req.AgentID
 	if billingAgent != "" {
@@ -404,9 +325,6 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// The published ceilings become a live budget. A cost ceiling over a model
-	// the workspace never priced is refused here: it could never be enforced,
-	// and a limit the operator believes is on but is not is worse than none.
 	var cost func(input, output, reasoning int) float64
 	if spec.MaxCostUSD > 0 {
 		cost, err = ledger.TurnCost(r.Context(), orgID, model)
@@ -417,9 +335,6 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	}
 	budget := harness.BudgetFromSpec(spec, cost)
 
-	// The spec's profile and step budget settle before the response starts. A
-	// budget above the profile's ceiling is a misconfigured spec: it fails the
-	// request instead of running with less than the prompt promises.
 	maxSteps, err := spec.EffectiveMaxSteps(false)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
@@ -436,22 +351,9 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		executor = harness.NewRegistryExecutor(nil)
 		guard = newReadOnlyGuard(nil)
 	}
-	// The published spec narrows the tool surface, and the guard enforces it.
-	// The prompt tells the model which tools exist; the guard is what makes
-	// the promise true when the model decides otherwise.
 	guard = harness.ComposeGuards(guard, harness.NewSpecGuard(spec))
 
-	// Compile the tool catalog and the system prompt from the endpoint
-	// registry. The web assistant is read-only, so only the read tools are
-	// advertised: a prompt that offers a tool the guard refuses teaches the
-	// model to call something it can never use.
-	//
-	// The spec is the published harness description. Until a workspace
-	// publishes one, the built-in default applies; a spec that fails
-	// validation never reaches this point.
 	catalog := harness.BuildCatalog(h.endpointSource, composeToolFilter(readOnlyTool, spec))
-	// The prompt states the budget the runner enforces. EffectiveMaxSteps
-	// resolved it above, and the runner is assembled from the same value.
 	systemPrompt := catalog.SystemPrompt(spec)
 
 	tracer := harness.NewRecordingTracer()
@@ -512,25 +414,16 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		runErr = runner.Run(r.Context(), session, turn)
 	}
 
-	// A provider without streaming support still owes the client an answer.
 	if !stream.WroteText() && runErr == nil {
 		stream.Say(lastAssistantText(session))
 	}
 
-	// Record what the agent did before answering: a turn that failed is
-	// exactly the one an operator will want to look at later.
 	h.auditAgentTurn(r, orgID, session.ID, turn, tracer.Events(), catalog, spec, model)
 
-	// A failed sink means the client is gone; there is nobody left to answer.
 	if stream.Err() != nil {
 		return
 	}
 
-	// An attributed turn is charged after it runs, including a turn that
-	// failed partway: the provider bills the tokens it generated. The run id
-	// is the idempotency key, so a retried request never charges twice. A
-	// billing failure is surfaced, not swallowed — an unrecorded turn would
-	// leave the budget unaware of real spend.
 	if billingAgent != "" {
 		err := recordTurnSpend(r.Context(), ledger, orgID, plugin.TurnSpend{
 			AgentID:         billingAgent,
@@ -558,8 +451,6 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	stream.Finish(p.Name(), model, turn.InputTokens, turn.OutputTokens, turn.ReasoningTokens)
 }
 
-// lastAssistantText returns the final assistant reply of the session, used
-// when the provider could not stream its deltas.
 func lastAssistantText(s *harness.Session) string {
 	for i := len(s.History) - 1; i >= 0; i-- {
 		if s.History[i].Role == "assistant" {
@@ -569,7 +460,6 @@ func lastAssistantText(s *harness.Session) string {
 	return ""
 }
 
-// newStreamID builds an identifier for a caller that sent none.
 func newStreamID(prefix string) string {
 	var b [12]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -578,8 +468,6 @@ func newStreamID(prefix string) string {
 	return prefix + "-" + hex.EncodeToString(b[:])
 }
 
-// chatStream writes AG-UI events as SSE frames. The keep-alive comment keeps
-// a proxy from closing a run that spends a long time inside one tool.
 type chatStream struct {
 	ctx     context.Context
 	mu      sync.Mutex

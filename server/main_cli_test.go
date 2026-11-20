@@ -16,7 +16,6 @@ func TestCLIPluginCommand(t *testing.T) {
 		t.Errorf("runPluginCommand(unknown) expected 2, got %d", code)
 	}
 
-	// Scaffold plugin into temp dir
 	targetDir := filepath.Join(t.TempDir(), "scaffold-test")
 	code := runPluginCommand([]string{"new", "testplugin", "--dir", targetDir})
 	if code != 0 {

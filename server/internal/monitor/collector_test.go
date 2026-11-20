@@ -48,9 +48,9 @@ func TestCollector_RegistrationAndOptions(t *testing.T) {
 	p1 := &mockProvider{name: "p1", category: "custom", unit: "count"}
 	p2 := &mockProvider{name: "p2", category: "runtime", unit: "bytes"}
 
-	c.RegisterProvider(nil) // nil safe
+	c.RegisterProvider(nil)
 	c.RegisterProvider(p1)
-	c.RegisterProvider(p1) // duplicate safe
+	c.RegisterProvider(p1)
 	c.RegisterProviders(p2, nil)
 
 	if len(c.providers) != 2 {
@@ -61,14 +61,13 @@ func TestCollector_RegistrationAndOptions(t *testing.T) {
 	if c.timeout != 2*time.Second {
 		t.Errorf("timeout = %v, want 2s", c.timeout)
 	}
-	c.SetTimeout(0) // ignored if <= 0
+	c.SetTimeout(0)
 	if c.timeout != 2*time.Second {
 		t.Errorf("timeout changed on <=0 value: %v", c.timeout)
 	}
 }
 
 func TestCollector_CollectAggregation(t *testing.T) {
-	// Case 1: All OK
 	p1 := &mockProvider{name: "p1", category: "runtime", unit: "bytes"}
 	p2 := &mockProvider{name: "p2", category: "database", unit: "count"}
 	c := NewCollector(10*time.Second, p1, p2)
@@ -84,7 +83,6 @@ func TestCollector_CollectAggregation(t *testing.T) {
 		t.Error("CheckedAt timestamp is empty")
 	}
 
-	// Case 2: One Warn -> Overall Warn
 	pWarn := &mockProvider{
 		name:     "warn_p",
 		category: "custom",
@@ -98,7 +96,6 @@ func TestCollector_CollectAggregation(t *testing.T) {
 		t.Errorf("expected Overall HealthWarn, got %q", repWarn.Overall)
 	}
 
-	// Case 3: One Error -> Overall Error
 	pErr := &mockProvider{
 		name:     "err_p",
 		category: "storage",
@@ -119,7 +116,7 @@ func TestCollector_DynamicProviderSource(t *testing.T) {
 
 	c := NewCollector(10*time.Second, p1)
 	c.SetProviderSource(func() []plugin.HealthProvider {
-		return []plugin.HealthProvider{pDynamic, p1} // p1 is duplicate and should be deduplicated
+		return []plugin.HealthProvider{pDynamic, p1}
 	})
 
 	rep := c.Collect(context.Background())
@@ -167,33 +164,26 @@ func TestCollector_LatestReportAndLifecycle(t *testing.T) {
 
 	c := NewCollector(50*time.Millisecond, p)
 
-	// Cold start LatestReport should trigger Collect
 	rep1 := c.LatestReport(context.Background())
 	if rep1.Overall != plugin.HealthOK || count.Load() != 1 {
 		t.Errorf("cold start LatestReport failed, count = %d", count.Load())
 	}
 
-	// Subsequent LatestReport returns cached without incrementing count immediately
 	rep2 := c.LatestReport(context.Background())
 	if rep2.CheckedAt != rep1.CheckedAt || count.Load() != 1 {
 		t.Errorf("LatestReport did not return cached report")
 	}
 
-	// Start background polling
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Start(ctx)
-	// Calling Start again should be a no-op
 	c.Start(ctx)
 
-	// Wait for background ticker to tick
 	time.Sleep(120 * time.Millisecond)
 	if count.Load() < 2 {
 		t.Errorf("expected ticker to collect, got count = %d", count.Load())
 	}
 
-	// Stop collector
 	c.Stop()
-	// Stop again should be safe
 	c.Stop()
 	cancel()
 }
@@ -204,7 +194,7 @@ func TestCollector_StartWithContextCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Start(ctx)
-	cancel() // cancel immediately
+	cancel()
 	time.Sleep(30 * time.Millisecond)
 	c.Stop()
 }

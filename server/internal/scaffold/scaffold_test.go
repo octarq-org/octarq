@@ -23,7 +23,6 @@ func TestGenerateProducesValidSkeleton(t *testing.T) {
 		t.Fatalf("Generate: %v", err)
 	}
 
-	// The Go half is named after the plugin, and the standard file set is present.
 	want := []string{"go.mod", "mail-link.go", "README.md", "web/index.ts", "web/Page.tsx", "web/package.json", "web/tsconfig.json"}
 	for _, f := range want {
 		if !slices.Contains(created, f) {
@@ -34,7 +33,6 @@ func TestGenerateProducesValidSkeleton(t *testing.T) {
 		}
 	}
 
-	// No template placeholder may leak into any output file.
 	for _, f := range created {
 		b, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(f)))
 		if err != nil {
@@ -45,7 +43,6 @@ func TestGenerateProducesValidSkeleton(t *testing.T) {
 		}
 	}
 
-	// The generated Go must parse and be gofmt-clean.
 	goPath := filepath.Join(dir, "mail-link.go")
 	src, err := os.ReadFile(goPath)
 	if err != nil {
@@ -62,8 +59,6 @@ func TestGenerateProducesValidSkeleton(t *testing.T) {
 		t.Error("generated Go is not gofmt-clean")
 	}
 
-	// Substitutions landed where they matter: package name has dashes stripped,
-	// the route prefix uses the raw name.
 	s := string(src)
 	if !strings.Contains(s, "package maillink") {
 		t.Error("Go package name should have dashes stripped (maillink)")
@@ -71,7 +66,6 @@ func TestGenerateProducesValidSkeleton(t *testing.T) {
 	if !strings.Contains(s, "/api/mail-link/ping") {
 		t.Error("route prefix should use the raw plugin name")
 	}
-	// go.mod carries the requested module path.
 	mod, _ := os.ReadFile(filepath.Join(dir, "go.mod"))
 	if !strings.Contains(string(mod), "module github.com/acme/octarq-plugin-mail-link") {
 		t.Errorf("go.mod module path wrong:\n%s", mod)

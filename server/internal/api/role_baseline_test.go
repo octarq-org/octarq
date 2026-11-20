@@ -27,7 +27,6 @@ func TestRoleBaselineEnforcement(t *testing.T) {
 	adminCookies := sessionCookies(t, 2, 1)
 	ownerCookies := sessionCookies(t, 1, 1)
 
-	// Helper for sending request with session cookies
 	doReq := func(method, path string, cookies []*http.Cookie, body string) *httptest.ResponseRecorder {
 		var req *http.Request
 		if body != "" {
@@ -45,10 +44,6 @@ func TestRoleBaselineEnforcement(t *testing.T) {
 	}
 
 	t.Run("Member denied admin routes", func(t *testing.T) {
-		// Tokens are deliberately absent from this list. They are a personal
-		// credential — one that acts as its holder and can never out-rank them —
-		// so a member may mint and manage their own. What replaced the role gate
-		// is an ownership scope, covered by TestMemberTokensAreTheirOwn.
 
 		if code := doReq("GET", "/api/webhooks", memberCookies, "").Code; code != 403 {
 			t.Fatalf("expected GET /api/webhooks for member to be 403, got %d", code)
@@ -68,9 +63,6 @@ func TestRoleBaselineEnforcement(t *testing.T) {
 			t.Fatalf("expected PUT /api/settings for member to be 403, got %d: body=%s", rec.Code, rec.Body.String())
 		}
 
-		// Plugin routes (links / mail / dns) are gated too, but this handler mounts
-		// no plugin, so asserting on them here only ever measures a 404. Their gates
-		// are covered in each plugin's own package.
 	})
 
 	t.Run("Admin denied owner-only routes", func(t *testing.T) {

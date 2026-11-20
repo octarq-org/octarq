@@ -14,23 +14,18 @@ import (
 func TestTokenUpdate(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Setup users and tokens in Org 1
-	// User 10: Owner in Org 1
 	seedMember(t, db, 10, "owner")
 	rawOwner := "oct_owner00000000000000000000000001"
 	seedToken(t, db, rawOwner, 10, "owner")
 
-	// User 11: Admin in Org 1
 	seedMember(t, db, 11, "admin")
 	rawAdmin := "oct_admin00000000000000000000000001"
 	seedToken(t, db, rawAdmin, 11, "admin")
 
-	// User 12: Member in Org 1
 	seedMember(t, db, 12, "member")
 	rawMember := "oct_member0000000000000000000000001"
 	seedToken(t, db, rawMember, 12, "member")
 
-	// Target token in Org 1, held by the owner (user 10).
 	rawTarget := "oct_target0000000000000000000000001"
 	seedToken(t, db, rawTarget, 10, "owner")
 	var tokTarget models.Token
@@ -38,10 +33,6 @@ func TestTokenUpdate(t *testing.T) {
 		t.Fatalf("find target token: %v", err)
 	}
 
-	// A second target held by the admin (user 11). Editing a token is scoped by
-	// ownership, not by role — a workspace admin has no reach into a
-	// colleague's personal credential — so the subtests that exercise the
-	// caller's own role cap need a row that belongs to that caller.
 	rawAdminTarget := "oct_admintarget000000000000000001"
 	seedToken(t, db, rawAdminTarget, 11, "admin")
 	var tokAdminTarget models.Token
@@ -61,7 +52,6 @@ func TestTokenUpdate(t *testing.T) {
 		return rec
 	}
 
-	// 1. Admin updates name/note -> 200, fields applied
 	t.Run("admin update name and note", func(t *testing.T) {
 		name := "updated-name"
 		note := "updated-note"
@@ -79,7 +69,6 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 2. Narrow role (owner -> member) -> 200
 	t.Run("narrow role owner to member", func(t *testing.T) {
 		role := "member"
 		rec := putJSON(rawOwner, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
@@ -95,9 +84,6 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 3. Someone else's token is not yours to edit. A member may now manage the
-	// tokens they minted themselves, so this is scoped by ownership rather than
-	// by role — and answers 404, not 403: a 403 would confirm the id exists.
 	t.Run("member cannot edit a token they do not own", func(t *testing.T) {
 		rec := putJSON(rawMember, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
 			"name": "hacked-name",
@@ -112,10 +98,9 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 4. Update token in another org -> 404 (and doesn't leak existence)
 	t.Run("update token in another org returns 404", func(t *testing.T) {
 		tokOtherOrg := models.Token{
-			OrgID:  999, // Org 999
+			OrgID:  999,
 			UserID: 999,
 			Name:   "other-org-token",
 			Hash:   models.HashToken("oct_otherorgtoken0000000000000001"),
@@ -132,7 +117,6 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 5. Admin tries to set role to owner -> 403 (callerHoldsRole blocks)
 	t.Run("admin set role to owner forbidden", func(t *testing.T) {
 		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"role": "owner",
@@ -142,7 +126,6 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 6. Role: "" -> 400 (validTokenRole rejects)
 	t.Run("role empty string rejected", func(t *testing.T) {
 		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"role": "",
@@ -152,9 +135,7 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 7. ExpiresInDays: -1 -> 400; 0 -> ExpiresAt nil; positive -> future
 	t.Run("expiresInDays validation and updates", func(t *testing.T) {
-		// Negative -> 400
 		recNeg := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"expiresInDays": -1,
 		})
@@ -162,7 +143,6 @@ func TestTokenUpdate(t *testing.T) {
 			t.Errorf("negative expiresInDays: got code %d, want 400; body=%s", recNeg.Code, recNeg.Body.String())
 		}
 
-		// Positive -> set future ExpiresAt
 		recPos := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"expiresInDays": 10,
 		})
@@ -175,7 +155,6 @@ func TestTokenUpdate(t *testing.T) {
 			t.Errorf("expected future ExpiresAt, got %v", updated.ExpiresAt)
 		}
 
-		// 0 -> clear ExpiresAt to nil
 		recZero := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"expiresInDays": 0,
 		})
@@ -189,7 +168,6 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 8. Response body contains no raw token / hash
 	t.Run("response body conceals raw token and hash", func(t *testing.T) {
 		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"name": "check-security",
@@ -210,9 +188,7 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 9. Original secret key still works after update (proving secret was not rotated)
 	t.Run("original raw token remains valid after update", func(t *testing.T) {
-		// Update target token to member role using owner auth
 		recUpdate := putJSON(rawOwner, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
 			"role": "member",
 		})
@@ -220,7 +196,6 @@ func TestTokenUpdate(t *testing.T) {
 			t.Fatalf("failed to update token role: %d, body=%s", recUpdate.Code, recUpdate.Body.String())
 		}
 
-		// Verify target token authenticates fine on ungated route
 		req := httptest.NewRequest(http.MethodGet, "/api/overview", nil)
 		req.Header.Set("Authorization", "Bearer "+rawTarget)
 		rec := httptest.NewRecorder()
@@ -229,7 +204,6 @@ func TestTokenUpdate(t *testing.T) {
 			t.Errorf("original raw token request failed with status %d (body=%s)", rec.Code, rec.Body.String())
 		}
 
-		// Verify role narrowing actually took effect: target token should be denied on admin route
 		reqAdmin := httptest.NewRequest(http.MethodGet, "/api/webhooks", nil)
 		reqAdmin.Header.Set("Authorization", "Bearer "+rawTarget)
 		recAdmin := httptest.NewRecorder()

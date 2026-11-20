@@ -53,8 +53,8 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"dataRetentionDays":        retDays,
 			"allowRegistration":        h.registrationEnabled(),
 			"requireEmailVerification": h.requireEmailVerification(),
-			"appName":                  h.getSetting(keyAppName), // raw value; empty = default
-			"baseDomain":               models.BaseDomain(h.db),  // effective value incl. the OCTARQ_BASE_DOMAIN bootstrap fallback
+			"appName":                  h.getSetting(keyAppName),
+			"baseDomain":               models.BaseDomain(h.db),
 			"sharedHosts":              h.sharedHostsSetting(),
 			"metricsTokenSet":          h.hasInstanceSecret(ctx, vaultKeyMetricsToken, "token", "value"),
 			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
@@ -155,9 +155,6 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	}
 	if input.Body.BaseDomain != nil {
 		h.setSetting(keyBaseDomain, strings.TrimSpace(strings.ToLower(*input.Body.BaseDomain)))
-		// Origin caches the reserved zone (and every ownership answer computed
-		// against it) for minutes; a base-domain change must be visible now, so
-		// drop the whole namespace.
 		origin.ClearBaseDomainCache(h.db)
 	}
 	if input.Body.SharedHosts != nil {

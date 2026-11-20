@@ -60,11 +60,9 @@ func TestMemberRemovedHooks(t *testing.T) {
 			called2 = true
 		}
 	})
-	// Panicking hook should be caught and not abort other hooks
 	plugin.RegisterMemberRemovedHook("hook_panic", func(orgID, userID uint) {
 		panic("boom")
 	})
-	// Nil hook should be ignored
 	plugin.RegisterMemberRemovedHook("hook_nil", nil)
 
 	plugin.NotifyMemberRemoved(10, 20)
@@ -72,7 +70,6 @@ func TestMemberRemovedHooks(t *testing.T) {
 		t.Errorf("expected both hooks to be called, got called1=%v called2=%v", called1, called2)
 	}
 
-	// Reset hooks
 	plugin.ResetMemberRemovedHooks()
 	called1 = false
 	called2 = false
@@ -88,13 +85,11 @@ func TestPermResolverAndHasPerm(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 
-	// No resolver set
 	allow, decided := plugin.ResolvePerm(req, "test.perm")
 	if allow || decided {
 		t.Errorf("expected false, false when no resolver, got allow=%v decided=%v", allow, decided)
 	}
 
-	// Set resolver
 	plugin.SetPermResolver(func(r *http.Request, permKey string) (bool, bool) {
 		if permKey == "allowed.perm" {
 			return true, true
@@ -115,7 +110,6 @@ func TestPermResolverAndHasPerm(t *testing.T) {
 		t.Errorf("expected false, true for denied.perm, got %v, %v", allow, decided)
 	}
 
-	// Test Context.HasPerm
 	var nilCtx *plugin.Context
 	if nilCtx.HasPerm(req, "any", "admin") {
 		t.Error("nil Context.HasPerm should return false")
@@ -170,7 +164,6 @@ func TestLookupAsTypeSafety(t *testing.T) {
 		Lookup: reg.Lookup,
 	}
 
-	// 1. Nil context / nil lookup
 	if val, ok := plugin.LookupAs[string](nil, "str.service"); ok || val != "" {
 		t.Errorf("LookupAs with nil context should return zero, false")
 	}
@@ -178,12 +171,10 @@ func TestLookupAsTypeSafety(t *testing.T) {
 		t.Errorf("LookupServiceAs with nil lookup should return zero, false")
 	}
 
-	// 2. Non-existent service
 	if val, ok := plugin.LookupAs[string](ctx, "nonexistent"); ok || val != "" {
 		t.Errorf("LookupAs nonexistent should return zero, false")
 	}
 
-	// 3. Matching type assertion
 	if val, ok := plugin.LookupAs[string](ctx, "str.service"); !ok || val != "hello world" {
 		t.Errorf("LookupAs matching string failed: got %q, %v", val, ok)
 	}
@@ -191,7 +182,6 @@ func TestLookupAsTypeSafety(t *testing.T) {
 		t.Errorf("LookupAs matching int failed: got %d, %v", val, ok)
 	}
 
-	// 4. Type mismatch: MUST return zero, false WITHOUT PANIC
 	if val, ok := plugin.LookupAs[int](ctx, "str.service"); ok || val != 0 {
 		t.Errorf("LookupAs with mismatched type should return zero, false without panic, got %v, %v", val, ok)
 	}
@@ -217,7 +207,6 @@ func TestPluginMetadataAndCore(t *testing.T) {
 	}
 	p3 := &mockPlainPlugin{name: "plain"}
 
-	// Describe
 	info1 := plugin.Describe(p1)
 	if info1.Group != "feature-a" || !info1.Core {
 		t.Errorf("Describe(p1) unexpected: %+v", info1)
@@ -227,7 +216,6 @@ func TestPluginMetadataAndCore(t *testing.T) {
 		t.Errorf("Describe(p3) should be empty: %+v", info3)
 	}
 
-	// FeatureKey
 	if k := plugin.FeatureKey(p1); k != "feature-a" {
 		t.Errorf("FeatureKey(p1) = %q, want feature-a", k)
 	}
@@ -235,7 +223,6 @@ func TestPluginMetadataAndCore(t *testing.T) {
 		t.Errorf("FeatureKey(p3) = %q, want plain", k)
 	}
 
-	// FeatureIsCore
 	plugins := []plugin.Plugin{p1, p2, p3}
 	if !plugin.FeatureIsCore(plugins, "feature-a") {
 		t.Error("expected feature-a to be core because p1 is core")
@@ -266,7 +253,7 @@ func TestHelpDocFillDefaultsAndSorting(t *testing.T) {
 		Category: "",
 	}
 	doc2.FillDefaults("myplugin", "messaging")
-	if doc2.Category != "services" { // messaging remaps to services
+	if doc2.Category != "services" {
 		t.Errorf("Category = %q, want services", doc2.Category)
 	}
 
@@ -280,7 +267,6 @@ func TestHelpDocFillDefaultsAndSorting(t *testing.T) {
 		t.Errorf("Category for unknown = %q, want services", docUnknown.Category)
 	}
 
-	// CompareHelpDocs
 	docA := plugin.HelpDoc{Category: "start", Order: 1, Title: "A"}
 	docB := plugin.HelpDoc{Category: "start", Order: 2, Title: "B"}
 	docC := plugin.HelpDoc{Category: "licensing", Order: 1, Title: "C"}

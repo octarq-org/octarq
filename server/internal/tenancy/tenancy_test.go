@@ -19,8 +19,6 @@ func openDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	// The domains table is the dns plugin's; origin reads it. AutoMigrating it
-	// here mirrors a build composed with the dns plugin.
 	if err := db.AutoMigrate(&models.Setting{}, &orgRow{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -60,15 +58,13 @@ func hasDomainRow(t *testing.T, db *gorm.DB, name string) bool {
 	return n > 0
 }
 
-// Subdomain is the read side of Provision — what the dashboard shows as the
-// org's address. It must agree with what Provision writes.
 func TestSubdomain(t *testing.T) {
 	db := openDB(t)
 	if name, ok := Subdomain(db, "acme7x"); ok || name != "" {
 		t.Fatalf("Subdomain with no base = (%q, %v), want (\"\", false)", name, ok)
 	}
 
-	setBase(t, db, "App.Example.com.") // normalization is applied
+	setBase(t, db, "App.Example.com.")
 	name, ok := Subdomain(db, "acme7x")
 	if !ok || name != "acme7x.app.example.com" {
 		t.Fatalf("Subdomain = (%q, %v), want (acme7x.app.example.com, true)", name, ok)
@@ -78,8 +74,6 @@ func TestSubdomain(t *testing.T) {
 	}
 }
 
-// Guard 1: with no base domain configured, Provision creates no Domain row and
-// reports the feature as off. Origin behaviour must be exactly today's.
 func TestProvisionDisabledWithoutBase(t *testing.T) {
 	db := openDB(t)
 	seedOrg(t, db, 1, "acme7x")
@@ -99,8 +93,6 @@ func TestProvisionDisabledWithoutBase(t *testing.T) {
 	}
 }
 
-// Guard 2: once the base domain is configured, Provision writes the
-// <slug>.<base> row and origin resolves the hostname to the new org.
 func TestProvisionWritesResolvableRow(t *testing.T) {
 	db := openDB(t)
 	setBase(t, db, "app.example.com")
@@ -125,10 +117,6 @@ func TestProvisionWritesResolvableRow(t *testing.T) {
 	}
 }
 
-// Guard 8: the subdomain row Provision writes must be a usable link host —
-// ForLink true plus one enabled LinkHost naming the subdomain itself. Before
-// this, Cloud tenants had an empty host dropdown and every link fell into a
-// shared host="" namespace (one tenant's slug blocking all others).
 func TestProvisionWritesLinkHostRow(t *testing.T) {
 	db := openDB(t)
 	setBase(t, db, "app.example.com")
@@ -152,7 +140,6 @@ func TestProvisionWritesLinkHostRow(t *testing.T) {
 	}
 }
 
-// Guard 7: a hostname collision must surface as an error, never a silent skip.
 func TestProvisionCollisionIsError(t *testing.T) {
 	db := openDB(t)
 	setBase(t, db, "app.example.com")
@@ -162,19 +149,15 @@ func TestProvisionCollisionIsError(t *testing.T) {
 	if _, ok, err := Provision(db, 1, "acme7x"); err != nil || !ok {
 		t.Fatalf("first Provision = (ok=%v, err=%v), want provisioned", ok, err)
 	}
-	// A different org, same slug — must collide, not silently skip.
 	if _, ok, err := Provision(db, 2, "acme7x"); !errors.Is(err, ErrNameTaken) {
 		t.Fatalf("second Provision err = %v, want ErrNameTaken (ok=%v)", err, ok)
 	}
-	// The first org's row is untouched by the failed attempt.
 	org, ok := origin.OwnerOf(db, "acme7x.app.example.com")
 	if !ok || org != 1 {
 		t.Errorf("OwnerOf after collision = (%d, %v), want (1, true)", org, ok)
 	}
 }
 
-// Guard for trap 4 (rename): Retire removes the old slug's subdomain row so the
-// retired address stops resolving to the org.
 func TestRetireRemovesSubdomain(t *testing.T) {
 	db := openDB(t)
 	setBase(t, db, "app.example.com")
@@ -198,7 +181,6 @@ func TestRetireRemovesSubdomain(t *testing.T) {
 	}
 }
 
-// Retire must not touch another org's row, even under the same base.
 func TestRetireLeavesOtherOrgsAlone(t *testing.T) {
 	db := openDB(t)
 	setBase(t, db, "app.example.com")
@@ -219,8 +201,6 @@ func TestRetireLeavesOtherOrgsAlone(t *testing.T) {
 	}
 }
 
-// The env var is only a bootstrap fallback: once a settings row exists its
-// value governs, so an empty setting disables the feature even with env set.
 func TestBaseDomainEnvIsBootstrapFallbackOnly(t *testing.T) {
 	db := openDB(t)
 	t.Setenv(models.BaseDomainEnv, "env.example.com")

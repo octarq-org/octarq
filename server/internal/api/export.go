@@ -26,7 +26,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// tenantDB returns a restricted *plugin.TenantDB strictly scoped to orgID.
 func (h *Handler) tenantDB(orgID uint) *plugin.TenantDB {
 	tdb, err := plugin.NewTenantDB(h.db, orgID)
 	if err != nil {
@@ -35,7 +34,6 @@ func (h *Handler) tenantDB(orgID uint) *plugin.TenantDB {
 	return tdb
 }
 
-// GenerateExportSignedToken generates a 15-minute temporary download token for full tenant export.
 func (h *Handler) GenerateExportSignedToken(orgID uint, expire time.Duration) (string, error) {
 	if orgID == 0 {
 		return "", errors.New("invalid org ID")
@@ -56,7 +54,6 @@ func (h *Handler) GenerateExportSignedToken(orgID uint, expire time.Duration) (s
 	return base64.RawURLEncoding.EncodeToString([]byte(raw)), nil
 }
 
-// GenerateExportSignedURL creates a download URL containing a 15-minute HMAC-signed token.
 func (h *Handler) GenerateExportSignedURL(orgID uint) (string, error) {
 	tok, err := h.GenerateExportSignedToken(orgID, 15*time.Minute)
 	if err != nil {
@@ -147,8 +144,6 @@ type exportMailboxItem struct {
 	Stats mailboxStats `json:"stats"`
 }
 
-// exportAccount streams the full archive of a tenant workspace as a ZIP file.
-// GET /api/account/export
 func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) (*huma.StreamResponse, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
@@ -206,7 +201,6 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 		actorID = h.auth.UserID(r2)
 	}
 
-	// 1. Fail-closed synchronous audit entry
 	auditEntry := models.AuditLog{
 		OrgID:      org,
 		ActorID:    actorID,
@@ -221,13 +215,11 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 		return nil, huma.Error500InternalServerError("Failed to record export security audit event")
 	}
 
-	// 2. Strict tenant database handle
 	tdb := h.tenantDB(org)
 	if tdb == nil {
 		return nil, huma.Error500InternalServerError("Failed to initialize tenant database handle")
 	}
 
-	// 3. Query all tenant resources
 	var orgRow models.Org
 	h.db.Where("id = ?", org).First(&orgRow)
 
@@ -326,12 +318,10 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 				return enc.Encode(v)
 			}
 
-			// 1. metadata.json
 			if err := addJSON("metadata.json", metadata); err != nil {
 				slog.Warn("export: failed writing metadata.json", "err", err)
 			}
 
-			// 2. links.csv
 			if zf, err := zw.Create("links.csv"); err == nil {
 				cw := csv.NewWriter(zf)
 				if err := cw.Write([]string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "Tags", "CreatedAt"}); err != nil {
@@ -354,22 +344,18 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 				slog.Warn("export: failed creating links.csv", "err", err)
 			}
 
-			// 3. domains.json
 			if err := addJSON("domains.json", domainItems); err != nil {
 				slog.Warn("export: failed writing domains.json", "err", err)
 			}
 
-			// 4. mailboxes.json
 			if err := addJSON("mailboxes.json", mailboxItems); err != nil {
 				slog.Warn("export: failed writing mailboxes.json", "err", err)
 			}
 
-			// 5. audit_logs.json
 			if err := addJSON("audit_logs.json", auditLogs); err != nil {
 				slog.Warn("export: failed writing audit_logs.json", "err", err)
 			}
 
-			// Supplementary mounted plugins export data
 			for _, p := range h.plugins {
 				if fn, ok := plugin.LookupServiceAs[plugin.ExportFunc](h.LookupService, plugin.ExportServiceName(p.Name())); ok {
 					pluginData := fn(org)

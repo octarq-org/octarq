@@ -13,7 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// hostSession implements plugin.HostSession.
 type hostSession struct {
 	auth       *auth.Manager
 	apiHandler *api.Handler
@@ -77,7 +76,6 @@ func (s *hostSession) RevokeUserOrgSessions(userID, orgID uint) int {
 
 var _ plugin.HostSession = (*hostSession)(nil)
 
-// hostCryptoVault implements plugin.CryptoVault.
 type hostCryptoVault struct {
 	cipher *crypto.Cipher
 }
@@ -139,7 +137,6 @@ func (c *hostCryptoVault) HasSubjectKey(ownerID uint, subject string) bool {
 
 var _ plugin.CryptoVault = (*hostCryptoVault)(nil)
 
-// hostSubjectVault adapts a per-subject crypto vault to plugin.CryptoVault.
 type hostSubjectVault struct {
 	vault *crypto.SubjectVault
 }
@@ -178,7 +175,6 @@ func (v *hostSubjectVault) HasSubjectKey(ownerID uint, subject string) bool {
 
 var _ plugin.CryptoVault = (*hostSubjectVault)(nil)
 
-// hostSettingsStore implements plugin.SettingsStore.
 type hostSettingsStore struct {
 	apiHandler *api.Handler
 }
@@ -216,7 +212,6 @@ func (s *hostSettingsStore) SetGlobalSetting(key, value string) error {
 
 var _ plugin.SettingsStore = (*hostSettingsStore)(nil)
 
-// hostEventSpine implements plugin.EventSpine.
 type hostEventSpine struct {
 	services        *plugin.Registry
 	emailMu         *sync.Mutex

@@ -1,10 +1,3 @@
-// Package auth implements session authentication using a DB-backed session
-// token stored in a signed cookie. Each login creates a Session row; the
-// cookie carries the row's random Token. Deleting the row revokes access
-// immediately — no epoch math or cookie re-signing needed.
-//
-// API bearer-token authentication (Authorization: Bearer oct_…) is also
-// supported and does not use the sessions table.
 package auth
 
 import (
@@ -32,46 +25,34 @@ const (
 	touchInterval = time.Minute
 )
 
-// Manager issues and validates session cookies.
 type Manager struct {
 	cfg    *config.Config
 	cipher *crypto.Cipher
-	db     *gorm.DB // nil in stateless/test mode
+	db     *gorm.DB
 	cache  cache.Cache
 }
 
-// trustProxy gates whether proxy-supplied headers are honoured: the client-IP
-// headers when deriving the client IP for rate limiting, and X-Forwarded-Proto
-// when deciding whether a request arrived over TLS (which sets the session
-// cookie's Secure attribute). Set once from config in New.
 var trustProxy atomic.Bool
 
-// New creates a new session Manager.
 func New(cfg *config.Config, c *crypto.Cipher) *Manager {
 	trustProxy.Store(cfg.TrustProxy)
 	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
 }
 
-// WithDB attaches a database so sessions and API bearer tokens can be
-// validated against persistent state.
 func (m *Manager) WithDB(db *gorm.DB) *Manager {
 	m.db = db
 	return m
 }
 
-// WithCache attaches an optional Cache layer (Redis or Noop fallback) for session retrieval.
 func (m *Manager) WithCache(c cache.Cache) *Manager {
 	m.cache = c
 	return m
 }
 
-// Cache returns the attached cache instance.
 func (m *Manager) Cache() cache.Cache {
 	return m.cache
 }
 
-// generateToken returns a random 64-char hex string suitable for use as a
-// session token. Panics fail-closed if the OS random source fails.
 func generateToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -80,9 +61,6 @@ func generateToken() string {
 	return hex.EncodeToString(b)
 }
 
-// SetSessionFromRequest creates or refreshes a Session row (capturing IP and User-Agent)
-// and sets the session cookie. Logins from the same browser (same IP + User-Agent)
-// reuse the existing non-expired session instead of accumulating duplicates.
 func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, uid, orgID uint) {
 	ip := reporterIP(r)
 	ua := r.Header.Get("User-Agent")
@@ -92,7 +70,6 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 		now := time.Now()
 		expires := now.Add(sessionTTL)
 
-		// Look for an existing non-expired session with the same fingerprint.
 		var existing models.Session
 		err := m.db.Where("user_id = ? AND ip = ? AND user_agent = ? AND expires_at > ?", uid, ip, ua, now).
 			First(&existing).Error
@@ -143,10 +120,6 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 	m.setCookie(w, r, token)
 }
 
-// SetSession creates a minimal session row (no IP/UA) and sets the cookie.
-// Prefer SetSessionFromRequest, which also records IP and User-Agent; this form
-// exists for callers that have nothing to record (the OAuth callback, tests).
-// r is still required: the cookie's Secure attribute is derived from it.
 func (m *Manager) SetSession(w http.ResponseWriter, r *http.Request, uid, orgID uint) {
 	token := generateToken()
 	if m.db != nil {
@@ -166,8 +139,6 @@ func (m *Manager) SetSession(w http.ResponseWriter, r *http.Request, uid, orgID 
 	m.setCookie(w, r, token)
 }
 
-// setCookie writes the session cookie, marking it Secure exactly when the
-// request that is establishing the session arrived over TLS.
 func (m *Manager) setCookie(w http.ResponseWriter, r *http.Request, token string) {
 	secure := origin.Secure(r, trustProxy.Load())
 	http.SetCookie(w, &http.Cookie{
@@ -180,15 +151,9 @@ func (m *Manager) setCookie(w http.ResponseWriter, r *http.Request, token string
 		MaxAge:   int(sessionTTL.Seconds()),
 	})
 
-	// The readable half of the double submit, derived from the same token and
-	// marked Secure the same way — the pair has to travel together or writes
-	// start failing. See package internal/csrf.
 	http.SetCookie(w, csrf.NewCookie(m.cfg.SecretKey, token, secure))
 }
 
-// sessionByToken looks up a non-expired Session row by the raw cookie token.
-// Only the SHA-256 hash is ever stored or cached, so a DB/cache read cannot
-// reveal a usable session token. Returns nil when not found or expired.
 func (m *Manager) sessionByToken(token string) *models.Session {
 	if m.db == nil || token == "" {
 		return nil
@@ -197,7 +162,6 @@ func (m *Manager) sessionByToken(token string) *models.Session {
 	var s models.Session
 	ctx := context.Background()
 	if m.cache.Get(ctx, "session:"+hashed, &s) {
-		// Verify if it is expired in case Redis TTL hasn't kicked in
 		if s.ExpiresAt.After(time.Now()) {
 			return &s
 		}
@@ -219,7 +183,6 @@ func (m *Manager) sessionByToken(token string) *models.Session {
 	return &s
 }
 
-// cookieToken reads the raw session token from the request cookie.
 func cookieToken(r *http.Request) string {
 	c, err := r.Cookie(cookieName)
 	if err != nil {
@@ -228,8 +191,6 @@ func cookieToken(r *http.Request) string {
 	return c.Value
 }
 
-// UserID extracts the user ID from the session, checking the request context
-// first (set by Require middleware) before hitting the DB.
 func (m *Manager) UserID(r *http.Request) uint {
 	if id, ok := r.Context().Value(userIDKey).(uint); ok {
 		return id
@@ -241,7 +202,6 @@ func (m *Manager) UserID(r *http.Request) uint {
 	return s.UserID
 }
 
-// OrgID extracts the org ID from the session.
 func (m *Manager) OrgID(r *http.Request) uint {
 	if id := plugin.OrgIDFromContext(r.Context()); id != 0 {
 		return id
@@ -253,9 +213,6 @@ func (m *Manager) OrgID(r *http.Request) uint {
 	return s.OrgID
 }
 
-// PersonalOrgID returns the caller's personal org, or 0 when they have none.
-// It never provisions: signup creates the personal org, so a missing one is a
-// broken account and callers must fail closed rather than guess a workspace.
 func (m *Manager) PersonalOrgID(r *http.Request) uint {
 	if m == nil || m.db == nil || r == nil {
 		return 0
@@ -263,8 +220,6 @@ func (m *Manager) PersonalOrgID(r *http.Request) uint {
 	return PersonalOrgID(m.db, m.UserID(r))
 }
 
-// PersonalOrgID resolves the personal org of userID. The zero return means
-// "none"; it is never an invitation to fall back to the active session org.
 func PersonalOrgID(db *gorm.DB, userID uint) uint {
 	if db == nil || userID == 0 {
 		return 0
@@ -281,19 +236,15 @@ func PersonalOrgID(db *gorm.DB, userID uint) uint {
 	return member.OrgID
 }
 
-// SessionID extracts the Session row ID from the request context (set by
-// Require middleware). Returns 0 if not in context.
 func (m *Manager) SessionID(r *http.Request) uint {
 	id, _ := r.Context().Value(sessionIDKey).(uint)
 	return id
 }
 
-// Authed reports whether the request carries a valid, unexpired session.
 func (m *Manager) Authed(r *http.Request) bool {
 	return m.sessionByToken(cookieToken(r)) != nil
 }
 
-// Clear deletes the session row and clears the cookie (single-device logout).
 func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 	token := cookieToken(r)
 	if token != "" {
@@ -313,9 +264,6 @@ func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 	http.SetCookie(w, csrf.ClearCookie())
 }
 
-// RevokeUserOrgSessions deletes every session that binds the given user to the
-// given org, evicting each from the cache first so a cached row can't keep
-// serving after the DB row is gone. Returns the number of sessions revoked.
 func (m *Manager) RevokeUserOrgSessions(userID, orgID uint) int {
 	if m.db == nil || userID == 0 || orgID == 0 {
 		return 0
@@ -341,9 +289,6 @@ func (m *Manager) RevokeUserOrgSessions(userID, orgID uint) int {
 	return len(ids)
 }
 
-// TouchSession updates LastSeenAt for the session associated with r, but
-// only if it has not been touched within touchInterval to limit write
-// amplification. Safe to call asynchronously.
 func (m *Manager) TouchSession(r *http.Request) {
 	if m.db == nil {
 		return
@@ -368,23 +313,15 @@ func (m *Manager) TouchSession(r *http.Request) {
 	}
 }
 
-// identify resolves the request's credentials — session cookie first, then API
-// bearer token — and returns a context carrying them. Require and
-// AuthenticateRequest share it so the two paths cannot drift apart.
 func (m *Manager) identify(r *http.Request) (context.Context, bool) {
-	// 1. Stateful session cookie.
 	if token := cookieToken(r); token != "" {
 		if s := m.sessionByToken(token); s != nil {
-			// WithUserID writes both the key this package reads and the one
-			// tenantsql (and therefore plugin.UserIDFromContext) reads. Writing
-			// only the local key left every plugin-facing reader at 0.
 			ctx := WithUserID(r.Context(), s.UserID)
 			ctx = plugin.WithOrgID(ctx, s.OrgID)
 			return context.WithValue(ctx, sessionIDKey, s.ID), true
 		}
 	}
 
-	// 2. Bearer token (API access, no session row).
 	if tok, ok := m.TokenByRequest(r); ok {
 		ctx := WithUserID(r.Context(), tok.UserID)
 		ctx = plugin.WithOrgID(ctx, tok.OrgID)
@@ -395,8 +332,6 @@ func (m *Manager) identify(r *http.Request) (context.Context, bool) {
 	return r.Context(), false
 }
 
-// Require is middleware that rejects unauthenticated requests and injects
-// UserID, OrgID, and SessionID into the request context.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, ok := m.identify(r)
@@ -408,8 +343,6 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 	})
 }
 
-// AuthenticateRequest validates the session cookie or bearer token and returns
-// a new request with credentials in the context. On failure, returns false.
 func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 	ctx, ok := m.identify(r)
 	if !ok {

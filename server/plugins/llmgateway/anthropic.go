@@ -12,23 +12,10 @@ import (
 	"unicode/utf8"
 )
 
-// Claude Code speaks Anthropic's Messages API, not the OpenAI one. The gateway
-// therefore serves both wire formats over the same provider configuration: an
-// OpenAI-shaped client posts to /v1/chat/completions, and an Anthropic-shaped
-// client posts to /v1/messages. Both resolve the same workspace provider, so a
-// coding agent never holds the provider key.
-//
-// The Messages API is a translation, not a relay: the provider only speaks
-// OpenAI, so the request is rebuilt into that shape and the answer is rebuilt
-// back, streaming events included.
 const (
-	// AgentMessagesPath is the Anthropic Messages endpoint.
-	AgentMessagesPath = "/v1/messages"
-	// AgentCountTokensPath answers the client's context meter.
+	AgentMessagesPath    = "/v1/messages"
 	AgentCountTokensPath = "/v1/messages/count_tokens"
 )
-
-// --- request shapes (Anthropic in) ---
 
 type anthRequest struct {
 	Model         string          `json:"model"`
@@ -48,8 +35,6 @@ type anthMessage struct {
 	Content json.RawMessage `json:"content"`
 }
 
-// anthBlock is one content block. A message's content is a string or a list of
-// these; every field is optional because the type decides which are read.
 type anthBlock struct {
 	Type string `json:"type"`
 
@@ -66,9 +51,6 @@ type anthBlock struct {
 	IsError   bool            `json:"is_error,omitempty"`
 }
 
-// MarshalJSON writes only the fields the block type defines. encoding/json's
-// omitempty would drop an empty text, and a text block without a `text` key is
-// not a text block.
 func (b anthBlock) MarshalJSON() ([]byte, error) {
 	m := map[string]any{"type": b.Type}
 	switch b.Type {
@@ -107,7 +89,6 @@ type anthToolChoice struct {
 	Name string `json:"name,omitempty"`
 }
 
-// parseBlocks reads a content field that is either a string or a block list.
 func parseBlocks(raw json.RawMessage) ([]anthBlock, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
@@ -127,7 +108,6 @@ func parseBlocks(raw json.RawMessage) ([]anthBlock, error) {
 	return blocks, nil
 }
 
-// systemText flattens the system prompt, which is a string or a block list.
 func systemText(raw json.RawMessage) (string, error) {
 	blocks, err := parseBlocks(raw)
 	if err != nil {
@@ -141,8 +121,6 @@ func systemText(raw json.RawMessage) (string, error) {
 	}
 	return strings.Join(parts, "\n\n"), nil
 }
-
-// --- request shapes (OpenAI out) ---
 
 type oaiRequest struct {
 	Model          string            `json:"model"`
@@ -202,13 +180,6 @@ type oaiToolFunction struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
-// toOpenAI rebuilds an Anthropic request as the OpenAI one the provider reads.
-//
-// Every Anthropic construct here has an OpenAI counterpart and none of them is
-// guessed: text and images become content parts, tool_use becomes tool_calls,
-// tool_result becomes a tool message, and the system prompt becomes a system
-// message. A block type with no counterpart is refused by name, so a client
-// never silently loses part of its context.
 func (p *Plugin) toOpenAI(in *anthRequest) (*oaiRequest, error) {
 	out := &oaiRequest{
 		Model:       in.Model,
@@ -243,9 +214,6 @@ func (p *Plugin) toOpenAI(in *anthRequest) (*oaiRequest, error) {
 			}
 			out.Messages = append(out.Messages, msg)
 		case "system":
-			// A coding agent can put a system reminder mid-conversation. OpenAI
-			// reads a system message wherever it appears, so its position is
-			// kept rather than merged into the prompt at the start.
 			text, err := systemText(m.Content)
 			if err != nil {
 				return nil, fmt.Errorf("%w: message %d cannot be read", ErrInvalidProvider, i)
@@ -274,9 +242,6 @@ func (p *Plugin) toOpenAI(in *anthRequest) (*oaiRequest, error) {
 	return out, nil
 }
 
-// userMessages turns one Anthropic user turn into the OpenAI messages it
-// implies. A tool_result is a separate OpenAI message, and OpenAI requires it
-// before the next user message, so the results are emitted first.
 func userMessages(blocks []anthBlock) ([]oaiMessage, error) {
 	var tool []oaiMessage
 	var parts []oaiContentPart
@@ -310,7 +275,6 @@ func userMessages(blocks []anthBlock) ([]oaiMessage, error) {
 	return out, nil
 }
 
-// assistantMessage keeps the text and the tool calls of one assistant turn.
 func assistantMessage(blocks []anthBlock) (oaiMessage, error) {
 	msg := oaiMessage{Role: "assistant"}
 	var text strings.Builder
@@ -337,7 +301,6 @@ func assistantMessage(blocks []anthBlock) (oaiMessage, error) {
 	return msg, nil
 }
 
-// toolResultText flattens a tool result, which is a string or a block list.
 func toolResultText(raw json.RawMessage) (string, error) {
 	blocks, err := parseBlocks(raw)
 	if err != nil {
@@ -349,15 +312,12 @@ func toolResultText(raw json.RawMessage) (string, error) {
 		case "text":
 			parts = append(parts, b.Text)
 		case "image":
-			// A tool that answers with an image has no OpenAI tool-message
-			// form; the client is told rather than shown a wrong answer.
 			return "", fmt.Errorf("a tool result image has no OpenAI counterpart")
 		}
 	}
 	return strings.Join(parts, "\n"), nil
 }
 
-// imageURL turns an Anthropic image source into the URL form OpenAI reads.
 func imageURL(src *anthImageSource) (string, error) {
 	if src == nil {
 		return "", fmt.Errorf("an image block has no source")
@@ -375,7 +335,6 @@ func imageURL(src *anthImageSource) (string, error) {
 	return "", fmt.Errorf("an image source has no data")
 }
 
-// toolChoice maps the Anthropic choice onto the OpenAI one.
 func toolChoice(c *anthToolChoice) any {
 	if c == nil {
 		return "auto"
@@ -391,8 +350,6 @@ func toolChoice(c *anthToolChoice) any {
 		return "auto"
 	}
 }
-
-// --- response shapes (Anthropic out) ---
 
 type anthResponse struct {
 	ID           string      `json:"id"`
@@ -426,7 +383,6 @@ type oaiResponse struct {
 	} `json:"usage"`
 }
 
-// stopReason maps the OpenAI finish reason onto the Anthropic one.
 func stopReason(finish string) string {
 	switch finish {
 	case "length":
@@ -442,7 +398,6 @@ func stopReason(finish string) string {
 	}
 }
 
-// fromOpenAI rebuilds one OpenAI answer as an Anthropic message.
 func fromOpenAI(in *oaiResponse) *anthResponse {
 	out := &anthResponse{
 		ID:         messageID(in.ID),
@@ -478,8 +433,6 @@ func fromOpenAI(in *oaiResponse) *anthResponse {
 	return out
 }
 
-// messageID gives the answer an id in the shape the client expects. The
-// provider's id is kept when there is one, so a trace can follow the turn.
 func messageID(providerID string) string {
 	if providerID == "" {
 		return fmt.Sprintf("msg_%d", time.Now().UnixNano())
@@ -487,9 +440,6 @@ func messageID(providerID string) string {
 	return "msg_" + strings.TrimPrefix(providerID, "msg_")
 }
 
-// --- the routes ---
-
-// handleAgentMessages serves POST /v1/messages.
 func (p *Plugin) handleAgentMessages(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := p.agentOrg(w, r)
 	if !ok {
@@ -536,7 +486,6 @@ func (p *Plugin) handleAgentMessages(w http.ResponseWriter, r *http.Request) {
 	p.completeMessages(w, r, ap, out)
 }
 
-// completeMessages sends the turn and answers with one Anthropic message.
 func (p *Plugin) completeMessages(w http.ResponseWriter, r *http.Request, ap agentProvider, body *oaiRequest) {
 	resp, err := p.postProvider(r.Context(), ap, "/chat/completions", body)
 	if err != nil {
@@ -562,7 +511,6 @@ func (p *Plugin) completeMessages(w http.ResponseWriter, r *http.Request, ap age
 	writeJSON(w, http.StatusOK, fromOpenAI(&oai))
 }
 
-// postProvider sends one JSON call to the provider's OpenAI surface.
 func (p *Plugin) postProvider(ctx context.Context, ap agentProvider, path string, body any) (*http.Response, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -581,17 +529,14 @@ func (p *Plugin) postProvider(ctx context.Context, ap agentProvider, path string
 	return http.DefaultClient.Do(req)
 }
 
-// --- streaming ---
-
-// streamer writes the Anthropic event sequence while the provider streams.
 type streamer struct {
 	w         http.ResponseWriter
 	flusher   http.Flusher
 	model     string
 	nextIndex int
-	openIndex int // -1 when no block is open
+	openIndex int
 	openText  bool
-	tools     map[int]int // OpenAI tool index → Anthropic block index
+	tools     map[int]int
 	stop      string
 	outTokens int
 	wrote     bool
@@ -606,8 +551,6 @@ func newStreamer(w http.ResponseWriter, model string) *streamer {
 	return &streamer{w: w, flusher: flusher, model: model, openIndex: -1, tools: map[int]int{}}
 }
 
-// event writes one SSE frame. Anthropic clients read the event name as well as
-// the payload, so both are written.
 func (s *streamer) event(name string, payload any) {
 	raw, err := json.Marshal(payload)
 	if err != nil {
@@ -693,14 +636,11 @@ func (s *streamer) finish(outputTokens int) {
 	s.event("message_delta", map[string]any{
 		"type":  "message_delta",
 		"delta": map[string]any{"stop_reason": s.stop, "stop_sequence": nil},
-		// Only output_tokens: message_delta carries no input count, and a zero
-		// here would overwrite the estimate the client already read.
 		"usage": map[string]any{"output_tokens": s.outTokens},
 	})
 	s.event("message_stop", map[string]any{"type": "message_stop"})
 }
 
-// streamMessages relays the provider's stream as Anthropic events.
 func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agentProvider, body *oaiRequest, in anthRequest) {
 	resp, err := p.postProvider(r.Context(), ap, "/chat/completions", body)
 	if err != nil {
@@ -740,8 +680,6 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 			} `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
-			// A malformed frame is skipped: the stream stays open, and the
-			// client still gets every event that parsed.
 			continue
 		}
 		for _, choice := range chunk.Choices {
@@ -750,8 +688,6 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 			}
 			for _, call := range choice.Delta.ToolCalls {
 				if !seenTool(st, call) && call.Function.Name == "" && call.ID == "" {
-					// An arguments-only fragment for an index the provider never
-					// announced: nothing to attach it to.
 					continue
 				}
 				st.toolDelta(call)
@@ -770,24 +706,15 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 	st.finish(st.outTokens)
 }
 
-// seenTool reports whether the streamer already opened the block for a call.
 func seenTool(s *streamer, call oaiToolCall) bool {
 	_, ok := s.tools[call.Index]
 	return ok
 }
 
-// --- count_tokens ---
-
-// countTokensAnswer is the client's context meter answer.
 type countTokensAnswer struct {
 	InputTokens int `json:"input_tokens"`
 }
 
-// handleAgentCountTokens serves POST /v1/messages/count_tokens.
-//
-// The number is an estimate, and the code says so: no provider on this path
-// exposes a tokenizer, and the client uses the figure only to show how full the
-// context is. A turn's real usage arrives with the turn.
 func (p *Plugin) handleAgentCountTokens(w http.ResponseWriter, r *http.Request) {
 	if _, ok := p.agentOrg(w, r); !ok {
 		return
@@ -807,9 +734,6 @@ func (p *Plugin) handleAgentCountTokens(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, countTokensAnswer{InputTokens: estimateRequestTokens(&in)})
 }
 
-// estimateTokens approximates a token count from text length. Four characters
-// per token is the usual rule for mixed prose and code; it is deliberately
-// rough, and nothing bills on it.
 func estimateTokens(text string) int {
 	n := utf8.RuneCountInString(text)
 	if n == 0 {
@@ -818,8 +742,6 @@ func estimateTokens(text string) int {
 	return (n + 3) / 4
 }
 
-// estimateRequestTokens counts a whole request, including the tool schemas the
-// provider also reads.
 func estimateRequestTokens(in *anthRequest) int {
 	total := 4
 	if system, err := systemText(in.System); err == nil {
@@ -841,7 +763,7 @@ func estimateRequestTokens(in *anthRequest) int {
 				text, _ := toolResultText(b.Content)
 				total += estimateTokens(text) + 4
 			case "image":
-				total += 1600 // a large image is charged as a block of tokens
+				total += 1600
 			}
 		}
 	}
@@ -851,17 +773,12 @@ func estimateRequestTokens(in *anthRequest) int {
 	return total
 }
 
-// --- shared helpers ---
-
-// writeJSON answers one JSON body.
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-// writeAnthError answers in the Anthropic error shape, which is what the client
-// parses and nothing else.
 func writeAnthError(w http.ResponseWriter, status int, kind, message string) {
 	writeJSON(w, status, map[string]any{
 		"type":  "error",

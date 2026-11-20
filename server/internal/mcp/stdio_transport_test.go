@@ -7,11 +7,6 @@ import (
 	"testing"
 )
 
-// A stdio boot must not close the process streams. The SDK's StdioTransport
-// closes os.Stdin when the connection ends, and a test process boots the server
-// more than once, so the second boot reads a closed descriptor: the DEK guard
-// tests failed that way on CI with "read /dev/stdin: file already closed" while
-// the code under test was still fine.
 func TestStdioTransportLeavesTheProcessStreamsOpen(t *testing.T) {
 	conn, err := stdioTransport().Connect(context.Background())
 	if err != nil {
@@ -20,7 +15,6 @@ func TestStdioTransportLeavesTheProcessStreamsOpen(t *testing.T) {
 	if err := conn.Close(); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-	// Stat reports ErrClosed on a closed *os.File, and costs no read.
 	for name, f := range map[string]*os.File{"stdin": os.Stdin, "stdout": os.Stdout} {
 		if _, err := f.Stat(); err != nil {
 			t.Errorf("%s must stay open after the transport closes: %v", name, err)
@@ -28,8 +22,6 @@ func TestStdioTransportLeavesTheProcessStreamsOpen(t *testing.T) {
 	}
 }
 
-// The writer half still has to work after the transport hands the connection
-// its streams: a no-op Close must not make the writer unwritable.
 func TestStdioStreamWrappersForwardReadsAndWrites(t *testing.T) {
 	var buf writeBuf
 	w := openWriter{&buf}

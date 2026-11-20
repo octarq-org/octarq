@@ -22,14 +22,9 @@ import (
 
 var (
 	providersMu sync.RWMutex
-	loadedCreds = make(map[string]string) // key: provider name, value: client_id:client_secret
+	loadedCreds = make(map[string]string)
 )
 
-// InitGothStore sets the gorilla session store goth uses internally to hold the
-// short-lived OAuth state (the CSRF nonce for the round-trip). Call once at
-// startup with the same secret key used for octarq sessions. SameSite=Lax and a
-// 10-minute lifetime bound the state to the in-flight login rather than letting
-// it linger for weeks (gorilla's default).
 func InitGothStore(secretKey string) {
 	store := sessions.NewCookieStore(oauthStateKey(secretKey))
 	store.Options = &sessions.Options{
@@ -41,25 +36,10 @@ func InitGothStore(secretKey string) {
 	gothic.Store = requestSecureStore{store}
 }
 
-// oauthStateKey derives the key for the OAuth state cookie store. The store
-// signs and encrypts the state cookie, so it gets its own subkey instead of
-// the master secret the session and CSRF signatures also use.
 func oauthStateKey(secretKey string) []byte {
 	return crypto.DeriveKey([]byte(secretKey), crypto.PurposeOAuthState)
 }
 
-// requestSecureStore marks the OAuth state cookie Secure exactly when the
-// request carrying the login arrived over TLS, mirroring what the session
-// cookie does (Manager.setCookie). A fixed flag could only ever be wrong for
-// one of the two schemes an instance answers on: set over plain HTTP the
-// browser drops the state cookie and every login fails with "could not find a
-// matching session"; unset over HTTPS the nonce travels in cleartext.
-//
-// The flag has to be stamped on the SESSION, not applied in Save: a session
-// carries a pointer to the store that created it and saves through that, so
-// gothic's `session.Save(req, res)` reaches CookieStore.Save directly and any
-// logic here would be skipped. New and Get are the only hooks that see both the
-// request and the session.
 type requestSecureStore struct{ *sessions.CookieStore }
 
 func (s requestSecureStore) New(r *http.Request, name string) (*sessions.Session, error) {
@@ -83,8 +63,6 @@ func (s requestSecureStore) markSecure(r *http.Request, sess *sessions.Session) 
 	if sess == nil {
 		return
 	}
-	// CookieStore hands each session its own copy of Options, so this
-	// per-request write cannot leak into the next request's session.
 	if sess.Options == nil {
 		opts := *s.Options
 		sess.Options = &opts
@@ -92,9 +70,6 @@ func (s requestSecureStore) markSecure(r *http.Request, sess *sessions.Session) 
 	sess.Options.Secure = origin.Secure(r, trustProxy.Load())
 }
 
-// OAuthHandler handles OAuth begin and callback for a given provider.
-// It reads client IDs from Settings and client secrets from VaultService on each
-// request so they can be changed from the dashboard without restarting.
 type OAuthHandler struct {
 	db          *gorm.DB
 	origins     *origin.Resolver
@@ -125,22 +100,6 @@ func (h *OAuthHandler) resolveVault() plugin.VaultService {
 	return nil
 }
 
-// prepare resolves the origin this login round-trip must run on and registers
-// the provider for it, returning the goth provider name to use.
-//
-// OPERATOR-VISIBLE BEHAVIOUR: redirect_uri is now derived from the request
-// instead of from one configured base URL, so it is
-// "<origin>/auth/callback/<provider>" for whichever registered hostname the
-// user started the login on. Providers reject any redirect_uri that is not
-// registered with them verbatim, so every hostname an operator offers login on
-// must be added at the provider. A host that is not registered in the domains
-// table resolves to no origin at all and login is refused there rather than
-// sent out with a guessed callback.
-//
-// Each (provider, origin) pair is registered under its own goth name. Goth's
-// provider registry is a process-wide map keyed by name, so re-registering
-// "google" per request would let one request's callback URL be swapped out from
-// under another request on a different hostname.
 func (h *OAuthHandler) prepare(r *http.Request, provider string) (string, bool) {
 	base := h.origins.Absolute(0, r, origin.Secure(r, trustProxy.Load()))
 	if base == "" {
@@ -153,9 +112,6 @@ func (h *OAuthHandler) prepare(r *http.Request, provider string) (string, bool) 
 	return name, true
 }
 
-// loadProvider registers the named provider, under goth name, with credentials
-// from Settings + VaultService and a callback URL rooted at base. Returns false if the
-// provider is not configured.
 func (h *OAuthHandler) loadProvider(ctx context.Context, provider, name, base string) bool {
 	cid := h.setting("oauth." + provider + ".client_id")
 	csec := h.instanceSecret(ctx, "instance.oauth."+provider)
@@ -180,11 +136,6 @@ func (h *OAuthHandler) loadProvider(ctx context.Context, provider, name, base st
 		return true
 	}
 
-	// On an instance with no registered domains the origin falls back to the
-	// request host (see origin), so the set of names is caller-
-	// influenced. Bound it: a sprayer would otherwise grow goth's process-wide
-	// registry without limit. Wholesale reset beats LRU bookkeeping here — the
-	// cost of a reset is one extra provider registration per live hostname.
 	if len(loadedCreds) > 64 {
 		goth.ClearProviders()
 		loadedCreds = make(map[string]string)
@@ -233,7 +184,6 @@ func (h *OAuthHandler) instanceSecret(ctx context.Context, keyName string) strin
 	return ""
 }
 
-// Begin starts the OAuth flow. Route: GET /auth/begin/{provider}
 func (h *OAuthHandler) Begin(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
 	name, ok := h.prepare(r, provider)
@@ -245,12 +195,8 @@ func (h *OAuthHandler) Begin(w http.ResponseWriter, r *http.Request) {
 	gothic.BeginAuthHandler(w, r)
 }
 
-// Callback handles the OAuth redirect back from the provider.
-// Route: GET /auth/callback/{provider}
 func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
-	// The callback must resolve to the same origin the login began on: that is
-	// what the provider echoed back and what keyed the state in the session.
 	name, ok := h.prepare(r, provider)
 	if !ok {
 		http.Error(w, provider+" OAuth is not available on this hostname", http.StatusServiceUnavailable)
@@ -271,9 +217,6 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// SEC-10: Enterprise SSO domain bypass guard.
-	// If an enterprise workspace has enabled SSO for this email domain,
-	// general social OAuth is prohibited to enforce enterprise identity & 2FA policies.
 	if at := strings.LastIndex(email, "@"); at >= 0 && at < len(email)-1 {
 		domain := email[at+1:]
 		if h.db != nil && h.db.Migrator().HasTable("sso_configs") {
@@ -286,9 +229,6 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Upsert User. When public registration is disabled (invite-only instance),
-	// OAuth must not be a side door: existing users may still sign in, but an
-	// unknown email is refused instead of silently provisioning a new account.
 	user, org, err := h.upsertUser(email)
 	if errors.Is(err, ErrRegistrationDisabled) {
 		http.Error(w, "This instance is invite-only; ask an admin to add your account first.", http.StatusForbidden)
@@ -300,21 +240,6 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A TOTP-enabled account must prove its second factor before any session
-	// exists — the OAuth round-trip is not a substitute for it (R3-twofa).
-	// The browser is sent to the SAME second-factor page password login uses,
-	// with a short-lived signed challenge standing in for the password the
-	// OAuth account does not have; /api/auth/2fa/verify completes it via the
-	// challenge cookie and mints the session through the shared tail of
-	// verify2FA. No parallel pending state is introduced — one challenge
-	// endpoint, one session-issuance path.
-	//
-	// The challenge travels in an HttpOnly cookie, not in the URL: it is
-	// authentication material, and the query string ends up in proxy access
-	// logs and browser history. The redirect only carries the ?twofa=1 fact —
-	// enough for the page to know a second factor is pending. (Referrer-Policy
-	// is strict-origin-when-cross-origin, so the URL form did not leak
-	// cross-origin, but the local logs were real.)
 	if user.TOTPEnabled {
 		challenge, err := h.auth.NewTwoFAChallenge(user.ID)
 		if err != nil {
@@ -331,30 +256,16 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
 
-// withProviderName tells gothic which registered goth provider to use.
-//
-// gothic resolves the name from several places in a fixed order and consults
-// the path value BEFORE the context (see gothic.GetProviderName), so the
-// {provider} segment of the route — a bare "google" — would win over anything
-// put in the context. Both are set here, to the same per-origin name.
 func withProviderName(r *http.Request, name string) *http.Request {
 	r = gothic.GetContextWithProvider(r, name)
 	r.SetPathValue("provider", name)
 	return r
 }
 
-// registrationEnabled reports whether new accounts may be provisioned. Mirrors
-// api.Handler.registrationEnabled (default on unless the setting is "false") but
-// reads the DB directly so the auth package stays decoupled from api.
 func (h *OAuthHandler) registrationEnabled() bool {
 	return registrationAllowed(h.db)
 }
 
-// upsertUser finds or creates the User + default Org + OrgMember for an
-// OAuth-verified email. It delegates to the shared UpsertUserByEmail so built-in
-// OAuth and the Pro SSO plugin provision users identically, then loads the rows
-// the caller needs. Creating a brand-new user is gated on registrationEnabled so
-// OAuth can't bypass an invite-only instance.
 func (h *OAuthHandler) upsertUser(email string) (*models.User, *models.Org, error) {
 	uid, orgID, err := UpsertUserByEmail(h.db, email, h.registrationEnabled())
 	if err != nil {

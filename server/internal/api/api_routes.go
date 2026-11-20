@@ -7,56 +7,29 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
-// Routes returns the API mux mounted at /api/. It returns the concrete
-// *http.ServeMux (not http.Handler) so plugins can mount additional /api/...
-// routes onto the same mux before it is served.
 func (h *Handler) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	config := huma.DefaultConfig("Octarq API", "1.0.0")
 	config.Info.Description = apiDescription
 	config.Servers = []*huma.Server{{URL: "/", Description: "This instance"}}
-	// Hooks run on EVERY operation added to the document, including the ones
-	// plugins register after Routes() returns. That is the point: a rule
-	// enforced only over the core's own registrations is a rule half the
-	// surface escapes.
 	config.OnAddOperation = append(config.OnAddOperation, normalizeValidationResponse, applyDeprecation)
 
 	api := humago.New(mux, config)
 	h.humaAPI = api
 
-	// The single error envelope is installed process-wide in errors.go's init().
-	// It used to be assigned here, wrapping whatever was already installed —
-	// which nested on the second Routes() call and silently rewrote status codes
-	// other repositories had declared. See errors.go.
-
-	// Deprecation signalling runs first so the headers are on the response even
-	// when a later middleware refuses the request: a caller whose integration
-	// has a deadline should learn about it from a 401 too.
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
 		deprecationHeaders(ctx)
 		next(ctx)
 	})
 
-	// Early authentication middleware to avoid validation failures returning 400/422 for unauthenticated requests.
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
-		// A plugin may mark a SPECIFIC operation as public by setting
-		// Metadata["public"] = true on its huma.Operation. Such a handler
-		// authenticates its own callers (buyer-session cookie, or is
-		// intentionally public), so the dashboard-auth gate is skipped for it —
-		// and ONLY for it. This is exact per-operation opt-in: it can never
-		// widen to sibling routes the way a path-prefix allowlist would.
-		// OPERATOR routes must NEVER be marked public.
 		if op := ctx.Operation(); op != nil {
 			if v, _ := op.Metadata["public"].(bool); v {
 				next(ctx)
 				return
 			}
 		}
-		// The prefix allowlist lives in public_endpoints.go next to the
-		// inventory that reports on it. Keeping the gate and its inventory on
-		// one list is what stops them drifting apart — a prefix added here but
-		// not there would exempt a route the registry test never sees.
 		if !isPublicPath(ctx.URL().Path) {
 			r, _ := humago.Unwrap(ctx)
 			if r != nil {
@@ -65,14 +38,6 @@ func (h *Handler) Routes() *http.ServeMux {
 					huma.WriteErr(api, ctx, http.StatusUnauthorized, "Authentication required; sign in to continue")
 					return
 				}
-				// A plugin reads its caller with humago.Unwrap, which peels
-				// this override back off and hands back the adapter's own
-				// request — the one still carrying the anonymous context. A
-				// cookie survives that because auth.UserID re-reads it from
-				// the header; a bearer token does not, so it authenticated
-				// here and then read as user 0 inside every plugin route.
-				// Stamping the authenticated copy onto the adapter's request
-				// keeps both readers on the same identity.
 				*r = *r2
 				ctx = huma.WithContext(ctx, r2.Context())
 			}
@@ -80,7 +45,6 @@ func (h *Handler) Routes() *http.ServeMux {
 		next(ctx)
 	})
 
-	// Auth routes.
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      "POST",
@@ -141,10 +105,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/verify-email", Summary: "Verify Email", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.verifyEmail)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/resend-verification", Summary: "Resend Verification Email", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.resendVerification)
 
-	// OAuth (no session required — these redirect to provider and back). The
-	// routes always exist; the handler answers 503 when no provider is
-	// configured, or when the request arrived on a hostname it cannot build a
-	// callback URL for.
 	mux.HandleFunc("GET /auth/begin/{provider}", h.oauth.Begin)
 	mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 
@@ -171,14 +131,11 @@ func (h *Handler) Routes() *http.ServeMux {
 		Metadata: map[string]any{"public": true},
 	}, h.subsystemStatus)
 
-	// MCP SSE and Streamable HTTP endpoints.
 	mux.Handle("/api/mcp/sse", h.mcpSSEHandler())
 	mux.Handle("/api/mcp/stream", h.mcpStreamHandler())
 
-	// AI Chat Stream endpoint (SSE).
 	mux.HandleFunc("POST /api/ai/chat/stream", h.aiChatStream)
 
-	// Real-time Event Stream endpoint (SSE).
 	mux.HandleFunc("GET /api/realtime/stream", h.realtimeStream)
 
 	huma.Register(api, huma.Operation{
@@ -233,10 +190,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhooks/{id}/test", Summary: "Test Webhook", Tags: []string{"Webhooks"}}, h.testWebhook)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
-	// DNS providers, provider-accounts, domains, and DNS records are served by the
-	// dns plugin, which ships in octarq-plugins and mounts here when installed.
-	// See website/src/content/docs/architecture/overview.md.
-
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/ai/assist/status", Summary: "Get AI Assist Status", Tags: []string{"AI"}}, h.aiStatus)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/summarize-email/{id}", Summary: "Summarize Email via AI", Tags: []string{"AI"}}, h.aiSummarizeEmail)
@@ -286,7 +239,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notification-channels/{id}", Summary: "Delete Notification Channel", Tags: []string{"Notification Channels"}}, h.deleteNotificationChannel)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notification-channels/{id}/test", Summary: "Test Notification Channel", Tags: []string{"Notification Channels"}}, h.testNotificationChannel)
 
-	// Core In-App Notifications & User Routing Preferences
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notifications", Summary: "List Notifications", Tags: []string{"Notifications"}}, h.listNotifications)
 	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/notifications/read-all", Summary: "Mark All Notifications Read", Tags: []string{"Notifications"}}, h.markAllNotificationsRead)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notifications/read-all", Summary: "Mark All Notifications Read (POST)", Tags: []string{"Notifications"}}, h.markAllNotificationsRead)
@@ -299,7 +251,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notification-preferences", Summary: "Delete/Reset Notification Preferences", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-preferences/channels", Summary: "List Registered Notification Channels", Tags: []string{"Notification Preferences"}}, h.listRegisteredChannels)
 
-	// Routes aliases matching issue specification (/api/notifications/routes)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notifications/routes", Summary: "Get Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.getNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notifications/routes", Summary: "Update Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.updateNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notifications/routes/reset", Summary: "Reset Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
@@ -354,7 +305,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/user/settings", Summary: "Get User Settings", Tags: []string{"UI Settings"}}, h.getUserSettings)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/user/settings", Summary: "Update User Settings", Tags: []string{"UI Settings"}}, h.updateUserSettings)
 
-	// File storage & management routes
 	huma.Register(api, huma.Operation{
 		OperationID: "uploadFile",
 		Method:      "POST",
@@ -385,17 +335,11 @@ func (h *Handler) Routes() *http.ServeMux {
 		Tags:        []string{"Files"},
 	}, h.getFile)
 
-	// The Error schema is registered by the first huma.Register above; fill in
-	// the closed code registry now that it exists.
 	documentErrorCodes(api.OpenAPI())
 
 	return mux
 }
 
-// apiDescription is the spec's front matter. It is the first thing an
-// integrator reads in the reference explorer, so it states the two things that
-// decide whether their code survives our next release: what the base path is,
-// and what an error looks like.
 const apiDescription = `The Octarq REST API.
 
 This document is generated from the Go handlers themselves — every path,

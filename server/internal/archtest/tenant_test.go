@@ -26,9 +26,6 @@ func findTenantsqlDir(t *testing.T) string {
 	return ""
 }
 
-// TestTenantDB_NoUnscopedEscapeHatches inspects the internal/tenantsql AST at test time
-// to guarantee that no unscoped escape hatch methods (such as UnscopedDangerous, Unscoped,
-// RawDB, or returning raw *gorm.DB handles) exist on TenantDB.
 func TestTenantDB_NoUnscopedEscapeHatches(t *testing.T) {
 	dir := findTenantsqlDir(t)
 	entries, err := os.ReadDir(dir)
@@ -54,7 +51,6 @@ func TestTenantDB_NoUnscopedEscapeHatches(t *testing.T) {
 		parsedFiles++
 		relFile := filepath.Base(filePath)
 
-		// 1. Check TenantDB struct definition: ensure underlying db field is unexported
 		ast.Inspect(file, func(n ast.Node) bool {
 			ts, ok := n.(*ast.TypeSpec)
 			if !ok || ts.Name.Name != "TenantDB" {
@@ -75,14 +71,12 @@ func TestTenantDB_NoUnscopedEscapeHatches(t *testing.T) {
 			return true
 		})
 
-		// 2. Check all methods declared on TenantDB
 		ast.Inspect(file, func(n ast.Node) bool {
 			fn, ok := n.(*ast.FuncDecl)
 			if !ok || fn.Recv == nil || len(fn.Recv.List) == 0 {
 				return true
 			}
 
-			// Check receiver type
 			recvType := fn.Recv.List[0].Type
 			if star, ok := recvType.(*ast.StarExpr); ok {
 				recvType = star.X
@@ -94,13 +88,11 @@ func TestTenantDB_NoUnscopedEscapeHatches(t *testing.T) {
 
 			methodName := fn.Name.Name
 
-			// Forbidden method names
 			lowerMethod := strings.ToLower(methodName)
 			if strings.Contains(lowerMethod, "unscoped") || methodName == "RawDB" || methodName == "DB" || methodName == "GetDB" {
 				t.Errorf("%s: forbidden unscoped/escape hatch method %s() defined on TenantDB", relFile, methodName)
 			}
 
-			// Inspect function body to ensure it does not directly return the raw unscoped handle (e.g. return t.db)
 			var recvVarName string
 			if len(fn.Recv.List[0].Names) > 0 {
 				recvVarName = fn.Recv.List[0].Names[0].Name
@@ -113,7 +105,6 @@ func TestTenantDB_NoUnscopedEscapeHatches(t *testing.T) {
 						return true
 					}
 					for _, expr := range ret.Results {
-						// Check if expr is directly `t.db`
 						if sel, ok := expr.(*ast.SelectorExpr); ok {
 							if sel.Sel.Name == "db" {
 								if xIdent, ok := sel.X.(*ast.Ident); ok {

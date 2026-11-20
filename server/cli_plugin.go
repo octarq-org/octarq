@@ -9,9 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/scaffold"
 )
 
-// runPluginCommand handles `octarq plugin <subcommand>`. Today the only
-// subcommand is `new`, which scaffolds a plugin skeleton. It returns the
-// process exit code.
 func runPluginCommand(args []string) int {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "usage: octarq plugin new <name> [flags]")
@@ -40,9 +37,6 @@ func runPluginNew(args []string) int {
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
-	// Accept the name either first ("new <name> [flags]") or after the flags
-	// ("new [flags] <name>"). Go's flag package stops at the first positional,
-	// so we route the two orderings explicitly rather than mixing them.
 	var name string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		name = args[0]
@@ -70,7 +64,6 @@ func runPluginNew(args []string) int {
 		fmt.Fprintf(os.Stderr, "octarq plugin new: %v\n", err)
 		return 1
 	}
-	// Recompute the resolved dir for the summary (Generate defaults it internally).
 	dir := opts.Dir
 	if dir == "" {
 		dir = "octarq-plugin-" + opts.Name

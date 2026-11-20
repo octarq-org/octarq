@@ -60,7 +60,6 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
 	token, orgID := createTestUserAndOrg(t, h)
 
-	// Ensure isolated test storage
 	tmpDir := t.TempDir()
 	storage, err := plugin.NewLocalStorageService(tmpDir, []byte("test-secret"), "")
 	if err != nil {
@@ -68,7 +67,6 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 	}
 	h.SetStorage(storage)
 
-	// 1. Missing MD5 in JSON
 	bodyJSON := `{"name": "test.txt"}`
 	req := httptest.NewRequest("POST", "/api/files/upload", strings.NewReader(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -79,7 +77,6 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 		t.Fatalf("expected 400 for empty MD5, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 2. Invalid MD5 length
 	bodyJSON = `{"md5": "short"}`
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -90,7 +87,6 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 		t.Fatalf("expected 400 for short MD5, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 3. Unknown MD5 -> 404
 	unknownMD5 := "00000000000000000000000000000000"
 	bodyJSON = fmt.Sprintf(`{"md5": "%s", "name": "unknown.png"}`, unknownMD5)
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader(bodyJSON))
@@ -102,7 +98,6 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 		t.Fatalf("expected 404 for unknown MD5, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 4. Precheck hit via existing DB record in same org
 	knownMD5 := "098f6bcd4621d373cade4e832627b4f6"
 	existingFile := models.File{
 		OrgID:       orgID,
@@ -140,7 +135,6 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 		t.Errorf("expected reused path %s, got %s", existingFile.Path, resp.File.Path)
 	}
 
-	// 5. Cross-tenant isolation (SEC-02): file exists in another org, precheck must fail closed with 404
 	_, otherOrgID := createTestUserAndOrg(t, h)
 	crossOrgMD5 := "5eb63bbbe01eeed093cb22bb8f5acdc3"
 	otherFile := models.File{
@@ -154,12 +148,10 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 	if err := h.db.Create(&otherFile).Error; err != nil {
 		t.Fatalf("create other org file: %v", err)
 	}
-	// Also ensure file is present on disk
 	if _, _, _, _, err := storage.PutObjectByHash(context.Background(), strings.NewReader("hello world"), ".txt"); err != nil {
 		t.Fatalf("put object on disk: %v", err)
 	}
 
-	// Requesting precheck for another org's MD5 must NOT return 200/deduplicate
 	bodyJSON = fmt.Sprintf(`{"md5": "%s", "name": "stolen.txt"}`, crossOrgMD5)
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -182,7 +174,6 @@ func TestFiles_Upload_Multipart(t *testing.T) {
 	}
 	h.SetStorage(storage)
 
-	// 1. Unauthenticated upload -> 401
 	req := httptest.NewRequest("POST", "/api/files/upload", strings.NewReader("dummy"))
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -190,7 +181,6 @@ func TestFiles_Upload_Multipart(t *testing.T) {
 		t.Fatalf("expected 401 for unauthenticated upload, got %d", rec.Code)
 	}
 
-	// 2. Upload file content
 	content := []byte("unique-file-payload-for-upload-test-12345")
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -227,7 +217,6 @@ func TestFiles_Upload_Multipart(t *testing.T) {
 	firstMD5 := uploadResp.File.MD5
 	firstPath := uploadResp.File.Path
 
-	// 3. Upload same content again -> Dedup
 	var body2 bytes.Buffer
 	writer2 := multipart.NewWriter(&body2)
 	part2, err := writer2.CreateFormFile("file", "duplicate.txt")
@@ -260,7 +249,6 @@ func TestFiles_Upload_Multipart(t *testing.T) {
 		t.Errorf("expected matching Path %s, got %s", firstPath, dedupResp.File.Path)
 	}
 
-	// 4. Upload with md5 form hint
 	var bodyHint bytes.Buffer
 	writerHint := multipart.NewWriter(&bodyHint)
 	_ = writerHint.WriteField("md5", firstMD5)

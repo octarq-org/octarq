@@ -10,8 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
-// isNonWorkspaceRoute reports whether a path represents an instance-level administration
-// route or a public/entrypoint route that is not scoped to a specific workspace's plugin toggle.
 func isNonWorkspaceRoute(path string) bool {
 	if path == "/api/instance-settings" {
 		return true
@@ -37,21 +35,6 @@ func isNonWorkspaceRoute(path string) bool {
 	return false
 }
 
-// pluginGate builds the per-workspace feature check the gated mux and adapter
-// share. Non-core plugin routes answer 404 when the caller's workspace has the
-// feature disabled.
-//
-// The org-0 case returns scoped=false, i.e. "not a workspace-scoped request, do
-// not gate it" — the route is then served. That is deliberate and load-bearing:
-// public plugin routes (payment webhooks, the buyer portal, license activation)
-// carry no session, so there is no workspace whose toggle could be consulted.
-// Returning scoped=true here to look "fail-closed" would 404 every incoming
-// Stripe webhook and every buyer — payments would stop, quietly, and the failure
-// would surface as missing revenue rather than as an error.
-//
-// Instance-level administration routes (e.g. /api/sso/instance/*) and public
-// entrypoints also return scoped=false because they are deployment-wide or
-// host trust decisions rather than properties of the caller's current workspace.
 func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool }) func(*http.Request, string) (allowed, scoped bool) {
 	return func(r *http.Request, featureKey string) (allowed, scoped bool) {
 		if r == nil {
@@ -62,16 +45,12 @@ func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool 
 		}
 		oid := a.auth.OrgID(r)
 		if oid == 0 {
-			return false, false // no workspace in session (webhooks, portal) → not gated
+			return false, false
 		}
 		return apiHandler.PluginEnabled(oid, featureKey), true
 	}
 }
 
-// recoverWriter wraps http.ResponseWriter to track whether response headers
-// have already been written. This lets the panic-recovery path avoid a
-// superfluous WriteHeader call (and the warning log it would produce) when a
-// handler panics after partially writing the response.
 type recoverWriter struct {
 	http.ResponseWriter
 	wroteHeader bool
@@ -89,20 +68,12 @@ func (rw *recoverWriter) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
 }
 
-// Flush forwards to the underlying ResponseWriter if it implements
-// http.Flusher, keeping SSE / streaming responses working.
 func (rw *recoverWriter) Flush() {
 	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// gatedMux wraps the shared API mux so every route a plugin registers is guarded
-// by a per-workspace "plugin enabled" check. It satisfies plugin.Mux; when the
-// caller's workspace has the plugin disabled, the wrapped handler answers 404
-// before running. Requests with no workspace in session (public plugin routes
-// such as payment webhooks and the customer portal) pass through unchanged —
-// they aren't workspace-scoped and can't be org-gated here.
 type gatedMux struct {
 	real    muxSink
 	plugin  string
@@ -157,9 +128,6 @@ func (g *gatedAPI) Adapter() huma.Adapter {
 	return g.gAdapter
 }
 
-// recordingAPI wraps the shared huma API for a CORE plugin: core routes are not
-// feature-gated, but they still have to be checked for collisions — a core
-// plugin and a Pro module claiming the same path panics exactly the same way.
 type recordingAPI struct {
 	huma.API
 	rAdapter huma.Adapter
@@ -182,10 +150,8 @@ func (r *recordingAdapter) Handle(op *huma.Operation, handler func(ctx huma.Cont
 
 type gatedAdapter struct {
 	huma.Adapter
-	plugin  string
-	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
-	// routes is the same collision guard the mux wrapper uses: huma routes end
-	// up on the same ServeMux and panic on a duplicate just the same.
+	plugin     string
+	enabled    func(r *http.Request, plugin string) (allowed, scoped bool)
 	routes     *routeRegistry
 	owner      string
 	thirdParty bool
@@ -214,10 +180,6 @@ func (g *gatedAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)
 					"panic", rec,
 					"stack", string(debug.Stack()),
 				)
-				// Best-effort 500 response. If the handler already wrote
-				// headers through the huma context, WriteHeader is a no-op
-				// with a harmless "superfluous" log — acceptable on a panic
-				// path that is already exceptional.
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(`{"error":"internal server error"}`))

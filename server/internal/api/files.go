@@ -17,7 +17,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// DownloadFileInput defines parameters for file download.
 type DownloadFileInput struct {
 	Ctx         huma.Context `hidden:"true"`
 	ID          uint         `path:"id" example:"1" doc:"File ID"`
@@ -40,7 +39,6 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 	hasValidToken := false
 	idStr := strconv.FormatUint(uint64(input.ID), 10)
 
-	// Check if HMAC token is provided in query (?token=...)
 	if strings.TrimSpace(input.Token) != "" {
 		if h.storage != nil && h.storage.VerifyDownloadToken(input.Token, idStr) {
 			hasValidToken = true
@@ -50,7 +48,6 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 	}
 
 	if !hasValidToken {
-		// No valid token provided: require session / bearer authentication
 		r2, ok := h.auth.AuthenticateRequest(r)
 		if !ok {
 			return nil, huma.Error401Unauthorized("Authentication required; provide a valid session or download token")
@@ -66,7 +63,6 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 		return nil, huma.Error500InternalServerError("Could not load file information; retry the request")
 	}
 
-	// Verify org isolation when authenticated via session (not via signed token)
 	if !hasValidToken && authedOrgID != 0 && file.OrgID != authedOrgID {
 		return nil, huma.Error403Forbidden("Workspace permission denied; this file belongs to another workspace")
 	}
@@ -107,13 +103,11 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 	}, nil
 }
 
-// TempTokenRequest is the payload to generate a short-lived download token.
 type TempTokenRequest struct {
 	FileID        uint  `json:"file_id" example:"1" doc:"File ID"`
 	ExpireSeconds int64 `json:"expire_seconds,omitempty" example:"900" doc:"Expiry duration in seconds (default: 900s / 15m)"`
 }
 
-// TempTokenInput wraps TempTokenRequest for Huma.
 type TempTokenInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body TempTokenRequest
@@ -124,7 +118,6 @@ func (i *TempTokenInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-// TempTokenResponse contains the generated token and access URL.
 type TempTokenResponse struct {
 	Token       string `json:"token"`
 	FileID      uint   `json:"file_id"`
@@ -132,7 +125,6 @@ type TempTokenResponse struct {
 	DownloadURL string `json:"download_url"`
 }
 
-// TempTokenOutput wraps TempTokenResponse for Huma.
 type TempTokenOutput struct {
 	Body TempTokenResponse
 }
@@ -184,7 +176,6 @@ func (h *Handler) createTempToken(ctx context.Context, input *TempTokenInput) (*
 	}, nil
 }
 
-// GetFileInput specifies the file ID for metadata lookup.
 type GetFileInput struct {
 	Ctx huma.Context `hidden:"true"`
 	ID  uint         `path:"id" example:"1" doc:"File ID"`
@@ -195,7 +186,6 @@ func (i *GetFileInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-// GetFileOutput wraps models.File for Huma.
 type GetFileOutput struct {
 	Body models.File
 }

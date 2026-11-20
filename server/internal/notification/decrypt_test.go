@@ -57,7 +57,6 @@ func (s *stubVaultService) ComputeTOTP(context.Context, uint, uint) (string, int
 func TestResolveChannelConfig(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. Metadata-only channel without VaultItemID
 	cfg, err := ResolveChannelConfig(ctx, nil, models.NotificationChannel{
 		OrgID:  1,
 		Config: `{"chatId":"42"}`,
@@ -66,7 +65,6 @@ func TestResolveChannelConfig(t *testing.T) {
 		t.Fatalf("metadata-only channel failed: cfg=%v err=%v", cfg, err)
 	}
 
-	// 2. Missing VaultService when VaultItemID > 0 fails closed
 	if _, err := ResolveChannelConfig(ctx, nil, models.NotificationChannel{
 		OrgID:       1,
 		VaultItemID: 10,
@@ -75,7 +73,6 @@ func TestResolveChannelConfig(t *testing.T) {
 		t.Error("expected error when vault service is nil for VaultItemID > 0")
 	}
 
-	// 3. VaultService error fails closed
 	failing := &stubVaultService{err: errors.New("vault unavailable")}
 	if _, err := ResolveChannelConfig(ctx, failing, models.NotificationChannel{
 		OrgID:       1,
@@ -84,7 +81,6 @@ func TestResolveChannelConfig(t *testing.T) {
 		t.Error("expected error when vault GetSecret fails")
 	}
 
-	// 4. Metadata + Vault payload merge cleanly
 	vs := &stubVaultService{secrets: map[uint]map[string]any{
 		10: {"botToken": "secret-tok"},
 	}}

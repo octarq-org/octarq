@@ -7,7 +7,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// fakePlugin is a minimal plugin.Plugin carrying only a name and models.
 type fakePlugin struct {
 	name   string
 	models []any
@@ -19,9 +18,6 @@ func (f fakePlugin) Mount(plugin.Mux, *plugin.Context) {}
 
 var _ plugin.Plugin = fakePlugin{}
 
-// mirrorSetting mirrors the core "settings" table with a local struct — the
-// documented convention for plugins reading core tables without importing
-// internal/models. Must never trip the preflight.
 type mirrorSetting struct {
 	ID    uint `gorm:"primaryKey"`
 	Key   string
@@ -30,8 +26,6 @@ type mirrorSetting struct {
 
 func (mirrorSetting) TableName() string { return "settings" }
 
-// widgetA and widgetB are two DIFFERENT struct types both claiming the
-// non-core table "widgets" — the genuine ownership collision.
 type widgetA struct {
 	ID   uint `gorm:"primaryKey"`
 	Name string
@@ -46,7 +40,6 @@ type widgetB struct {
 
 func (widgetB) TableName() string { return "widgets" }
 
-// gadget has no TableName override; the naming strategy must derive "gadgets".
 type gadget struct {
 	ID uint `gorm:"primaryKey"`
 }
@@ -83,15 +76,13 @@ func TestPreflightRejectsOnePluginDeclaringSameTableTwice(t *testing.T) {
 
 func TestPreflightAllowsSameTypeDeclaredTwice(t *testing.T) {
 	a := fakePlugin{name: "alpha", models: []any{&widgetA{}}}
-	b := fakePlugin{name: "beta", models: []any{&widgetA{}}} // same struct type — idempotent
+	b := fakePlugin{name: "beta", models: []any{&widgetA{}}}
 	if err := preflightTableCollisions(nil, []plugin.Plugin{a, b}); err != nil {
 		t.Fatalf("identical model types must not collide, got: %v", err)
 	}
 }
 
 func TestPreflightDerivedTableNames(t *testing.T) {
-	// No TableName override: two plugins each with their own distinct derived
-	// table must pass; the same derived table from different types must fail.
 	a := fakePlugin{name: "alpha", models: []any{&gadget{}}}
 	if err := preflightTableCollisions(nil, []plugin.Plugin{a}); err != nil {
 		t.Fatalf("single derived table must pass, got: %v", err)
@@ -144,8 +135,6 @@ func TestPreflightRejectsDuplicatePluginNames(t *testing.T) {
 	if !strings.Contains(err.Error(), `"help"`) {
 		t.Errorf("error should name the colliding plugin, got: %v", err)
 	}
-	// The message has to point at the fix, or the next person resolves the
-	// collision by renaming one plugin and silently splitting a shared toggle.
 	if !strings.Contains(err.Error(), "Group") {
 		t.Errorf("error should point at plugin.Info.Group as the way to share a toggle, got: %v", err)
 	}

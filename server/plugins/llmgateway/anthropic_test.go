@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-// messagesFixture points one workspace provider at a stand-in upstream.
 func messagesFixture(t *testing.T, u *upstream) *httpFixture {
 	t.Helper()
 	f := newHTTPFixture(t, 1, 1, "member")
@@ -19,7 +18,6 @@ func messagesFixture(t *testing.T, u *upstream) *httpFixture {
 	return f
 }
 
-// sentBody is the OpenAI request the upstream received.
 func sentBody(t *testing.T, u *upstream) map[string]any {
 	t.Helper()
 	var body map[string]any
@@ -29,8 +27,6 @@ func sentBody(t *testing.T, u *upstream) map[string]any {
 	return body
 }
 
-// TestMessagesTranslatesTheRequest proves every Anthropic construct has an
-// OpenAI counterpart on the way out.
 func TestMessagesTranslatesTheRequest(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c1","model":"m","choices":[{"message":{"content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`}
 	f := messagesFixture(t, u)
@@ -64,7 +60,6 @@ func TestMessagesTranslatesTheRequest(t *testing.T) {
 	if m0, _ := msgs[0].(map[string]any); m0["role"] != "system" || m0["content"] != "You are terse." {
 		t.Fatalf("system = %v", m0)
 	}
-	// The image and the text of the first user turn are content parts.
 	m1, _ := msgs[1].(map[string]any)
 	parts, _ := m1["content"].([]any)
 	if len(parts) != 2 {
@@ -78,7 +73,6 @@ func TestMessagesTranslatesTheRequest(t *testing.T) {
 	if img["url"] != "data:image/jpeg;base64,AAA" {
 		t.Fatalf("image = %v", p1)
 	}
-	// The assistant turn keeps its text and turns tool_use into tool_calls.
 	m2, _ := msgs[2].(map[string]any)
 	calls, _ := m2["tool_calls"].([]any)
 	if m2["role"] != "assistant" || m2["content"] != "reading" || len(calls) != 1 {
@@ -89,7 +83,6 @@ func TestMessagesTranslatesTheRequest(t *testing.T) {
 	if call["id"] != "call_1" || fn["name"] != "read" || fn["arguments"] != `{"path":"a.go"}` {
 		t.Fatalf("tool call = %v", call)
 	}
-	// The tool result comes before the user text and carries the same id.
 	m3, _ := msgs[3].(map[string]any)
 	if m3["role"] != "tool" || m3["tool_call_id"] != "call_1" || m3["content"] != "package a" {
 		t.Fatalf("tool message = %v", m3)
@@ -111,8 +104,6 @@ func TestMessagesTranslatesTheRequest(t *testing.T) {
 	}
 }
 
-// TestMessagesTranslatesTheAnswer proves the answer comes back in Anthropic
-// shape, tool calls included.
 func TestMessagesTranslatesTheAnswer(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"chatcmpl-9","model":"gpt-demo","choices":[{"message":{"content":"hello",
 		"tool_calls":[{"id":"call_7","type":"function","function":{"name":"read","arguments":"{\"path\":\"a.go\"}"}}]},
@@ -149,8 +140,6 @@ func TestMessagesTranslatesTheAnswer(t *testing.T) {
 	}
 }
 
-// TestMessagesRefusesABlockWithNoCounterpart keeps a client from losing part of
-// its context without being told.
 func TestMessagesRefusesABlockWithNoCounterpart(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -165,8 +154,6 @@ func TestMessagesRefusesABlockWithNoCounterpart(t *testing.T) {
 	}
 }
 
-// TestMessagesRefusesAToolResultImage covers the one tool answer OpenAI has no
-// shape for.
 func TestMessagesRefusesAToolResultImage(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -177,8 +164,6 @@ func TestMessagesRefusesAToolResultImage(t *testing.T) {
 	}
 }
 
-// TestMessagesRefusesANamelessModel keeps a request that names nothing from
-// reaching the provider.
 func TestMessagesRefusesANamelessModel(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -187,7 +172,6 @@ func TestMessagesRefusesANamelessModel(t *testing.T) {
 	}
 }
 
-// TestMessagesReportsAProviderRefusal keeps the upstream message legible.
 func TestMessagesReportsAProviderRefusal(t *testing.T) {
 	u := &upstream{chatCode: http.StatusTooManyRequests, chatBody: `{"error":"slow down"}`}
 	f := messagesFixture(t, u)
@@ -203,8 +187,6 @@ func TestMessagesReportsAProviderRefusal(t *testing.T) {
 	}
 }
 
-// TestMessagesNeedsASession keeps an unauthenticated composition from spending
-// the provider.
 func TestMessagesNeedsASession(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "member")
 	f.plugin.pctx = nil
@@ -213,8 +195,6 @@ func TestMessagesNeedsASession(t *testing.T) {
 	}
 }
 
-// TestMessagesStreamsAnthropicEvents walks the event sequence a client parses:
-// message_start, text, a tool block, then the closing events.
 func TestMessagesStreamsAnthropicEvents(t *testing.T) {
 	u := &upstream{chatBody: strings.Join([]string{
 		`data: {"choices":[{"delta":{"content":"Hel"}}]}`,
@@ -270,8 +250,6 @@ func TestMessagesStreamsAnthropicEvents(t *testing.T) {
 			t.Fatalf("missing %q in:\n%s", want, text)
 		}
 	}
-	// The provider was asked to include usage, which is where output_tokens
-	// comes from.
 	sent := sentBody(t, u)
 	opts, _ := sent["stream_options"].(map[string]any)
 	if sent["stream"] != true || opts["include_usage"] != true {
@@ -279,7 +257,6 @@ func TestMessagesStreamsAnthropicEvents(t *testing.T) {
 	}
 }
 
-// TestCountTokensAnswersAnEstimate covers the context meter.
 func TestCountTokensAnswersAnEstimate(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -294,7 +271,6 @@ func TestCountTokensAnswersAnEstimate(t *testing.T) {
 	}
 }
 
-// TestMessagesErrorsAreAnthropicShaped keeps the client's error parser working.
 func TestMessagesErrorsAreAnthropicShaped(t *testing.T) {
 	f := messagesFixture(t, &upstream{chatBody: `{}`})
 	status, body := f.do(t, http.MethodPost, "/v1/messages", `{`)
@@ -307,7 +283,6 @@ func TestMessagesErrorsAreAnthropicShaped(t *testing.T) {
 	}
 }
 
-// TestStopReason covers the finish-reason table.
 func TestStopReason(t *testing.T) {
 	for in, want := range map[string]string{
 		"stop": "end_turn", "length": "max_tokens", "tool_calls": "tool_use",
@@ -319,7 +294,6 @@ func TestStopReason(t *testing.T) {
 	}
 }
 
-// TestParseBlocks covers the two shapes a content field takes.
 func TestParseBlocks(t *testing.T) {
 	blocks, err := parseBlocks(json.RawMessage(`"plain"`))
 	if err != nil || len(blocks) != 1 || blocks[0].Text != "plain" {
@@ -337,7 +311,6 @@ func TestParseBlocks(t *testing.T) {
 	}
 }
 
-// TestSystemText covers the two shapes a system prompt takes.
 func TestSystemText(t *testing.T) {
 	got, err := systemText(json.RawMessage(`[{"type":"text","text":"a"},{"type":"text","text":"b"}]`))
 	if err != nil || got != "a\n\nb" {
@@ -348,7 +321,6 @@ func TestSystemText(t *testing.T) {
 	}
 }
 
-// TestToolChoice covers the choice table.
 func TestToolChoice(t *testing.T) {
 	if toolChoice(nil) != "auto" {
 		t.Fatal("no choice should be auto")
@@ -364,7 +336,6 @@ func TestToolChoice(t *testing.T) {
 	}
 }
 
-// TestEstimateRequestTokens grows with the payload.
 func TestEstimateRequestTokens(t *testing.T) {
 	small := estimateRequestTokens(&anthRequest{Messages: []anthMessage{{Role: "user", Content: json.RawMessage(`"hi"`)}}})
 	big := estimateRequestTokens(&anthRequest{
@@ -377,7 +348,6 @@ func TestEstimateRequestTokens(t *testing.T) {
 	}
 }
 
-// TestMessageIDKeepsTheProviderID keeps a trace followable.
 func TestMessageIDKeepsTheProviderID(t *testing.T) {
 	if got := messageID("chatcmpl-1"); got != "msg_chatcmpl-1" {
 		t.Fatalf("id = %q", got)
@@ -387,7 +357,6 @@ func TestMessageIDKeepsTheProviderID(t *testing.T) {
 	}
 }
 
-// TestMessagesImageSourceShapes covers the url and broken sources.
 func TestMessagesImageSourceShapes(t *testing.T) {
 	if got, err := imageURL(&anthImageSource{Type: "url", URL: "https://x/y.png"}); err != nil || got != "https://x/y.png" {
 		t.Fatalf("url = %q %v", got, err)
@@ -403,7 +372,6 @@ func TestMessagesImageSourceShapes(t *testing.T) {
 	}
 }
 
-// TestMessagesRefusesABadTool keeps a nameless tool from reaching the provider.
 func TestMessagesRefusesABadTool(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -414,8 +382,6 @@ func TestMessagesRefusesABadTool(t *testing.T) {
 	}
 }
 
-// TestMessagesTruncatedAnswer covers a provider that answers with nothing
-// parseable.
 func TestMessagesTruncatedAnswer(t *testing.T) {
 	u := &upstream{chatBody: `not json`}
 	f := messagesFixture(t, u)
@@ -426,7 +392,6 @@ func TestMessagesTruncatedAnswer(t *testing.T) {
 	}
 }
 
-// TestMessagesRejectsAnUnknownRole keeps a bad turn from being guessed at.
 func TestMessagesRejectsAnUnknownRole(t *testing.T) {
 	u := &upstream{chatBody: `{}`}
 	f := messagesFixture(t, u)
@@ -437,8 +402,6 @@ func TestMessagesRejectsAnUnknownRole(t *testing.T) {
 	}
 }
 
-// TestMessagesKeepsAMidConversationSystemMessage covers the reminder a coding
-// agent inserts between turns: its position is kept, not merged.
 func TestMessagesKeepsAMidConversationSystemMessage(t *testing.T) {
 	u := &upstream{chatBody: `{"id":"c","model":"m","choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}`}
 	f := messagesFixture(t, u)

@@ -9,8 +9,6 @@ import (
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
-// --- Streaming fakes and tests ---
-
 type streamEvent struct {
 	thinking string
 	text     string
@@ -88,7 +86,6 @@ func (c *captureHandler) OnToolCall(chunk llmprovider.ToolCallChunk) {
 	c.tools = append(c.tools, chunk)
 }
 
-// Test 6: Stream with thinking and text accumulation and token counting.
 func TestRunner_Stream_ThinkingThenText(t *testing.T) {
 	t.Parallel()
 
@@ -139,7 +136,6 @@ func TestRunner_Stream_ThinkingThenText(t *testing.T) {
 		t.Errorf("captured text = %q", strings.Join(h.texts, ""))
 	}
 
-	// Verify history
 	if len(sess.History) != 2 {
 		t.Fatalf("expected 2 messages in history, got %d", len(sess.History))
 	}
@@ -151,7 +147,6 @@ func TestRunner_Stream_ThinkingThenText(t *testing.T) {
 	}
 }
 
-// Test 7: Stream with tool call chunks accumulation and multi-step turn.
 func TestRunner_Stream_ToolCalls(t *testing.T) {
 	t.Parallel()
 
@@ -212,7 +207,6 @@ func TestRunner_Stream_ToolCalls(t *testing.T) {
 	}
 }
 
-// Test 8: Stream order violation causes TurnStatusFailed and returns ErrStreamOrder.
 func TestRunner_Stream_OrderViolation(t *testing.T) {
 	t.Parallel()
 
@@ -248,7 +242,6 @@ func TestRunner_Stream_OrderViolation(t *testing.T) {
 	}
 }
 
-// Test 9: Stream fallback to non-streaming when Completer does not implement StreamProvider.
 func TestRunner_Stream_FallbackNonStreaming(t *testing.T) {
 	t.Parallel()
 
@@ -277,7 +270,6 @@ func TestRunner_Stream_FallbackNonStreaming(t *testing.T) {
 	}
 }
 
-// Test 10: CompleterAdapter stream detection and delegation.
 func TestCompleterAdapter_Streaming(t *testing.T) {
 	t.Parallel()
 
@@ -329,7 +321,6 @@ func TestCompleterAdapter_Streaming(t *testing.T) {
 	})
 }
 
-// Test 11: Stream stops on ErrApprovalRequired and marks TurnStatusAwaitingApproval.
 func TestRunner_Stream_StopsOnApprovalRequired(t *testing.T) {
 	t.Parallel()
 

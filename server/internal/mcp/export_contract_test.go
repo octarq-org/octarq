@@ -7,15 +7,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// The MCP export tool resolves "<resource>.mcp_export" through
-// plugin.LookupServiceAs[plugin.MCPExporter]. A provider registering a bare
-// function whose signature has drifted still compiles; the lookup then finds
-// the service, the assertion fails, and exportData answers "unknown resource"
-// for a resource that is in fact mounted — a wrong answer rather than an error.
-//
-// These cases drive exportData itself rather than re-implementing the lookup,
-// so short-circuiting the guard reds them exactly where production breaks.
-
 func lookupProviding(name string, svc any) func(string) (any, bool) {
 	return func(n string) (any, bool) {
 		if n == name {
@@ -60,9 +51,6 @@ func TestMCPExport_ResolvesNamedContract(t *testing.T) {
 	}
 }
 
-// The failure this contract exists to prevent: a provider registered as a bare
-// func (a drifted signature, or one that simply never converted) must not be
-// silently reported as an unknown resource without the guard noticing.
 func TestMCPExport_BareFuncIsNotAccepted(t *testing.T) {
 	bare := func(ctx context.Context, orgID uint) (any, error) {
 		t.Error("a bare func must not satisfy the plugin.MCPExporter contract")

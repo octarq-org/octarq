@@ -32,10 +32,6 @@ func TestTierGateAllows(t *testing.T) {
 	}
 }
 
-// TestEndpointSpecRegisterHTTPCarriesTier pins the HTTP half of a tier
-// declaration: the operation metadata is what the platform gate reads, so a
-// tiered endpoint must publish it or the route answers 200 to an unlicensed
-// caller.
 func TestEndpointSpecRegisterHTTPCarriesTier(t *testing.T) {
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test", "1.0"))
@@ -60,8 +56,6 @@ func TestEndpointSpecRegisterHTTPCarriesTier(t *testing.T) {
 	}
 }
 
-// TestEndpointSpecRegisterHTTPWithoutTierOmitsMetadata pins the other side: a
-// free endpoint publishes no tier, so the gate passes it through.
 func TestEndpointSpecRegisterHTTPWithoutTierOmitsMetadata(t *testing.T) {
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test", "1.0"))

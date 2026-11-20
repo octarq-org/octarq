@@ -55,17 +55,14 @@ func mountEndpointHTTP(apiHandler *api.Handler, endpointEngine *endpoint.Engine)
 }
 
 type serverRunParams struct {
-	mux             http.Handler
-	rootHandler     http.Handler
-	webFS           fs.FS
-	staticMounts    []server.StaticMount
-	apiHandler      *api.Handler
-	services        *plugin.Registry
-	cronEngine      *cron.Engine
-	healthCollector *monitor.Collector
-	// stopPluginContext cancels the context every plugin Start goroutine was
-	// given. serve calls it before Stopper, so no plugin is still producing
-	// work while others drain.
+	mux               http.Handler
+	rootHandler       http.Handler
+	webFS             fs.FS
+	staticMounts      []server.StaticMount
+	apiHandler        *api.Handler
+	services          *plugin.Registry
+	cronEngine        *cron.Engine
+	healthCollector   *monitor.Collector
 	stopPluginContext context.CancelFunc
 }
 
@@ -189,9 +186,6 @@ func (a *App) serve(ctx context.Context, p serverRunParams) error {
 		}
 	}()
 	wg.Wait()
-	// HTTP stops accepting (and finishes in-flight) requests before the
-	// plugins that serve them are torn down, so Stop never runs under a live
-	// request handler.
 	if err := stopPlugins(shutCtx, p.stopPluginContext, a.plugins); err != nil {
 		slog.Warn("plugin shutdown reported errors", "err", err)
 		shutErr = errors.Join(shutErr, err)
@@ -199,9 +193,6 @@ func (a *App) serve(ctx context.Context, p serverRunParams) error {
 	return shutErr
 }
 
-// newWebhookDispatcher wraps next and permits only exact paths:
-// POST /api/connectors/webhook and GET /api/health.
-// All other paths return HTTP 404 Fail-Closed.
 func newWebhookDispatcher(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if (r.Method == http.MethodPost && r.URL.Path == "/api/connectors/webhook") ||
@@ -213,8 +204,6 @@ func newWebhookDispatcher(next http.Handler) http.Handler {
 	})
 }
 
-// validateWebhookListen asserts that webhookListen is valid and does not
-// conflict with listen.
 func validateWebhookListen(listen, webhookListen string) error {
 	return config.ValidateWebhookListen(listen, webhookListen)
 }

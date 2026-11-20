@@ -8,19 +8,14 @@ import (
 	"github.com/octarq-org/octarq/server/ontology"
 )
 
-// owner is the declaring plugin's Name() in these tests. The registry refuses a
-// declaration without one, so every call below names it.
 const owner = "notes"
 
-// namedSpec is validSpec under another slug, so a test can register two.
 func namedSpec(slug string) ontology.Spec {
 	s := validSpec()
 	s.Slug = slug
 	return s
 }
 
-// TestRegistryHandsBackWhatWasRegistered pins the happy path: a module declares
-// at init, boot reads the same entities.
 func TestRegistryHandsBackWhatWasRegistered(t *testing.T) {
 	r := ontology.NewRegistry()
 	if err := r.Register(owner, namedSpec("first"), namedSpec("second")); err != nil {
@@ -33,9 +28,6 @@ func TestRegistryHandsBackWhatWasRegistered(t *testing.T) {
 	}
 }
 
-// TestRegistryStampsTheOwner pins that the declaring plugin's name reaches the
-// spec. Boot reads it from there to decide which workspace switch governs the
-// entity, so a spec that lost it would be ungated.
 func TestRegistryStampsTheOwner(t *testing.T) {
 	r := ontology.NewRegistry()
 	if err := r.Register("tickets", namedSpec("first")); err != nil {
@@ -46,18 +38,12 @@ func TestRegistryStampsTheOwner(t *testing.T) {
 	}
 }
 
-// TestRegistryRefusesADeclarationWithNoOwner pins the fail-closed rule: an entity
-// nothing can turn off is not a state a module may reach by forgetting an
-// argument.
 func TestRegistryRefusesADeclarationWithNoOwner(t *testing.T) {
 	if err := ontology.NewRegistry().Register("", namedSpec("first")); !errors.Is(err, ontology.ErrNoOwner) {
 		t.Fatalf("Register with no owner = %v, want ErrNoOwner", err)
 	}
 }
 
-// TestRegistryRefusesAnOwnerThatIsNotAPluginName pins that a typo is refused at
-// init. A name that cannot match a composed plugin would fail at boot instead,
-// with a message about composition rather than about the argument.
 func TestRegistryRefusesAnOwnerThatIsNotAPluginName(t *testing.T) {
 	for _, bad := range []string{"Notes", "notes plugin", "-notes", "notes!"} {
 		if err := ontology.NewRegistry().Register(bad, namedSpec("first")); err == nil {
@@ -66,9 +52,6 @@ func TestRegistryRefusesAnOwnerThatIsNotAPluginName(t *testing.T) {
 	}
 }
 
-// TestRegistryDoesNotMutateTheCallersSpec pins that the owner is stamped into the
-// registry's copy. A caller that reuses its spec for a second registration under
-// another owner must not carry the first one's name into it.
 func TestRegistryDoesNotMutateTheCallersSpec(t *testing.T) {
 	spec := namedSpec("first")
 	r := ontology.NewRegistry()
@@ -80,9 +63,6 @@ func TestRegistryDoesNotMutateTheCallersSpec(t *testing.T) {
 	}
 }
 
-// TestRegistryFreezesOnFirstRead pins the property that makes "register at init,
-// read at boot" safe: a registration that arrives after boot would reach no
-// table, no route and no tool, so it is refused instead of quietly ignored.
 func TestRegistryFreezesOnFirstRead(t *testing.T) {
 	r := ontology.NewRegistry()
 	if err := r.Register(owner, namedSpec("first")); err != nil {
@@ -93,15 +73,11 @@ func TestRegistryFreezesOnFirstRead(t *testing.T) {
 	if err := r.Register(owner, namedSpec("late")); !errors.Is(err, ontology.ErrFrozen) {
 		t.Fatalf("Register after Declared = %v, want ErrFrozen", err)
 	}
-	// The frozen set is stable, so a second reader (the MCP mount) sees the same
-	// entities rather than an empty set or a panic.
 	if got := r.Declared(); len(got) != 1 || got[0].Slug != "first" {
 		t.Fatalf("second Declared = %v, want the same one entity", slugsOf(got))
 	}
 }
 
-// TestRegistryHandsBackACopy pins that a reader cannot alter what the next reader
-// sees.
 func TestRegistryHandsBackACopy(t *testing.T) {
 	r := ontology.NewRegistry()
 	if err := r.Register(owner, namedSpec("first")); err != nil {
@@ -115,8 +91,6 @@ func TestRegistryHandsBackACopy(t *testing.T) {
 	}
 }
 
-// TestRegistryRefusesADuplicateSlug pins that two declarations of one table are
-// refused at the point the second is registered, not at boot with an index.
 func TestRegistryRefusesADuplicateSlug(t *testing.T) {
 	r := ontology.NewRegistry()
 	if err := r.Register(owner, namedSpec("first")); err != nil {
@@ -127,14 +101,11 @@ func TestRegistryRefusesADuplicateSlug(t *testing.T) {
 		t.Fatalf("duplicate Register = %v, want a twice-registered error", err)
 	}
 
-	// Within one call as well.
 	if err := ontology.NewRegistry().Register(owner, namedSpec("dup"), namedSpec("dup")); err == nil {
 		t.Fatal("Register with a duplicate in one call = nil, want an error")
 	}
 }
 
-// TestRegistryValidatesAtRegistration pins that a module author learns about a
-// bad declaration at init rather than at boot.
 func TestRegistryValidatesAtRegistration(t *testing.T) {
 	bad := validSpec()
 	bad.Slug = "Not A Slug"
@@ -148,16 +119,12 @@ func TestRegistryValidatesAtRegistration(t *testing.T) {
 	}
 }
 
-// TestRegistryRefusesAnEmptyCall pins that a module which meant to declare
-// something but passed nothing is told so.
 func TestRegistryRefusesAnEmptyCall(t *testing.T) {
 	if err := ontology.NewRegistry().Register(owner); !errors.Is(err, ontology.ErrNoSpecs) {
 		t.Fatalf("Register() = %v, want ErrNoSpecs", err)
 	}
 }
 
-// TestMustRegisterPanics pins the init-time form: there is no caller to return
-// to, so a refused declaration stops the process.
 func TestMustRegisterPanics(t *testing.T) {
 	defer func() {
 		if recover() == nil {
@@ -169,10 +136,6 @@ func TestMustRegisterPanics(t *testing.T) {
 	ontology.NewRegistry().MustRegister(owner, bad)
 }
 
-// TestPackageMustRegisterReachesTheDefaultRegistry pins the init form a module
-// actually calls. It registers nothing valid here: a good declaration would
-// freeze the process-wide set for every later test. The Pro e2e suite covers the
-// success path end to end.
 func TestPackageMustRegisterReachesTheDefaultRegistry(t *testing.T) {
 	defer func() {
 		if recover() == nil {
@@ -184,8 +147,6 @@ func TestPackageMustRegisterReachesTheDefaultRegistry(t *testing.T) {
 	ontology.MustRegister(owner, bad)
 }
 
-// TestRegistriesAreIndependent pins that a test or a composition root can keep
-// its declarations away from the process-wide set.
 func TestRegistriesAreIndependent(t *testing.T) {
 	a, b := ontology.NewRegistry(), ontology.NewRegistry()
 	if err := a.Register(owner, namedSpec("first")); err != nil {
@@ -196,8 +157,6 @@ func TestRegistriesAreIndependent(t *testing.T) {
 	}
 }
 
-// TestDefaultIsStable pins that Default answers the same registry every time: a
-// module registers into it from init, and the plugin reads it later.
 func TestDefaultIsStable(t *testing.T) {
 	first, second := ontology.Default(), ontology.Default()
 	if first != second {

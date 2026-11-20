@@ -9,11 +9,8 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// LegacyProviderFunc matches the signature of the legacy notify.Provider callback.
 type LegacyProviderFunc func(ctx context.Context, cfgJSON, text string) error
 
-// LegacyNotifierAdapter adapts a legacy notify.Provider or ctx.RegisterNotifier callback
-// into a plugin.NotificationChannel SPI implementation.
 type LegacyNotifierAdapter struct {
 	ChannelName  string
 	ChannelTitle string
@@ -22,7 +19,6 @@ type LegacyNotifierAdapter struct {
 
 var _ plugin.NotificationChannel = (*LegacyNotifierAdapter)(nil)
 
-// NewLegacyNotifierAdapter wraps a legacy provider function into a plugin.NotificationChannel.
 func NewLegacyNotifierAdapter(name, title string, fn LegacyProviderFunc) *LegacyNotifierAdapter {
 	name = strings.ToLower(strings.TrimSpace(name))
 	if title == "" {

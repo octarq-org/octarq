@@ -10,9 +10,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// TestCharacterization_AllModelsRegistryLocks validates the complete closed set
-// of 26 models registered in AllModels() and verifies that AutoMigrate succeeds
-// cleanly on a fresh database.
 func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 	t.Parallel()
 
@@ -32,7 +29,6 @@ func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 		t.Fatalf("AutoMigrate failed across AllModels(): %v", err)
 	}
 
-	// Verify custom table names
 	customTableNames := map[string]string{
 		"user_sessions":            Session{}.TableName(),
 		"notifications":            Notification{}.TableName(),
@@ -51,8 +47,6 @@ func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 	}
 }
 
-// TestCharacterization_OrgSlugContract locks the behavior of slug allocation,
-// static word reservation, and slug lifecycle states.
 func TestCharacterization_OrgSlugContract(t *testing.T) {
 	t.Parallel()
 
@@ -66,7 +60,6 @@ func TestCharacterization_OrgSlugContract(t *testing.T) {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	// 1. Reserved slugs must strictly return SlugReserved
 	reservedSamples := []string{"admin", "api", "auth", "login", "sso", "webhook", "billing", "settings", "docs"}
 	for _, r := range reservedSamples {
 		status, err := CheckOrgSlugAvailable(db, r, 0)
@@ -81,7 +74,6 @@ func TestCharacterization_OrgSlugContract(t *testing.T) {
 		}
 	}
 
-	// 2. Active org slug must return SlugTaken
 	org := Org{Name: "Acme Corp", Slug: "acmecorp"}
 	if err := db.Create(&org).Error; err != nil {
 		t.Fatalf("create org: %v", err)
@@ -90,13 +82,11 @@ func TestCharacterization_OrgSlugContract(t *testing.T) {
 	if err != nil || status != SlugTaken {
 		t.Errorf("CheckOrgSlugAvailable(active) = (%v, %v), want (SlugTaken, nil)", status, err)
 	}
-	// Self-check for same org ID must be available
 	status, err = CheckOrgSlugAvailable(db, "acmecorp", org.ID)
 	if err != nil || status != SlugAvailable {
 		t.Errorf("CheckOrgSlugAvailable(self) = (%v, %v), want (SlugAvailable, nil)", status, err)
 	}
 
-	// 3. AllocateOrgSlug generates a valid non-reserved slug
 	slug, err := AllocateOrgSlug(db)
 	if err != nil {
 		t.Fatalf("AllocateOrgSlug failed: %v", err)
@@ -111,10 +101,7 @@ func TestCharacterization_OrgSlugContract(t *testing.T) {
 	}
 }
 
-// TestCharacterization_BaseDomainAndSharedHostsPrecedence locks the priority:
-// DB setting table takes precedence over environment variable, with fallback to empty.
 func TestCharacterization_BaseDomainAndSharedHostsPrecedence(t *testing.T) {
-	// Not parallel due to environment variable manipulation
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -125,7 +112,6 @@ func TestCharacterization_BaseDomainAndSharedHostsPrecedence(t *testing.T) {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	// Step A: Env fallback
 	t.Setenv(BaseDomainEnv, "Env.Example.COM.")
 	t.Setenv(SharedHostsEnv, "app.example.com:8080, api.example.com.")
 
@@ -138,7 +124,6 @@ func TestCharacterization_BaseDomainAndSharedHostsPrecedence(t *testing.T) {
 		t.Errorf("SharedHosts(env) = %v, want [app.example.com, api.example.com]", shared)
 	}
 
-	// Step B: DB override takes precedence over Env
 	db.Create(&Setting{Key: BaseDomainSetting, Value: "Db.Example.Org."})
 	db.Create(&Setting{Key: SharedHostsSetting, Value: "hub.example.org:443"})
 
@@ -152,8 +137,6 @@ func TestCharacterization_BaseDomainAndSharedHostsPrecedence(t *testing.T) {
 	}
 }
 
-// TestCharacterization_TokenSecurityInvariants locks token hashing,
-// prefixing, and expiry checks.
 func TestCharacterization_TokenSecurityInvariants(t *testing.T) {
 	t.Parallel()
 

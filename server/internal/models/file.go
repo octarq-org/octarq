@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// File represents a stored file metadata record with MD5 deduplication.
 type File struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	OrgID       uint      `gorm:"index;not null;column:owner_id" json:"orgId"`

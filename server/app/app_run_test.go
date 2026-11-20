@@ -15,8 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// bootApp builds an App against a scratch SQLite database via the environment,
-// exactly like the composition roots do.
 func bootApp(t *testing.T) *App {
 	t.Helper()
 	tempDir := t.TempDir()
@@ -32,11 +30,6 @@ func bootApp(t *testing.T) *App {
 	return a
 }
 
-// TestRunMCPWiring boots the MCP path (preflight, migrate, plugin mount) with a
-// cancelled context, so the stdio server returns immediately instead of blocking
-// on stdin. The ctx-assertion plugin runs its round-trips against RunMCP's full
-// Context; the on-email capture proves the dispatcher wiring; a migrated schema
-// proves RunMCP ran its migration pass.
 func TestRunMCPWiring(t *testing.T) {
 	a := bootApp(t)
 	c := &wiringCapture{}
@@ -48,11 +41,6 @@ func TestRunMCPWiring(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := a.RunMCP(ctx)
-	// The stdio transport reads os.Stdin, so the run can end in two ways: the
-	// cancelled context, or a clean EOF on stdin — whichever the machine
-	// reaches first. CI runners hand the test a closed stdin, so the EOF wins
-	// there and the cancellation wins locally. The wiring is what this test
-	// is about; the exit reason is incidental to it.
 	if err != nil && !errors.Is(err, context.Canceled) {
 		t.Fatalf("RunMCP = %v, want context.Canceled or a clean EOF exit", err)
 	}
@@ -71,12 +59,6 @@ func TestRunMCPWiring(t *testing.T) {
 	}
 }
 
-// TestRunBootsAndShutsDown boots the full HTTP composition root with a
-// cancelled context. Run must migrate, serve briefly, and return nil on
-// shutdown, and the ctx-assertion plugin's observable round-trips (settings,
-// notifier, cache, guard, identity) must all pass — broken wiring turns this
-// test red. The on-email capture covers both the deferred and immediate
-// dispatcher paths.
 func TestRunBootsAndShutsDown(t *testing.T) {
 	a := bootApp(t)
 	c := &wiringCapture{}
@@ -103,9 +85,6 @@ func TestRunBootsAndShutsDown(t *testing.T) {
 	}
 }
 
-// TestMCPRemountUsesMinimalContext pins the Context the stdio MCP server
-// re-mounts plugins with (mcp.buildServerInstance): only DB/OrgID/Provide/
-// Lookup are wired; every HTTP-oriented closure is deliberately nil there.
 func TestMCPRemountUsesMinimalContext(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:mcp-minimal-"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -138,8 +117,6 @@ func TestMCPRemountUsesMinimalContext(t *testing.T) {
 	}
 }
 
-// TestRunEnableEnvelopeFailure drives Run's envelope branch to failure: a
-// pre-seeded unwrappable DEK makes EnableEnvelope abort startup.
 func TestRunEnableEnvelopeFailure(t *testing.T) {
 	a := bootApp(t)
 	if err := a.gdb.AutoMigrate(&models.Setting{}); err != nil {
@@ -158,9 +135,6 @@ func TestRunEnableEnvelopeFailure(t *testing.T) {
 	}
 }
 
-// TestRunRefusesANewDEKWhenCiphertextExists pins the guard: a database that
-// still holds encrypted values but lost the DEK row stops the boot. A fresh DEK
-// would make every saved value unreadable without a word.
 func TestRunRefusesANewDEKWhenCiphertextExists(t *testing.T) {
 	a := bootApp(t)
 	if err := a.gdb.AutoMigrate(&models.User{}); err != nil {
@@ -185,9 +159,6 @@ func TestRunRefusesANewDEKWhenCiphertextExists(t *testing.T) {
 	}
 }
 
-// TestRunPreflightFailures drives each startup refusal Run surfaces before any
-// request is served: duplicate plugin names, a missing Required plugin, two
-// model types claiming one table, and two plugins Providing one service name.
 func TestRunPreflightFailures(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -233,8 +204,6 @@ func TestRunPreflightFailures(t *testing.T) {
 	}
 }
 
-// TestRunMCPPreflightFailures drives the same startup refusals through the MCP
-// path, which performs its own preflight before building the MCP server.
 func TestRunMCPPreflightFailures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -276,9 +245,6 @@ func TestRunMCPPreflightFailures(t *testing.T) {
 	}
 }
 
-// TestNewErrorPaths covers app.New's configuration and database failure
-// branches, plus the degraded-geo fallback that keeps New from erroring when
-// the GeoIP database is missing.
 func TestNewErrorPaths(t *testing.T) {
 	t.Run("bad driver", func(t *testing.T) {
 		t.Setenv("OCTARQ_DB_DRIVER", "invalid-driver")
@@ -312,9 +278,6 @@ func TestNewErrorPaths(t *testing.T) {
 	})
 }
 
-// TestRunSecretKeyFloor covers the post-mount refusal for a registered domain
-// with a short secret key (enforceSecretKeyFloor), reached only after the
-// domain is discoverable in the migrated schema.
 func TestRunSecretKeyFloor(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "floor.db")

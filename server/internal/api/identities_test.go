@@ -21,13 +21,11 @@ func TestListIdentities(t *testing.T) {
 		t.Fatalf("find admin user: %v", err)
 	}
 
-	// 1. Unauthenticated -> 401
 	rec := do(srv, "GET", "/api/account/identities", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated list identities: got %d, want 401", rec.Code)
 	}
 
-	// 2. Initially empty
 	rec = do(srv, "GET", "/api/account/identities", cookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list identities: got %d, want 200", rec.Code)
@@ -40,7 +38,6 @@ func TestListIdentities(t *testing.T) {
 		t.Fatalf("got %d identities, want 0", len(emptyList))
 	}
 
-	// 3. Seed identities for user and another user
 	id1 := models.UserIdentity{
 		UserID:    user.ID,
 		Provider:  "github",
@@ -120,19 +117,16 @@ func TestUnlinkIdentity(t *testing.T) {
 		t.Fatalf("create id1: %v", err)
 	}
 
-	// 1. Unauthenticated -> 401
 	rec := do(srv, "DELETE", fmt.Sprintf("/api/account/identities/%d", id1.ID), nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated unlink: got %d, want 401", rec.Code)
 	}
 
-	// 2. Non-existent identity -> 404
 	rec = do(srv, "DELETE", "/api/account/identities/999999", cookies, "")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("non-existent unlink: got %d, want 404", rec.Code)
 	}
 
-	// 3. Identity of another user -> 404
 	otherUser := models.User{
 		Email: "other2@example.com",
 	}
@@ -154,10 +148,9 @@ func TestUnlinkIdentity(t *testing.T) {
 		t.Fatalf("cross-user unlink: got %d, want 404", rec.Code)
 	}
 
-	// 4. Passwordless SSO user with only 1 identity -> 409 Conflict
 	ssoUser := models.User{
 		Email:        "sso@example.com",
-		PasswordHash: "", // passwordless
+		PasswordHash: "",
 	}
 	if err := db.Create(&ssoUser).Error; err != nil {
 		t.Fatalf("create ssoUser: %v", err)
@@ -173,14 +166,12 @@ func TestUnlinkIdentity(t *testing.T) {
 		t.Fatalf("create ssoId1: %v", err)
 	}
 
-	// Create session for ssoUser
 	ssoCookies := sessionCookies(t, ssoUser.ID, 1)
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/account/identities/%d", ssoId1.ID), ssoCookies, "")
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("passwordless user unlinking last identity: got %d, want 409 (%s)", rec.Code, rec.Body.String())
 	}
 
-	// 5. Passwordless SSO user with 2 identities -> can unlink one
 	ssoId2 := models.UserIdentity{
 		UserID:   ssoUser.ID,
 		Provider: "github",
@@ -201,7 +192,6 @@ func TestUnlinkIdentity(t *testing.T) {
 		t.Fatalf("ssoId2 still exists in db after unlink")
 	}
 
-	// 6. User with password can unlink their only identity
 	hash, _ := bcrypt.GenerateFromPassword([]byte("somepass"), bcrypt.MinCost)
 	db.Model(&user).Update("password_hash", string(hash))
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/account/identities/%d", id1.ID), cookies, "")
@@ -213,7 +203,6 @@ func TestUnlinkIdentity(t *testing.T) {
 		t.Fatalf("id1 still exists in db after unlink")
 	}
 
-	// 7. Direct calls with nil Ctx
 	h, _, _ := newTestHandlerRaw(t)
 	if _, err := h.listIdentities(context.Background(), &ListIdentitiesInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in listIdentities")

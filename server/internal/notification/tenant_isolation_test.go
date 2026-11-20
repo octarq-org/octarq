@@ -16,8 +16,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// mockSlackChannel replicates the exact Pro slackChannel SPI driver contract
-// and DB fallback behavior to verify fail-closed tenant isolation.
 type mockSlackChannel struct {
 	router *Router
 	sent   map[uint][]string
@@ -33,7 +31,6 @@ func (c *mockSlackChannel) ConfigSchema() json.RawMessage { return nil }
 func (c *mockSlackChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	webhookURL := ""
 
-	// 1. Direct config override
 	if recipient.Config != nil {
 		if v, ok := recipient.Config["webhook_url"].(string); ok && strings.TrimSpace(v) != "" {
 			webhookURL = strings.TrimSpace(v)
@@ -42,7 +39,6 @@ func (c *mockSlackChannel) Send(ctx context.Context, recipient plugin.Notificati
 		}
 	}
 
-	// 2. Fallback to tenant's saved Slack channel settings in database
 	if webhookURL == "" && c.router != nil && c.router.db != nil {
 		targetOrg := strings.TrimSpace(recipient.OrgID)
 		if targetOrg == "" {
@@ -67,7 +63,6 @@ func (c *mockSlackChannel) Send(ctx context.Context, recipient plugin.Notificati
 		return errors.New("slack: missing webhook url")
 	}
 
-	// Record the webhook URL invocation under the tenant ID parsed from targetOrg
 	targetOrg := strings.TrimSpace(recipient.OrgID)
 	if targetOrg == "" {
 		targetOrg = strings.TrimSpace(payload.OrgID)
@@ -84,8 +79,6 @@ func (c *mockSlackChannel) Send(ctx context.Context, recipient plugin.Notificati
 	return nil
 }
 
-// TestMultiTenant_WebhookIsolation verifies that SendDirect and WebhookChannel strictly
-// isolate tenant webhook configurations and fail-closed when unconfigured or cross-tenant.
 func TestMultiTenant_WebhookIsolation(t *testing.T) {
 	db := setupTestDB(t)
 	r := NewRouter(db)
@@ -103,7 +96,6 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 	}))
 	defer srv2.Close()
 
-	// Seed Webhook channel for Org 10
 	cfg1, _ := json.Marshal(map[string]string{"url": srv1.URL})
 	if err := db.Create(&models.NotificationChannel{
 		OrgID:   10,
@@ -115,7 +107,6 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 		t.Fatalf("failed to seed channel for Org 10: %v", err)
 	}
 
-	// Seed Webhook channel for Org 20
 	cfg2, _ := json.Marshal(map[string]string{"url": srv2.URL})
 	if err := db.Create(&models.NotificationChannel{
 		OrgID:   20,
@@ -127,7 +118,6 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 		t.Fatalf("failed to seed channel for Org 20: %v", err)
 	}
 
-	// 1. Tenant 10 triggers SendDirect using context OrgID 10
 	ctx10 := plugin.WithOrgID(context.Background(), 10)
 	if err := r.SendDirect(ctx10, "webhook", "{}", "Alert for Org 10"); err != nil {
 		t.Fatalf("SendDirect for Org 10 failed: %v", err)
@@ -139,7 +129,6 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 		t.Errorf("expected 0 calls to hook2, got %d", hook2CallCount)
 	}
 
-	// 2. Tenant 20 triggers SendDirect using context OrgID 20
 	ctx20 := plugin.WithOrgID(context.Background(), 20)
 	if err := r.SendDirect(ctx20, "webhook", "{}", "Alert for Org 20"); err != nil {
 		t.Fatalf("SendDirect for Org 20 failed: %v", err)
@@ -151,20 +140,17 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 		t.Errorf("expected 1 call to hook2, got %d", hook2CallCount)
 	}
 
-	// 3. Tenant 30 (unconfigured) must FAIL CLOSED and NEVER borrow Org 10, Org 20, or Org 1
 	ctx30 := plugin.WithOrgID(context.Background(), 30)
 	err := r.SendDirect(ctx30, "webhook", "{}", "Alert for Org 30")
 	if err == nil || !strings.Contains(err.Error(), "missing webhook url") {
 		t.Fatalf("expected missing webhook url error for unconfigured Org 30, got: %v", err)
 	}
 
-	// 4. SendDirect with no tenant context in ctx and empty config must FAIL CLOSED
 	err = r.SendDirect(context.Background(), "webhook", "{}", "Alert with no org")
 	if err == nil || !strings.Contains(err.Error(), "missing webhook url") {
 		t.Fatalf("expected missing webhook url error when context has no org, got: %v", err)
 	}
 
-	// Verify no unintended webhook dispatches occurred
 	if atomic.LoadInt32(&hook1CallCount) != 1 {
 		t.Errorf("hook1 was illegally invoked, count=%d", hook1CallCount)
 	}
@@ -173,8 +159,6 @@ func TestMultiTenant_WebhookIsolation(t *testing.T) {
 	}
 }
 
-// TestMultiTenant_SlackChannelFailClosed verifies that custom SPI channels like Slack
-// never borrow Org 1 configuration when invoked by other tenants or without explicit org context.
 func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 	db := setupTestDB(t)
 	r := NewRouter(db)
@@ -184,7 +168,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 		t.Fatalf("failed to register mockSlackChannel: %v", err)
 	}
 
-	// Seed Org 1 (Default System Org) Slack config
 	cfgOrg1, _ := json.Marshal(map[string]string{"webhookUrl": "https://hooks.slack.com/services/ORG1/HOOK"})
 	if err := db.Create(&models.NotificationChannel{
 		OrgID:   1,
@@ -196,7 +179,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 		t.Fatalf("failed to seed Slack channel for Org 1: %v", err)
 	}
 
-	// Seed Org 2 Slack config
 	cfgOrg2, _ := json.Marshal(map[string]string{"webhookUrl": "https://hooks.slack.com/services/ORG2/HOOK"})
 	if err := db.Create(&models.NotificationChannel{
 		OrgID:   2,
@@ -208,7 +190,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 		t.Fatalf("failed to seed Slack channel for Org 2: %v", err)
 	}
 
-	// 1. Org 2 triggers alert via SendDirect with OrgID 2 in context
 	ctx2 := plugin.WithOrgID(context.Background(), 2)
 	if err := r.SendDirect(ctx2, "slack", "{}", "Critical alert for Org 2"); err != nil {
 		t.Fatalf("SendDirect for Org 2 failed: %v", err)
@@ -222,8 +203,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 	}
 	slackDriver.mu.Unlock()
 
-	// 2. Org 3 (has NO Slack configured) triggers alert
-	// CRITICAL VULNERABILITY CHECK: Must NOT borrow Org 1 Slack hook!
 	ctx3 := plugin.WithOrgID(context.Background(), 3)
 	err := r.SendDirect(ctx3, "slack", "{}", "Critical alert for Org 3")
 	if err == nil || !strings.Contains(err.Error(), "missing webhook url") {
@@ -235,7 +214,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 	}
 	slackDriver.mu.Unlock()
 
-	// 3. Unauthenticated / empty context without org must fail closed
 	err = r.SendDirect(context.Background(), "slack", "{}", "Orphan alert")
 	if err == nil || !strings.Contains(err.Error(), "missing webhook url") {
 		t.Fatalf("expected missing webhook url error for empty context, got: %v", err)
@@ -246,7 +224,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 	}
 	slackDriver.mu.Unlock()
 
-	// 4. SendDirectWithTenant explicitly targeting Org 1 succeeds for Org 1 only
 	if err := r.SendDirectWithTenant(context.Background(), 1, "slack", "{}", "Legitimate Org 1 alert"); err != nil {
 		t.Fatalf("SendDirectWithTenant for Org 1 failed: %v", err)
 	}
@@ -257,8 +234,6 @@ func TestMultiTenant_SlackChannelFailClosed(t *testing.T) {
 	slackDriver.mu.Unlock()
 }
 
-// TestMultiTenant_EmitAndPreferencesIsolation verifies that Emit routes to the correct
-// tenant workspace members and uses that tenant's configured preferences and channels.
 func TestMultiTenant_EmitAndPreferencesIsolation(t *testing.T) {
 	db := setupTestDB(t)
 	r := NewRouter(db)
@@ -287,7 +262,6 @@ func TestMultiTenant_EmitAndPreferencesIsolation(t *testing.T) {
 	_ = r.RegisterChannel(ch10)
 	_ = r.RegisterChannel(ch20)
 
-	// Create users and workspace memberships
 	user10 := models.User{ID: 101, Email: "user10@example.com"}
 	user20 := models.User{ID: 201, Email: "user20@example.com"}
 	db.Create(&user10)
@@ -295,9 +269,6 @@ func TestMultiTenant_EmitAndPreferencesIsolation(t *testing.T) {
 	db.Create(&models.OrgMember{UserID: 101, OrgID: 10, Role: "admin"})
 	db.Create(&models.OrgMember{UserID: 201, OrgID: 20, Role: "admin"})
 
-	// Configure preferences:
-	// User 101 routes security alerts to channel_org10
-	// User 201 routes security alerts to channel_org20
 	_ = SavePreferences(context.Background(), db, "101", []PreferenceItem{
 		{EventPattern: "security.*", Channels: []string{"channel_org10"}},
 	})
@@ -305,7 +276,6 @@ func TestMultiTenant_EmitAndPreferencesIsolation(t *testing.T) {
 		{EventPattern: "security.*", Channels: []string{"channel_org20"}},
 	})
 
-	// Emit security alert for Org 10
 	ctx10 := plugin.WithOrgID(context.Background(), 10)
 	err := r.Emit(ctx10, plugin.NotificationPayload{
 		EventType: "security.login_failed",
@@ -325,7 +295,6 @@ func TestMultiTenant_EmitAndPreferencesIsolation(t *testing.T) {
 		t.Errorf("expected 0 dispatches to Org 20 channel, got %d", org20Dispatched)
 	}
 
-	// Emit security alert for Org 20
 	ctx20 := plugin.WithOrgID(context.Background(), 20)
 	err = r.Emit(ctx20, plugin.NotificationPayload{
 		EventType: "security.login_failed",

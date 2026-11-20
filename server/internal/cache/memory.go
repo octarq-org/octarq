@@ -19,14 +19,12 @@ func (e *memoryEntry) isExpired(now time.Time) bool {
 	return now.After(e.expiresAt)
 }
 
-// MemoryCache is a concurrency-safe in-memory cache with TTL and capacity bounds.
 type MemoryCache struct {
 	mu         sync.RWMutex
 	items      map[string]memoryEntry
 	maxEntries int
 }
 
-// NewMemoryCache creates an in-memory Cache with maximum entry capacity.
 func NewMemoryCache(maxEntries int) *MemoryCache {
 	if maxEntries <= 0 {
 		maxEntries = 10000
@@ -37,7 +35,6 @@ func NewMemoryCache(maxEntries int) *MemoryCache {
 	}
 }
 
-// NewMemory creates a default in-memory Cache.
 func NewMemory() Cache {
 	return NewMemoryCache(10000)
 }
@@ -57,7 +54,6 @@ func (m *MemoryCache) Get(ctx context.Context, key string, dst any) bool {
 
 	if entry.isExpired(time.Now()) {
 		m.mu.Lock()
-		// Double check after write lock
 		if e, ok := m.items[key]; ok && e.isExpired(time.Now()) {
 			delete(m.items, key)
 		}
@@ -89,7 +85,6 @@ func (m *MemoryCache) Set(ctx context.Context, key string, val any, ttl time.Dur
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// If capacity is reached and this is a new key, purge an expired entry or arbitrary item
 	if len(m.items) >= m.maxEntries {
 		if _, exists := m.items[key]; !exists {
 			now := time.Now()
@@ -102,7 +97,6 @@ func (m *MemoryCache) Set(ctx context.Context, key string, val any, ttl time.Dur
 				}
 			}
 			if !purged {
-				// Purge any one item to bound memory
 				for k := range m.items {
 					delete(m.items, k)
 					break

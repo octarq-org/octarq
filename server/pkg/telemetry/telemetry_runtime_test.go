@@ -81,7 +81,6 @@ func TestMapPropagation(t *testing.T) {
 		t.Error("expected span from extracted map context")
 	}
 
-	// Test tracing helpers
 	RecordError(span, errors.New("test error"))
 	SetOK(span)
 	AddEvent(span, "custom_event")
@@ -121,7 +120,6 @@ func TestTraceLogHandler(t *testing.T) {
 		t.Errorf("expected trace_id and span_id in log output, got %s", out)
 	}
 
-	// Test without trace context
 	buf.Reset()
 	logger.InfoContext(context.Background(), "message without trace context")
 	outNoCtx := buf.String()
@@ -129,7 +127,6 @@ func TestTraceLogHandler(t *testing.T) {
 		t.Errorf("expected no trace_id without span, got %s", outNoCtx)
 	}
 
-	// Test WithAttrs & WithGroup
 	subHandler := logHandler.WithAttrs([]slog.Attr{slog.String("component", "api")}).WithGroup("group1")
 	if subHandler == nil {
 		t.Error("expected non-nil subHandler")
@@ -150,7 +147,6 @@ func TestResponseWriter_Flush_And_ImplicitHeader(t *testing.T) {
 	df := &dummyFlusher{ResponseWriter: rec}
 	rw := &responseWriter{ResponseWriter: df}
 
-	// Write without WriteHeader
 	n, err := rw.Write([]byte("hello world"))
 	if err != nil || n != 11 {
 		t.Errorf("Write error: %v, n=%d", err, n)
@@ -166,7 +162,6 @@ func TestResponseWriter_Flush_And_ImplicitHeader(t *testing.T) {
 }
 
 func TestRegisterDBStatsMetrics(t *testing.T) {
-	// Nil checks
 	if err := RegisterDBStatsMetrics(nil, nil); err != nil {
 		t.Errorf("expected nil error for nil args, got %v", err)
 	}
@@ -202,7 +197,6 @@ func TestRegisterDBStatsMetrics(t *testing.T) {
 		t.Fatalf("RegisterDBStatsMetrics failed: %v", err)
 	}
 
-	// Trigger metrics scrape so callbacks are called
 	promHandler := tel.PrometheusHandler()
 	rec := httptest.NewRecorder()
 	promReq := httptest.NewRequest("GET", "/metrics", nil)

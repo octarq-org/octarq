@@ -30,7 +30,6 @@ func TestAuthMethodsRegistry(t *testing.T) {
 		t.Fatalf("unexpected method: %#v", list[0])
 	}
 
-	// Idempotent overwrite
 	m1Updated := AuthMethod{
 		ID:       "sso",
 		Label:    "Sign in with Enterprise SSO",

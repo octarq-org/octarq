@@ -10,7 +10,6 @@ import (
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
-// callBatch renders one fenced block of calls, in the shape the model writes.
 func callBatch(names ...string) string {
 	lines := make([]string, 0, len(names))
 	for _, name := range names {
@@ -19,8 +18,6 @@ func callBatch(names ...string) string {
 	return "```tool_call\n" + strings.Join(lines, "\n") + "\n```"
 }
 
-// skippedNote returns the tool message that names the calls which did not run,
-// or "" when the history carries none.
 func skippedNote(s *Session) string {
 	for _, m := range s.History {
 		if m.Role == "tool" && strings.Contains(m.Content, "did not run") {
@@ -30,10 +27,6 @@ func skippedNote(s *Session) string {
 	return ""
 }
 
-// TestApprovalRecordsTheCallsThatDidNotRun pins that the batch's tail reaches
-// the history. The turn stops at the first call that needs approval, so the
-// calls after it never run; a model that is not told believes their results are
-// still coming and repeats them.
 func TestApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 	comp := &fakeCompleter{responses: []string{callBatch("list_links", "delete_link", "create_link")}}
@@ -44,7 +37,6 @@ func TestApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 		t.Fatalf("Run = %v, want ErrApprovalRequired", err)
 	}
 
-	// The call before the blocked one ran. Nothing after it did.
 	if len(exec.calls) != 1 || exec.calls[0] != "list_links" {
 		t.Fatalf("executed %v, want only list_links", exec.calls)
 	}
@@ -56,9 +48,6 @@ func TestApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 	if !strings.Contains(note, "create_link") {
 		t.Fatalf("notice = %q, want the call that was dropped", note)
 	}
-	// The blocked call is pending, not dropped: Resume runs it, so listing it
-	// as skipped would tell the model a call it is about to see the result of
-	// never happened.
 	for _, ran := range []string{"list_links", "delete_link"} {
 		if strings.Contains(note, ran) {
 			t.Fatalf("notice = %q, must not name %q", note, ran)
@@ -66,8 +55,6 @@ func TestApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 	}
 }
 
-// TestApprovalOnTheLastCallRecordsNoGap pins the other side: a batch that
-// stops on its last call drops nothing, so there is nothing to report.
 func TestApprovalOnTheLastCallRecordsNoGap(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{}, errs: map[string]error{}}
 	comp := &fakeCompleter{responses: []string{callBatch("list_links", "delete_link")}}
@@ -82,9 +69,6 @@ func TestApprovalOnTheLastCallRecordsNoGap(t *testing.T) {
 	}
 }
 
-// TestStreamApprovalRecordsTheCallsThatDidNotRun pins that the streaming loop
-// records the same gap as the plain loop. Two loops that disagree about what
-// the model is told produce different turns for the same input.
 func TestStreamApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 	comp := &fakeStreamCompleter{steps: []streamStep{{
 		events: []streamEvent{
@@ -115,9 +99,6 @@ func TestStreamApprovalRecordsTheCallsThatDidNotRun(t *testing.T) {
 	}
 }
 
-// TestResumeKeepsTheGapAndTheApprovedResult pins that both records survive a
-// resume: the model sees why the tail is missing and what the approved call
-// returned.
 func TestResumeKeepsTheGapAndTheApprovedResult(t *testing.T) {
 	exec := &fakeExecutor{outputs: map[string]string{"delete_link": "deleted"}, errs: map[string]error{}}
 	comp := &fakeCompleter{responses: []string{

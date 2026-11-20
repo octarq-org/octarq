@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// ReplacePreferences writes the whole routing table, so a rule the user removed
-// in the preferences page is deleted. SavePreferences alone only upserts: the
-// page reported "saved" and the rule kept routing after a reload.
 func TestReplacePreferencesDeletesAbsentRows(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
@@ -22,7 +19,6 @@ func TestReplacePreferencesDeletesAbsentRows(t *testing.T) {
 		t.Fatalf("seed SavePreferences failed: %v", err)
 	}
 
-	// The page submits the matrix without billing.*, and with system.* muted.
 	err := ReplacePreferences(ctx, db, userID, []PreferenceItem{
 		{EventPattern: "system.*", Channels: []string{"in_app"}},
 		{EventPattern: "security.*", Channels: []string{"email"}},
@@ -44,7 +40,6 @@ func TestReplacePreferencesDeletesAbsentRows(t *testing.T) {
 		}
 	}
 
-	// The deleted pattern falls back to the default routing again.
 	channels, err := ResolveChannels(ctx, db, userID, "billing.invoice_paid")
 	if err != nil {
 		t.Fatalf("ResolveChannels failed: %v", err)
@@ -53,7 +48,6 @@ func TestReplacePreferencesDeletesAbsentRows(t *testing.T) {
 		t.Fatalf("expected default channels after deletion, got %v", channels)
 	}
 
-	// The surviving row was updated, not duplicated.
 	var systemRows int
 	for _, p := range prefs {
 		if p.EventPattern == "system.*" {
@@ -68,7 +62,6 @@ func TestReplacePreferencesDeletesAbsentRows(t *testing.T) {
 	}
 }
 
-// A replace never touches another user's rows.
 func TestReplacePreferencesIsScopedToUser(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()

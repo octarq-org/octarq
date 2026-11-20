@@ -21,10 +21,6 @@ func openRecoveryDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// TestApplyStepClaimsTableCreatedBeforeAFailure pins the recovery path. When a
-// statement fails after CREATE TABLE succeeded, the table is already the
-// platform's; without a bookkeeping row the next boot refuses it as unmanaged
-// and the instance cannot start until someone drops the table by hand.
 func TestApplyStepClaimsTableCreatedBeforeAFailure(t *testing.T) {
 	db := openRecoveryDB(t)
 	ctx := context.Background()
@@ -40,8 +36,6 @@ func TestApplyStepClaimsTableCreatedBeforeAFailure(t *testing.T) {
 	}
 	step := steps[0]
 
-	// Fail immediately after CREATE TABLE, before any index exists: the shape a
-	// MySQL index error or a lock timeout leaves behind.
 	step.Statements = append(
 		[]string{step.Statements[0], `ALTER TABLE "ont_tickets" ADD COLUMN "id" TEXT`},
 		step.Statements[1:]...)
@@ -57,7 +51,6 @@ func TestApplyStepClaimsTableCreatedBeforeAFailure(t *testing.T) {
 		t.Fatalf("bookkeeping rows = %d, want the created table claimed", n)
 	}
 
-	// The next boot repairs what is missing instead of refusing the table.
 	if err := Apply(ctx, db, "sqlite", []Spec{spec}); err != nil {
 		t.Fatalf("recovery Apply: %v", err)
 	}
@@ -79,12 +72,6 @@ func TestApplyStepClaimsTableCreatedBeforeAFailure(t *testing.T) {
 	}
 }
 
-// TestFailedChangeKeepsTheAppliedDeclaration pins the other side of the claim
-// rule. A dirty step that fails on an existing table must leave the bookkeeping
-// row describing the declaration that is actually applied; overwriting it with
-// the new one would make the next boot believe a column exists, and the
-// operator's way back (reverting the declaration) would then be refused as a
-// column drop.
 func TestFailedChangeKeepsTheAppliedDeclaration(t *testing.T) {
 	db := openRecoveryDB(t)
 	ctx := context.Background()
@@ -108,8 +95,6 @@ func TestFailedChangeKeepsTheAppliedDeclaration(t *testing.T) {
 	if !step.Dirty || !step.existed {
 		t.Fatalf("step = dirty %v, existed %v, want a change to an existing table", step.Dirty, step.existed)
 	}
-	// Fail on the last statement, after the new column has been added: the worst
-	// shape, because the table is half-way to v2 when the step stops.
 	step.Statements = append(step.Statements, `ALTER TABLE "ont_tickets" ADD COLUMN "id" TEXT`)
 	if err := applyStep(ctx, db, step); err == nil {
 		t.Fatal("expected the injected statement to fail")

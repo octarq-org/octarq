@@ -11,16 +11,12 @@ import (
 	"github.com/octarq-org/octarq/server/agent/harness"
 )
 
-// Candidate wraps a validated HarnessSpec ready for evaluation.
 type Candidate struct {
 	Name       string              `json:"name"`
 	SourcePath string              `json:"source_path,omitempty"`
 	Spec       harness.HarnessSpec `json:"spec"`
 }
 
-// LoadCandidateFile reads and parses a single candidate HarnessSpec file.
-// It fails closed if the file cannot be read, contains unknown fields, or
-// violates harness.Validate.
 func LoadCandidateFile(path string) (Candidate, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -39,9 +35,6 @@ func LoadCandidateFile(path string) (Candidate, error) {
 	}, nil
 }
 
-// LoadCandidates loads candidates from a list of file paths or directories.
-// For directories, all *.json files are loaded in lexicographical order.
-// Duplicate candidate names or any invalid specs trigger a fail-closed error.
 func LoadCandidates(targets []string) ([]Candidate, error) {
 	if len(targets) == 0 {
 		return nil, errors.New("no candidate targets specified")
@@ -105,7 +98,6 @@ func LoadCandidates(targets []string) ([]Candidate, error) {
 	return candidates, nil
 }
 
-// FormatValidationError formats a SpecValidationError with full field-level details.
 func FormatValidationError(err error) string {
 	var valErr *harness.SpecValidationError
 	if errors.As(err, &valErr) {
