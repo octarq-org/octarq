@@ -13,8 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// ProviderDTO is the client view of a provider. The API key is never returned;
-// HasKey says whether one is stored.
 type ProviderDTO struct {
 	ID         uint      `json:"id"`
 	Name       string    `json:"name"`
@@ -28,13 +26,12 @@ type ProviderDTO struct {
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-// PriceDTO is one model price per one million tokens.
 type PriceDTO struct {
-	Model     string    `json:"model"`
-	Input     float64   `json:"input"`
-	Output    float64   `json:"output"`
-	Reasoning float64   `json:"reasoning"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Model       string  `json:"model"`
+	DisplayName string  `json:"displayName"`
+	Input       float64 `json:"input"`
+	Output      float64 `json:"output"`
+	Reasoning   float64 `json:"reasoning"`
 }
 
 func toProviderDTO(row Provider) ProviderDTO {
@@ -68,14 +65,8 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		Summary: "List LLM Backends", Tags: []string{"LLM Gateway"}}, p.listBackends)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/llm-gateway/prices",
 		Summary: "List Model Prices", Tags: []string{"LLM Gateway"}}, p.listPrices)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/llm-gateway/prices",
-		Summary: "Set Model Price", Tags: []string{"LLM Gateway"}}, p.setPrice)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/llm-gateway/prices",
-		Summary: "Delete Model Price", Tags: []string{"LLM Gateway"}}, p.deletePrice)
 }
 
-// caller authenticates an admin of a workspace and returns the workspace ID.
-// Every gateway route is admin-only: the credentials it holds spend money.
 func (p *Plugin) caller(c huma.Context) (uint, error) {
 	if c == nil {
 		return 0, huma.Error500InternalServerError("Request context is unavailable. Try again.")
@@ -115,8 +106,6 @@ func mapError(err error) error {
 		return huma.Error500InternalServerError("The request failed. Try again.")
 	}
 }
-
-// --- providers ---
 
 type ListProvidersInput struct {
 	Ctx huma.Context `hidden:"true"`
@@ -263,18 +252,12 @@ type TestProviderOutput struct {
 	}
 }
 
-// ListProviderModelsOutput is the workspace's model list, fetched from the
-// provider itself. A console picker reads this instead of asking the operator
-// to type model names, which drift the moment the provider adds one.
 type ListProviderModelsOutput struct {
 	Body struct {
 		Models []modelEntry `json:"models"`
 	}
 }
 
-// DiscoverModelsBody is a provider configuration that may not be saved yet.
-// The console discovers models while a person still fills the form, so the
-// answer must match the form and not the stored row.
 type DiscoverModelsBody struct {
 	ProviderID uint   `json:"providerId,omitempty"`
 	Backend    string `json:"backend,omitempty" maxLength:"32"`
@@ -289,9 +272,6 @@ type DiscoverModelsInput struct {
 
 func (i *DiscoverModelsInput) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
 
-// discoverModels asks a provider what it serves. A saved provider is read from
-// its row, with the form's edits applied on top. An unsaved one is built from
-// the form alone.
 func (p *Plugin) discoverModels(ctx context.Context, input *DiscoverModelsInput) (*ListProviderModelsOutput, error) {
 	orgID, err := p.caller(input.Ctx)
 	if err != nil {
@@ -310,8 +290,6 @@ func (p *Plugin) discoverModels(ctx context.Context, input *DiscoverModelsInput)
 	return out, nil
 }
 
-// draftProvider resolves the provider a form describes. Edits win over the
-// stored row, so the list matches the values on screen.
 func (p *Plugin) draftProvider(ctx context.Context, orgID uint, in DiscoverModelsBody) (agentProvider, error) {
 	if in.ProviderID != 0 {
 		row, err := p.store.GetProvider(ctx, orgID, in.ProviderID)
@@ -332,9 +310,6 @@ func (p *Plugin) draftProvider(ctx context.Context, orgID uint, in DiscoverModel
 	return p.discoveryProviderFromRow(ctx, &Provider{Backend: in.Backend, BaseURL: in.BaseURL}, in.APIKey)
 }
 
-// testProvider resolves the stored row the way a real turn does and sends one
-// tiny completion. It is the only way to prove the key, base URL, and model
-// agree without starting a chat.
 func (p *Plugin) testProvider(ctx context.Context, input *ProviderIDInput) (*TestProviderOutput, error) {
 	orgID, err := p.caller(input.Ctx)
 	if err != nil {
@@ -375,8 +350,6 @@ type ListBackendsOutput struct {
 	}
 }
 
-// listBackends names the backends a provider row may use. The admin form reads
-// it so an unsupported name cannot be typed in.
 func (p *Plugin) listBackends(ctx context.Context, input *ListPricesInput) (*ListBackendsOutput, error) {
 	if _, err := p.caller(input.Ctx); err != nil {
 		return nil, err
@@ -386,7 +359,6 @@ func (p *Plugin) listBackends(ctx context.Context, input *ListPricesInput) (*Lis
 	return out, nil
 }
 
-// --- prices ---
 type ListPricesInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -400,84 +372,22 @@ type ListPricesOutput struct {
 }
 
 func (p *Plugin) listPrices(ctx context.Context, input *ListPricesInput) (*ListPricesOutput, error) {
-	orgID, err := p.caller(input.Ctx)
-	if err != nil {
+	if _, err := p.caller(input.Ctx); err != nil {
 		return nil, err
 	}
-	return p.prices(ctx, orgID)
+	return p.prices()
 }
 
-// PriceBody is what a client may set. The row's timestamp is the server's to
-// write, so it is not part of the request shape.
-type PriceBody struct {
-	Model     string  `json:"model" required:"true" maxLength:"128"`
-	Input     float64 `json:"input"`
-	Output    float64 `json:"output"`
-	Reasoning float64 `json:"reasoning"`
-}
-
-type SetPriceInput struct {
-	Ctx  huma.Context `hidden:"true"`
-	Body PriceBody
-}
-
-func (i *SetPriceInput) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
-
-func (p *Plugin) setPrice(ctx context.Context, input *SetPriceInput) (*ListPricesOutput, error) {
-	orgID, err := p.caller(input.Ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := p.store.SetPrice(ctx, orgID, ModelPrice{
-		Model: input.Body.Model, Input: input.Body.Input,
-		Output: input.Body.Output, Reasoning: input.Body.Reasoning,
-	}); err != nil {
-		return nil, mapError(err)
-	}
-	return p.prices(ctx, orgID)
-}
-
-// prices reads the workspace's price rows. It answers both the list route and
-// the write route's refreshed body, so a caller never re-runs an authorization
-// check it already passed.
-func (p *Plugin) prices(ctx context.Context, orgID uint) (*ListPricesOutput, error) {
-	rows, err := p.store.ListPrices(ctx, orgID)
+func (p *Plugin) prices() (*ListPricesOutput, error) {
+	c, err := pricingCatalog()
 	if err != nil {
 		return nil, mapError(err)
 	}
 	out := &ListPricesOutput{}
-	out.Body.Prices = make([]PriceDTO, 0, len(rows))
-	for _, row := range rows {
-		out.Body.Prices = append(out.Body.Prices, PriceDTO{
-			Model: row.Model, Input: row.Input, Output: row.Output,
-			Reasoning: row.Reasoning, UpdatedAt: row.UpdatedAt,
-		})
-	}
+	out.Body.Prices = c.billable()
 	return out, nil
 }
 
-type DeletePriceInput struct {
-	Model string       `query:"model" required:"true"`
-	Ctx   huma.Context `hidden:"true"`
-}
-
-func (i *DeletePriceInput) Resolve(c huma.Context) []error { i.Ctx = c; return nil }
-
-func (p *Plugin) deletePrice(ctx context.Context, input *DeletePriceInput) (*GatewayOKOutput, error) {
-	orgID, err := p.caller(input.Ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := p.store.DeletePrice(ctx, orgID, input.Model); err != nil {
-		return nil, mapError(err)
-	}
-	out := &GatewayOKOutput{}
-	out.Body.OK = true
-	return out, nil
-}
-
-// validateBackend refuses a backend name no factory is registered for, so a
-// typo fails at save time instead of at the first turn.
 func validateBackend(backend string) error {
 	name := strings.ToLower(strings.TrimSpace(backend))
 	if name == "" {

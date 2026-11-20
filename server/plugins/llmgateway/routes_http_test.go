@@ -23,8 +23,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// The gateway needs a backend it can build without a vendor SDK, so the tests
-// register two test-only factories: one that answers and one that refuses.
 const (
 	testBackend = "llmgatewaytest"
 	failBackend = "llmgatewayfail"
@@ -54,9 +52,6 @@ func init() {
 	})
 }
 
-// httpFixture serves the gateway the way the composition root does: a huma API
-// over a mux, with a middleware that stamps the caller's workspace and role onto
-// the request — the part the platform auth middleware plays.
 type httpFixture struct {
 	plugin   *Plugin
 	server   *httptest.Server
@@ -200,7 +195,7 @@ func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture 
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&Provider{}, &ModelPrice{}); err != nil {
+	if err := db.AutoMigrate(&Provider{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 
@@ -224,8 +219,7 @@ func newHTTPFixture(t *testing.T, userID, orgID uint, role string) *httpFixture 
 		Huma: api,
 		DB:   db,
 		Host: &plugin.TestHost{SessionMock: session},
-		// The platform guard stamps the caller's session. These tests carry the
-		// session in the fixture, so the guard is the identity.
+
 		Guard: func(next http.Handler) http.Handler { return next },
 		Provide: func(name string, svc any) {
 			f.provided[name] = svc
@@ -273,8 +267,6 @@ func (f *httpFixture) do(t *testing.T, method, path, body string) (int, map[stri
 	return resp.StatusCode, out
 }
 
-// TestHTTPProviderLifecycle walks the routes the settings page uses, so a
-// regression here is a page that cannot configure a workspace.
 func TestHTTPProviderLifecycle(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 
@@ -325,7 +317,6 @@ func TestHTTPProviderLifecycle(t *testing.T) {
 		t.Fatalf("default = %d %v", status, ok)
 	}
 
-	// The resolver the core chat path calls returns this workspace's backend.
 	if f.resolver == nil {
 		t.Fatal("Mount did not register the LLM resolver")
 	}
@@ -350,49 +341,43 @@ func TestHTTPProviderLifecycle(t *testing.T) {
 	}
 }
 
-// TestHTTPPricesRoundTrip pins the write route's refreshed body and the delete
-// route: the page never re-reads the list after a save.
-func TestHTTPPricesRoundTrip(t *testing.T) {
+func TestHTTPPricesAreReadOnly(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
-
-	status, saved := f.do(t, http.MethodPut, "/api/llm-gateway/prices",
-		`{"model":"stub-model","input":3,"output":15,"reasoning":7.5}`)
-	if status != http.StatusOK {
-		t.Fatalf("set price = %d %v", status, saved)
-	}
-	prices, _ := saved["prices"].([]any)
-	if len(prices) != 1 {
-		t.Fatalf("prices = %v, want the saved row", saved["prices"])
-	}
-	if row, _ := prices[0].(map[string]any); row["input"].(float64) != 3 || row["reasoning"].(float64) != 7.5 {
-		t.Fatalf("price = %v", row)
-	}
 
 	status, listed := f.do(t, http.MethodGet, "/api/llm-gateway/prices", "")
 	if status != http.StatusOK {
 		t.Fatalf("list prices = %d %v", status, listed)
 	}
-	if got, _ := listed["prices"].([]any); len(got) != 1 {
-		t.Fatalf("prices = %v, want one", listed["prices"])
+	prices, _ := listed["prices"].([]any)
+	if len(prices) == 0 {
+		t.Fatalf("prices = %v, want the bundled catalog", listed["prices"])
+	}
+	found := false
+	for _, raw := range prices {
+		row, _ := raw.(map[string]any)
+		if row["model"] != "qwen-flash" {
+			continue
+		}
+		found = true
+		if row["input"].(float64) <= 0 || row["reasoning"] != row["output"] {
+			t.Fatalf("row = %v, want the catalog price with reasoning at the output rate", row)
+		}
+	}
+	if !found {
+		t.Fatalf("prices = %v, want qwen-flash", listed["prices"])
 	}
 
-	status, ok := f.do(t, http.MethodDelete, "/api/llm-gateway/prices?model=stub-model", "")
-	if status != http.StatusOK || ok["ok"] != true {
-		t.Fatalf("delete price = %d %v", status, ok)
-	}
-	_, listed = f.do(t, http.MethodGet, "/api/llm-gateway/prices", "")
-	if got, _ := listed["prices"].([]any); len(got) != 0 {
-		t.Fatalf("prices = %v, want none", listed["prices"])
+	for _, method := range []string{http.MethodPut, http.MethodDelete} {
+		if status, body := f.do(t, method, "/api/llm-gateway/prices", `{"model":"m","input":1}`); status == http.StatusOK {
+			t.Fatalf("%s prices = %d %v, want no write route", method, status, body)
+		}
 	}
 
-	// A model with no price is what a caller must be able to tell apart.
 	if _, err := f.plugin.store.Price(context.Background(), 1, "stub-model"); !errors.Is(err, plugin.ErrModelUnpriced) {
-		t.Fatalf("price after delete = %v, want ErrModelUnpriced", err)
+		t.Fatalf("unknown model price = %v, want ErrModelUnpriced", err)
 	}
 }
 
-// TestHTTPBackendsAreTheRegisteredFactories pins the admin form's list: a name
-// missing here cannot be typed in, and a name here cannot fail at save time.
 func TestHTTPBackendsAreTheRegisteredFactories(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 
@@ -412,8 +397,6 @@ func TestHTTPBackendsAreTheRegisteredFactories(t *testing.T) {
 	}
 }
 
-// TestHTTPRefusals pins the status each refusal carries. The numbers matter: a
-// 500 where the caller made a mistake is a bug report nobody can act on.
 func TestHTTPRefusals(t *testing.T) {
 	t.Run("signed out", func(t *testing.T) {
 		f := newHTTPFixture(t, 0, 1, "admin")
@@ -469,7 +452,7 @@ func TestHTTPRefusals(t *testing.T) {
 			`{"name":"x","backend":"`+testBackend+`"}`); status != http.StatusCreated {
 			t.Fatalf("create = %d %v", status, body)
 		}
-		// Org 2 cannot see, edit, or test org 1's row.
+
 		other := newHTTPFixture(t, 1, 2, "admin")
 		if status, body := other.do(t, http.MethodPut, "/api/llm-gateway/providers/1",
 			`{"name":"x","backend":"`+testBackend+`"}`); status != http.StatusNotFound {
@@ -478,9 +461,6 @@ func TestHTTPRefusals(t *testing.T) {
 	})
 }
 
-// TestHTTPTestRouteReportsTheVendorRefusal pins the 502: a provider that refuses
-// the ping is reachable, so the caller is told the vendor refused, not that the
-// gateway broke.
 func TestHTTPTestRouteReportsTheVendorRefusal(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 	status, created := f.do(t, http.MethodPost, "/api/llm-gateway/providers",
@@ -494,9 +474,6 @@ func TestHTTPTestRouteReportsTheVendorRefusal(t *testing.T) {
 	}
 }
 
-// TestMountProvidesBothServices pins the seam the rest of the platform reads:
-// a feature prices a lens through one service and resolves its backend through
-// the other, and neither imports this package.
 func TestMountProvidesBothServices(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 
@@ -516,9 +493,6 @@ func TestMountProvidesBothServices(t *testing.T) {
 	}
 }
 
-// TestMountWithoutAHostStillProvidesServices pins that the services exist before
-// any provider is configured: a consumer gets a sentinel error, never a nil
-// pointer.
 func TestMountWithoutAHostStillProvidesServices(t *testing.T) {
 	provided := map[string]any{}
 	p := New()
@@ -534,8 +508,6 @@ func TestMountWithoutAHostStillProvidesServices(t *testing.T) {
 	}
 }
 
-// TestServiceAdaptersFailClosed pins the nil-plugin branch: a shared service
-// value must refuse instead of dereferencing nothing.
 func TestServiceAdaptersFailClosed(t *testing.T) {
 	if _, err := (pricingService{}).Price(context.Background(), 1, "m"); !errors.Is(err, plugin.ErrPricingUnavailable) {
 		t.Fatalf("pricing = %v, want ErrPricingUnavailable", err)
@@ -551,17 +523,14 @@ func TestServiceAdaptersFailClosed(t *testing.T) {
 	}
 }
 
-// TestProviderFromRefusesWhatItCannotBuild pins the unseal path: a row whose key
-// cannot be read is an invalid provider, not a provider with no key.
 func TestProviderFromRefusesWhatItCannotBuild(t *testing.T) {
 	ctx := context.Background()
-	// No vault service: a stored key cannot be opened.
+
 	bare := &Plugin{}
 	if _, err := bare.providerFrom(ctx, &Provider{OrgID: 1, Backend: testBackend, VaultItemID: 1}); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("no vault = %v, want ErrInvalidProvider", err)
 	}
 
-	// A vault service that refuses the item.
 	refusing := &Plugin{pctx: &plugin.Context{
 		Lookup: func(name string) (any, bool) {
 			if name == plugin.ServiceVault {
@@ -576,26 +545,22 @@ func TestProviderFromRefusesWhatItCannotBuild(t *testing.T) {
 		t.Fatalf("unseal failure = %v, want ErrInvalidProvider", err)
 	}
 
-	// A backend no factory serves.
 	ok := &Plugin{}
 	if _, err := ok.providerFrom(ctx, &Provider{Backend: "no-such-backend"}); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("unknown backend = %v, want ErrInvalidProvider", err)
 	}
 
-	// A row with no key is valid: local backends need none.
 	if _, err := ok.providerFrom(ctx, &Provider{Backend: testBackend}); err != nil {
 		t.Fatalf("keyless provider: %v", err)
 	}
 }
 
-// TestSealRefusesWithoutAVault pins that saving a key without secret storage is
-// a refusal, not a plaintext column.
 func TestSealRefusesWithoutAVault(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&Provider{}, &ModelPrice{}); err != nil {
+	if err := db.AutoMigrate(&Provider{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	s := NewStore(db)
@@ -612,8 +577,6 @@ func TestSealRefusesWithoutAVault(t *testing.T) {
 	}
 }
 
-// TestDescribeAndEmbeddedDocs pins the plugin's identity and its help bundle:
-// the gateway is core plumbing, and its pages ship with the binary.
 func TestDescribeAndEmbeddedDocs(t *testing.T) {
 	p := New()
 	if p.Name() != "llmgateway" {
@@ -626,17 +589,17 @@ func TestDescribeAndEmbeddedDocs(t *testing.T) {
 	if info.Category != plugin.CategoryAI {
 		t.Fatalf("category = %q, want %q", info.Category, plugin.CategoryAI)
 	}
-	if got := p.Models(); len(got) != 2 {
-		t.Fatalf("models = %v, want the provider and price tables", got)
+	if got := p.Models(); len(got) != 1 {
+		t.Fatalf("models = %v, want the provider table", got)
+	}
+	if err := p.Validate(context.Background(), nil); err != nil {
+		t.Fatalf("validate = %v, want the embedded catalog to parse", err)
 	}
 	if _, err := p.HelpDocsFS().Open("docs"); err != nil {
 		t.Fatalf("docs are not embedded: %v", err)
 	}
 }
 
-// TestHTTPRoutesReportAFailedQueryAs500 pins the last line of the error map: a
-// database that cannot answer is the server's problem, and the caller is told so
-// without the driver's message.
 func TestHTTPRoutesReportAFailedQueryAs500(t *testing.T) {
 	f := newHTTPFixture(t, 1, 1, "admin")
 	sqlDB, err := f.plugin.store.db.DB()
@@ -658,9 +621,6 @@ func TestHTTPRoutesReportAFailedQueryAs500(t *testing.T) {
 		{http.MethodDelete, "/api/llm-gateway/providers/1", ""},
 		{http.MethodPost, "/api/llm-gateway/providers/1/default", ""},
 		{http.MethodPost, "/api/llm-gateway/providers/1/test", ""},
-		{http.MethodGet, "/api/llm-gateway/prices", ""},
-		{http.MethodPut, "/api/llm-gateway/prices", `{"model":"m","input":1,"output":2,"reasoning":3}`},
-		{http.MethodDelete, "/api/llm-gateway/prices?model=m", ""},
 	} {
 		status, body := f.do(t, tc.method, tc.path, tc.body)
 		if status != http.StatusInternalServerError {
@@ -672,8 +632,6 @@ func TestHTTPRoutesReportAFailedQueryAs500(t *testing.T) {
 	}
 }
 
-// TestMountWithoutAContextIsANoOp pins that a mount with no context leaves the
-// plugin usable: the help bundle and the identity do not need a host.
 func TestMountWithoutAContextIsANoOp(t *testing.T) {
 	p := New()
 	p.Mount(nil, nil)

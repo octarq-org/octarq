@@ -1,6 +1,6 @@
 ---
 title: Model gateway
-description: Connect a model backend and set the price of each model.
+description: Connect a model backend and read the bundled model prices.
 category: settings
 order: 70
 ---
@@ -41,15 +41,23 @@ Select **Make default** beside a provider. A workspace has one default at a time
 
 Delete a provider only after you make another one the default. A workspace with no default refuses AI requests.
 
-## Set model prices
+## Model prices
 
-**Model prices** sets the cost of one model per one million tokens.
+**Model prices** lists the price of each model per one million tokens. The list is read-only.
 
-Select **Add price**. Enter the model identifier that the backend uses, then enter the input price, the output price, and the reasoning price. Select **Save**.
+Prices come from the AICostBudget pricing dataset. The application bundles this dataset. The dataset covers 199 models.
 
-AI features that charge a budget refuse a model without a price. Add the price before you use the model.
+Reasoning tokens bill at the output rate. The dataset has no separate reasoning rate.
 
-A price of zero marks a model with no token cost.
+Update the application to refresh the prices. Do not enter a price by hand.
+
+AI features that charge a budget refuse a model with no price. The refusal covers a model outside the dataset, and a model with no published token price.
+
+The list shows only the models that have a token price.
+
+Data source: <https://aicostbudget.github.io/ai-api-pricing-data/api/v1/prices.json>
+
+The dataset code is MIT licensed. The data is CC BY 4.0 licensed.
 
 ## Use a coding agent
 

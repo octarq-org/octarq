@@ -1,9 +1,3 @@
-// Thin fetch wrapper and endpoint methods for the octarq JSON API.
-//
-// The wrapper itself, its error type and the language helper live in
-// @octarq/plugin-sdk — the same implementation every plugin uses. This module
-// re-exports them so `../api/client` stays the host's single API surface, and
-// adds the endpoint methods below.
 import { ApiError, getAppLang, req } from "@octarq/plugin-sdk";
 import { parseWithFallback } from "../lib/parseWithFallback";
 import {
@@ -48,7 +42,6 @@ import type {
   Settings,
   SMTPSender,
   SMTPSenderInput,
-  SetModelPriceInput,
   SubsystemStatusResponse,
   Token,
   VaultCategorySchema,
@@ -69,27 +62,20 @@ import type {
 export { ApiError, getAppLang, req } from "@octarq/plugin-sdk";
 
 export const api = {
-  // subsystem status (public)
   subsystemStatus: () => req<SubsystemStatusResponse>("GET", "/api/status"),
 
-  // instance readiness (instance admins only)
   instanceReadiness: () => req<ReadinessCheck[]>("GET", "/api/instance/readiness"),
 
-  // plugins: instance-level registry (read-only, instance admins only)
   instancePlugins: () => req<InstancePluginInfo[]>("GET", "/api/instance/plugins"),
 
-  // instance-level plugin menus (instance admins only)
   instanceMenus: () => req<MenuItem[]>("GET", "/api/instance/menus"),
 
-  // build metadata (authenticated — never surfaced pre-login)
   instanceBuild: () =>
     req<{ version: string; commit: string; builtAt: string }>("GET", "/api/instance/build"),
 
-  // overview
   overview: (includeBot = false) =>
     req<Overview>("GET", `/api/overview${includeBot ? "?includeBot=true" : ""}`),
 
-  // settings
   settings: () => req<Settings>("GET", "/api/settings"),
   inboundToken: () => req<{ inboundToken: string }>("GET", "/api/settings/inbound-token"),
   updateSettings: (s: {
@@ -108,7 +94,6 @@ export const api = {
   testInstanceMail: (to: string) =>
     req<{ ok: boolean }>("POST", "/api/instance/mail/test", { to }),
 
-  // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
   me: () => req<{ email: string; username?: string; orgId: number; role?: string; emailVerified?: boolean; isInstanceAdmin?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string, orgName?: string) =>
@@ -146,7 +131,6 @@ export const api = {
   acceptInvite: (token: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
 
-  // 2FA
   twoFAStatus: () => req<{ enabled: boolean }>("GET", "/api/auth/2fa/status"),
   twoFASetup: (password: string) =>
     req<{ secret: string; otpauthUrl: string; qrDataUri?: string }>("POST", "/api/auth/2fa/setup", { password }),
@@ -155,13 +139,11 @@ export const api = {
   twoFADisable: (opts: { code: string; password: string }) =>
     req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
-  // single-step AI assists
   aiAssistStatus: () => req<{ configured: boolean; provider: string }>("GET", "/api/ai/assist/status"),
   aiSuggestSlug: (target: string, title?: string) =>
     req<{ slugs: string[] }>("POST", "/api/ai/assist/suggest-slug", { target, title }),
   aiSummarizeEmail: (id: number) => req<{ summary: string }>("POST", `/api/ai/assist/summarize-email/${id}`),
 
-  // domains
   dnsProviders: () => req<string[]>("GET", "/api/dns/providers"),
   providerAccounts: () => req<ProviderAccount[]>("GET", "/api/provider-accounts"),
   createProviderAccount: (p: ProviderAccountInput) => req<ProviderAccount>("POST", "/api/provider-accounts", p),
@@ -183,7 +165,6 @@ export const api = {
     return req<Domain[]>("GET", `/api/domains${query ? "?" + query : ""}`);
   },
 
-  // tokens
   tokens: () => req<Token[]>("GET", "/api/tokens"),
   createToken: (d: { name: string; note?: string; role?: "member" | "admin" | "owner"; expiresInDays?: number }) =>
     req<{ token: string } & Token>("POST", "/api/tokens", d),
@@ -191,7 +172,6 @@ export const api = {
     req<Token>("PUT", `/api/tokens/${id}`, d),
   deleteToken: (id: number) => req<void>("DELETE", `/api/tokens/${id}`),
 
-  // notification channels
   notificationChannelTypes: () => req<NotificationChannelType[]>("GET", "/api/notification-channel-types"),
   notificationChannels: () => req<NotificationChannel[]>("GET", "/api/notification-channels"),
   createNotificationChannel: (d: NotificationChannelInput) => req<NotificationChannel>("POST", "/api/notification-channels", d),
@@ -199,7 +179,6 @@ export const api = {
   deleteNotificationChannel: (id: number) => req<void>("DELETE", `/api/notification-channels/${id}`),
   testNotificationChannel: (id: number) => req<void>("POST", `/api/notification-channels/${id}/test`),
 
-  // In-App Notifications
   notifications: async (opts?: { unreadOnly?: boolean; limit?: number; offset?: number }): Promise<NotificationItem[]> => {
     const params = new URLSearchParams();
     if (opts?.unreadOnly) params.set("unread_only", "true");
@@ -222,7 +201,6 @@ export const api = {
     return parseWithFallback(SimpleOKSchema, raw, { ok: true });
   },
 
-  // Notification Preferences
   notificationPreferences: async (): Promise<NotificationPreferenceItem[]> => {
     const raw = await req<unknown>("GET", "/api/notifications/routes");
     return parseWithFallback(NotificationPreferencesListSchema, raw, []);
@@ -242,7 +220,6 @@ export const api = {
     return parseWithFallback(RegisteredChannelsListSchema, raw, []);
   },
 
-  // webhooks
   webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),
   webhookEvents: () => req<WebhookEventGroup[]>("GET", "/api/webhooks/events"),
   createWebhook: (d: Partial<Webhook>) => req<Webhook>("POST", "/api/webhooks", d),
@@ -253,7 +230,6 @@ export const api = {
   webhookRelayDeadLetters: () => req<any[]>("GET", "/api/webhookrelay/dead-letters"),
   replayWebhookDeadLetter: (id: number) => req<any>("POST", `/api/webhookrelay/dead-letters/${id}/replay`),
 
-  // audit
   auditLogs: (q?: ListAuditLogsParams) => {
     const params = new URLSearchParams();
     if (q?.action) params.set("action", q.action);
@@ -264,11 +240,9 @@ export const api = {
     return req<AuditLog[]>("GET", `/api/audit${query ? "?" + query : ""}`);
   },
 
-  // abuse
   abuseReports: (status?: string) => req<AbuseReport[]>("GET", `/api/abuse${status ? `?status=${status}` : ""}`),
   updateAbuseReport: (id: number, status: string) => req<AbuseReport>("PUT", `/api/abuse/${id}`, { status }),
 
-  // orgs
   orgs: () => req<Org[]>("GET", "/api/orgs"),
   createOrg: (d: { name: string }) => req<Org>("POST", "/api/orgs", d),
   updateOrg: (d: { name: string }) => req<Org>("PUT", "/api/org", d),
@@ -284,7 +258,6 @@ export const api = {
   resendOrgMemberInvite: (userId: number) =>
     req<{ ok: boolean; emailSent?: boolean }>("POST", `/api/org/members/${userId}/resend`),
 
-  // menus and user settings
   menus: () => req<MenuItem[]>("GET", "/api/menus"),
   actions: () => req<Action[]>("GET", "/api/actions"),
   plugins: () => req<PluginInfo[]>("GET", "/api/plugins"),
@@ -293,7 +266,6 @@ export const api = {
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
 
-  // Instance backup
   downloadBackup: async (): Promise<{ blob: Blob; filename: string }> => {
     const res = await fetch("/api/admin/backup");
     if (!res.ok) {
@@ -304,7 +276,7 @@ export const api = {
         else if (parsed?.error) msg = parsed.error;
         else if (parsed?.detail) msg = parsed.detail;
       } catch {
-        /* not JSON — keep statusText */
+        msg = res.statusText;
       }
       throw new ApiError(res.status, msg);
     }
@@ -313,7 +285,6 @@ export const api = {
     return { blob: await res.blob(), filename: m?.[1] || "octarq-backup" };
   },
 
-  // GDPR
   exportWorkspaceData: async (): Promise<{ blob: Blob; filename: string }> => {
     const res = await fetch("/api/account/export", {
       headers: {
@@ -328,7 +299,7 @@ export const api = {
         else if (parsed?.error) msg = parsed.error;
         else if (parsed?.detail) msg = parsed.detail;
       } catch {
-        /* not JSON — keep statusText */
+        msg = res.statusText;
       }
       throw new ApiError(res.status, msg);
     }
@@ -338,12 +309,10 @@ export const api = {
   },
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
 
-  // Help
   helpCategories: () => req<HelpCategory[]>("GET", "/api/help/categories"),
   helpIndex: (lang?: string) => req<HelpDocMeta[]>("GET", lang ? `/api/help/docs?lang=${encodeURIComponent(lang)}` : "/api/help/docs", undefined, lang),
   helpPage: (slug: string, lang?: string) => req<HelpDocContent>("GET", lang ? `/api/help/docs/${encodeURIComponent(slug)}?lang=${encodeURIComponent(lang)}` : `/api/help/docs/${encodeURIComponent(slug)}`, undefined, lang),
 
-  // LLM Gateway
   llmBackends: async (): Promise<string[]> => {
     const res = await req<{ backends?: string[] }>("GET", "/api/llm-gateway/backends");
     return res.backends ?? [];
@@ -362,8 +331,6 @@ export const api = {
     req<{ ok: boolean }>("POST", `/api/llm-gateway/providers/${id}/default`),
   testLLMProvider: (id: number): Promise<{ ok: boolean; model: string }> =>
     req<{ ok: boolean; model: string }>("POST", `/api/llm-gateway/providers/${id}/test`),
-  // The model list is the provider's own answer, for a saved row or for the
-  // form a person is still filling in.
   discoverModels: async (input: DiscoverModelsInput): Promise<LLMModel[]> => {
     const res = await req<{ models?: LLMModel[] }>("POST", "/api/llm-gateway/models", input);
     return res.models ?? [];
@@ -372,12 +339,7 @@ export const api = {
     const res = await req<{ prices?: ModelPriceDTO[] }>("GET", "/api/llm-gateway/prices");
     return res.prices ?? [];
   },
-  setModelPrice: (input: SetModelPriceInput): Promise<ModelPriceDTO[]> =>
-    req<{ prices?: ModelPriceDTO[] }>("PUT", "/api/llm-gateway/prices", input).then((r) => r.prices ?? []),
-  deleteModelPrice: (model: string): Promise<{ ok: boolean }> =>
-    req<{ ok: boolean }>("DELETE", `/api/llm-gateway/prices?model=${encodeURIComponent(model)}`),
 
-  // Unified Vault & Integrations
   vaultSchemas: () => req<VaultCategorySchema[]>("GET", "/api/vault/schemas"),
   vaultCollections: () => req<VaultCollection[]>("GET", "/api/vault/collections"),
   createVaultCollection: (d: { name: string; slug?: string; kind?: string; description?: string }) =>
@@ -445,7 +407,6 @@ export const api = {
   revokeVaultToken: (id: number) =>
     req<{ ok: boolean; message: string }>("DELETE", `/api/vault/tokens/${id}`),
 
-  // Instance-admin system vault
   instanceVaultItems: () => req<VaultItemMeta[]>("GET", "/api/instance/vault/items"),
   putInstanceVaultItem: (d: VaultCreateItemInput) =>
     req<VaultItemMeta>("POST", "/api/instance/vault/items", d),
