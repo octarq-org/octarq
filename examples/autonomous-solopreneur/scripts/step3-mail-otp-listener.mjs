@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Step 3: Monitor Dedicated Business Mailbox & Extract SaaS Verification OTP over Octarq MCP
 
 import { OctarqMCPClient } from '../src/mcp-client.mjs';
 import { listenForOnboardingOTP } from '../src/mail-otp.mjs';
@@ -13,7 +12,6 @@ async function main() {
 
   section(3, 'Inbox Polling & Automated OTP Interception', 'Inspecting incoming emails for SaaS confirmation codes...');
 
-  // If running in simulation, ensure there is an incoming OTP email to intercept
   if (!client.isLive) {
     info('Simulating incoming registration email from Cloudflare Zero Trust...');
     client.injectSimulatedEmail({

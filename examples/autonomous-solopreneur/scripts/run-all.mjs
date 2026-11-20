@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// Autonomous Solopreneur Blueprint: Complete End-to-End Unattended Ops Pipeline
-// Runs all 4 core business steps sequentially:
-// 1. Remote MCP DNS & Reputation Audit
-// 2. Subdomain & UTM Marketing Link Automation
-// 3. Business Mailbox OTP Monitoring & Extraction
-// 4. Ed25519 Offline License Minting & Verification
 
 import { OctarqMCPClient } from '../src/mcp-client.mjs';
 import { auditDomainDNS, printDnsAuditReport } from '../src/dns-checker.mjs';
@@ -48,9 +42,6 @@ async function runAutonomousSolopreneurPipeline() {
 
   await sleep(600);
 
-  // ══════════════════════════════════════════════════════════════════
-  // STEP 1: DNS & REPUTATION AUDIT OVER REMOTE MCP
-  // ══════════════════════════════════════════════════════════════════
   section(
     1,
     'Domain Reputation & DNS Health Audit',
@@ -66,9 +57,6 @@ async function runAutonomousSolopreneurPipeline() {
 
   await sleep(600);
 
-  // ══════════════════════════════════════════════════════════════════
-  // STEP 2: SUBDOMAIN & UTM MARKETING SHORTLINK PROVISIONING
-  // ══════════════════════════════════════════════════════════════════
   section(
     2,
     'Subdomain & UTM Marketing Link Automation',
@@ -94,9 +82,6 @@ async function runAutonomousSolopreneurPipeline() {
 
   await sleep(600);
 
-  // ══════════════════════════════════════════════════════════════════
-  // STEP 3: BUSINESS MAILBOX MONITORING & OTP EXTRACTION
-  // ══════════════════════════════════════════════════════════════════
   section(
     3,
     'Business Mailbox Listener & SaaS Onboarding OTP',
@@ -119,9 +104,6 @@ async function runAutonomousSolopreneurPipeline() {
 
   await sleep(600);
 
-  // ══════════════════════════════════════════════════════════════════
-  // STEP 4: OFFLINE ED25519 LICENSING & CUSTOMER DISPATCH
-  // ══════════════════════════════════════════════════════════════════
   section(
     4,
     'Offline Ed25519 Licensing & Customer Dispatch',
@@ -151,7 +133,6 @@ async function runAutonomousSolopreneurPipeline() {
 
   success(`Minted Offline License Token (Envelope: ${license.token.substring(0, 32)}...)`);
 
-  // Local verification test
   const verification = verifyLicense(license.token, keypair.publicKeyPem);
   if (verification.valid) {
     success(`Verified offline authenticity: signature valid, no network call required.`);
@@ -162,9 +143,6 @@ async function runAutonomousSolopreneurPipeline() {
   const emailNotification = composeLicenseNotificationEmail(license);
   info(`Fulfillment email prepared with subject: "${emailNotification.subject}"`);
 
-  // ══════════════════════════════════════════════════════════════════
-  // PIPELINE SUMMARY
-  // ══════════════════════════════════════════════════════════════════
   console.log(`\n${colors.brightCyan}${'═'.repeat(66)}${colors.reset}`);
   console.log(`${colors.bold}${colors.brightGreen}  🎉 AUTONOMOUS SOLOPRENEUR PIPELINE EXECUTED SUCCESSFULLY!${colors.reset}`);
   console.log(`${colors.dim}${'─'.repeat(66)}${colors.reset}`);

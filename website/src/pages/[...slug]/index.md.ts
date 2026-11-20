@@ -1,13 +1,3 @@
-/**
- * Per-page `/<slug>/index.md` — the clean-markdown alternate for every
- * indexable entry of the primary `docs` collection.
- *
- * Non-primary collections (`api`, `blog`, …) mount under their own
- * URL namespace by convention; their `.md` alternates live at the
- * sibling route `pages/<collection>/[...slug]/index.md.ts`. This route
- * filters to the primary collection so multi-collection sites don't
- * generate conflicting `[...slug]` paths at root.
- */
 
 import { getIndexedEntries, renderEntryAsMarkdown, type IndexedEntry } from "@cloudflare/nimbus-docs";
 import { config } from "virtual:nimbus/config";
@@ -25,10 +15,6 @@ export async function getStaticPaths() {
   return indexed
     .filter((item) => item.collection === PRIMARY_COLLECTION)
     .map((item) => ({
-      // Root index (`entry.id === "index"`) emits at `/index.md`; Astro's
-      // rest-segment treats `undefined` as "no segment" so the URL is
-      // `/index.md` rather than `/index/index.md`. Every other entry emits
-      // at `/<entry.id>/index.md` — the convention `<page>/index.md`.
       params: {
         slug: item.entry.id === "index" ? undefined : item.entry.id,
       },
@@ -66,8 +52,6 @@ export async function GET({ props }: { props: SlugProps }) {
     "",
     markdown,
     "",
-    // Point at the authored source (`.mdx` twin) when it exists — the
-    // `.md` alternate referencing itself was a placeholder.
     `Source: ${new URL(sourceUrl ?? markdownUrl, config.site).href}`,
     "",
   ].join("\n");

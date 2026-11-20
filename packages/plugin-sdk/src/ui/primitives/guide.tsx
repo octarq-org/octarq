@@ -1,8 +1,6 @@
 import { forwardRef, useState, type ReactNode } from "react";
 import { cn } from "../cn";
 
-// Collapsible setup guidance panel. Moved here from the host app so a plugin
-// package can ship the same affordance.
 export interface GuideProps {
   title: string;
   children: ReactNode;
@@ -10,7 +8,6 @@ export interface GuideProps {
   className?: string;
 }
 
-// Inline marks keep the package free of an icon dependency.
 function BulbIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">

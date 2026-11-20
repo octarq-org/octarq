@@ -1,8 +1,3 @@
-// Query and stream hooks over the plugin HTTP surface.
-//
-// The host app owns the single @tanstack/react-query provider; these hooks
-// consume that context, so a plugin page shares the host's cache, retries and
-// invalidation instead of shipping a second QueryClient.
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useMutation,
@@ -19,8 +14,6 @@ export interface PluginDataOptions {
   refetchInterval?: number | false;
 }
 
-// usePluginData reads one GET route. `key` is the cache key, so two pages that
-// ask for the same resource share one request; `path` is the route.
 export function usePluginData<T>(
   key: readonly unknown[],
   path: string,
@@ -37,19 +30,13 @@ export function usePluginData<T>(
 
 export interface PluginMutationOptions<TVars, TData> {
   method?: string;
-  // A fixed route, or one derived from the variables (e.g. an item id).
   path: string | ((vars: TVars) => string);
-  // Builds the JSON body from the variables. Omit for a bodyless call.
   body?: (vars: TVars) => unknown;
-  // Cache keys to invalidate on success. A function form can narrow the keys
-  // to what the mutation touched.
   invalidate?: readonly (readonly unknown[])[] | ((data: TData, vars: TVars) => readonly (readonly unknown[])[]);
   onSuccess?: (data: TData, vars: TVars) => void;
   onError?: (error: ApiError, vars: TVars) => void;
 }
 
-// usePluginMutation writes one route and invalidates the listed cache keys.
-// The error keeps its status, so a caller can branch on 402/403/404.
 export function usePluginMutation<TVars = void, TData = unknown>(
   options: PluginMutationOptions<TVars, TData>,
 ): UseMutationResult<TData, ApiError, TVars> {
@@ -71,17 +58,14 @@ export function usePluginMutation<TVars = void, TData = unknown>(
 }
 
 export interface PluginStreamEvent<T> {
-  // The SSE `event:` name; "message" when the frame names none.
   event: string;
   data: T;
 }
 
 export interface PluginStreamOptions<T> {
-  // The route to subscribe to. A POST route carries `body`; a GET route omits it.
   path: string;
   method?: string;
   body?: unknown;
-  // Starts the stream automatically. Default true.
   enabled?: boolean;
   onEvent: (event: PluginStreamEvent<T>) => void;
   onError?: (error: ApiError) => void;
@@ -94,8 +78,6 @@ export interface PluginStreamHandle {
   running: boolean;
 }
 
-// splitFrames cuts every complete SSE frame ("\n\n"-terminated) out of the
-// buffer and returns the unfinished tail.
 function splitFrames(buffer: string): { frames: string[]; rest: string } {
   const frames: string[] = [];
   let rest = buffer;
@@ -119,19 +101,13 @@ function parseFrame<T>(frame: string): PluginStreamEvent<T> | null {
   try {
     return { event, data: JSON.parse(raw) as T };
   } catch {
-    // A non-JSON payload is delivered as text rather than dropped.
     return { event, data: raw as unknown as T };
   }
 }
 
-// usePluginStream subscribes to one SSE route. It aborts on unmount and on a
-// path/body change, so a component that navigates away leaves no open
-// connection behind.
 export function usePluginStream<T = unknown>(options: PluginStreamOptions<T>): PluginStreamHandle {
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  // Callbacks live in a ref: an inline handler on every render must not
-  // resubscribe the stream.
   const handlers = useRef(options);
   handlers.current = options;
 
@@ -167,7 +143,6 @@ export function usePluginStream<T = unknown>(options: PluginStreamOptions<T>): P
           try {
             parsed = await res.json();
           } catch {
-            /* not JSON */
           }
           const body = parsed as { message?: string } | null;
           throw new ApiError(
@@ -188,7 +163,7 @@ export function usePluginStream<T = unknown>(options: PluginStreamOptions<T>): P
           const { frames, rest } = splitFrames(buffer);
           buffer = rest;
           for (const frame of frames) {
-            if (frame.startsWith(":")) continue; // heartbeat comment
+            if (frame.startsWith(":")) continue;
             const parsed = parseFrame<T>(frame);
             if (parsed) handlers.current.onEvent(parsed);
           }
@@ -215,8 +190,6 @@ export function usePluginStream<T = unknown>(options: PluginStreamOptions<T>): P
       abortRef.current?.abort();
       abortRef.current = null;
     };
-    // path/method/bodyKey identify the subscription; callback and enabled are
-    // read through `handlers`.
   }, [enabled, path, method, bodyKey, start]);
 
   return { start, stop, running };

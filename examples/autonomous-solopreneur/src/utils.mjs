@@ -1,4 +1,3 @@
-// Pure ANSI color helpers and terminal layout utilities (Zero third-party dependencies)
 
 export const colors = {
   reset: '\x1b[0m',
@@ -7,7 +6,6 @@ export const colors = {
   italic: '\x1b[3m',
   underline: '\x1b[4m',
 
-  // Foreground colors
   black: '\x1b[30m',
   red: '\x1b[31m',
   green: '\x1b[32m',
@@ -17,7 +15,6 @@ export const colors = {
   cyan: '\x1b[36m',
   white: '\x1b[37m',
 
-  // Bright variants
   brightRed: '\x1b[91m',
   brightGreen: '\x1b[92m',
   brightYellow: '\x1b[93m',
@@ -26,7 +23,6 @@ export const colors = {
   brightCyan: '\x1b[96m',
   brightWhite: '\x1b[97m',
 
-  // Background colors
   bgBlue: '\x1b[44m',
   bgMagenta: '\x1b[45m',
   bgCyan: '\x1b[46m',

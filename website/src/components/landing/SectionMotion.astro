@@ -1,26 +1,9 @@
 ---
-// The ambient motion layer behind every landing section.
-//
-// Two variants, both pure CSS/SVG so the landing page ships no client JS:
-//   particles — drifting motes rising through the section
-//   waves     — slow horizontal crests along one edge
-//
-// The layer is absolutely positioned and `pointer-events: none`, so a section
-// only needs `position: relative` (and `overflow: hidden` where the motion runs
-// past its box) to host one. It is decorative: aria-hidden, and every animation
-// is switched off under `prefers-reduced-motion` in index.astro's style block.
-//
-// Positions are taken from a fixed table rather than Math.random() so a rebuild
-// produces byte-identical HTML — a random layout would churn the diff of every
-// deploy for no visual gain.
 
 interface Props {
   variant: "particles" | "waves";
-  /** particles: how many motes. Capped by the position table below. */
   count?: number;
-  /** waves: which edge the crests ride. */
   edge?: "top" | "bottom";
-  /** 0–1, scales the whole layer's opacity. */
   intensity?: number;
   class?: string;
 }
@@ -33,10 +16,6 @@ const {
   class: className,
 } = Astro.props;
 
-// left %, size px, duration s, delay s, accent (1|2), start height (% up the
-// section), rise distance px. The scattered start heights matter: motes that
-// all launch from the baseline read as a strip along the bottom edge rather
-// than as a field you are looking through.
 const MOTES: [number, number, number, number, 1 | 2, number, number][] = [
   [6, 6, 13, 0, 1, 4, 260],
   [14, 4, 17, 2.4, 2, 38, 200],
@@ -79,12 +58,7 @@ const motes = MOTES.slice(0, Math.min(count, MOTES.length));
       style={`--oct-motion-intensity:${intensity}`}
       aria-hidden="true"
     >
-      {/*
-        The viewBox shows 1200 units; each crest is drawn across 2400 with a
-        600-unit period. Sliding a path left by 1200 (two whole periods) lands
-        on an identical shape, so the loop has no seam and the visible band is
-        always covered. preserveAspectRatio=none stretches it to any width.
-      */}
+      
       <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
         <path
           class="oct-wave oct-wave--back"
@@ -112,14 +86,11 @@ const motes = MOTES.slice(0, Math.min(count, MOTES.length));
     z-index: 0;
   }
 
-  /* — particles — */
   .oct-mote {
     position: absolute;
     border-radius: 50%;
     opacity: 0;
     background: var(--oct-mote-color);
-    /* The halo is what makes a 5px dot legible against either ground; without
-       it the motes vanish into the page at these opacities. */
     box-shadow: 0 0 12px 2px
       color-mix(in srgb, var(--oct-mote-color) 55%, transparent);
     animation-name: oct-rise;
@@ -147,7 +118,6 @@ const motes = MOTES.slice(0, Math.min(count, MOTES.length));
     }
   }
 
-  /* — waves — */
   .oct-motion--waves {
     inset: auto 0 0 0;
     height: 140px;
@@ -181,8 +151,6 @@ const motes = MOTES.slice(0, Math.min(count, MOTES.length));
     animation-duration: 33s;
   }
 
-  /* 1200 user units = two full periods of the crest, so the end state is
-     pixel-identical to the start. Units are viewBox units here, not CSS px. */
   @keyframes oct-swell {
     from {
       transform: translateX(0);

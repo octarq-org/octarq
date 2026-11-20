@@ -2,8 +2,6 @@ import { forwardRef, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "../cn";
 
-// StatCard is the dashboard metric tile: a value with an optional delta and
-// icon, animated in on mount (staggered by `index`) and optionally clickable.
 export interface StatCardProps {
   label: string;
   value: string | number;

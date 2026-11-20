@@ -1,7 +1,3 @@
-/**
- * Sync key `ui-pm-tab` (sessionStorage) is shared with the
- * `<nb-pm-restore>` early-paint element to avoid flash across navigations.
- */
 
 import { mount, initTabs } from "@cloudflare/nimbus-docs/client";
 

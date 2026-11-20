@@ -1,4 +1,3 @@
-// The nsgo embed surface: <NsgoMount /> and the loader cache behind it.
 export { NsgoMount, useNsgoBridge } from "./NsgoMount";
 export type { NsgoMountHandle, NsgoMountProps, NsgoMountStatus, NsgoBridge } from "./NsgoMount";
 export {

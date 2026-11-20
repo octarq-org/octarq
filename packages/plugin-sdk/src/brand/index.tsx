@@ -1,21 +1,8 @@
-// @octarq/plugin-sdk/brand — the brand-name context.
-//
-// The product name is a host-app runtime setting (fetched from the server). The
-// SDK only needs to *read* it (e.g. LockedFeature's upsell copy), so it exposes
-// a tiny context the app populates via <BrandProvider name={…}>. Plugins call
-// useAppName() and get the operator's brand without importing anything
-// app-internal. Defaults to "octarq" when no provider is mounted.
 import { createContext, useContext, ReactNode, CSSProperties } from "react";
 
 const FALLBACK = "octarq";
 const Ctx = createContext<string>(FALLBACK);
 
-// The host's "re-read the brand from the server and re-apply it" callback. The
-// SDK cannot own this: the fetch, the module-level cache and the CSS seeds all
-// live in the app. A plugin that CHANGES the branding (the white-label editor)
-// needs to tell the shell to catch up, otherwise its own save leaves every other
-// surface — sidebar mark, page title, accent colours — showing the old brand
-// until a manual reload. No-op when the host mounts no provider.
 const RefreshCtx = createContext<() => void>(() => {});
 
 export function BrandProvider({
@@ -34,23 +21,18 @@ export function BrandProvider({
   );
 }
 
-// useBrandRefresh returns a callback that re-reads the operator's branding and
-// re-applies it across the shell. Call it after saving a branding change.
 export function useBrandRefresh(): () => void {
   return useContext(RefreshCtx);
 }
 
-// useAppName returns the operator's product name (or "octarq" if unset).
 export function useAppName(): string {
   return useContext(Ctx);
 }
 
-// brandInitial is the single-character logo glyph derived from the app name.
 export function brandInitial(name: string): string {
   return (name.trim()[0] || "O").toUpperCase();
 }
 
-// ARCH_PATH is the SVG path string for the Keystone Arch glyph.
 export const ARCH_PATH =
   "M10,26 C10,13.8 19.8,4 32,4 C44.2,4 54,13.8 54,26 V56 H42 V28 C42,23.6 37.6,20 32,20 C26.4,20 22,23.6 22,28 V56 H10 V26 Z M26,33 H38 V46 H26 V33 Z";
 
@@ -90,10 +72,6 @@ export interface BrandGlyphProps {
   style?: CSSProperties;
 }
 
-// BrandGlyph renders the brand mark following three-tier logic:
-//   1. White-label logo URL if provided
-//   2. Keystone Arch glyph if name is default "octarq"
-//   3. First-letter gradient box if name has been renamed
 export function BrandGlyph({
   appName,
   logoUrl,

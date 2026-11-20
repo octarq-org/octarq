@@ -3,9 +3,6 @@ import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 import { Button } from "./button";
 
-// Pagination bar for a table. Moved here from the host app's pro-table; it
-// depends on nothing tanstack — only the fields it actually reads are part of
-// the config type, so it carries none of that grid's weight.
 export interface TablePaginationConfig {
   pageSizeOptions?: number[];
   hideOnSinglePage?: boolean;
@@ -42,7 +39,6 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
   const canPrev = page > 1;
   const canNext = page < pageCount;
 
-  // A sliding window of page numbers, kept within bounds at both ends.
   const pages: number[] = [];
   let start = Math.max(1, page - Math.floor(MAX_PAGE_BUTTONS / 2));
   const end = Math.min(pageCount, start + MAX_PAGE_BUTTONS - 1);
@@ -80,8 +76,6 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
           ))}
         </select>
 
-        {/* gap-3 on touch keeps a 44px pitch: a 32px button with a 12px gap
-            leaves its expanded hit area no room to cover its neighbour's. */}
         <div className="flex items-center gap-1 pointer-coarse:gap-3">
           <Button
             size="sm"
@@ -124,7 +118,6 @@ export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
 );
 TablePagination.displayName = "TablePagination";
 
-// Inline so the package stays free of an icon-library dependency.
 function ChevronLeftGlyph({ className }: { className?: string }) {
   return (
     <svg

@@ -8,10 +8,6 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-// Select wraps Base UI's Select primitive — an accessible, keyboard-navigable
-// listbox with a portalled, positioned popup — into a compact `{ value, onValueChange,
-// options }` API carrying octarq's glass theme. For richer composition use Base
-// UI's Select parts directly.
 export interface SelectProps {
   value?: string;
   onValueChange?: (value: string) => void;
@@ -21,8 +17,6 @@ export interface SelectProps {
   className?: string;
   id?: string;
   name?: string;
-  // The trigger is a <button>, which <label for> cannot name, so a visible
-  // sibling label has to be repeated here.
   "aria-label"?: string;
 }
 

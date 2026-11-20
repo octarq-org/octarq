@@ -2,11 +2,6 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
-// Inline status surface. Every tone derives from a --{tone}-* token trio, so a
-// white-label rebrand repaints it and no literal brand hue is ever needed.
-// Moved here from web/src/components/ui/Alert.tsx: it was app-side only, which
-// meant a plugin package could not render it at all and had to approximate one
-// with a Badge.
 export const alertVariants = cva(
   "relative flex w-full items-start gap-3 rounded-lg border p-4 text-[13px] leading-relaxed transition-colors",
   {

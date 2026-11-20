@@ -1,14 +1,6 @@
-// Marketing shortlink configurator with UTM parameter injection
-// Exposes automated campaign link creation over Octarq's declarative shortlink MCP endpoint.
 
 import { success, info } from './utils.mjs';
 
-/**
- * Attaches standard UTM marketing query parameters to any destination URL.
- * @param {string} destination
- * @param {object} utmParams
- * @returns {string}
- */
 export function buildUtmUrl(destination, utmParams = {}) {
   const url = new URL(destination);
   const defaults = {
@@ -26,11 +18,6 @@ export function buildUtmUrl(destination, utmParams = {}) {
   return url.toString();
 }
 
-/**
- * Automates creating a trackable branded shortlink via MCP.
- * @param {import('./mcp-client.mjs').OctarqMCPClient} mcpClient
- * @param {object} options
- */
 export async function createMarketingShortlink(mcpClient, options = {}) {
   const destination = options.destination || 'https://solopreneur.dev/launch';
   const slug = options.slug || 'launch';
@@ -53,7 +40,6 @@ export async function createMarketingShortlink(mcpClient, options = {}) {
   const shortUrl = createResult.shortUrl || `https://${host}/${slug}`;
   success(`Branded Shortlink Created: ${shortUrl} -> ${taggedTarget}`);
 
-  // Verification step: verify link presence via list_links tool
   const linksList = await mcpClient.callTool('list_links', { host });
   const found = (linksList || []).find((l) => l.slug === slug && l.host === host);
 

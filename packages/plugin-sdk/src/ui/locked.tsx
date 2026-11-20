@@ -3,29 +3,21 @@ import { cn } from "./cn";
 import { useTranslation } from "../i18n";
 import { ProPill, Button, TIER_LABEL } from "./primitives";
 
-// The gated-state UI: LockedFeature (the upsell mask for 402 unlicensed / 404
-// plugin-not-in-this-build) and LockedFallback (a one-liner convenience with a
-// default icon). Moved into the published package — driven by the SDK's own
-// i18n + brand context and primitives — so an independent plugin can render the
-// locked state without reaching into the host app.
 export interface LockedFeatureProps {
-  status: number; // 402 (unlicensed) or 404 (plugin not in this build) → upsell
+  status: number;
   tier?: "pro" | "elite";
-  feature: string; // e.g. "VPS Infrastructure"
-  description?: string; // one line on what the feature does
-  perks?: string[]; // what unlocking grants
-  icon?: ReactNode; // icon node from the caller (keeps the package icon-lib-free)
-  pricingHref?: string; // optional "compare plans" link to the landing page
-  upgradeHref?: string; // optional explicit target URL for upgrading
-  onUpgrade?: () => void; // optional custom upgrade action handler
+  feature: string;
+  description?: string;
+  perks?: string[];
+  icon?: ReactNode;
+  pricingHref?: string;
+  upgradeHref?: string;
+  onUpgrade?: () => void;
   className?: string;
 }
 
 export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
   ({ status, tier = "pro", feature, description, perks, icon, pricingHref, upgradeHref, onUpgrade, className }, ref) => {
-    // Both "unlicensed" (402) and "not built into this installation" (404) are
-    // gated Pro states — show one unified upsell mask. Only genuinely unexpected
-    // failures fall through to the neutral message.
     const locked = status === 402 || status === 404;
     const label = TIER_LABEL[tier];
     const { t } = useTranslation();
@@ -116,10 +108,6 @@ export interface LockedFallbackProps {
   className?: string;
 }
 
-// LockedFallback is the convenience the frontend plugin contract points at
-// (UIPlugin.lockedFallback): a LockedFeature preset with a default key icon so a
-// plugin page can degrade in one line — <LockedFallback status={err.status}
-// feature="…" />.
 export const LockedFallback = forwardRef<HTMLDivElement, LockedFallbackProps>(
   ({ status, feature, description, perks, tier = "pro", pricingHref, className }, ref) => (
     <LockedFeature
@@ -136,8 +124,6 @@ export const LockedFallback = forwardRef<HTMLDivElement, LockedFallbackProps>(
 );
 LockedFallback.displayName = "LockedFallback";
 
-// A small inline key glyph — keeps the package free of an icon-library dep while
-// still giving the locked state a sensible default visual.
 function DefaultLockIcon() {
   return (
     <svg

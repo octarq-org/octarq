@@ -6,12 +6,9 @@ import { NsgoMount, type NsgoMountHandle } from "./NsgoMount";
 import type { NsgoPlayer } from "./loader";
 import { I18nProvider } from "../i18n";
 
-// The component reads the host's translations for its fail-closed message.
 const render = (ui: React.ReactElement) =>
   rtlRender(ui, { wrapper: ({ children }) => <I18nProvider>{children}</I18nProvider> });
 
-// The loader is stubbed: these tests are about the React contract (startup
-// options, host answers, prop sync, failure), not about compiling wasm.
 const loadApp = vi.fn();
 vi.mock("./loader", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./loader")>();
@@ -32,7 +29,6 @@ function fakeLoader(mountError?: Error) {
     mount: vi.fn(async (element: HTMLElement | null, url: string | null, options: Record<string, unknown>) => {
       mounted.push({ element, url, options });
       if (mountError) throw mountError;
-      // The app owns the element once it runs.
       element?.appendChild(document.createElement("canvas"));
       return player;
     }),
@@ -69,7 +65,6 @@ describe("NsgoMount", () => {
     expect(mounted[0].options.params).toEqual({ orgId: 7, embedded: true });
     expect(mounted[0].options.appearance).toBe("dark");
     expect(mounted[0].options.locale).toBe("zh-Hans");
-    // The compiled module is handed over, so the loader does not compile again.
     expect(mounted[0].options.module).toBeDefined();
     expect(mounted[0].element?.querySelector("canvas")).not.toBeNull();
   });
@@ -111,7 +106,6 @@ describe("NsgoMount", () => {
     rerender(<NsgoMount src="/console/nsgo.json" appearance="dark" locale="ja" />);
     await waitFor(() => expect(player.setAppearance).toHaveBeenLastCalledWith("dark"));
     expect(player.setLocale).toHaveBeenLastCalledWith("ja");
-    // A prop change must not restart the app.
     expect(mounted).toHaveLength(1);
   });
 

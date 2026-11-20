@@ -30,8 +30,7 @@ type templateData struct {
 	Description string
 }
 
-const pluginGoTmpl = `// Package {{.PackageName}} implements the {{.Name}} plugin for Octarq.
-package {{.PackageName}}
+const pluginGoTmpl = `package {{.PackageName}}
 
 import (
 	"encoding/json"
@@ -41,19 +40,15 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-// Plugin is the exported unit a host wires up with app.App.Use({{.PackageName}}.Plugin{}).
 type Plugin struct{}
 
-// Compile-time assertions that Plugin satisfies the contracts it claims.
 var (
 	_ plugin.Plugin    = Plugin{}
 	_ plugin.Describer = Plugin{}
 )
 
-// Name is the stable identifier — matches the frontend UIPlugin's name.
 func (Plugin) Name() string { return "{{.Name}}" }
 
-// Describe provides plugin metadata.
 func (Plugin) Describe() plugin.Info {
 	return plugin.Info{
 		Title:            "{{.Title}}",
@@ -62,10 +57,8 @@ func (Plugin) Describe() plugin.Info {
 	}
 }
 
-// Models returns the GORM models this plugin owns.
 func (Plugin) Models() []any { return nil }
 
-// Mount registers the plugin's HTTP routes on the shared API mux.
 func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	mux.Handle("GET /api/{{.Name}}/ping", ctx.Guard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

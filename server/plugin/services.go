@@ -92,7 +92,6 @@ type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)
 
 type MCPExporter func(ctx context.Context, orgID uint) (any, error)
 
-// export URL generator is registered (contract type ExportSignedURLFunc).
 const ServiceExportSignedURL = "export.signed_url"
 
 type ExportSignedURLFunc func(orgID uint) (string, error)

@@ -3,10 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { I18nProvider } from "../../i18n";
 import { FormError, formErrorMessage, formErrorStatusKeys } from "./form-error";
 
-// The t() shim mirrors the SDK TFunc shape without touching real dictionaries.
 const t = (key: string) => `t:${key}`;
 
-// Minimal host-supplied dictionary: the uiCommon.* keys FormError resolves.
 const resources = {
   en: {
     uiCommon: {

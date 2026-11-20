@@ -19,7 +19,6 @@ mount("[data-dialog]", (root) => {
     observer.disconnect();
     dialog.removeEventListener("close", onClose);
     dialog.removeEventListener("click", onBackdrop);
-    // A swap while open never fires `close`; balance the scroll lock.
     if (dialog.open) unlockScroll();
   };
 });

@@ -1,4 +1,3 @@
-// The `data` barrel: the plugin HTTP surface and the hooks over it.
 export {
   ApiError,
   req,

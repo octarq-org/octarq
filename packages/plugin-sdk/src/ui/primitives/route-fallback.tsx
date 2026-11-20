@@ -1,11 +1,6 @@
 import { forwardRef } from "react";
 import { cn } from "../cn";
 
-// Fallback spinner while a lazily-loaded route chunk is fetched. Moved here from
-// web/src/components/ui/RouteFallback.tsx so the shell's lazy boundaries and a
-// plugin's own <Suspense> boundary render the same loading state — a plugin page
-// must not white-screen while its chunk loads just because its Suspense boundary
-// is closer than the shell's.
 export interface RouteFallbackProps {
   className?: string;
 }

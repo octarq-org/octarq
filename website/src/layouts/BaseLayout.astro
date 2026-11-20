@@ -27,12 +27,6 @@ const {
 } = Astro.props;
 
 const lang = config.locale ?? "en";
-// Per-page agent-index pointer. For pages in non-primary or version
-// collections, this resolves to `/<prefix>/llms.txt` (e.g. `/v0/llms.txt`
-// for a v0 docs page, `/blog/llms.txt` for a blog post). Falls back to
-// the root `/llms.txt` when no collection is provided.
-// Hidden-version pages don't advertise an agent index (the per-version
-// llms.txt isn't emitted for them); suppress the AgentDirective entirely.
 const versionStatus = collection ? await getVersionStatus(collection) : null;
 const isHiddenVersion = versionStatus?.isHidden === true;
 const llmsIndexPath = collection

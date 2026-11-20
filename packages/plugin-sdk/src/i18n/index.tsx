@@ -1,12 +1,3 @@
-// @octarq/plugin-sdk/i18n — the self-contained i18n surface.
-//
-// The SDK owns the i18n *mechanism* (context, provider, lookup, interpolation);
-// the host app owns the *content*. The app mounts <I18nProvider resources={…}>
-// feeding its merged shell/page translations, and the SDK folds in every
-// composed plugin's namespace (UIPlugin.i18n via uiPluginI18n()) on top. Plugin
-// pages then call useTranslation() from the SDK and read the same context —
-// which is what lets a plugin ship as an independent package without importing
-// anything app-internal.
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { uiPluginI18n, uiPluginSharedI18n } from "../contract";
 
@@ -20,8 +11,6 @@ export const LANGS: { code: Lang; label: string }[] = [
   { code: "ja", label: "日本語" },
 ];
 
-// A per-language resource dictionary (nested namespaces of strings).
-// Partial allows plugins/hosts to supply translations for a subset of supported languages.
 export type Resources = Partial<Record<Lang, Record<string, unknown>>>;
 
 export function detectLang(): Lang {
@@ -29,7 +18,6 @@ export function detectLang(): Lang {
     const saved = localStorage.getItem("lang");
     if (saved === "en" || saved === "zh" || saved === "es" || saved === "pt" || saved === "ja") return saved as Lang;
   } catch {
-    /* ignore */
   }
   const nav = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
   if (nav.startsWith("zh")) return "zh";
@@ -39,9 +27,6 @@ export function detectLang(): Lang {
   return "en";
 }
 
-// Deep-merge `top` over `base` (returns a new object): objects merge
-// recursively, `top` wins on leaf conflicts. Used to layer core resources over
-// plugin `_shared` contributions.
 function overlay(
   base: Record<string, unknown>,
   top: Record<string, unknown>,
@@ -57,7 +42,6 @@ function overlay(
   return out;
 }
 
-// Walk a nested resource object by a dotted key path (e.g. "nav.areas.commerce").
 function lookup(dict: Record<string, unknown>, key: string): string | undefined {
   let cur: unknown = dict;
   for (const seg of key.split(".")) {
@@ -86,9 +70,6 @@ interface I18nCtx {
 
 const Ctx = createContext<I18nCtx | null>(null);
 
-// I18nProvider is mounted by the host app with its own resource dictionaries.
-// The SDK merges composed-plugin namespaces over them at render time (so it is
-// independent of plugin-module eval order).
 export function I18nProvider({ resources = {}, children }: { resources?: Resources; children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(detectLang);
 
@@ -96,16 +77,12 @@ export function I18nProvider({ resources = {}, children }: { resources?: Resourc
     try {
       localStorage.setItem("lang", lang);
     } catch {
-      /* ignore */
     }
     document.documentElement.lang = lang;
   }, [lang]);
 
   const value = useMemo<I18nCtx>(() => {
     const pluginNs = uiPluginI18n();
-    // Layering, lowest first: plugin `_shared` contributions, then the host
-    // app's resources (core copy wins on conflicts), then each plugin's own
-    // `<name>.*` namespace (distinct keys — never collides with the above).
     const shared = uiPluginSharedI18n();
 
     const buildLangDict = (l: Lang): Record<string, unknown> => {
@@ -123,7 +100,6 @@ export function I18nProvider({ resources = {}, children }: { resources?: Resourc
       ja: buildLangDict("ja"),
     };
 
-    // t(key), t(key, fallback), t(key, vars), or t(key, fallback, vars).
     const t: TFunc = (key, fallbackOrVars, vars) => {
       let fallback: string | undefined;
       let interp = vars;
@@ -135,7 +111,6 @@ export function I18nProvider({ resources = {}, children }: { resources?: Resourc
       return interpolate(hit, interp);
     };
     return { lang, setLang: setLangState, t };
-    // resources is a stable module-level object on the host side; re-run on lang.
   }, [lang, resources]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -147,7 +122,6 @@ export function useI18n(): I18nCtx {
   return ctx;
 }
 
-// Convenience hook mirroring react-i18next's shape for ergonomics.
 export function useTranslation(): { t: TFunc; lang: Lang; setLang: (l: Lang) => void } {
   return useI18n();
 }

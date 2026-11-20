@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Step 2: Auto-configure Subdomain & Marketing Shortlink with UTM Tags over Octarq MCP
 
 import { OctarqMCPClient } from '../src/mcp-client.mjs';
 import { createMarketingShortlink } from '../src/shortlink.mjs';

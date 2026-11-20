@@ -1,14 +1,3 @@
-// The example plugin's frontend entry — the JS half's UIPlugin, mirroring the
-// Go half's plugin.Plugin in hello.go. A host composes it at build time with
-// `registerUIPlugin(helloPlugin)` — in octarq that call is generated into the
-// `#octarq-plugins` module from the plugin manifest (web/octarq.plugins.json,
-// see web/plugins-manifest.ts). Besides routes/menu/i18n a UIPlugin may also
-// contribute dashboard `widgets` (rendered by <ExtensionSlot>, e.g. slot
-// "home-overview") and NEW top-level sidebar `areas` — see the UIPlugin type.
-//
-// In a real distribution this file is the `main`/`exports` of a published npm
-// package (e.g. `@acme/octarq-plugin-hello`) that depends on `@octarq/plugin-sdk` as a
-// peer; the host imports it by name instead of by relative path.
 import { lazy } from "react";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 
@@ -17,17 +6,9 @@ export const helloPlugin: UIPlugin = {
   routes: [
     { path: "/hello", Component: lazy(() => import("./Page")) },
   ],
-  // The instance-console half of plugin.InstanceMenuProvider (hello.go):
-  // the same page shape rendered under the /instance basename instead of
-  // /admin. The console shows this route only when the backend's
-  // /api/instance/menus announces it — the same backend-is-truth rule as the
-  // tenant sidebar.
   instanceRoutes: [
     { path: "/hello", Component: lazy(() => import("./Page")) },
   ],
-  // Sidebar placement comes from the Go half's Menus() (hello.go) alone.
-  //
-  // Shell renders each entry via `nav.<id>` key; falls back to English label from Go source.
   i18n: {
     en: {
       _shared: { nav: { hello: "Hello" } },
@@ -72,6 +53,4 @@ export const helloPlugin: UIPlugin = {
   },
 };
 
-// A plugin package default-exports its UIPlugin (or an array of them), so the
-// manifest can compose it with `import helloPlugin from "@acme/octarq-plugin-hello"`.
 export default helloPlugin;

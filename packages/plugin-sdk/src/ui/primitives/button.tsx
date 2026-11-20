@@ -2,23 +2,6 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
-// The single Button for the whole product — core pages AND plugin packages.
-//
-// One definition, one variant vocabulary. It used to exist twice: this package
-// carried a gradient (indigo→violet) primary, while the app carried a flat one
-// in web/src/components/ui/Button.tsx that the app barrel re-exported in its
-// place. Core pages rendered the flat button, every plugin rendered the
-// gradient one, and `size`/`secondary` existed on only one of them.
-//
-// The FLAT fill won: a gradient cannot follow a white-label rebrand, which
-// overrides only the --primary seed (brand.tsx applyAccents) — a hardcoded
-// gradient end stays indigo on a rebranded instance, exactly the failure the
-// token pipeline exists to prevent. Flat also means the primary action and the
-// accent chrome share one source of truth.
-//
-// Geometry stays token-driven: the control radius is --radius (10px on the
-// host), so the button matches every field and chip next to it, and still works
-// for a consumer that ships its own theme (the Pro portal).
 export const buttonVariants = cva(
   "inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-[var(--radius)] border-0 font-medium tracking-[-0.01em] outline-none transition-colors duration-100 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
   {

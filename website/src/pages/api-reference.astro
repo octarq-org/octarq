@@ -8,12 +8,9 @@ import ApiReferenceExplorer from "../components/api-reference/ApiReferenceExplor
   title="API Reference"
   description="Interactive OpenAPI 3.0 specification and endpoint documentation for Octarq."
 >
-  {/* showSidebar={false}: this page has no docs sidebar, and the Header's
-      mobile menu button exists only to open one. Left at its default it would
-      render a button that opens an empty dialog. */}
+  
   <Header showSidebar={false} />
-  {/* Reserve the full header height (56px track + 1px border-b = --header-height);
-      using 3.5rem alone leaked 1px and scrolled the page. */}
+  
   <main class="flex flex-col h-[calc(100dvh-var(--header-height))]">
     <div class="flex-1 min-h-0">
       <ApiReferenceExplorer />

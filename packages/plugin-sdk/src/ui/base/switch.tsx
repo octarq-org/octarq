@@ -2,13 +2,6 @@ import { forwardRef } from "react";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import { cn } from "../cn";
 
-// Switch is a shadcn-style wrapper over Base UI's accessible Switch primitive
-// (role="switch", keyboard-toggleable, focus-visible ring) carrying octarq's glass
-// theme. Base UI renders this as a <span>, so `inline-flex` is load-bearing:
-// without it the span stays inline, ignores h-5/w-9, and the track never paints.
-//
-// The ref lands on the switch control itself — the element that takes focus and
-// keyboard input.
 export interface SwitchProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;

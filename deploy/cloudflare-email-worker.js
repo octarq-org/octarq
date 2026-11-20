@@ -1,23 +1,5 @@
-/**
- * Cloudflare Email Worker — forwards inbound mail to your octarq instance.
- *
- * Setup:
- *  1. Cloudflare Dashboard → your domain → Email → Email Routing → enable.
- *  2. Workers & Pages → create a Worker, paste this file.
- *  3. Set one variable (Settings → Variables):
- *       OCTARQ_ENDPOINT = your Inbound Webhook URL, copied from octarq
- *                      Settings → Mailboxes. It already contains your org slug
- *                      and secret token in the path, e.g.
- *                      https://your-octarq-host/api/v1/webhook/<orgSlug>/email/inbound/<token>
- *  4. Email Routing → Routes → set a catch-all (or per-address) action to
- *     "Send to a Worker" → this Worker.
- *
- * octarq parses the raw RFC822 message, matches the recipient to a mailbox
- * (or catch-all creates one), and stores it.
- */
 export default {
   async email(message, env, ctx) {
-    // Read the raw message stream into a single ArrayBuffer.
     const reader = message.raw.getReader();
     const chunks = [];
     let total = 0;
@@ -45,7 +27,6 @@ export default {
     });
 
     if (!res.ok) {
-      // Returning an error lets Cloudflare retry / report delivery failure.
       message.setReject(`octarq ingest failed: ${res.status}`);
     }
   },

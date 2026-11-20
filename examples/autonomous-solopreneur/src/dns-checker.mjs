@@ -1,29 +1,11 @@
-// Domain reputation & DNS health checker for Solopreneurs
-// Audits SPF, DKIM, DMARC, and MX records via MCP domain list inspection.
 
 import { colors, success, warn, error, info } from './utils.mjs';
 
-/**
- * Diagnostic result of DNS deliverability check
- * @typedef {object} DnsAuditResult
- * @property {string} domain
- * @property {number} reputationScore (0-100)
- * @property {boolean} readyForMail
- * @property {boolean} readyForLinks
- * @property {object} records
- * @property {string[]} recommendations
- */
 
-/**
- * Performs deep audit on a domain's email reputation & routing readiness.
- * @param {object} domainObj
- * @returns {DnsAuditResult}
- */
 export function auditDomainDNS(domainObj) {
   const domain = domainObj.name;
   const recommendations = [];
 
-  // Standard production records required for uncompromised deliverability
   const records = {
     spf: {
       type: 'TXT',
@@ -91,10 +73,6 @@ export function auditDomainDNS(domainObj) {
   };
 }
 
-/**
- * Pretty prints DNS audit report to terminal
- * @param {DnsAuditResult} audit
- */
 export function printDnsAuditReport(audit) {
   console.log(`\n${colors.bold}Domain Deliverability & DNS Audit:${colors.reset} ${colors.brightCyan}${audit.domain}${colors.reset}`);
   console.log(`Reputation Score: ${audit.reputationScore >= 90 ? colors.brightGreen : colors.yellow}${audit.reputationScore}/100${colors.reset}`);

@@ -16,7 +16,6 @@ describe("Badge", () => {
     expect(glyph).not.toBeNull();
     expect(glyph?.getAttribute("aria-hidden")).toBe("true");
     expect(glyph?.textContent).toBe("●");
-    // glyph must come first, text still present
     expect(badge.childNodes[0]).toBe(glyph);
     expect(badge.textContent).toContain("Status");
   });

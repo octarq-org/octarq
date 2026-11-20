@@ -1,16 +1,3 @@
-/**
- * Per-page `/<slug>/index.mdx` — the raw authored source for every
- * indexable entry of the primary `docs` collection that has a string body.
- *
- * Twin grammar: `index.md` is the downleveled render for reading,
- * `index.mdx` is the source — imports, JSX, and directives intact. The
- * body is served verbatim; only the canonical frontmatter block (shared
- * with the `.md` twin) is framework-shaped.
- *
- * Non-primary collections (`api`, `blog`, …) follow the same sibling-route
- * convention as `index.md.ts`: their `.mdx` alternates live at
- * `pages/<collection>/[...slug]/index.mdx.ts`.
- */
 
 import { getIndexedEntries, type IndexedEntry } from "@cloudflare/nimbus-docs";
 import { config } from "virtual:nimbus/config";
@@ -31,8 +18,6 @@ export async function getStaticPaths() {
         item.collection === PRIMARY_COLLECTION && item.sourceUrl !== undefined,
     )
     .map((item) => ({
-      // Same root-index shape as the `.md` twin: `entry.id === "index"`
-      // emits at `/index.mdx`, everything else at `/<entry.id>/index.mdx`.
       params: {
         slug: item.entry.id === "index" ? undefined : item.entry.id,
       },

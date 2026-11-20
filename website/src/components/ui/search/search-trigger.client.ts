@@ -1,4 +1,3 @@
-/** Sets the platform-correct shortcut hint on the search trigger (⌘ on macOS, Ctrl elsewhere). */
 
 import { mount } from "@cloudflare/nimbus-docs/client";
 

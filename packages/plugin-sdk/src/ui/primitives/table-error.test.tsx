@@ -70,8 +70,6 @@ describe("TableError", () => {
   });
 
   it("falls back to the localized title when a non-Error is rejected", () => {
-    // The title and the message fallback are the same string here, so assert on
-    // the rendered set rather than a single node.
     renderWithI18n(<TableError error={{ unexpected: true }} />);
     expect(screen.getAllByText("Failed to load data").length).toBeGreaterThan(0);
   });

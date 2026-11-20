@@ -12,12 +12,8 @@ import {
   uiWidgets,
 } from "./registry";
 
-// Tests never render these, so a plain marker object is enough. The cast is
-// confined to the fixture helper.
 const page = (marker: string): LazyPage => ({ marker }) as unknown as LazyPage;
 
-// page() builds a fresh object per call, so identity (toBe) can't be used —
-// compare the marker instead.
 const markerOf = (c: unknown): string => (c as { marker: string }).marker;
 
 const plugin = (name: string, rest: Partial<UIPlugin> = {}): UIPlugin => ({
@@ -127,7 +123,7 @@ describe("uiWidgets", () => {
         widgets: [
           { slot: "home", Component: page("third"), order: 5 },
           { slot: "home", Component: page("first"), order: -1 },
-          { slot: "home", Component: page("second") }, // implicit 0
+          { slot: "home", Component: page("second") },
         ],
       }),
     );
@@ -144,7 +140,7 @@ describe("uiWidgets", () => {
       plugin("b", {
         widgets: [
           { slot: "home", Component: page("b1"), order: 1 },
-          { slot: "home", Component: page("b2") }, // 0 — sorts before all the 1s
+          { slot: "home", Component: page("b2") },
         ],
       }),
     );
