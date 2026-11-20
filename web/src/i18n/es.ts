@@ -246,9 +246,6 @@ export const es = {
   vault: {
     title: "Integraciones y Bóveda",
     description: "Administra integraciones de terceros, secretos cifrados, credenciales y tokens de servicio.",
-    scopeLabel: "Alcance",
-    scopeOrg: "Espacio de trabajo",
-    scopeUser: "Uso personal",
     allCollections: "Todas las colecciones",
     collectionLabel: "Colección",
     newCollection: "Nueva colección",

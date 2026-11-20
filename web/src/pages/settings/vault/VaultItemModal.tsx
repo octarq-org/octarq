@@ -38,7 +38,6 @@ interface VaultItemModalProps {
   schemas: VaultCategorySchema[];
   collections: VaultCollection[];
   editingItem?: VaultItemMeta | null;
-  scope?: "org" | "user";
   defaultTab: VaultTab;
   defaultProviderType?: string;
   defaultCollectionSlug?: string;
@@ -83,7 +82,6 @@ export function VaultItemModal({
   schemas,
   collections,
   editingItem,
-  scope = "org",
   defaultTab,
   defaultProviderType,
   defaultCollectionSlug,
@@ -93,9 +91,6 @@ export function VaultItemModal({
 }: VaultItemModalProps) {
   const { t } = useTranslation();
   const isEdit = Boolean(editingItem);
-  const effectiveScope = editingItem?.scope === "user" ? "user" : scope;
-  const isPersonal = effectiveScope === "user";
-
   const editingSchema = useMemo(
     () => (editingItem ? findSchemaForItem(schemas, editingItem) : undefined),
     [schemas, editingItem],
@@ -124,7 +119,6 @@ export function VaultItemModal({
   const [name, setName] = useState(editingItem?.name ?? "");
   const [collectionSlug, setCollectionSlug] = useState(() => {
     if (editingItem) return editingItem.collectionSlug;
-    if (isPersonal) return "default";
     if (defaultCollectionSlug) return defaultCollectionSlug;
     return selectedProvider?.itemType === "integration" ? "integrations" : "default";
   });
@@ -171,15 +165,14 @@ export function VaultItemModal({
   });
   const [busy, setBusy] = useState(false);
 
-  // Sync collection suggestion when switching between integration and secret templates on create.
   useEffect(() => {
-    if (isEdit || isPersonal || defaultCollectionSlug) return;
+    if (isEdit || defaultCollectionSlug) return;
     if (selectedProvider?.itemType === "integration") {
       setCollectionSlug("integrations");
     } else if (selectedProvider) {
       setCollectionSlug("default");
     }
-  }, [isEdit, isPersonal, defaultCollectionSlug, selectedProvider]);
+  }, [isEdit, defaultCollectionSlug, selectedProvider]);
 
   const handleCategoryChange = (nextKey: string) => {
     setCategoryKey(nextKey);
@@ -284,7 +277,7 @@ export function VaultItemModal({
       if (isEdit && editingItem) {
         saved = await api.updateVaultItem(editingItem.id, {
           name: trimmedName,
-          isDefault: !isPersonal && editingItem.providerType ? isDefault : undefined,
+          isDefault: editingItem.providerType ? isDefault : undefined,
           payload: hasPayloadChanges || changeNote.trim() ? payload : undefined,
           changeNote: changeNote.trim() || undefined,
         });
@@ -293,8 +286,7 @@ export function VaultItemModal({
         const providerType = selectedProvider?.providerType;
         const provider = itemType === "integration" || providerType ? selectedProvider?.id : undefined;
         saved = await api.createVaultItem({
-          scope: effectiveScope,
-          collectionSlug: isPersonal ? "default" : collectionSlug,
+          collectionSlug,
           environment,
           folderPath: folderPath.trim() || "/",
           itemType,
@@ -302,7 +294,7 @@ export function VaultItemModal({
           provider,
           keyName: keyName.trim() || undefined,
           name: trimmedName,
-          isDefault: !isPersonal && providerType ? isDefault : false,
+          isDefault: providerType ? isDefault : false,
           payload,
           changeNote: changeNote.trim() || undefined,
         });
@@ -450,17 +442,15 @@ export function VaultItemModal({
         </div>
 
         {!isEdit && (
-          <div className={isPersonal ? "grid grid-cols-1 gap-4 sm:grid-cols-2" : "grid grid-cols-1 gap-4 sm:grid-cols-3"}>
-            {!isPersonal && (
-              <Field label={t("vault.collectionLabel")}>
-                <Select
-                  aria-label={t("vault.collectionLabel")}
-                  value={collectionSlug}
-                  onValueChange={setCollectionSlug}
-                  options={collectionOptions}
-                />
-              </Field>
-            )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label={t("vault.collectionLabel")}>
+              <Select
+                aria-label={t("vault.collectionLabel")}
+                value={collectionSlug}
+                onValueChange={setCollectionSlug}
+                options={collectionOptions}
+              />
+            </Field>
             <Field label={t("vault.environmentLabel")}>
               <Select
                 aria-label={t("vault.environmentLabel")}
@@ -553,7 +543,7 @@ export function VaultItemModal({
           ))}
         </div>
 
-        {!isPersonal && (selectedProvider?.providerType || editingItem?.providerType) && (
+        {(selectedProvider?.providerType || editingItem?.providerType) && (
           <label className="flex cursor-pointer items-center gap-2.5 text-xs text-foreground">
             <Switch
               checked={isDefault}

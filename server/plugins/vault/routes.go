@@ -24,15 +24,12 @@ func (p *Plugin) registerRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	api := ctx.Huma
 
-	// Schema catalog
 	huma.Register(api, huma.Operation{OperationID: "vaultSchemas", Method: http.MethodGet, Path: "/api/vault/schemas", Summary: "List Vault Schemas", Tags: []string{"Vault"}}, p.listSchemas)
 
-	// Collections (Vaults / Projects)
 	huma.Register(api, huma.Operation{OperationID: "vaultCollectionsList", Method: http.MethodGet, Path: "/api/vault/collections", Summary: "List Vault Collections", Tags: []string{"Vault"}}, p.listCollections)
 	huma.Register(api, huma.Operation{OperationID: "vaultCollectionsCreate", Method: http.MethodPost, Path: "/api/vault/collections", Summary: "Create Vault Collection", Tags: []string{"Vault"}, DefaultStatus: http.StatusCreated}, p.createCollection)
 	huma.Register(api, huma.Operation{OperationID: "vaultCollectionsDelete", Method: http.MethodDelete, Path: "/api/vault/collections/{id}", Summary: "Delete Vault Collection", Tags: []string{"Vault"}}, p.deleteCollection)
 
-	// Items CRUD & Secret Operations
 	huma.Register(api, huma.Operation{OperationID: "vaultItemsList", Method: http.MethodGet, Path: "/api/vault/items", Summary: "List Vault Items", Tags: []string{"Vault"}}, p.listItems)
 	huma.Register(api, huma.Operation{OperationID: "vaultItemsCreate", Method: http.MethodPost, Path: "/api/vault/items", Summary: "Create Vault Item", Tags: []string{"Vault"}, DefaultStatus: http.StatusCreated}, p.createItem)
 	huma.Register(api, huma.Operation{OperationID: "vaultItemsGet", Method: http.MethodGet, Path: "/api/vault/items/{id}", Summary: "Get Vault Item Metadata", Tags: []string{"Vault"}}, p.getItem)
@@ -45,16 +42,13 @@ func (p *Plugin) registerRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	huma.Register(api, huma.Operation{OperationID: "vaultItemsTest", Method: http.MethodPost, Path: "/api/vault/items/{id}/test", Summary: "Test Integration or Credential", Tags: []string{"Vault"}}, p.testItem)
 	huma.Register(api, huma.Operation{OperationID: "vaultItemsTOTP", Method: http.MethodGet, Path: "/api/vault/items/{id}/totp", Summary: "Compute Live TOTP Code", Tags: []string{"Vault"}}, p.getItemTOTP)
 
-	// Bulk .env / JSON Import & Export
 	huma.Register(api, huma.Operation{OperationID: "vaultImport", Method: http.MethodPost, Path: "/api/vault/import", Summary: "Bulk Import Secrets", Tags: []string{"Vault"}}, p.importSecrets)
 	huma.Register(api, huma.Operation{OperationID: "vaultExport", Method: http.MethodGet, Path: "/api/vault/export", Summary: "Export Secrets", Tags: []string{"Vault"}}, p.exportSecrets)
 
-	// Scoped Machine Service Tokens
 	huma.Register(api, huma.Operation{OperationID: "vaultTokensList", Method: http.MethodGet, Path: "/api/vault/tokens", Summary: "List Service Tokens", Tags: []string{"Vault"}}, p.listServiceTokens)
 	huma.Register(api, huma.Operation{OperationID: "vaultTokensCreate", Method: http.MethodPost, Path: "/api/vault/tokens", Summary: "Create Service Token", Tags: []string{"Vault"}, DefaultStatus: http.StatusCreated}, p.createServiceToken)
 	huma.Register(api, huma.Operation{OperationID: "vaultTokensRevoke", Method: http.MethodDelete, Path: "/api/vault/tokens/{id}", Summary: "Revoke Service Token", Tags: []string{"Vault"}}, p.revokeServiceToken)
 
-	// Instance-Admin System Vault (org_id = 0, scope = instance)
 	huma.Register(api, huma.Operation{OperationID: "instanceVaultList", Method: http.MethodGet, Path: "/api/instance/vault/items", Summary: "List Instance Secrets", Tags: []string{"Instance Vault"}}, p.listInstanceItems)
 	huma.Register(api, huma.Operation{OperationID: "instanceVaultPut", Method: http.MethodPost, Path: "/api/instance/vault/items", Summary: "Upsert Instance Secret", Tags: []string{"Instance Vault"}}, p.putInstanceItem)
 	huma.Register(api, huma.Operation{OperationID: "instanceVaultReveal", Method: http.MethodPost, Path: "/api/instance/vault/items/{id}/reveal", Summary: "Reveal Instance Secret", Tags: []string{"Instance Vault"}}, p.revealInstanceItem)
@@ -109,8 +103,6 @@ func (p *Plugin) recordAudit(r *http.Request, action, targetType string, targetI
 	}
 }
 
-// --- Schemas ---
-
 type ctxInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -123,8 +115,6 @@ func (p *Plugin) listSchemas(_ context.Context, _ *ctxInput) (*SchemasOutput, er
 	return &SchemasOutput{Body: SchemasCatalog()}, nil
 }
 
-// --- Collections ---
-
 type CollectionsOutput struct{ Body []VaultCollection }
 
 func (p *Plugin) listCollections(ctx context.Context, in *ctxInput) (*CollectionsOutput, error) {
@@ -132,7 +122,6 @@ func (p *Plugin) listCollections(ctx context.Context, in *ctxInput) (*Collection
 	if err != nil {
 		return nil, err
 	}
-	// Ensure baseline collections exist on first visit.
 	_, _ = p.ensureCollection(ctx, orgID, plugin.VaultScopeOrg, "integrations")
 	_, _ = p.ensureCollection(ctx, orgID, plugin.VaultScopeOrg, "default")
 
@@ -227,8 +216,6 @@ func (p *Plugin) deleteCollection(ctx context.Context, in *IDPathInput) (*OKOutp
 	return out, nil
 }
 
-// --- Items ---
-
 type ListItemsInput struct {
 	Collection   string       `query:"collection"`
 	Environment  string       `query:"environment"`
@@ -246,19 +233,15 @@ func (i *ListItemsInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; return
 type ItemsOutput struct{ Body []plugin.VaultItemMeta }
 
 func (p *Plugin) listItems(ctx context.Context, in *ListItemsInput) (*ItemsOutput, error) {
-	_, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
+	_, orgID, _, err := p.callerOrg(in.Ctx, "vault.item.read", "member")
 	if err != nil {
 		return nil, err
 	}
-	scope := plugin.VaultScopeOrg
-	if strings.EqualFold(in.Scope, string(plugin.VaultScopeUser)) {
-		scope = plugin.VaultScopeUser
-	} else if in.Scope != "" && !strings.EqualFold(in.Scope, string(plugin.VaultScopeOrg)) {
+	if in.Scope != "" && !strings.EqualFold(in.Scope, string(plugin.VaultScopeOrg)) {
 		return nil, huma.Error400BadRequest("Invalid vault scope.")
 	}
 	items, err := p.ListItems(ctx, orgID, plugin.VaultFilter{
-		Scope:          scope,
-		OwnerUserID:    uid,
+		Scope:          plugin.VaultScopeOrg,
 		CollectionSlug: in.Collection,
 		Environment:    in.Environment,
 		FolderPath:     in.FolderPath,
@@ -301,35 +284,17 @@ type ItemOutput struct{ Body plugin.VaultItemMeta }
 
 func (p *Plugin) createItem(ctx context.Context, in *CreateItemInput) (*ItemOutput, error) {
 	b := in.Body
-	isPersonal := strings.EqualFold(b.Scope, string(plugin.VaultScopeUser))
-	minRole := "admin"
-	if isPersonal {
-		minRole = "member"
-	}
-	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.create", minRole)
+	r, orgID, uid, err := p.callerOrg(in.Ctx, "vault.item.create", "admin")
 	if err != nil {
 		return nil, err
 	}
-	if b.Scope != "" && !isPersonal && !strings.EqualFold(b.Scope, string(plugin.VaultScopeOrg)) {
+	if b.Scope != "" && !strings.EqualFold(b.Scope, string(plugin.VaultScopeOrg)) {
 		return nil, huma.Error400BadRequest("Invalid vault scope.")
-	}
-	scope := plugin.VaultScopeOrg
-	var ownerUID uint
-	colSlug := b.CollectionSlug
-	isDefault := b.IsDefault
-	if isPersonal {
-		scope = plugin.VaultScopeUser
-		ownerUID = uid
-		if strings.TrimSpace(colSlug) == "" {
-			colSlug = "default"
-		}
-		isDefault = false
 	}
 	meta, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:                orgID,
-		Scope:                scope,
-		OwnerUserID:          ownerUID,
-		CollectionSlug:       colSlug,
+		Scope:                plugin.VaultScopeOrg,
+		CollectionSlug:       b.CollectionSlug,
 		Environment:          b.Environment,
 		FolderPath:           b.FolderPath,
 		ItemType:             b.ItemType,
@@ -338,7 +303,7 @@ func (p *Plugin) createItem(ctx context.Context, in *CreateItemInput) (*ItemOutp
 		KeyName:              b.KeyName,
 		Name:                 b.Name,
 		Tags:                 b.Tags,
-		IsDefault:            isDefault,
+		IsDefault:            b.IsDefault,
 		Metadata:             b.Metadata,
 		Payload:              b.Payload,
 		ChangeNote:           b.ChangeNote,
@@ -367,11 +332,8 @@ func (p *Plugin) loadAndAuthorizeItemAccess(ctx context.Context, humaCtx huma.Co
 		}
 		return nil, 0, 0, nil, huma.Error500InternalServerError("Failed to read vault item.")
 	}
-	if meta.Scope == plugin.VaultScopeUser {
-		if meta.OwnerUserID != uid {
-			return nil, 0, 0, nil, huma.Error404NotFound("Vault item not found.")
-		}
-		return r, orgID, uid, meta, nil
+	if meta.Scope != plugin.VaultScopeOrg {
+		return nil, 0, 0, nil, huma.Error404NotFound("Vault item not found.")
 	}
 	if !p.host.Session().RequirePerm(r, permKey, orgMinRole) {
 		return nil, 0, 0, nil, huma.Error403Forbidden("Insufficient workspace permissions.")
@@ -402,18 +364,11 @@ type UpdateItemInput struct {
 func (i *UpdateItemInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; return nil }
 
 func (p *Plugin) updateItem(ctx context.Context, in *UpdateItemInput) (*ItemOutput, error) {
-	r, orgID, uid, existing, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
+	r, orgID, uid, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
 	if err != nil {
 		return nil, err
 	}
-	isDefault := in.Body.IsDefault
-	if existing.Scope == plugin.VaultScopeUser {
-		if isDefault != nil && *isDefault {
-			return nil, huma.Error400BadRequest("Default integrations are only supported for workspace scope.")
-		}
-		isDefault = nil
-	}
-	meta, err := p.UpdateSecret(ctx, orgID, in.ID, in.Body.Name, in.Body.Metadata, in.Body.Payload, isDefault, in.Body.ChangeNote, uid)
+	meta, err := p.UpdateSecret(ctx, orgID, in.ID, in.Body.Name, in.Body.Metadata, in.Body.Payload, in.Body.IsDefault, in.Body.ChangeNote, uid)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
@@ -511,12 +466,9 @@ func (p *Plugin) rollbackItem(ctx context.Context, in *RollbackInput) (*ItemOutp
 }
 
 func (p *Plugin) setDefaultItem(ctx context.Context, in *IDPathInput) (*ItemOutput, error) {
-	r, orgID, uid, existing, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
+	r, orgID, uid, _, err := p.loadAndAuthorizeItemAccess(ctx, in.Ctx, "vault.item.update", "admin", in.ID)
 	if err != nil {
 		return nil, err
-	}
-	if existing.Scope == plugin.VaultScopeUser {
-		return nil, huma.Error400BadRequest("Default integrations are only supported for workspace scope.")
 	}
 	isDef := true
 	meta, err := p.UpdateSecret(ctx, orgID, in.ID, nil, nil, nil, &isDef, "", uid)
@@ -575,15 +527,13 @@ func (p *Plugin) getItemTOTP(ctx context.Context, in *IDPathInput) (*TOTPOutput,
 	return out, nil
 }
 
-// --- Bulk .env / JSON Import & Export ---
-
 type ImportSecretsInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body struct {
 		CollectionSlug string         `json:"collectionSlug,omitempty"`
 		Environment    string         `json:"environment,omitempty"`
 		FolderPath     string         `json:"folderPath,omitempty"`
-		Format         string         `json:"format"` // env, json
+		Format         string         `json:"format"`
 		DotEnv         string         `json:"dotEnv,omitempty"`
 		JSONItems      map[string]any `json:"jsonItems,omitempty"`
 	}
@@ -667,7 +617,7 @@ func (p *Plugin) importSecrets(ctx context.Context, in *ImportSecretsInput) (*Im
 type ExportSecretsInput struct {
 	Collection  string       `query:"collection"`
 	Environment string       `query:"environment"`
-	Format      string       `query:"format"` // env, json
+	Format      string       `query:"format"`
 	Ctx         huma.Context `hidden:"true"`
 }
 
@@ -731,8 +681,6 @@ func (p *Plugin) exportSecrets(ctx context.Context, in *ExportSecretsInput) (*Ex
 	}
 	return out, nil
 }
-
-// --- Service Tokens ---
 
 type ServiceTokensOutput struct{ Body []VaultServiceToken }
 
@@ -889,8 +837,6 @@ func (p *Plugin) handleServiceTokenPull(w http.ResponseWriter, r *http.Request) 
 		"secrets":     kv,
 	})
 }
-
-// --- Instance-Admin System Vault ---
 
 func (p *Plugin) listInstanceItems(ctx context.Context, in *ctxInput) (*ItemsOutput, error) {
 	if _, _, err := p.callerInstanceAdmin(in.Ctx); err != nil {

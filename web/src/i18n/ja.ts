@@ -246,9 +246,6 @@ export const ja = {
   vault: {
     title: "連携とボールト",
     description: "外部連携、暗号化シークレット、認証情報、サービストークンを一元管理します。",
-    scopeLabel: "スコープ",
-    scopeOrg: "ワークスペース",
-    scopeUser: "個人",
     allCollections: "すべてのコレクション",
     collectionLabel: "コレクション",
     newCollection: "新規コレクション",

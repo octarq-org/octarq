@@ -78,8 +78,6 @@ func (p *Plugin) shredItemKey(orgID uint, secretID string) error {
 	return c.ShredSubjectKey(orgID, itemSubject(secretID))
 }
 
-// HasEncryptedData reports whether any vault version ciphertext exists, so boot
-// stops when a fresh envelope DEK would orphan existing secrets.
 func (p *Plugin) HasEncryptedData() (bool, error) {
 	if p.db == nil {
 		return false, nil
@@ -94,16 +92,11 @@ func (p *Plugin) HasEncryptedData() (bool, error) {
 	return count > 0, nil
 }
 
-// Validate enforces fail-closed startup invariants: the cryptographic vault must
-// be present, and every existing encrypted item must still have its wrapped subject DEK.
 func (p *Plugin) Validate(ctx context.Context, host plugin.Host) error {
-	if host != nil {
-		p.host = host
+	if host == nil || host.Crypto() == nil {
+		return errors.New("vault: cryptographic subsystem unavailable")
 	}
-	c, err := p.requireCrypto()
-	if err != nil {
-		return err
-	}
+	c := host.Crypto()
 	if p.db == nil || !p.db.Migrator().HasTable(&VaultItem{}) {
 		return nil
 	}
