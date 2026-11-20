@@ -222,7 +222,6 @@ describe("ProTable Component", () => {
       expect(screen.getByText("Network Error")).toBeDefined();
     });
 
-    // Click retry button
     const retryBtn = screen.getByRole("button", { name: /重试|Retry/i });
     fireEvent.click(retryBtn);
 
@@ -261,7 +260,6 @@ describe("ProTable Component", () => {
       expect(screen.getByText("User Page 1")).toBeDefined();
     });
 
-    // Click page 2
     const page2Btn = screen.getByRole("button", { name: "2" });
     fireEvent.click(page2Btn);
 
@@ -295,11 +293,9 @@ describe("ProTable Component", () => {
       expect(screen.getByText("User 1")).toBeDefined();
     });
 
-    // Type in name search input
     const nameInput = screen.getByPlaceholderText(/Name/i) as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: "   Alice   " } });
 
-    // Click search button
     const searchBtn = screen.getByRole("button", { name: /查询|Search/i });
     fireEvent.click(searchBtn);
 
@@ -311,7 +307,6 @@ describe("ProTable Component", () => {
       );
     });
 
-    // Click reset button
     const resetBtn = screen.getByRole("button", { name: /重置|Reset/i });
     fireEvent.click(resetBtn);
 
@@ -351,13 +346,11 @@ describe("ProTable Component", () => {
       expect(actionRefInstance).toBeDefined();
     });
 
-    // Call reload through actionRef
     actionRefInstance!.reload();
     await waitFor(() => {
       expect(request).toHaveBeenCalledTimes(2);
     });
 
-    // Call setPage through actionRef
     actionRefInstance!.setPage(3);
     await waitFor(() => {
       expect(request).toHaveBeenLastCalledWith(

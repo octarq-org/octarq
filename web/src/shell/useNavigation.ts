@@ -9,7 +9,6 @@ import { NavigationTree } from "./NavigationTree";
 import { visibleActions } from "./globalActions";
 import { useShowPersonalArea } from "../prefs";
 
-// Cache last api.menus()/api.plugins() response for instant first paint; replaced when live data arrives.
 export const NAV_CACHE_KEY = "octarq:nav-cache:v1";
 
 export interface CachedNav {
@@ -40,7 +39,6 @@ export function writeCachedNav(nav: CachedNav) {
   try {
     localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(nav));
   } catch {
-    /* quota or private mode — the cache is optional, the fetch is not */
   }
 }
 
@@ -48,7 +46,6 @@ export function clearCachedNav() {
   try {
     localStorage.removeItem(NAV_CACHE_KEY);
   } catch {
-    /* nothing to do — a stale cache is replaced on the next successful fetch */
   }
 }
 
@@ -78,21 +75,18 @@ export function useNavigation({
   const [helpDocsNav, setHelpDocsNav] = useState<HelpDocMeta[]>([]);
   const [helpCategories, setHelpCategories] = useState<HelpCategory[]>([]);
 
-  // Fetch help documentation categories
   useEffect(() => {
     api.helpCategories()
       .then(setHelpCategories)
       .catch(() => {});
   }, []);
 
-  // Fetch help documentation index for current active workspace and language
   useEffect(() => {
     api.helpIndex(lang)
       .then(setHelpDocsNav)
       .catch(() => {});
   }, [activeOrgId, lang]);
 
-  // Fetch menus, plugins, actions on workspace switch
   const refreshNav = useCallback(() => {
     Promise.all([
       api.menus().catch(() => []),
@@ -112,7 +106,6 @@ export function useNavigation({
     refreshNav();
   }, [activeOrgId, refreshNav]);
 
-  // Listen for dynamic plugin change events
   useEffect(() => {
     const handlePluginsChanged = () => {
       refreshNav();
@@ -123,7 +116,6 @@ export function useNavigation({
     };
   }, [refreshNav]);
 
-  // Build Help area from docs and categories
   const helpArea: Area = useMemo(() => {
     const catDocsMap = new Map<string, HelpDocMeta[]>();
 
@@ -196,7 +188,6 @@ export function useNavigation({
     };
   }, [helpDocsNav, helpCategories, lang, t]);
 
-  // Build the pure NavigationTree domain model
   const tree = useMemo(() => {
     const pluginAreas = uiAreas().filter(
       (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
@@ -222,12 +213,10 @@ export function useNavigation({
     showPersonalArea,
   ]);
 
-  // Visible top-level areas
   const areas = tree.areas;
   const currentSettingsArea = tree.settingsArea;
   const footerItems = tree.footerItems;
 
-  // Active area resolution
   const helpActive = tree.isHelpPath(location.pathname);
   const settingsActive = tree.isSettingsPath(location.pathname);
 
@@ -243,13 +232,11 @@ export function useNavigation({
     ? currentSettingsArea
     : (tree.findArea(activeArea) ?? areas[0] ?? STATIC_AREAS[0]);
 
-  // Filtered global create actions
   const filteredActions = useMemo(
     () => visibleActions(backendNav.actions, role, isInstanceAdmin),
     [backendNav.actions, role, isInstanceAdmin],
   );
 
-  // Plugin gate context value
   const pluginGateCtxValue = useMemo(() => {
     return {
       disabledPlugins: tree.disabledPlugins,
@@ -258,7 +245,6 @@ export function useNavigation({
     };
   }, [tree.disabledPlugins, tree.disabledPaths, backendLoaded]);
 
-  // Navigate when switching areas
   const selectArea = useCallback(
     (id: AreaId) => {
       if (id === "settings") {

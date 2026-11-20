@@ -8,12 +8,6 @@ const __dirname = path.dirname(__filename);
 const webSrc = path.resolve(__dirname, "../src");
 const sdkUi = path.resolve(__dirname, "../../packages/plugin-sdk/src/ui");
 
-// Where app-side UI may live. A component in any of these that re-uses an SDK
-// export name is the bug this guards: `export *` and an explicit named export
-// can coexist, and the explicit one wins — so an app-local Button silently
-// replaced the SDK's Button for every "../ui" importer while plugin packages
-// (which import @octarq/plugin-sdk directly) kept the SDK's. Two different
-// buttons rendered in one product, and nothing failed.
 const APP_UI_DIRS = [
   path.join(webSrc, "components"),
   path.join(webSrc, "ui"),
@@ -40,9 +34,6 @@ function walk(dir) {
   return out;
 }
 
-// Exported names of a module, from every `export` spelling this repo uses.
-// `export * from` contributes nothing statically (it re-exports another
-// module's names, which that module's own file already yields).
 function exportedNames(src) {
   const names = new Set();
   const decl =

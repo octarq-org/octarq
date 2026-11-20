@@ -1,7 +1,3 @@
-/**
- * Invariant #11: P3 pre-API volatility — A2UI kind and payload fields are internal contracts,
- * subject to evolution as AI tool specifications finalize (VOLATILE).
- */
 
 export interface ChartSeries {
   name?: string;

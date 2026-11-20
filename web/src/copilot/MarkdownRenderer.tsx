@@ -9,7 +9,6 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   if (!content) return null;
 
-  // Split by code blocks first
   const parts = content.split(/(```[\s\S]*?```)/g);
 
   return (
@@ -38,7 +37,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           );
         }
 
-        // Regular markdown text paragraphs and lines
         const paragraphs = part.split(/\n\n+/);
         return (
           <React.Fragment key={pIdx}>
@@ -46,7 +44,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
               const trimmed = para.trim();
               if (!trimmed) return null;
 
-              // Blockquote
               if (trimmed.startsWith(">")) {
                 const quoteText = trimmed
                   .split("\n")
@@ -62,7 +59,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 );
               }
 
-              // Bullet list
               if (trimmed.split("\n").every((l) => l.trim().startsWith("- ") || l.trim().startsWith("* "))) {
                 const items = trimmed.split("\n").map((l) => l.trim().replace(/^[-*]\s+/, ""));
                 return (
@@ -74,7 +70,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 );
               }
 
-              // Numbered list
               if (trimmed.split("\n").every((l) => /^\d+\.\s+/.test(l.trim()))) {
                 const items = trimmed.split("\n").map((l) => l.trim().replace(/^\d+\.\s+/, ""));
                 return (
@@ -86,7 +81,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 );
               }
 
-              // Heading
               if (trimmed.startsWith("### ")) {
                 return (
                   <h4 key={pIndex} className="font-semibold text-foreground text-sm pt-1">
@@ -102,7 +96,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 );
               }
 
-              // Standard paragraph with inline line breaks
               const lines = para.split("\n");
               return (
                 <p key={pIndex} className="my-1">
@@ -123,7 +116,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
 }
 
 function renderInline(text: string): React.ReactNode[] {
-  // Parse inline code, bold, links
   const tokens = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
 
   return tokens.map((token, idx) => {

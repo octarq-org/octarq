@@ -25,7 +25,6 @@ export default function TelegramForm() {
           const tgIntegrations = data.filter((item) => item.provider === "telegram");
           setIntegrations(tgIntegrations);
           if (config?.integrationId && tgIntegrations.some((i) => i.id === config.integrationId)) {
-            // Keep existing valid integrationId
           } else if (tgIntegrations.length > 0) {
             updateConfig("integrationId", tgIntegrations[0].id);
           }

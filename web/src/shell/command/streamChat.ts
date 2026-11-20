@@ -1,22 +1,14 @@
 import type { ToolPayload } from "./types";
 
-// ChatFailure describes a refused or failed chat request. The UI branches on
-// code — the server's message is prose and may change.
 export interface ChatFailure {
-  // status is the HTTP status of a refused request; 0 for a mid-stream error.
   status: number;
-  // code is the machine-readable error code, e.g. workforce_budget_exceeded.
   code?: string;
 }
 
-// newChatThreadId names one conversation. The id groups the turns a surface
-// sends; the server scopes the thread to the caller.
 export function newChatThreadId(): string {
   return withRandom("thread");
 }
 
-// newChatRunId names one turn. A retried turn reuses the id, and the server
-// charges it once.
 export function newChatRunId(): string {
   return withRandom("run");
 }
@@ -49,12 +41,8 @@ export async function streamChatResponse({
   onDone,
 }: {
   messages: Array<{ role: string; content: string }>;
-  // threadId groups the turns of one conversation; runId names this turn and
-  // is the server's billing idempotency key.
   threadId?: string;
   runId?: string;
-  // agentId attributes the turn to a workforce agent, which prices and
-  // charges it to that agent's monthly budget.
   agentId?: string;
   signal?: AbortSignal;
   onThinking: (delta: string, tokens?: number) => void;
@@ -85,7 +73,6 @@ export async function streamChatResponse({
         if (typeof body.message === "string" && body.message) message = body.message;
         else if (typeof body.detail === "string" && body.detail) message = body.detail;
       } catch {
-        // Not JSON — keep the status line.
       }
       onError(message, { status: res.status, code });
       return;
@@ -100,11 +87,8 @@ export async function streamChatResponse({
     const decoder = new TextDecoder();
     let buffer = "";
     let dataLines: string[] = [];
-    // settled turns true on the terminal event, RUN_FINISHED or RUN_ERROR.
     let settled = false;
 
-    // Tool calls arrive as start → args → result. The args are collected so
-    // the UI receives one payload per call, after the call is complete.
     const calls = new Map<string, { name: string; args: string }>();
 
     const flush = () => {
@@ -170,8 +154,6 @@ export async function streamChatResponse({
         } else if (line.trim() === "") {
           flush();
         }
-        // ":" comments are keep-alive pings. An "id:" line names the frame;
-        // the client does not need it.
       }
     }
     flush();
@@ -185,9 +167,6 @@ export async function streamChatResponse({
   }
 }
 
-// toolPayload flattens the call arguments into the payload a widget reads. A
-// chart or a diff arrives as its own kind, so the renderer picks it up without
-// a protocol-specific wrapper.
 function toolPayload(id: string, name: string, rawArgs: string): ToolPayload {
   let args: unknown = {};
   try {

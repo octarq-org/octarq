@@ -1,12 +1,3 @@
-/**
- * ApprovalCard: Human-In-The-Loop approval card.
- *
- * Renders proposed changes as before/after diffs.
- * Refuses submissions without an approval ID (Fail-Closed P0 rule).
- * Maps 409/410 to terminal states and never repolls.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Check, X, AlertTriangle, ShieldCheck } from "lucide-react";

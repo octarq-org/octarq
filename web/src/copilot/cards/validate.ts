@@ -1,7 +1,3 @@
-/**
- * Minimal JSON-Schema validator for tool arguments.
- * Total function: any value in, string list out. Never throws.
- */
 
 export type JsonSchema = {
   type?: string;
@@ -15,7 +11,6 @@ export type JsonSchema = {
   $schema?: string;
 };
 
-/** Validate a parsed args value against a tool schema. Empty list = valid. */
 export function validateArgs(
   schema: JsonSchema,
   value: unknown,
@@ -44,7 +39,7 @@ function checkObject(
   }
   for (const [name, val] of Object.entries(obj)) {
     const prop = props[name];
-    if (prop === undefined) continue; // unknown field: forward compatibility
+    if (prop === undefined) continue;
     if (typeof prop !== "object" || prop === null) continue;
     errors.push(...checkValue(prop, val, `${path}.${name}`));
   }

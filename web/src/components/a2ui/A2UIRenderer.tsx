@@ -4,10 +4,6 @@ import { ChartCard } from "./ChartCard";
 import { DiffCard } from "./DiffCard";
 import { ApprovalCard } from "./ApprovalCard";
 
-/**
- * Invariant #11: P3 pre-API volatility — A2UI kind and payload fields are internal contracts (VOLATILE).
- * Unknown kinds gracefully degrade to a formatted JSON preview to prevent render crashes.
- */
 export function A2UIRenderer({ widget }: { widget: A2UIWidget }) {
   const { t } = useTranslation();
 

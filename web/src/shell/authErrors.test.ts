@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { authErrorKey, authErrorCodes, isVerifiedFlag } from "./authErrors";
 import { en } from "../i18n/en";
 
-/** Walks "app.authError.invalidToken" into the dictionary. */
 function lookup(dict: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>(
     (node, part) =>
@@ -16,15 +15,11 @@ describe("authErrorKey", () => {
     for (const code of authErrorCodes()) {
       const key = authErrorKey(code);
       expect(key, `${code} has no key`).toBeTruthy();
-      // t() falls back to echoing the key, so a missing entry would render
-      // "app.authError.inviteOnly" on the login page instead of a sentence.
       expect(typeof lookup(en, key!), `${key} missing from en`).toBe("string");
     }
   });
 
   it("falls back to the generic message rather than echoing an unknown code", () => {
-    // The code arrives in a URL anyone can edit. Rendering it verbatim would
-    // paint attacker-chosen text into the login page's error banner.
     expect(authErrorKey("<script>alert(1)</script>")).toBe(authErrorKey("login_failed"));
     expect(authErrorKey("totally_made_up")).toBe(authErrorKey("login_failed"));
   });
@@ -37,8 +32,6 @@ describe("authErrorKey", () => {
 });
 
 describe("isVerifiedFlag", () => {
-  // The server sends ?verified=1; this page only ever checked for "true", so
-  // the "email verified" banner never appeared once.
   it("accepts the spelling the server actually sends", () => {
     expect(isVerifiedFlag("1")).toBe(true);
   });

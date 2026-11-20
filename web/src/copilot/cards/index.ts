@@ -1,6 +1,3 @@
-/**
- * Generative UI domain tool cards barrel export.
- */
 export * from "./validate";
 export * from "./CardShell";
 export * from "./FallbackCard";

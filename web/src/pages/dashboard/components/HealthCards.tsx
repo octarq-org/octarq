@@ -217,7 +217,6 @@ export function DiskCard({ provider }: { provider: ProviderHealthReport }) {
   const free = formatBytes(metrics.free_bytes ?? metrics.available_bytes);
   const diskPath = typeof metrics.path === "string" ? metrics.path : null;
 
-  // Determine progress bar color based on standard thresholds (warn 85%, error 95%)
   const barColor =
     usagePercent >= 95
       ? "bg-danger-fg"

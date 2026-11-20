@@ -1,9 +1,3 @@
-/**
- * EmailDraftCanvas: Inbound email security containment and editable reply draft composer.
- *
- * Invariant: Inbound email body is isolated inside <untrusted> containment styling.
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Mail, ShieldAlert, Send, Sparkles, User, CornerDownLeft } from "lucide-react";
@@ -26,7 +20,6 @@ export interface EmailDraftCanvasProps {
 
 export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCanvasProps) {
   const { t } = useTranslation();
-  // Visible row labels name the fields through htmlFor, in every language.
   const fieldId = useId();
   const threads = content.threads || [];
   const [activeThreadIndex, setActiveThreadIndex] = useState(0);
@@ -118,7 +111,6 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="email-draft-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -154,7 +146,6 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
         )}
       </div>
 
-      {/* Untrusted Inbound Message Containment */}
       <div
         data-testid="untrusted-email-container"
         className="rounded-xl border border-warning-fg/30 bg-warning-fg/5 p-3 space-y-2 text-xs"
@@ -177,7 +168,6 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
         </div>
       </div>
 
-      {/* Draft Composer Pane */}
       <div className="flex-1 flex flex-col rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <span className="font-semibold text-foreground flex items-center gap-1.5">
@@ -233,7 +223,6 @@ export function EmailDraftCanvas({ artifactId, content, onAction }: EmailDraftCa
         />
       </div>
 
-      {/* Fail-Closed Approval Gate */}
       <CanvasApprovalGate
         approvalId={approvalId}
         toolName="mail_send_reply"

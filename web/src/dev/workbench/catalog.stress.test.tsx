@@ -258,19 +258,16 @@ describe("Adversarial Catalog Stress: SetupStep & SetupChecklistProvider", () =>
       </SetupChecklistProvider>
     );
 
-    // Initial: 2 total, 1 completed (50%)
     expect(getByTestId("total").textContent).toBe("2");
     expect(getByTestId("completed").textContent).toBe("1");
     expect(getByTestId("percent").textContent).toBe("50");
     expect(getByTestId("all").textContent).toBe("no");
 
-    // Complete Step 1: 2 total, 2 completed (100%)
     fireEvent.click(getByText("Step 1"));
     expect(getByTestId("completed").textContent).toBe("2");
     expect(getByTestId("percent").textContent).toBe("100");
     expect(getByTestId("all").textContent).toBe("yes");
 
-    // Unmount optional step: 1 total, 1 completed (100%)
     fireEvent.click(getByTestId("toggle-optional"));
     expect(getByTestId("total").textContent).toBe("1");
     expect(getByTestId("completed").textContent).toBe("1");
@@ -301,7 +298,6 @@ describe("Adversarial Catalog Stress: SetupStep & SetupChecklistProvider", () =>
     for (let i = 0; i < 50; i++) {
       fireEvent.click(btn);
     }
-    // 50 clicks: even number -> completed: false
     expect(container.querySelector("h3")?.className).not.toContain("line-through");
   });
 });
@@ -320,7 +316,6 @@ describe("Adversarial Catalog Stress: Responsive & Theme Viewports", () => {
   for (const vp of viewports) {
     for (const theme of themes) {
       it(`renders all 5 components in ${vp.name} under ${theme} theme without errors`, () => {
-        // Mock viewport dimensions
         window.innerWidth = vp.width;
         window.innerHeight = vp.height;
         window.dispatchEvent(new Event("resize"));

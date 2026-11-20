@@ -1,11 +1,3 @@
-/**
- * ArtifactCanvas: Main container for side-canvas artifact editors.
- *
- * Hosts layout mode toggles (split vs maximized), version control badges,
- * and dynamically mounts the specialized domain editors.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Maximize2, Minimize2, X, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n";
@@ -124,7 +116,6 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
       data-testid="artifact-canvas"
       className="flex h-full w-full flex-col bg-background overflow-hidden"
     >
-      {/* Canvas Top Bar */}
       <div className="flex items-center justify-between border-b border-border bg-well px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate text-xs font-bold text-foreground" data-testid="artifact-title">
@@ -176,7 +167,6 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
         </div>
       </div>
 
-      {/* Editor Body */}
       <div className="flex-1 overflow-hidden" data-testid="canvas-editor-body">
         {renderEditor()}
       </div>

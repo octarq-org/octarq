@@ -4,17 +4,6 @@ import { Inspector } from "./Inspector";
 import { PreviewBoundary } from "./PreviewBoundary";
 import { toggleTheme, useTheme } from "../../theme";
 
-// The UI tuning workbench: a dev-only route that renders the SDK's real
-// components next to the live token set, so a change can be judged against what
-// actually ships instead of against a mock.
-//
-// Dev-only by construction: it is reached through a dynamic import behind
-// `import.meta.env.DEV` in App.tsx, so a production build contains no workbench
-// chunk at all (verified — the build output has no workbench asset).
-//
-// The rule that keeps it honest: this directory composes SDK components, it
-// never defines one. web/scripts/lint-ui-surface.mjs fails the build if a
-// component here re-uses an SDK export name.
 export function Workbench() {
   const [selected, setSelected] = useState<string>(CATALOG[0].name);
   const [group, setGroup] = useState<CatalogGroup | "all">("all");

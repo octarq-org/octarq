@@ -1,4 +1,3 @@
-// Shell brand glyph wrapper (custom logo -> Octarq mark -> app initial fallback).
 import { useAppName, useBrandLogo } from "../brand";
 import { BrandGlyph, BrandGlyphSize } from "@octarq/plugin-sdk";
 

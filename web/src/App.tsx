@@ -45,7 +45,6 @@ export default function App() {
         return true;
       }
     } catch {
-      /* ignore */
     }
     return null;
   });
@@ -71,7 +70,6 @@ export default function App() {
           try {
             localStorage.setItem("onboarding_completed", "true");
           } catch {
-            /* ignore */
           }
         }
       })
@@ -161,7 +159,6 @@ export default function App() {
           try {
             await api.logout();
           } catch {
-            /* clear locally even if the request fails */
           }
           clearCachedNav();
           setAuthed(false);
@@ -244,7 +241,6 @@ function Shell({
       try {
         localStorage.setItem("area_panel_collapsed", next ? "1" : "0");
       } catch {
-        /* ignore */
       }
       return next;
     });
@@ -360,7 +356,6 @@ function Shell({
     </a>
   );
 
-  // Full-bleed plugin routes own the viewport without host chrome.
   if (fullLayout) {
     return (
       <RoleProvider value={roleCtx}>
@@ -431,7 +426,6 @@ function Shell({
           />
         </aside>
 
-        {/* Inset Workspace Panel (Surface 2) */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-xl md:border md:border-sidebar-border">
           <TopBar
             areas={areas}

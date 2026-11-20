@@ -1,9 +1,3 @@
-/**
- * PortalCard: Customer portal and license lookup.
- * Metadata only — tokens are shown once at issuance, never here.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Key } from "lucide-react";
 import { useTranslation } from "../../i18n";

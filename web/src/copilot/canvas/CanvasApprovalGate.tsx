@@ -1,10 +1,3 @@
-/**
- * CanvasApprovalGate: Standard Fail-Closed CAS Approval Gate for Canvas Views.
- *
- * Strict Zero-I/O: Dispatches purely through onAction handler.
- * Strict Fail-Closed: If approvalId is missing or empty, action is strictly disabled.
- * All copy adheres to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";

@@ -149,7 +149,6 @@ describe("useCopilotStore", () => {
     useCopilotStore.getState().addActionDiff(newDiff);
     expect(useCopilotStore.getState().pendingApprovals.some((a) => a.id === "act-new-999")).toBe(true);
 
-    // Duplicate add should be ignored
     useCopilotStore.getState().addActionDiff(newDiff);
     const matches = useCopilotStore.getState().pendingApprovals.filter((a) => a.id === "act-new-999");
     expect(matches).toHaveLength(1);

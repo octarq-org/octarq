@@ -1,8 +1,3 @@
-/**
- * QuotationCanvas: Interactive sales quotation spreadsheet, discount editor, and CRM synchronizer.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useId, useState } from "react";
 import { Button, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 import { Plus, Trash2, Building2, Calculator, RefreshCw } from "lucide-react";
@@ -30,7 +25,6 @@ export interface QuotationCanvasProps {
 
 export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanvasProps) {
   const { t } = useTranslation();
-  // The slider takes its name from the visible discount label.
   const fieldId = useId();
   const [items, setItems] = useState<QuotationLineItem[]>(() => {
     if (content.line_items && content.line_items.length > 0) {
@@ -115,7 +109,6 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="quotation-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -139,7 +132,6 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
         </div>
       </div>
 
-      {/* Spreadsheet Table */}
       <div className="flex-1 overflow-auto rounded-xl border border-border bg-card">
         <Table className="w-full text-left text-xs border-collapse">
           <THead>
@@ -218,7 +210,6 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
         </Table>
       </div>
 
-      {/* Pricing Summary & Discount Slider */}
       <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-well p-3 text-xs">
         <div className="space-y-2">
           <label htmlFor={`${fieldId}-discount`} className="font-semibold text-foreground flex items-center gap-1.5">
@@ -256,7 +247,6 @@ export function QuotationCanvas({ artifactId, content, onAction }: QuotationCanv
         </div>
       </div>
 
-      {/* Approval Gate */}
       <CanvasApprovalGate
         approvalId={approvalId}
         toolName="crm_update_deal_and_dispatch_quote"

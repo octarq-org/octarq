@@ -6,7 +6,6 @@ import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
 import { useSettingsData } from "./shared";
 
-// Category display metadata & tones
 const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
   marketing: { labelKey: "settings.pluginCategory.marketing", tone: "indigo" },
   messaging: { labelKey: "settings.pluginCategory.messaging", tone: "cyan" },
@@ -17,7 +16,6 @@ const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | 
   utilities: { labelKey: "settings.pluginCategory.utilities", tone: "neutral" },
 };
 
-// Helper component to render a plugin's icon or custom logo.
 function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIcon?: string }) {
   const { t } = useTranslation();
   const target = iconStr || firstMenuIcon;
@@ -25,25 +23,18 @@ function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIco
     return <Puzzle className="h-5 w-5 text-accent-fg" />;
   }
 
-  // Check if target is an image URL or data URI
   if (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("data:") || target.startsWith("/")) {
     return <img src={target} alt={t("settings.pluginLogoAlt")} width={24} height={24} className="h-6 w-6 object-contain rounded-lg" />;
   }
 
-  // Resolve via single menuIcon map in shell/areas
   const IconComp = menuIcon(target);
   if (IconComp) {
     return <IconComp className="h-5 w-5 text-accent-fg" />;
   }
 
-  // Render text / emoji
   return <span className="text-lg leading-none select-none">{target}</span>;
 }
 
-// lockedBy returns the enabled features that depend on this one, i.e. the
-// reason its toggle can't be turned off. Empty when the feature is free to
-// disable — including when it is already off, since nothing can depend on a
-// feature that isn't running.
 function lockedBy(p: PluginInfo): string[] {
   return p.enabled ? (p.requiredBy ?? []) : [];
 }
@@ -81,18 +72,15 @@ export function PluginsSettings() {
       }
     }
     
-    // optimistic update; revert on failure
     setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled } : p)) ?? prev);
     try {
       await api.updatePlugin(key, enabled);
-      // Reload plugins completely to get new status of dependencies
       load();
       window.dispatchEvent(new CustomEvent("octarq:plugins-changed"));
     } catch (e) {
       setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
       if (e instanceof ApiError && e.status === 409) {
         let msg = e.message;
-        // The refusal names the plugins that still depend on this one.
         const dependents = (e.body as { dependents?: string[] } | undefined)?.dependents;
         if (dependents) {
           msg = t("settings.pluginInUse", { plugin: key, dependents: dependents.join(", ") });
@@ -104,7 +92,6 @@ export function PluginsSettings() {
     }
   }
 
-  // Compute available categories from plugins list
   const availableCategories = Array.from(
     new Set((plugins ?? []).map((p) => p.category || "utilities"))
   );
@@ -134,10 +121,6 @@ export function PluginsSettings() {
       title={t("settings.pluginsTitle")}
       description={t("settings.pluginsDescription")}
     >
-      {/* The card grid reads like an app store, so say plainly what a toggle
-          does: it scopes to this workspace and installs nothing. The wording
-          stays in workspace terms — deployment-level concepts belong in the
-          console, behind the link only instance admins see. */}
       <Alert variant="info" icon={<Info className="h-4 w-4 shrink-0" />} className="mt-6 text-xs p-3 rounded-lg">
         <span>{t("settings.pluginsScopeNote")}</span>
         {settings?.isInstanceAdmin && (
@@ -158,7 +141,6 @@ export function PluginsSettings() {
 
       {plugins !== null && plugins.length > 0 && (
         <div className="mt-6 space-y-3">
-          {/* Top Category Tag Bar */}
           <div className="overflow-x-auto pb-1">
             <TabBar
               size="sm"
@@ -183,7 +165,6 @@ export function PluginsSettings() {
             />
           </div>
 
-          {/* Search & Status Filter Control */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full max-w-md">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -218,7 +199,6 @@ export function PluginsSettings() {
       ) : filteredPlugins.length === 0 ? (
         <PageEmpty title={t("settings.noMatchingPlugins")} />
       ) : (
-        /* Card Grid Layout */
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPlugins.map((p) => {
             const description = t("settings.pluginDesc." + p.key, p.description || "");
@@ -233,7 +213,6 @@ export function PluginsSettings() {
                 }`}
               >
                 <div>
-                  {/* Card Top Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-well border border-border">
@@ -242,10 +221,6 @@ export function PluginsSettings() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <h3 className="text-sm font-semibold text-foreground truncate">{p.title}</h3>
-                          {/* Named on the card, not just implied by a dead
-                              switch: a disabled control with no label reads as
-                              broken, and the tooltip explaining it is invisible
-                              to touch and keyboard. */}
                           {p.core && (
                             <Badge tone="violet" className="shrink-0 text-[10px] uppercase tracking-wider font-semibold">
                               {t("settings.pluginCoreBadge")}
@@ -256,18 +231,8 @@ export function PluginsSettings() {
                       </div>
                     </div>
 
-                    {/* Locked while something else depends on it. The server
-                        enforces this with a 409 regardless — this only saves
-                        the user a round trip to be told no. A dead switch is
-                        only honest if it says why, so carry the reason as a
-                        tooltip too: the card's warning line sits below the
-                        fold on a narrow card, and hovering the thing that
-                        didn't respond is where people look first. */}
                     <div className="flex flex-col items-end gap-1">
                       {p.core ? (
-                        // Core outranks the dependency lock: it can't be turned
-                        // off for any workspace, so say that rather than naming
-                        // a dependent that isn't the real reason.
                         <Tooltip content={t("settings.pluginCoreHint")}>
                           <Switch checked onCheckedChange={() => {}} disabled aria-label={p.title} />
                         </Tooltip>
@@ -283,7 +248,6 @@ export function PluginsSettings() {
                     </div>
                   </div>
 
-                  {/* Category Badge & Tags */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     <Badge tone={categoryMeta.tone} className="text-[10px] uppercase tracking-wider font-semibold">
                       {t(categoryMeta.labelKey)}
@@ -305,7 +269,6 @@ export function PluginsSettings() {
                       {t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
                     </div>
                   )}
-                  {/* Card Description */}
                   {description && (
                     <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 line-clamp-3">
                       {description}
@@ -313,7 +276,6 @@ export function PluginsSettings() {
                   )}
                 </div>
 
-                {/* Card Bottom Meta Footer */}
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     {p.menus && p.menus.length > 0 ? (

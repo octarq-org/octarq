@@ -1,5 +1,3 @@
-// Spanish resources. Keys are shared across all locales; missing keys in other
-// locales fall back to English values.
 export const es = {
   common: {
     done: "Listo",

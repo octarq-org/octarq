@@ -27,7 +27,6 @@ function OverviewChecklistSection({
 
   if (dismissed) return null;
 
-  // twoFAEnabled and tokenCount are null while in flight.
   const steps = [
     ...(twoFAEnabled === null
       ? []
@@ -119,10 +118,6 @@ export default function OverviewPage() {
   const nav = useNavigate();
   const { t } = useTranslation();
 
-  // `catch(() => {})` left `o` null, which the page renders as a skeleton — a
-  // failed overview request looked like an endless load. The checklist's
-  // secondary requests stay neutral on failure (null hides a step rather than
-  // claiming it is complete).
   function loadOverview() {
     setLoadFailed(false);
     fetchOverview()
@@ -166,7 +161,6 @@ export default function OverviewPage() {
   }
 
   if (!o) return (
-    // Skeleton mirrors the real layout (title + 4 stat tiles + chart) so the page doesn't jump when data arrives.
     <div className="animate-in fade-in duration-150" aria-busy="true" aria-label={t("overview.loading")}>
       <div className="mb-6 space-y-2">
         <Skeleton className="h-7 w-48" />

@@ -52,9 +52,6 @@ describe("NavigationTree domain model", () => {
     });
 
     it("eliminates keyword fuzzy substring heuristics and plugin category hardcoding", () => {
-      // Previously, any category containing "asset", "infra", "compute", etc. would match "assets".
-      // Specific plugin words like "storage" and "databases" are no longer hardcoded in resolveCategoryToArea.
-      // With deterministic exact matching, non-declared strings fall back to "operations".
       expect(NavigationTree.resolveCategoryToArea("storage")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("databases")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("asset-tracking")).toBe("operations");
@@ -222,25 +219,21 @@ describe("NavigationTree domain model", () => {
         backendLoaded: true,
       });
 
-      // Business areas: operations and assets both have items, so both are present
       const areaIds = tree.areas.map((a) => a.id);
       expect(areaIds).toContain("operations");
       expect(areaIds).toContain("assets");
 
-      // Check operations groups
       const ops = tree.findArea("operations")!;
       expect(ops).toBeDefined();
       const opsGroupLabels = ops.groups.map((g) => g.label);
       expect(opsGroupLabels).toContain("Workspace");
       expect(opsGroupLabels).toContain("Marketing");
 
-      // Check assets groups
       const assets = tree.findArea("assets")!;
       expect(assets).toBeDefined();
       const assetsGroupLabels = assets.groups.map((g) => g.label);
       expect(assetsGroupLabels).toContain("Network");
 
-      // Footer items contains help
       expect(tree.footerItems.some((f) => f.id === "help")).toBe(true);
     });
 
@@ -258,7 +251,6 @@ describe("NavigationTree domain model", () => {
     });
 
     it("drops empty areas when no menus are present for them", () => {
-      // Only provide an operations menu
       const menus: MenuItem[] = [
         { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
       ];
@@ -272,7 +264,6 @@ describe("NavigationTree domain model", () => {
 
       const areaIds = tree.areas.map((a) => a.id);
       expect(areaIds).toContain("operations");
-      // Assets has no items, Commerce has no items → dropped
       expect(areaIds).not.toContain("assets");
       expect(areaIds).not.toContain("commerce");
     });
@@ -287,7 +278,6 @@ describe("NavigationTree domain model", () => {
       const personal = tree.findArea("personal");
       expect(personal).toBeDefined();
       expect(personal!.groups.flatMap((g) => g.items.map((i) => i.id))).toEqual(["pt", "personal-twofa"]);
-      // Personal items never leak into the settings area.
       expect(tree.settingsArea.groups.flatMap((g) => g.items.map((i) => i.id))).not.toContain("pt");
 
       const empty = NavigationTree.build({ menus: [], backendLoaded: true });
@@ -318,20 +308,17 @@ describe("NavigationTree domain model", () => {
       expect(tree.findArea("personal")).toBeUndefined();
       expect(tree.areas.map((a) => a.id)).not.toContain("personal");
 
-      // Personal menus are gone entirely — they must not leak into another area.
       const allItems = tree.allAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.id)));
       expect(allItems).not.toContain("pt");
       expect(allItems).not.toContain("personal-twofa");
       expect(allItems).toContain("overview");
       expect(allItems).toContain("links");
 
-      // Settings/account behaviour is unchanged.
       expect(tree.isSettingsPath("/settings/appearance")).toBe(true);
       expect(tree.settingsArea.groups.flatMap((g) => g.items.map((i) => i.id))).toContain("appearance");
     });
 
     it("enforces declared group order within areas", () => {
-      // Provide Marketing before Workspace in menus array
       const menus: MenuItem[] = [
         { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
         { id: "audit", label: "Audit", path: "/audit", icon: "scroll-text", category: "System" },
@@ -346,11 +333,9 @@ describe("NavigationTree domain model", () => {
 
       const ops = tree.findArea("operations")!;
       const groupLabels = ops.groups.map((g) => g.label);
-      // Workspace should precede Marketing and System according to BUILTIN_AREA_GROUPS.operations
       expect(groupLabels.indexOf("Workspace")).toBeLessThan(groupLabels.indexOf("Marketing"));
       expect(groupLabels.indexOf("Marketing")).toBeLessThan(groupLabels.indexOf("System"));
 
-      // Settings area group order
       expect(BUILTIN_AREA_GROUPS.settings).toEqual([
         "Instance",
         "Workspace",
@@ -368,7 +353,6 @@ describe("NavigationTree domain model", () => {
         { id: "admin-only", label: "Admin Tool", path: "/admin-tool", icon: "key", category: "System", requiredRole: "admin" },
       ];
 
-      // As member
       const memberTree = NavigationTree.build({
         menus,
         role: "member",
@@ -377,7 +361,6 @@ describe("NavigationTree domain model", () => {
       const memberItems = memberTree.areas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.id)));
       expect(memberItems).not.toContain("admin-only");
 
-      // As admin
       const adminTree = NavigationTree.build({
         menus,
         role: "admin",

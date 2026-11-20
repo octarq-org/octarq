@@ -28,9 +28,6 @@ import {
 } from "./fields";
 import type { Catalog, CatalogEntity, DataList, DataRow, EntityField } from "./types";
 
-// DataPage renders one declared entity: the rows, and a form built from the
-// declaration. It is the same page for every entity — the declaration decides
-// the columns, the widgets and which actions appear.
 export default function DataPage() {
   const { slug = "" } = useParams();
   const { t, lang } = useTranslation();
@@ -58,8 +55,6 @@ export default function DataPage() {
     );
   }
 
-  // A nested function does not keep the narrowing above, so the entity is
-  // captured once here.
   const current = entity;
   const canCreate = entity.operations.includes("create");
   const canUpdate = entity.operations.includes("update");
@@ -125,8 +120,6 @@ export default function DataPage() {
         }}
         emptyText={t("data.empty")}
         emptyReason={t("data.emptyReason")}
-        // A declared Pro entity answers 402 on the first list. The mask has to
-        // name the feature the user clicked, not "Locked feature".
         lockedFeature={entity.pluralLabel}
         lockedTier={entity.tier}
         toolBarRender={() =>
@@ -239,8 +232,6 @@ interface EntityFormProps {
   onSaved: () => void;
 }
 
-// EntityForm is the create and edit dialog. The record being edited decides
-// which: null creates.
 function EntityForm({ entity, record, onClose, onSaved }: EntityFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -275,8 +266,6 @@ function EntityForm({ entity, record, onClose, onSaved }: EntityFormProps) {
             nextErrors[field.name] = t("data.errRequired");
             continue;
           }
-          // A cleared field is a clear on update; on create, omitting it lets
-          // the declaration's default apply.
           if (!creating) body[field.name] = null;
           continue;
         }

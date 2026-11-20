@@ -1,9 +1,3 @@
-/**
- * EmployeeCard: AI Crew persona and presence display.
- * Read-only by construction; points to Crew settings.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Bot } from "lucide-react";
 import { useTranslation } from "../../i18n";

@@ -68,10 +68,8 @@ describe("AuditLogPage with ProTable", () => {
 
     renderWithProviders(<AuditLogPage />);
 
-    // Check page header
     expect(screen.getByRole("heading", { level: 1 })).toBeDefined();
 
-    // Check audit rows rendered
     await waitFor(() => {
       expect(screen.getByText("domain.create")).toBeDefined();
       expect(screen.getByText("cert.delete")).toBeDefined();
@@ -93,12 +91,10 @@ describe("AuditLogPage with ProTable", () => {
       expect(screen.getByText("domain.create")).toBeDefined();
     });
 
-    // Find action search input
     const inputs = screen.getAllByRole("textbox");
-    const actionInput = inputs[0]; // first filter input
+    const actionInput = inputs[0];
     fireEvent.change(actionInput, { target: { value: "domain.create" } });
 
-    // Submit search
     const searchBtn = screen.getByRole("button", { name: /查询|Search/i });
     fireEvent.click(searchBtn);
 

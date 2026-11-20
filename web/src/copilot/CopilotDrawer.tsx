@@ -47,9 +47,6 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
 
   const pendingCount = pendingApprovals.filter((a) => a.status === "pending").length;
 
-  // Approvals are the backend agent_approvals truth — loaded on tab open,
-  // never seeded locally. Fail-Closed: fetch failures surface as an error
-  // state (or the 402 upsell), never as placeholder cards.
   const refreshApprovals = async () => {
     setApprovalsLoading(true);
     try {
@@ -73,21 +70,18 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, activeTab]);
 
-  // Auto-scroll to bottom when messages update
   useEffect(() => {
     if (activeTab === "chat") {
       messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
     }
   }, [messages, isStreaming, activeTab]);
 
-  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
 
-  // Keyboard shortcut ESC to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -235,7 +229,6 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
       )}
       data-testid={isLeftColumn ? "copilot-chat-pane" : undefined}
     >
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-well shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl brand-gradient text-white shadow-xs">
@@ -297,7 +290,6 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         </div>
       </div>
 
-      {/* Tab Navigation */}
       <div className="flex border-b border-border bg-well px-4 py-2 shrink-0">
         <div className="flex items-center gap-1 rounded-xl bg-surface-hover/50 p-0.5 w-full">
           <button
@@ -348,7 +340,6 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         </div>
       </div>
 
-      {/* Tab Content: Chat */}
       {activeTab === "chat" && (
         <CopilotChatTab
           aiStatus={aiStatus}
@@ -360,10 +351,8 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         />
       )}
 
-      {/* Tab Content: Briefing */}
       {activeTab === "briefing" && <CopilotBriefingTab />}
 
-      {/* Tab Content: Approvals */}
       {activeTab === "approvals" && (
         <CopilotApprovalsTab
           onRefreshApprovals={refreshApprovals}
@@ -375,14 +364,12 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" data-testid="copilot-drawer">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={closeCopilot}
         aria-hidden="true"
       />
 
-      {/* Drawer Container */}
       <div
         role="dialog"
         aria-modal="true"

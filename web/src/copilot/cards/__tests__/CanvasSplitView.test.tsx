@@ -106,7 +106,6 @@ describe("OpenHuman Canvas Split-View & Approval Gate", () => {
         expect(screen.getByTestId("maximize-canvas-btn")).toBeDefined();
       });
 
-      // Maximize
       const maxBtn = screen.getByTestId("maximize-canvas-btn");
       fireEvent.click(maxBtn);
 
@@ -116,7 +115,6 @@ describe("OpenHuman Canvas Split-View & Approval Gate", () => {
         expect(dialog.getAttribute("data-layout")).toBe("maximized");
       });
 
-      // Restore Split
       const restoreBtn = screen.getByTestId("restore-split-btn");
       fireEvent.click(restoreBtn);
 
@@ -175,9 +173,8 @@ describe("OpenHuman Canvas Split-View & Approval Gate", () => {
         />,
       );
 
-      expect(screen.getByTestId("grand-total").textContent).toBe("$920.00"); // 1000 - 8% discount
+      expect(screen.getByTestId("grand-total").textContent).toBe("$920.00");
 
-      // Add Item
       const addBtn = screen.getByTestId("add-line-item-btn");
       fireEvent.click(addBtn);
 
@@ -205,7 +202,6 @@ describe("OpenHuman Canvas Split-View & Approval Gate", () => {
       const rows = screen.getAllByTestId("candidate-row");
       expect(rows).toHaveLength(2);
 
-      // Search
       const searchInput = screen.getByPlaceholderText("Filter by name or skill…");
       fireEvent.change(searchInput, { target: { value: "Alice" } });
 
@@ -213,7 +209,6 @@ describe("OpenHuman Canvas Split-View & Approval Gate", () => {
       expect(filtered).toHaveLength(1);
       expect(screen.getByText("Alice Chen")).toBeDefined();
 
-      // Inspect
       const inspectBtn = screen.getByRole("button", { name: "Inspect" });
       fireEvent.click(inspectBtn);
       expect(screen.getByTestId("candidate-detail-modal")).toBeDefined();
@@ -281,11 +276,9 @@ describe("OpenHuman Canvas Split-View & Approval Gate", () => {
       expect(screen.getByText("SLIDE #2")).toBeDefined();
       expect(screen.getByText("SLIDE #3")).toBeDefined();
 
-      // Switch to Slide 2
       fireEvent.click(screen.getByText("SLIDE #2"));
       expect(screen.getByText("PAGE #2 OF 3")).toBeDefined();
 
-      // Toggle Preview
       const previewBtn = screen.getByRole("button", { name: "Preview Deck" });
       fireEvent.click(previewBtn);
       expect(screen.getByRole("button", { name: "Edit Mode" })).toBeDefined();

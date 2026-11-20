@@ -1,8 +1,3 @@
-/**
- * ResumeRankCanvas: Interactive candidate ranking matrix and interview invitation editor.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState, useMemo } from "react";
 import { Button, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 import { Search, ArrowUpDown, Check, User, Mail, Award, X } from "lucide-react";
@@ -80,7 +75,6 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="resume-rank-canvas">
-      {/* Header Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -108,7 +102,6 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
         </div>
       </div>
 
-      {/* Main Table */}
       <div className="flex-1 overflow-auto rounded-xl border border-border bg-card">
         <Table className="w-full text-left text-xs border-collapse">
           <THead>
@@ -237,7 +230,6 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
         </Table>
       </div>
 
-      {/* Candidate Profile Drawer / Modal */}
       {activeCandidate && (
         <div
           data-testid="candidate-detail-modal"
@@ -280,7 +272,6 @@ export function ResumeRankCanvas({ artifactId, content, onAction }: ResumeRankCa
         </div>
       )}
 
-      {/* Fail-Closed Approval Gate */}
       <CanvasApprovalGate
         approvalId={approvalId}
         toolName="recruiting_dispatch_invites"

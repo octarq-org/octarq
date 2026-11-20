@@ -81,9 +81,7 @@ describe("DataPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Tickets" })).toBeTruthy();
     expect(await screen.findByText("Printer is down")).toBeTruthy();
-    // The boolean column renders through the label dictionary, not "false".
     expect(screen.getByText("No")).toBeTruthy();
-    // create is granted, so the page offers it.
     expect(screen.getByRole("button", { name: /New record/ })).toBeTruthy();
   });
 

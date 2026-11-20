@@ -1,8 +1,3 @@
-/**
- * StoryboardCanvas: Interactive visual scene cards, camera/lighting tags, and voiceover script editor.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Video, Plus, Trash2, Camera, Sparkles, Mic, Download } from "lucide-react";
@@ -24,7 +19,6 @@ export interface StoryboardCanvasProps {
 
 export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCanvasProps) {
   const { t } = useTranslation();
-  // Each scene repeats these fields, so the ids carry the scene index.
   const fieldId = useId();
   const [scenes, setScenes] = useState<StoryboardScene[]>(() => {
     if (content.scenes && content.scenes.length > 0) return content.scenes;
@@ -94,7 +88,6 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="storyboard-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -121,7 +114,6 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
         </div>
       </div>
 
-      {/* Grid of Scene Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {scenes.map((scene, idx) => {
           const num = scene.scene_number || scene.scene_no || idx + 1;
@@ -160,7 +152,6 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                   </div>
                 </div>
 
-                {/* Framing & Lighting Tags */}
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <label htmlFor={`${fieldId}-${idx}-camera`} className="text-[10px] text-muted-foreground uppercase font-semibold">{t("copilot.scriptCamera", "Camera")}</label>
@@ -186,7 +177,6 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                   </div>
                 </div>
 
-                {/* Visual Prompt */}
                 <div>
                   <label htmlFor={`${fieldId}-${idx}-visual`} className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
                     <Sparkles className="h-3 w-3 text-accent-fg" />
@@ -201,7 +191,6 @@ export function StoryboardCanvas({ artifactId, content, onAction }: StoryboardCa
                   />
                 </div>
 
-                {/* Audio Voiceover */}
                 <div>
                   <label htmlFor={`${fieldId}-${idx}-voice`} className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center gap-1">
                     <Mic className="h-3 w-3 text-muted-foreground" />

@@ -1,8 +1,3 @@
-/**
- * FinancialAnalysisCard: Budget variance analysis and 3-slide presentation card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { TrendingUp, TrendingDown, Presentation, ExternalLink, Copy, Check } from "lucide-react";
@@ -135,7 +130,6 @@ export function FinancialAnalysisCard({
           </span>
         </div>
 
-        {/* Financial Metrics */}
         <div className="grid grid-cols-3 gap-1.5" data-testid="finance-metrics">
           <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.financeBudget", "Budget")}</div>
@@ -163,7 +157,6 @@ export function FinancialAnalysisCard({
           </div>
         </div>
 
-        {/* 3-Slide outline preview */}
         {slides.length > 0 ? (
           <div className="space-y-1" data-testid="slides-preview">
             <div className="text-[11px] font-semibold text-muted-foreground">

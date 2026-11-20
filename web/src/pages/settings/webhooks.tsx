@@ -123,7 +123,6 @@ export function WebhooksSettings() {
   useEffect(load, []);
   useEffect(() => { api.webhookEvents().then(setEventGroups).catch(() => setEventGroups([])); }, []);
 
-  // key → definition, for rendering a stored subscription string as titled badges.
   const defByKey = new Map((eventGroups ?? []).flatMap((g) => g.events.map((e) => [e.key, e] as const)));
 
   function toggleEvent(key: string, on: boolean) {
@@ -206,7 +205,6 @@ export function WebhooksSettings() {
         "Manage outbound event subscriptions, inbound webhook relays, and dead-letter queues.",
       )}
     >
-      {/* Tab Switcher */}
       <div className="mt-6 max-w-md">
         <Tabs
           value={activeTab}
@@ -362,7 +360,6 @@ export function WebhooksSettings() {
 
       {activeTab === "inbound" && (
         <div data-testid="inbound-relays-panel">
-          {/* Section 1: Inbound Webhook Relays */}
           <PageSection
             title={t("settings.inboundRelaysHeading", "Inbound Webhook Relays")}
             description={t("settings.inboundRelaysDesc", "Receive and verify webhooks from third-party services with cryptographic signatures.")}
@@ -401,7 +398,6 @@ export function WebhooksSettings() {
             )}
           </PageSection>
 
-          {/* Section 2: Dead-Letter Queue (DLQ) Audit */}
           <PageSection
             title={t("settings.dlqHeading", "Dead-Letter Queue (DLQ) Audit")}
             description={t("settings.dlqDesc", "Deliveries that exhausted all retry attempts. Inspect errors and replay when ready.")}
@@ -486,9 +482,6 @@ export function WebhooksSettings() {
             </Field>
             <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
-                {/* The switch keeps a fixed name that matches its visible
-                    label. A label that flipped to "Custom Selection" while the
-                    name stayed "All Events" breaks voice control. */}
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
                   <Switch checked={all} onCheckedChange={setAll} aria-label={t("settings.allEventsStar")} />
                   <span>{t("settings.allEventsStar")}</span>

@@ -110,7 +110,6 @@ export function InstanceSettings() {
       title={t("settings.instanceTitle")}
       description={t("settings.instanceDesc")}
     >
-      {/* App configuration */}
       <PageSection title={t("settings.generalInfo")}>
         <PageCard className="mt-0 space-y-6 p-5">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -238,7 +237,6 @@ export function InstanceSettings() {
         </PageCard>
       </PageSection>
 
-      {/* Rate limits */}
       <PageSection
         title={t("settings.rateLimiting")}
         description={t("settings.instanceRlHint")}
@@ -281,9 +279,6 @@ export function InstanceSettings() {
         </PageCard>
       </PageSection>
 
-      {/* Build stamp. Authenticated endpoint, values from the binary via
-          ldflags; dev/unknown are legit values for a non-git build, so they
-          render as-is. builtAt is the raw UTC string — no local-time masquerade. */}
       {build && (
         <PageSection title={t("settings.buildTitle")}>
           <PageCard className="mt-0 p-5">
@@ -304,11 +299,6 @@ export function InstanceSettings() {
         </PageSection>
       )}
 
-      {/* Database backup. The endpoint has shipped since the backup work but had
-          no UI — an operator's only way to reach it was the CLI (`octarq backup`)
-          or a hand-written curl. Instance-admin only, and deliberately blunt
-          about what the file is: a full dump of every workspace on this
-          instance, encrypted secrets included. */}
       <PageSection
         title={t("settings.backupTitle")}
         description={t("settings.backupDesc")}
@@ -320,14 +310,8 @@ export function InstanceSettings() {
         </PageCard>
       </PageSection>
 
-      {/* Instance-level encrypted secrets */}
       <InstanceVaultSection />
 
-      {/* Operator-level extension slot. Named "System Settings", NOT
-          "Infrastructure": that word already labels the plugin CATEGORY
-          (plugin.CategoryInfrastructure, workspace-scoped assets like domains
-          and DNS), and the same word for two different scopes read as one
-          feature split across two pages. */}
       <PageSection title={t("settings.systemSettings", "System Settings")}>
         <div className="mt-3">
           <ExtensionSlot name="settings-infra" />

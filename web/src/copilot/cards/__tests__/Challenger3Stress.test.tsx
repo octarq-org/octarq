@@ -49,9 +49,6 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
     vi.clearAllMocks();
   });
 
-  // =========================================================================
-  // VECTOR 1: EXOTIC WHITESPACE & TAMPERED APPROVAL ID INJECTIONS
-  // =========================================================================
   describe("Vector 1: Exotic Whitespace & Nullish Injections Across 5 Action Cards", () => {
     const whitespaceVariants = [
       { name: "tabs only", val: "\t\t\t" },
@@ -172,9 +169,6 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
     });
   });
 
-  // =========================================================================
-  // VECTOR 2: CANVAS APPROVAL GATE FAIL-CLOSED RESILIENCE
-  // =========================================================================
   describe("Vector 2: CanvasApprovalGate Fail-Closed Resilience", () => {
     it("fails closed with failed verdict on HTTP 500 server error", async () => {
       const onAction = vi.fn().mockResolvedValue({ status: 500 });
@@ -304,9 +298,6 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
     });
   });
 
-  // =========================================================================
-  // VECTOR 3: CANVAS STORE MUTATIONS & COMPLEX LAYOUT THRASHING
-  // =========================================================================
   describe("Vector 3: Complex Multi-Step Canvas Mutations & Layout Thrashing", () => {
     it("preserves complex line-item sequence across multiple layout toggles in QuotationCanvas", async () => {
       renderDrawer();
@@ -335,15 +326,12 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
         expect(screen.getByTestId("copilot-canvas-pane")).toBeDefined();
       });
 
-      // 1. Add item 2
       fireEvent.click(screen.getByTestId("add-line-item-btn"));
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(2);
 
-      // 2. Add item 3
       fireEvent.click(screen.getByTestId("add-line-item-btn"));
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(3);
 
-      // 3. Switch layout: split -> maximized -> split
       act(() => {
         useCopilotStore.getState().setCanvasLayout("maximized");
       });
@@ -351,19 +339,15 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
         useCopilotStore.getState().setCanvasLayout("split");
       });
 
-      // Assert items survived first layout thrash
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(3);
 
-      // 4. Delete item 2
       const deleteButtons = screen.getAllByLabelText("Remove item");
       fireEvent.click(deleteButtons[1]);
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(2);
 
-      // 5. Change discount percentage
       const discountSlider = screen.getByRole("slider");
       fireEvent.change(discountSlider, { target: { value: "15" } });
 
-      // 6. Thrash layout: split -> drawer -> split -> maximized -> split
       act(() => {
         useCopilotStore.getState().setCanvasLayout("drawer");
       });
@@ -377,7 +361,6 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
         useCopilotStore.getState().setCanvasLayout("split");
       });
 
-      // 7. Verify all state survived in store and rendered component
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(2);
       const storeArtifact = useCopilotStore.getState().artifacts["art-complex-quote"];
       expect((storeArtifact.content as any).line_items).toHaveLength(2);
@@ -419,19 +402,15 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
         expect(screen.getByTestId("copilot-canvas-pane")).toBeDefined();
       });
 
-      // 1. Edit To
       const toInput = screen.getByLabelText("To:");
       fireEvent.change(toInput, { target: { value: "legal-review@enterprise.org" } });
 
-      // 2. Edit Subject
       const subjectInput = screen.getByLabelText("Subject:");
       fireEvent.change(subjectInput, { target: { value: "Urgent: Finalized Master Service Agreement" } });
 
-      // 3. Edit Body
       const bodyInput = screen.getByLabelText("Email reply body");
       fireEvent.change(bodyInput, { target: { value: "Attached is the redlined version with agreed SLA terms." } });
 
-      // 4. Thrash layout
       act(() => {
         useCopilotStore.getState().setCanvasLayout("maximized");
       });
@@ -442,7 +421,6 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
         useCopilotStore.getState().setCanvasLayout("split");
       });
 
-      // 5. Verify all three fields survived
       const toAfter = screen.getByLabelText("To:") as HTMLInputElement;
       const subAfter = screen.getByLabelText("Subject:") as HTMLInputElement;
       const bodyAfter = screen.getByLabelText("Email reply body") as HTMLTextAreaElement;
@@ -458,9 +436,6 @@ describe("Empirical Challenger 3 Stress Test Suite", () => {
     });
   });
 
-  // =========================================================================
-  // VECTOR 4: ASD-STE100 & FAIL-CLOSED INTEGRITY INSPECTION
-  // =========================================================================
   describe("Vector 4: ASD-STE100 Word Count & Strict Fail-Closed Invariants", () => {
     it("ensures every newly added terminal status string conforms to ASD-STE100", () => {
       const messages = [

@@ -1,4 +1,3 @@
-// Shell-side role evaluation re-exported from @octarq/plugin-sdk.
 export {
   roleSatisfies,
   RoleProvider,

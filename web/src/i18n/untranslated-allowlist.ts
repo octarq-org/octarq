@@ -1,78 +1,66 @@
-/**
- * Allowlist for keys in non-English dictionaries whose values are intentionally identical to English
- * (e.g. brand names, technical protocols, acronyms, universal placeholders, or words with identical target-language spelling).
- * Each entry must include a one-line comment explaining the reason for exemption.
- */
 export const UNTRANSLATED_ALLOWLIST = new Set<string>([
-  // Product & brand names
-  "footer.github", // Brand name (GitHub)
-  "settings.googleClientId", // Brand name & technical credential identifier
-  "settings.googleClientSecret", // Brand name & technical credential identifier
-  "settings.githubClientId", // Brand name & technical credential identifier
-  "settings.githubClientSecret", // Brand name & technical credential identifier
-  "settings.telegramChatId", // Brand name & technical identifier
+  "footer.github",
+  "settings.googleClientId",
+  "settings.googleClientSecret",
+  "settings.githubClientId",
+  "settings.githubClientSecret",
+  "settings.telegramChatId",
 
-  // Technical protocols, acronyms & standards
-  "nav.domains", // Technical protocol acronym (DNS)
-  "nav.webhooks", // Standard technical term (Webhooks)
-  "settings.webhooksTitle", // Standard technical term (Webhooks)
-  "settings.customHttpTargetUrl", // Standard technical term (Webhook URL)
-  "settings.pluginCategory.ai", // Technical acronym (AI)
-  "settings.instanceRlAuth", // Technical acronyms (Auth RPM / IP)
-  "settings.instanceRlApi", // Technical acronyms (API RPM / IP)
-  "abuse.ip", // Technical acronym (IP)
-  "abuse.reasonSpam", // Standard technical term (Spam)
-  "abuse.reasonPhishing", // Standard cybersecurity term (Phishing)
-  "abuse.reasonMalware", // Standard cybersecurity term (Malware)
-  "personal.tokenScopeAdmin", // Scope identifier token (admin)
-  "status.statusNa", // Standard universal abbreviation (N/A)
-  "command.chat.tokens", // Standard technical unit (tokens)
+  "nav.domains",
+  "nav.webhooks",
+  "settings.webhooksTitle",
+  "settings.customHttpTargetUrl",
+  "settings.pluginCategory.ai",
+  "settings.instanceRlAuth",
+  "settings.instanceRlApi",
+  "abuse.ip",
+  "abuse.reasonSpam",
+  "abuse.reasonPhishing",
+  "abuse.reasonMalware",
+  "personal.tokenScopeAdmin",
+  "status.statusNa",
+  "command.chat.tokens",
 
-  // Example inputs & placeholders
-  "app.emailPlaceholder", // Example email placeholder (you@domain.com)
-  "personal.newEmailPlaceholder", // Example email placeholder (you@domain.com)
-  "settings.apiKeysPlaceholderNew", // Technical input placeholder (API token...)
-  "settings.botAuthToken", // Technical credential placeholder
+  "app.emailPlaceholder",
+  "personal.newEmailPlaceholder",
+  "settings.apiKeysPlaceholderNew",
+  "settings.botAuthToken",
 
-  // Industry terms & loanwords standard in ES/PT tech communities
-  "groups.Marketing", // Industry standard term in ES/PT (Marketing)
-  "settings.pluginCategory.marketing", // Industry standard term in ES/PT (Marketing)
-  "nav.links", // Standard term in PT tech UI (Links)
-  "settings.instancePluginName", // Loanword standard in ES/PT (Plugin)
-  "settings.buildTitle", // "Build" is the standard loanword in PT tech UI
-  "settings.buildCommit", // Git term used verbatim in ES/PT (Commit)
-  "uiCommon.pluginId", // Loanword standard in PT (Plugin)
+  "groups.Marketing",
+  "settings.pluginCategory.marketing",
+  "nav.links",
+  "settings.instancePluginName",
+  "settings.buildTitle",
+  "settings.buildCommit",
+  "uiCommon.pluginId",
 
-  // Words with identical spelling in the target language
-  "groups.Personal", // Identical spelling in Spanish (Personal)
-  "areas.personal.title", // Identical spelling in Spanish (Personal)
-  "nav.general", // Identical spelling in Spanish (General)
-  "settings.generalTitle", // Identical spelling in Spanish (General)
-  "audit.colActor", // Identical spelling in Spanish (Actor)
+  "groups.Personal",
+  "areas.personal.title",
+  "nav.general",
+  "settings.generalTitle",
+  "audit.colActor",
 
-  // Protocol acronyms that are universal
-  "uiCommon.formErrorStatus", // Technical acronym (HTTP)
-  "personal.mcpTabCursor", // Technical client name (Cursor / VS Code)
-  "personal.mcpTabClaudeDesktop", // Brand product name (Claude Desktop)
-  "personal.mcpTabClaudeCode", // Brand product name (Claude Code CLI)
-  "personal.mcpTabHttp", // Technical protocol acronym (HTTP / SSE)
-  "personal.mcpPlaceholderToken", // Universal token placeholder (<YOUR_API_TOKEN>)
-  "copilot.shortcutKey", // Standard keyboard shortcut notation (⌘J)
-  "copilot.cardIdPrefix", // Standard universal technical abbreviation (ID:)
-  "copilot.emailToneFormal", // Identical spelling in ES/PT (Formal)
-  "copilot.quotationColTotal", // Identical spelling in ES/PT (Total)
-  "copilot.quotationSubtotal", // Identical spelling in ES/PT (Subtotal)
-  "copilot.quotationColItem", // Identical spelling in PT (Item)
-  "copilot.financeSlidePrefix", // Presentation layout notation in PT (SLIDE #)
+  "uiCommon.formErrorStatus",
+  "personal.mcpTabCursor",
+  "personal.mcpTabClaudeDesktop",
+  "personal.mcpTabClaudeCode",
+  "personal.mcpTabHttp",
+  "personal.mcpPlaceholderToken",
+  "copilot.shortcutKey",
+  "copilot.cardIdPrefix",
+  "copilot.emailToneFormal",
+  "copilot.quotationColTotal",
+  "copilot.quotationSubtotal",
+  "copilot.quotationColItem",
+  "copilot.financeSlidePrefix",
 
-  "data.no", // Identical spelling in ES (No) — the Spanish word for "no"
+  "data.no",
 
-  // Vault technical identifiers, placeholders, and universal format strings
-  "vault.categoryDns", // Technical protocol acronym (DNS)
-  "vault.categoryLlm", // Technical acronyms (AI / LLM)
-  "vault.versionBadge", // Universal version tag format (v{{version}})
-  "vault.folderPathPlaceholder", // Universal POSIX root path placeholder (/)
-  "vault.importPlaceholderEnv", // Technical .env key=value example
-  "vault.importPlaceholderJson", // Technical JSON key-value example
-  "vault.tokenScope", // Technical scope tuple format ({{env}} · {{path}} · {{perms}})
+  "vault.categoryDns",
+  "vault.categoryLlm",
+  "vault.versionBadge",
+  "vault.folderPathPlaceholder",
+  "vault.importPlaceholderEnv",
+  "vault.importPlaceholderJson",
+  "vault.tokenScope",
 ]);

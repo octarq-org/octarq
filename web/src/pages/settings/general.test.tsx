@@ -102,7 +102,7 @@ describe("GeneralSettings suite", () => {
     fireEvent.change(slugInput, { target: { value: "acme-new" } });
 
     const updateButtons = screen.getAllByRole("button", { name: /update/i });
-    fireEvent.click(updateButtons[1]); // The slug form update button
+    fireEvent.click(updateButtons[1]);
 
     expect(await screen.findByText(/change the workspace address\?/i)).toBeTruthy();
     expect(screen.getByText(/\/api\/webhook\/acme-new\/billing/i)).toBeTruthy();

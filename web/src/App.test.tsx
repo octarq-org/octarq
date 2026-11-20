@@ -6,7 +6,6 @@ import App from "./App";
 import { I18nProvider } from "./i18n";
 import { api } from "./api";
 
-// Mock API responses so the app boots successfully.
 vi.mock("./api", () => {
   return {
     api: {
@@ -36,7 +35,6 @@ vi.mock("./api", () => {
   };
 });
 
-// Mock lazy-loaded pages to make assertions easy and prevent cascading network/render issues.
 vi.mock("./pages/Settings", () => ({
   default: () => <div data-testid="settings-page">Settings Page</div>,
 }));
@@ -59,10 +57,6 @@ vi.mock("./plugins/PluginRoutes", async (importOriginal) => {
 
 describe("App Routing", () => {
   it("sends /link-settings to the instance console, not a tenant route", async () => {
-    // Instance-level settings live in the /instance console. That is a different
-    // router basename, so the tenant shell has to leave with a full page load —
-    // a router <Navigate> would resolve the target against /admin and land on
-    // the tenant catch-all.
     const replace = vi.fn();
     Object.defineProperty(window, "location", {
       value: { pathname: "/link-settings", replace },
@@ -80,7 +74,6 @@ describe("App Routing", () => {
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/instance/settings");
     }, { timeout: 2000 });
-    // And it must not have quietly rendered the tenant catch-all instead.
     expect(screen.queryByText(/Not part of this build/i)).toBeNull();
   });
 

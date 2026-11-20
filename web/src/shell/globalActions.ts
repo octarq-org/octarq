@@ -35,9 +35,6 @@ export interface BuiltinQuickActionOptions {
   onExportData?: () => void;
 }
 
-/**
- * Creates builtin immediate quick actions for CommandPalette.
- */
 export function createBuiltinQuickActions(
   options?: BuiltinQuickActionOptions,
 ): CommandPaletteItem[] {
@@ -128,9 +125,6 @@ export function createBuiltinQuickActions(
   ];
 }
 
-/**
- * Filters raw actions by requiredRole against user's org role or instance admin bypass.
- */
 export function visibleActions(
   actions: Action[] | undefined,
   role: string | undefined,
@@ -144,9 +138,6 @@ export interface MergeCommandOptions extends BuiltinQuickActionOptions {
   includeBuiltin?: boolean;
 }
 
-/**
- * Merges action candidates ahead of navigation candidates for CommandPalette.
- */
 export function mergeCommandItems(
   actions: Action[] = [],
   navItems: CommandPaletteItem[] = [],

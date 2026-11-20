@@ -27,7 +27,6 @@ export default function SlackForm() {
           );
           setIntegrations(slackIntegrations);
           if (config?.integrationId && slackIntegrations.some((i) => i.id === config.integrationId)) {
-            // Keep existing valid integrationId
           } else if (slackIntegrations.length > 0) {
             updateConfig("integrationId", slackIntegrations[0].id);
           }

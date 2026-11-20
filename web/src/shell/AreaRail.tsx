@@ -209,7 +209,6 @@ export function AreaRail({
       data-slot="area-rail"
       className="flex h-full w-[52px] shrink-0 flex-col items-center border-r border-sidebar-border/80 bg-sidebar py-2"
     >
-      {/* Top anchor: workspace switcher (Pro) or brand mark (OSS) */}
       <div className="flex h-10 w-full shrink-0 items-center justify-center px-1.5">
         {showWorkspaceSwitcher ? (
           <Menu.Root>
@@ -257,7 +256,6 @@ export function AreaRail({
         )}
       </div>
 
-      {/* Primary area icons */}
       <nav
         aria-label={t("topbar.switchArea", "Switch area")}
         className="flex w-full flex-1 flex-col items-center gap-1.5 overflow-y-auto px-1.5 py-3"
@@ -283,7 +281,6 @@ export function AreaRail({
         })}
       </nav>
 
-      {/* Footer rail: dynamic footer items (e.g. Help), Settings, Account, Collapse toggle */}
       <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-1 border-t border-sidebar-border/80 px-1.5 pt-2">
         {footerItems.map((it) => {
           const label = translateNavItemLabel(t, it.id, it.label);
@@ -356,7 +353,6 @@ export function AreaRail({
         </button>
       </div>
 
-      {/* Collapsed hover flyout showing the hovered Area's grouped navigation */}
       {collapsed &&
         flyout &&
         typeof document !== "undefined" &&

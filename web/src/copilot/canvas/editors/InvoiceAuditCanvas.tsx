@@ -1,8 +1,3 @@
-/**
- * InvoiceAuditCanvas: Interactive invoice audit ledger, PO comparison, and payment release editor.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState, useMemo } from "react";
 import { Button, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 import { AlertTriangle, Clock, CheckCircle, Search, X, FileText } from "lucide-react";
@@ -67,7 +62,6 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="invoice-audit-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -90,7 +84,6 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-border gap-1 pb-1">
         {(["all", "discrepancies", "overdue", "matched"] as const).map((tab) => (
           <button
@@ -107,7 +100,6 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
         ))}
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-auto rounded-xl border border-border bg-card">
         <Table className="w-full text-left text-xs border-collapse">
           <THead>
@@ -167,7 +159,6 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
         </Table>
       </div>
 
-      {/* PO Inspector Drawer */}
       {inspectedItem && (
         <div
           data-testid="po-inspector"
@@ -199,7 +190,6 @@ export function InvoiceAuditCanvas({ artifactId, content, onAction }: InvoiceAud
         </div>
       )}
 
-      {/* Approval Gate */}
       <CanvasApprovalGate
         approvalId={approvalId}
         toolName="invoice_release_batch_payments"

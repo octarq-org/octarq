@@ -46,11 +46,6 @@ export type AIStreamErrorCode =
   | "server"
   | "network";
 
-/**
- * Typed failure for the AI chat stream. Fail-Closed: the caller must surface
- * this to the operator — synthesizing a fake assistant reply is forbidden
- * (Pre-v1.0 铁律: 严禁 fallback 仿真).
- */
 export class AIStreamError extends Error {
   readonly status: number;
   readonly code: AIStreamErrorCode;
@@ -98,13 +93,6 @@ async function readErrorDetail(res: Response): Promise<string> {
   }
 }
 
-/**
- * Streams chat responses from the backend `/api/ai/chat/stream` SSE endpoint.
- *
- * Fail-Closed: when the backend answers 401/402/400/500 or the network fails,
- * the error is delivered to `onError` verbatim. No simulated reply is ever
- * produced on the client.
- */
 export async function streamAIChat({
   messages,
   onThinking,
@@ -135,7 +123,6 @@ export async function streamAIChat({
   }
 
   if (!res.ok) {
-    // Strict Fail-Closed: surface the backend failure, never fake a reply.
     const detail = await readErrorDetail(res);
     onError?.(errorFromStatus(res.status, detail));
     onDone?.();
@@ -204,7 +191,6 @@ export async function streamAIChat({
               onDone?.();
             }
           } catch {
-            // Raw text fallback
             if (currentEvent === "text") {
               onText?.(dataStr);
             }
@@ -222,7 +208,6 @@ export async function streamAIChat({
   }
 }
 
-// --- Approval CAS client (bound to backend agent_approvals atomic flow) ---
 
 export type ApprovalDecision = "approve" | "reject";
 
@@ -239,13 +224,6 @@ export interface ApprovalDecisionResult {
   approver?: string;
 }
 
-/**
- * decideApproval performs an atomic compare-and-swap decision against
- * `/api/ai/approvals/:id/approve|reject`. The backend only transitions
- * `pending → approved|rejected`; concurrent or replayed decisions surface as
- * 409 (already resolved) or 410 (expired/missing) and are mapped — never
- * optimistically marked locally.
- */
 export async function decideApproval(
   approvalId: string,
   decision: ApprovalDecision,
@@ -324,11 +302,6 @@ function mapBackendApproval(row: BackendApprovalRow): ActionDiff {
   };
 }
 
-/**
- * fetchApprovals lists pending agent approvals for the current workspace.
- * Throws AIStreamError on 401/402 so the caller can render the guide card or
- * the LockedFeature upsell instead of placeholder data.
- */
 export async function fetchApprovals(): Promise<ActionDiff[]> {
   const res = await fetch("/api/ai/approvals", {
     headers: { Accept: "application/json" },

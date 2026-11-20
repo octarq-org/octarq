@@ -45,10 +45,10 @@ const mockHealthyReport: HealthReport = {
       unit: "bytes",
       metrics: {
         goroutines: 42,
-        heap_alloc_bytes: 20971520, // 20 MB
-        heap_sys_bytes: 67108864, // 64 MB
+        heap_alloc_bytes: 20971520,
+        heap_sys_bytes: 67108864,
         heap_inuse_bytes: 25165824,
-        uptime_seconds: 7325, // 2h 2m
+        uptime_seconds: 7325,
         go_version: "go1.25.0",
         num_cpu: 8,
       },
@@ -75,9 +75,9 @@ const mockHealthyReport: HealthReport = {
       category: "storage",
       unit: "bytes",
       metrics: {
-        total_bytes: 107374182400, // 100 GB
-        used_bytes: 42949672960, // 40 GB
-        available_bytes: 64424509440, // 60 GB
+        total_bytes: 107374182400,
+        used_bytes: 42949672960,
+        available_bytes: 64424509440,
         usage_percent: 40.0,
         path: "/data/octarq",
       },
@@ -109,34 +109,29 @@ describe("HealthOverview Component", () => {
 
     renderWithClient(<HealthOverview />, client);
 
-    // Global title and badge
     expect(screen.getByTestId("health-overview")).toBeTruthy();
     expect(screen.getByText("System health")).toBeTruthy();
     expect(screen.getAllByText("Healthy").length).toBeGreaterThanOrEqual(1);
 
-    // Runtime card
     expect(screen.getByTestId("health-card-runtime")).toBeTruthy();
-    expect(screen.getByText("42")).toBeTruthy(); // goroutines
+    expect(screen.getByText("42")).toBeTruthy();
     expect(screen.getByText("go1.25.0 · 8 CPU cores")).toBeTruthy();
-    expect(screen.getByText("2h 2m")).toBeTruthy(); // uptime
+    expect(screen.getByText("2h 2m")).toBeTruthy();
     expect(screen.getByText("Heap: 20 MB")).toBeTruthy();
     expect(screen.getByText("Sys: 64 MB")).toBeTruthy();
 
-    // Database card
     expect(screen.getByTestId("health-card-database")).toBeTruthy();
-    expect(screen.getByText("5")).toBeTruthy(); // open conns
-    expect(screen.getByText("/ 50")).toBeTruthy(); // max conns
-    expect(screen.getByText("2 ms")).toBeTruthy(); // ping latency
+    expect(screen.getByText("5")).toBeTruthy();
+    expect(screen.getByText("/ 50")).toBeTruthy();
+    expect(screen.getByText("2 ms")).toBeTruthy();
 
-    // Disk card
     expect(screen.getByTestId("health-card-disk")).toBeTruthy();
-    expect(screen.getByText("40%")).toBeTruthy(); // usage percent
+    expect(screen.getByText("40%")).toBeTruthy();
     expect(screen.getByText("/data/octarq")).toBeTruthy();
-    expect(screen.getByText("40 GB")).toBeTruthy(); // used
-    expect(screen.getByText("60 GB")).toBeTruthy(); // free
-    expect(screen.getByText("100 GB")).toBeTruthy(); // total
+    expect(screen.getByText("40 GB")).toBeTruthy();
+    expect(screen.getByText("60 GB")).toBeTruthy();
+    expect(screen.getByText("100 GB")).toBeTruthy();
 
-    // No troubleshooting alert when healthy
     expect(screen.queryByTestId("health-troubleshooting-alert")).toBeNull();
   });
 
@@ -165,10 +160,8 @@ describe("HealthOverview Component", () => {
 
     renderWithClient(<HealthOverview />, client);
 
-    // Overall status shows Degraded
     expect(screen.getAllByText("Degraded").length).toBeGreaterThanOrEqual(1);
 
-    // Troubleshooting alert should appear with database recommendations
     const alert = screen.getByTestId("health-troubleshooting-alert");
     expect(alert).toBeTruthy();
     expect(screen.getByText("Subsystem health alert")).toBeTruthy();

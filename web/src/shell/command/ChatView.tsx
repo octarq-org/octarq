@@ -33,7 +33,6 @@ export function ChatView({
 
   return (
     <>
-      {/* Chat Header */}
       <div className="flex items-center justify-between border-b border-border bg-well px-4 py-2.5 transition-colors">
         <button
           type="button"
@@ -53,7 +52,6 @@ export function ChatView({
         </kbd>
       </div>
 
-      {/* Chat Message List */}
       <div
         ref={chatScrollRef}
         className="max-h-[48vh] min-h-[180px] overflow-y-auto p-4 space-y-3.5 scrollbar-thin"
@@ -124,7 +122,6 @@ export function ChatView({
         )}
       </div>
 
-      {/* Chat Input Box */}
       <div className="border-t border-border p-3 bg-well">
         <div className="flex items-end gap-2">
           <textarea

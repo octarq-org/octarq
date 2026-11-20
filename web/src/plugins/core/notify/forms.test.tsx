@@ -306,14 +306,12 @@ describe("Notify & Alerts Forms", () => {
         expect(screen.getByText("HTTP Webhook")).toBeDefined();
       });
 
-      // Expand Telegram Bot row
       fireEvent.click(screen.getByText("Telegram Bot"));
 
       await waitFor(() => {
         expect(screen.getByText("Dev Team Telegram")).toBeDefined();
       });
 
-      // Test notification channel
       const testBtn = screen.getByRole("button", { name: /Test/i });
       fireEvent.click(testBtn);
 
@@ -325,7 +323,6 @@ describe("Notify & Alerts Forms", () => {
         expect(testCall).toBeDefined();
       });
 
-      // Toggle notification channel (Disable)
       const disableBtn = screen.getByRole("button", { name: "Disable" });
       fireEvent.click(disableBtn);
 
@@ -345,33 +342,26 @@ describe("Notify & Alerts Forms", () => {
         expect(screen.getByText("Telegram Bot")).toBeDefined();
       });
 
-      // Expand Telegram Bot row
       fireEvent.click(screen.getByText("Telegram Bot"));
 
-      // Click Add channel
       const addBtn = screen.getByRole("button", { name: /Add channel/i });
       fireEvent.click(addBtn);
 
-      // Verify modal opened
       await waitFor(() => {
         expect(screen.getByPlaceholderText("My Dev Team Telegram")).toBeDefined();
       });
 
-      // Fill Channel Name
       fireEvent.change(screen.getByPlaceholderText("My Dev Team Telegram"), {
         target: { value: "Production Ops Alerts" },
       });
 
-      // Wait for TelegramForm integrations to load and auto-select
       await waitFor(() => {
         expect(screen.getByText("Ops Telegram Bot (Telegram)")).toBeDefined();
       });
 
-      // Fill TelegramForm chatId rendered via ExtensionSlot
       const emptyInputs = screen.getAllByDisplayValue("");
       fireEvent.change(emptyInputs[0], { target: { value: "-100555666" } });
 
-      // Submit modal
       const saveBtn = screen.getByRole("button", { name: "Save Channel" });
       fireEvent.click(saveBtn);
 
@@ -398,19 +388,16 @@ describe("Notify & Alerts Forms", () => {
         expect(screen.getByText("Telegram Bot")).toBeDefined();
       });
 
-      // Expand Telegram Bot row
       fireEvent.click(screen.getByText("Telegram Bot"));
 
       await waitFor(() => {
         expect(screen.getByText("Dev Team Telegram")).toBeDefined();
       });
 
-      // Delete channel with confirmation
       const delBtn = document.querySelector('button.text-danger-fg') as HTMLButtonElement;
       expect(delBtn).toBeDefined();
       fireEvent.click(delBtn);
 
-      // Confirm dialog appears
       await waitFor(() => {
         expect(screen.getByText("Delete this alert channel?")).toBeDefined();
       });

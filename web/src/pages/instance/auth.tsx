@@ -6,8 +6,6 @@ import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
 import { oauthCallbackPath } from "../../shell/oauthRoutes";
 
-// Provider glyphs — inline so they don't depend on the icon set (matches the
-// SVGs the Login page uses for the OAuth buttons).
 function GoogleGlyph({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -26,9 +24,6 @@ function GithubGlyph({ className }: { className?: string }) {
   );
 }
 
-// One provider row of the Supabase-style list: an accordion whose header shows
-// the provider + enabled badge, expanding to reveal its config. `builtin`
-// providers (Email) are always on and can't be collapsed to "disabled".
 function ProviderRow({
   icon,
   name,
@@ -123,7 +118,6 @@ export function AuthenticationSettings() {
     }
   }
 
-  // Per-provider save (Supabase saves each provider independently).
   async function saveProvider(which: "google" | "github", body: Record<string, string>) {
     setSaving(which);
     try {
@@ -162,10 +156,6 @@ export function AuthenticationSettings() {
   const googleEnabled = !!settings.googleClientId && !!settings.googleClientSecretSet;
   const githubEnabled = !!settings.githubClientId && !!settings.githubClientSecretSet;
 
-  // A read-only callback URL field with copy affordance — providers need the
-  // exact redirect URI registered on their side.
-  //
-  // Callback path constructed centrally; validated against Go route by oauthRoutes.test.ts.
   const CallbackField = ({ provider }: { provider: string }) => (
     <Field label={t("settings.callbackUrl")} hint={t("settings.callbackUrlHint")}>
       <Input readOnly className="cursor-text bg-well font-mono text-xs text-foreground" value={`${origin}${oauthCallbackPath(provider)}`} />
@@ -177,7 +167,6 @@ export function AuthenticationSettings() {
       title={t("settings.authTitle")}
       description={t("settings.authDesc")}
     >
-      {/* Account creation policy & email verification gate */}
       <PageSection>
         <PageRows className="mt-0">
           <PageRow
@@ -196,7 +185,6 @@ export function AuthenticationSettings() {
         </PageRows>
       </PageSection>
 
-      {/* Provider list (Supabase-style accordion) */}
       <PageSection title={t("settings.authProviders")}>
         <PageCard className="mt-0 overflow-hidden p-0">
           <ProviderRow
@@ -289,8 +277,6 @@ export function AuthenticationSettings() {
             </div>
           </ProviderRow>
 
-          {/* Pro providers (Enterprise OIDC, …) inject their own rows here so they
-              sit in the same list. Empty in the OSS build. */}
           <ExtensionSlot name="settings-auth" />
         </PageCard>
       </PageSection>

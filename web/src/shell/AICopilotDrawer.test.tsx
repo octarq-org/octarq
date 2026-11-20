@@ -40,12 +40,10 @@ describe("AICopilotButton", () => {
     expect(btn.getAttribute("aria-pressed")).toBe("false");
     expect(screen.getByText("⌘J")).not.toBeNull();
 
-    // Click button to open
     fireEvent.click(btn);
     expect(useAICopilotStore.getState().isOpen).toBe(true);
     expect(btn.getAttribute("aria-pressed")).toBe("true");
 
-    // Click button again to close
     fireEvent.click(btn);
     expect(useAICopilotStore.getState().isOpen).toBe(false);
   });
@@ -71,7 +69,6 @@ describe("AICopilotDrawer", () => {
 
     expect(screen.queryByRole("dialog")).toBeNull();
 
-    // Open drawer
     useAICopilotStore.getState().openDrawer();
     rerender(
       <I18nProvider>
@@ -96,7 +93,6 @@ describe("AICopilotDrawer", () => {
 
     expect(screen.getByTestId("copilot-empty-state")).not.toBeNull();
 
-    // Verify presence of prompt cards
     expect(screen.getByText(/Analyze past 7 days link traffic trends/)).not.toBeNull();
     expect(screen.getByText(/Check current DNS records/)).not.toBeNull();
     expect(screen.getByText(/Summarize recent unread emails/)).not.toBeNull();
@@ -127,7 +123,6 @@ describe("AICopilotDrawer", () => {
     const dnsPill = screen.getByText(/Check current DNS records/);
     fireEvent.click(dnsPill);
 
-    // Verify fetch request
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/ai/chat/stream",
@@ -138,7 +133,6 @@ describe("AICopilotDrawer", () => {
       );
     });
 
-    // Check assistant streamed content rendered
     await waitFor(() => {
       expect(
         screen.getByText("DNS records are currently healthy across all edge locations."),
@@ -171,23 +165,18 @@ describe("AICopilotDrawer", () => {
 
     const textarea = screen.getByPlaceholderText(/Ask anything about your workspace/);
 
-    // Shift+Enter should NOT send
     fireEvent.change(textarea, { target: { value: "Line 1" } });
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
     expect(mockFetch.mock.calls.filter(([url]) => url === "/api/ai/chat/stream")).toHaveLength(0);
 
-    // Plain Enter sends
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
     });
 
-    // User message and assistant response
     await waitFor(() => {
       expect(screen.getByText("Line 1")).not.toBeNull();
       expect(screen.getByText("Here is the response.")).not.toBeNull();
-      // The protocol carries no per-delta token count; usage arrives with
-      // the finished run.
     });
   });
 
@@ -200,12 +189,10 @@ describe("AICopilotDrawer", () => {
       </I18nProvider>,
     );
 
-    // 1. Close button
     const closeBtn = screen.getByRole("button", { name: "Close" });
     fireEvent.click(closeBtn);
     expect(useAICopilotStore.getState().isOpen).toBe(false);
 
-    // 2. Backdrop click
     useAICopilotStore.getState().openDrawer();
     rerender(
       <I18nProvider>
@@ -216,7 +203,6 @@ describe("AICopilotDrawer", () => {
     fireEvent.click(backdrop);
     expect(useAICopilotStore.getState().isOpen).toBe(false);
 
-    // 3. Escape key in textarea
     useAICopilotStore.getState().openDrawer();
     rerender(
       <I18nProvider>
@@ -237,18 +223,15 @@ describe("AICopilotDrawer", () => {
 
     expect(useAICopilotStore.getState().isOpen).toBe(false);
 
-    // Custom event opens drawer
     window.dispatchEvent(new CustomEvent("octarq:open-copilot"));
     expect(useAICopilotStore.getState().isOpen).toBe(true);
 
-    // Mod+J toggles drawer
     fireEvent.keyDown(window, { key: "j", metaKey: true });
     expect(useAICopilotStore.getState().isOpen).toBe(false);
 
     fireEvent.keyDown(window, { key: "j", metaKey: true });
     expect(useAICopilotStore.getState().isOpen).toBe(true);
 
-    // Mod+/ toggles drawer
     fireEvent.keyDown(window, { key: "/", metaKey: true });
     expect(useAICopilotStore.getState().isOpen).toBe(false);
   });

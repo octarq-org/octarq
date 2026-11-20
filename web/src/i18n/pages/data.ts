@@ -1,5 +1,3 @@
-// The generic entity page. The entity's own labels come from the declaration
-// (user data); everything here is page furniture.
 export const data = {
   en: {
     pageDesc: "Records saved in this workspace.",

@@ -8,8 +8,6 @@ import { api } from "../api/client";
 import { I18nProvider } from "../i18n";
 import { NsgoLoadError } from "../../../packages/plugin-sdk/src";
 
-// The mount itself is covered by the SDK suite; here the question is what the
-// page hands it and what it shows when the app or the workspace is missing.
 interface MountProps {
   src: string;
   params?: Record<string, unknown>;

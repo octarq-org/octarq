@@ -19,9 +19,6 @@ import { Fragment, useEffect, useState } from "react";
 import { api, ApiError, type LinkedIdentity } from "../../api";
 import { useTranslation } from "../../i18n";
 
-// First-match tables, in priority order. Mobile UAs embed desktop tokens
-// ("iPhone OS 17_0 like Mac OS X", "Linux; Android 14"), so the mobile
-// checks must precede the desktop ones or phones read as macOS/Linux.
 const UA_BROWSERS: Array<[string, (ua: string) => boolean]> = [
   ["Microsoft Edge", (ua) => ua.includes("Edg/")],
   ["Opera", (ua) => ua.includes("OPR/") || ua.includes("Opera")],
@@ -133,12 +130,6 @@ function SessionsList() {
   );
 }
 
-// LinkedIdentities lists the external identities that can sign in as this
-// account. There is no "link" button here on purpose: creating a binding needs
-// a verified assertion, which only the identity plugin that ran the handshake
-// holds, so it offers that from its own page. Removal is core's, because being
-// able to cut off a way into your account must not depend on which plugins the
-// build happens to include.
 function LinkedIdentities() {
   const { t } = useTranslation();
   const [items, setItems] = useState<LinkedIdentity[] | null>(null);
@@ -157,7 +148,6 @@ function LinkedIdentities() {
       toast.success(t("settings.saved"));
       load();
     } catch (e) {
-      // 409 is the server refusing to leave the account with no way in.
       toast.error(e instanceof ApiError ? e.message : t("settings.failed"));
     } finally {
       setBusy(null);
@@ -204,18 +194,13 @@ export function SecuritySettings() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  // Which login methods exist on this instance, so the 2FA card can state the
-  // truth about its coverage: password + built-in OAuth are covered, per-org
-  // SSO delegates the second factor to the identity provider.
   const [hasOauth, setHasOauth] = useState(false);
   const [hasSso, setHasSso] = useState(false);
 
-  // Enrollment state.
   const [setup, setSetup] = useState<{ secret: string; otpauthUrl: string; qrDataUri?: string } | null>(null);
   const [enrollCode, setEnrollCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
-  // Disable state.
   const [disableCode, setDisableCode] = useState("");
 
   async function load() {
@@ -232,8 +217,6 @@ export function SecuritySettings() {
     api.authConfig()
       .then((cfg) => setHasOauth(cfg.googleEnabled || cfg.githubEnabled))
       .catch(() => {});
-    // /api/auth/methods is public; plugin-sso registers its method there only
-    // while configured, so its presence means this instance offers SSO.
     fetch("/api/auth/methods")
       .then((r) => r.json())
       .then((m: { id: string }[]) =>
@@ -242,9 +225,6 @@ export function SecuritySettings() {
       .catch(() => {});
   }, []);
 
-  // Both halves of the 2FA switch re-authenticate. A live session is exactly
-  // what an attacker holds when the second factor is the last thing standing,
-  // so it must not be enough on its own to attach one — or strip one.
   async function beginSetup() {
     setErr(""); setMsg(""); setRecoveryCodes(null);
     const password = await confirmPassword({
@@ -303,7 +283,6 @@ export function SecuritySettings() {
     setBusy(true); setErr("");
     try {
       await api.logoutAll();
-      // The current session cookie is now revoked; bounce to the login screen.
       window.location.href = "/";
     } catch (e: any) {
       const msg = e instanceof ApiError ? e.message : t("settings.failed");

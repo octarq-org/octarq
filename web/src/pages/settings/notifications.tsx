@@ -7,18 +7,6 @@ import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
 import { PreferencesPage } from "../notifications/PreferencesPage";
 
-// ---------------------------------------------------------------------------
-// ProviderRow — accordion per channel type; channels for that type listed
-// inside the expanded body.
-//
-// Design decision: one row per type, channels nested.
-// Auth providers are singletons so auth.tsx doesn't answer this. Here a
-// workspace can have two Telegram bots, two webhook endpoints, etc. Grouping
-// by type keeps the type-specific config form in one place and lets "Add
-// another channel of this type" live naturally inside the row. A per-channel
-// row grouped by type would require duplicating the form header for every
-// channel, and the enabled/disabled badge would mean nothing at the type level.
-// ---------------------------------------------------------------------------
 function ProviderRow({
   type,
   title,
@@ -100,7 +88,6 @@ function ProviderRow({
 
       {open && (
         <div className="space-y-3 border-t border-border bg-well px-4 py-4">
-          {/* existing channels for this type */}
           {channels.length > 0 ? (
             <div className="divide-y divide-border rounded-xl border border-border bg-well overflow-hidden">
               {channels.map((c) => (
@@ -156,7 +143,6 @@ function ProviderRow({
             </div>
           )}
 
-          {/* add another channel of this type */}
           {canManage && (
             <Button
               variant="outline"
@@ -173,9 +159,6 @@ function ProviderRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// EditChannelModal — inline form modal reusing the slot mechanism.
-// ---------------------------------------------------------------------------
 function EditChannelModal({
   channel,
   initialType,
@@ -272,9 +255,6 @@ function EditChannelModal({
   );
 }
 
-// ---------------------------------------------------------------------------
-// NotificationChannels — the full page, accordion-style.
-// ---------------------------------------------------------------------------
 export function NotificationChannels() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -282,7 +262,6 @@ export function NotificationChannels() {
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // editing state: { type, channel | null }
   const [editing, setEditing] = useState<{ type: string; channel: NotificationChannel | null } | null>(null);
 
   async function load() {
@@ -323,7 +302,6 @@ export function NotificationChannels() {
     load();
   }
 
-  // channels grouped by type
   const byType = (type: string) => channels.filter((c) => c.type === type);
 
   const [searchParams, setSearchParams] = useSearchParams();

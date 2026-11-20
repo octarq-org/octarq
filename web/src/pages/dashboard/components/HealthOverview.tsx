@@ -27,7 +27,6 @@ export function HealthOverview() {
 
   const normalizedOverall = normalizeHealthStatus(data?.overall);
 
-  // Collect any providers experiencing warnings or errors
   const problematicProviders = useMemo(() => {
     if (!data?.providers) return [];
     return data.providers.filter(
@@ -101,7 +100,6 @@ export function HealthOverview() {
 
   return (
     <div className="mb-6" data-testid="health-overview">
-      {/* Header section with status badge, auto-refresh hint, and manual refresh button */}
       <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-well">
@@ -142,7 +140,6 @@ export function HealthOverview() {
         </div>
       </div>
 
-      {/* Troubleshooting and Alert banner when subsystem is degraded or down */}
       {hasIssues && (
         <div className="mb-4" data-testid="health-troubleshooting-alert">
           <Alert
@@ -179,7 +176,6 @@ export function HealthOverview() {
         </div>
       )}
 
-      {/* Provider cards grid */}
       {providers.length === 0 ? (
         <PageCard className="mt-0 p-6 text-center text-sm text-muted-foreground">
           {t("overview.healthNoProviders")}

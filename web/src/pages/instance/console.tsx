@@ -1,8 +1,3 @@
-// The instance console — a standalone shell for deployment-wide settings,
-// mounted at its own /instance basename (see main.tsx). Deliberately NOT the
-// tenant shell (App.tsx): no org switcher, no plugin menu pipeline, no
-// workspace chrome. Instance admins only; everyone else gets a neutral notice
-// and a way back to /admin — the server stays authoritative either way.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { Menu } from "@base-ui/react/menu";
@@ -20,14 +15,10 @@ import { menuIcon } from "../../shell/areas";
 import { useInstanceReadiness } from "./shared";
 import { ConsoleHome } from "./home";
 
-// Each migrated panel stays its own chunk, loaded when its route opens.
 const InstanceSettings = lazy(() => import("./settings").then((m) => ({ default: m.InstanceSettings })));
 const AuthenticationSettings = lazy(() => import("./auth").then((m) => ({ default: m.AuthenticationSettings })));
 const InstancePluginsSettings = lazy(() => import("./plugins").then((m) => ({ default: m.InstancePluginsSettings })));
 
-// Rail items are the console's own navigation — frontend-declared, no menu
-// pipeline (the console has no tenant sidebar). Labels localize via the same
-// nav.<id> mechanism as every other sidebar entry; `label` is the fallback.
 const RAIL: { id: string; label: string; path: string; Icon: React.ElementType }[] = [
   { id: "console-overview", label: "Overview", path: "/", Icon: LayoutDashboard },
   { id: "console-settings", label: "Instance Settings", path: "/settings", Icon: Server },
@@ -69,8 +60,6 @@ export default function InstanceConsole() {
   return <ConsoleShell />;
 }
 
-// Neutral, feature-free notice: no hint that instance administration exists,
-// just "not for this account" and the way back. The server is authoritative.
 function AccessDenied() {
   const { t } = useTranslation();
   return (
@@ -102,12 +91,6 @@ function ConsoleShell() {
     api.instanceBuild().then(setBuild).catch(() => {});
   }, []);
 
-  // The backend is the only source of truth for which instance pages exist in
-  // this build: an entry survives only when /api/instance/menus announces it
-  // AND the frontend registers an instanceRoutes entry for the same path
-  // (mirroring the tenant sidebar merge in App.tsx). Announce-without-frontend
-  // would point at a blank page; frontend-without-announce means the plugin is
-  // disabled or not compiled in.
   const registeredInstanceRoutes = useMemo(() => uiInstanceRoutes(), []);
   const registeredInstancePaths = useMemo(
     () => new Set(registeredInstanceRoutes.map((r) => r.path)),

@@ -57,7 +57,6 @@ export function TableToolbar<TData>({
 }: TableToolbarProps<TData>) {
   const { t } = useTranslation();
 
-  // ─── Search Form State ──────────────────────────────────────────────────────
   const searchCfg = typeof searchConfig === "object" ? searchConfig : {};
   const defaultCollapsedCount = searchCfg.defaultCollapsedCount ?? 2;
   const [collapsed, setCollapsed] = useState<boolean>(
@@ -65,7 +64,6 @@ export function TableToolbar<TData>({
   );
   const [formState, setFormState] = useState<Record<string, any>>(searchParams);
 
-  // Filterable columns
   const filterColumns = columns.filter((c) => {
     if (c.hideInSearch) return false;
     const key = c.key || (c.dataIndex ? String(c.dataIndex) : undefined);
@@ -79,7 +77,6 @@ export function TableToolbar<TData>({
       ? filterColumns.slice(0, defaultCollapsedCount)
       : filterColumns;
 
-  // ─── Column Visibility Dropdown State ───────────────────────────────────────
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [showDensityDropdown, setShowDensityDropdown] = useState(false);
 
@@ -109,15 +106,11 @@ export function TableToolbar<TData>({
 
   return (
     <div className="space-y-3 p-4">
-      {/* Search / Filter Section */}
       {hasSearch && (
         <form
           onSubmit={handleSubmit}
           className="rounded-xl border border-border bg-well p-3 text-xs"
         >
-          {/* Fields and their actions share one row: the actions sit on the
-              inputs' baseline, so the filter reads as a single control strip
-              instead of a form with a detached footer. */}
           <div className="flex flex-wrap items-end gap-3">
             {visibleFilterColumns.map((col) => {
               const fieldKey =
@@ -232,9 +225,7 @@ export function TableToolbar<TData>({
         </form>
       )}
 
-      {/* Main Toolbar Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Left Slot: Title & Tooltip */}
         <div className="flex items-center gap-2">
           {headerTitle && (
             <h3 className="text-base font-semibold text-foreground">
@@ -251,7 +242,6 @@ export function TableToolbar<TData>({
           )}
         </div>
 
-        {/* Right Slot: Actions, Refresh, Density, Columns */}
         <div className="flex items-center gap-2">
           {toolBarRender && (
             <div className="flex items-center gap-2">
@@ -259,7 +249,6 @@ export function TableToolbar<TData>({
             </div>
           )}
 
-          {/* Reload / Refresh Button */}
           <Button
             size="sm"
             variant="outline"
@@ -273,7 +262,6 @@ export function TableToolbar<TData>({
             />
           </Button>
 
-          {/* Table Density Selector */}
           <div className="relative">
             <Button
               size="sm"
@@ -320,7 +308,6 @@ export function TableToolbar<TData>({
             )}
           </div>
 
-          {/* Column Visibility Selector */}
           <div className="relative">
             <Button
               size="sm"

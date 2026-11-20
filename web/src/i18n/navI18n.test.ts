@@ -26,7 +26,6 @@ const HOST_RESOURCES: Record<Lang, Record<string, unknown>> = {
   ja,
 };
 
-// Helper: deep-get a dotted key path like "groups.Communication" or "nav.overview"
 function getDottedKey(obj: unknown, path: string): unknown {
   if (obj == null || typeof obj !== "object") return undefined;
   const parts = path.split(".");
@@ -39,11 +38,6 @@ function getDottedKey(obj: unknown, path: string): unknown {
 }
 
 
-// Sidebar entries come from the Go half's MenuProvider, so that is what this
-// guard has to read — the frontend registry no longer carries menus at all.
-// Parsing the Go source keeps the assertion pointed at the real declarations
-// instead of a list in the test that would drift from them, which is the exact
-// failure this file exists to catch.
 const GO_MENU_SOURCES = import.meta.glob(
   "../../../server/{plugins/*/plugin.go,plugins/*/*.go,internal/api/tenant_menu.go}",
   {
@@ -61,11 +55,6 @@ function goMenus(): { id: string; category: string }[] {
       out.push({ id: m[1], category: m[2] });
     }
   }
-  // An empty parse would make every assertion below vacuously pass, which is
-  // worse than a failure: the guard would go quiet exactly when the Go menu
-  // shape changed out from under it. Core declares one menu in Go (help); the
-  // business plugins that used to add more live in octarq-plugins and guard
-  // their own nav keys.
   if (out.length < 1) {
     throw new Error(`goMenus() parsed ${out.length} entries — the Go MenuItem literal shape probably changed`);
   }
@@ -75,14 +64,12 @@ function goMenus(): { id: string; category: string }[] {
 describe("Navigation & Category Group i18n Guard Test", () => {
   beforeEach(() => {
     resetRegistry();
-    // Register all core / default frontend plugins so full seam is reachable
     registerUIPlugin(auditPlugin);
     registerUIPlugin(abusePlugin);
     registerUIPlugin(helpPlugin);
   });
 
   it("ensures every category group heading resolves to an explicit key in en, zh, es, pt, ja", () => {
-    // Collect all group category labels from static areas, settings, plugin menus & plugin areas
     const categories = new Set<string>();
 
     for (const area of [...STATIC_AREAS, SETTINGS_AREA]) {
@@ -108,7 +95,6 @@ describe("Navigation & Category Group i18n Guard Test", () => {
       const sharedDict = sharedDicts[locale] || {};
 
       for (const category of categories) {
-        // Skip "footer" / "resources" which is placement metadata rather than a group heading
         if (category.toLowerCase() === "footer" || category.toLowerCase() === "resources") continue;
 
         const hostVal = getDottedKey(hostDict, `groups.${category}`);

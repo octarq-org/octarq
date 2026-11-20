@@ -33,7 +33,6 @@ export function CommandPalette({
   open: boolean;
   onClose: () => void;
   areas: Area[];
-  // Admin-filtered merged Settings area with plugin-contributed settings pages.
   settingsArea: Area;
   onNavigate: (path: string) => void;
   actions?: Action[];
@@ -56,7 +55,6 @@ export function CommandPalette({
 
   const { t } = useTranslation();
 
-  // Flatten nav items (areas + settings) with translated labels for search.
   const navItems = useMemo<CommandPaletteItem[]>(
     () =>
       [...areas, settingsArea].flatMap((a) =>
@@ -102,7 +100,6 @@ export function CommandPalette({
     [areas, settingsArea, t],
   );
 
-  // When q is non-empty, we can prepend an "Ask AI" action item to search results
   const askAiItem = useMemo<CommandPaletteItem | null>(() => {
     const trimmed = q.trim();
     if (!trimmed) return null;
@@ -160,7 +157,6 @@ export function CommandPalette({
     return { sections: nextSections, visibleItems: nextVisible, askAiIndex: nextAskAiIndex };
   }, [grouped, collapsedGroups, isSearching, askAiItem]);
 
-  // Clean up streaming on unmount or dialog close
   useEffect(() => {
     if (open) {
       setQ("");
@@ -194,7 +190,6 @@ export function CommandPalette({
     }
   }, [sel, open, mode]);
 
-  // Auto-scroll chat to bottom
   useEffect(() => {
     if (mode === "chat") {
       chatScrollRef.current?.scrollTo({
@@ -204,7 +199,6 @@ export function CommandPalette({
     }
   }, [messages, isStreaming, mode]);
 
-  // Focus textarea when switching to chat mode
   useEffect(() => {
     if (mode === "chat") {
       setTimeout(() => chatInputRef.current?.focus(), 50);
@@ -319,7 +313,6 @@ export function CommandPalette({
     [handleSend],
   );
 
-  // Search input change handler — detects / or ? prefixes
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (val.startsWith("/") || val.startsWith("?")) {
@@ -350,7 +343,6 @@ export function CommandPalette({
     setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Arrow/Enter drive search result list navigation across expanded groups.
   const onSearchKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();

@@ -1,7 +1,4 @@
 // @vitest-environment happy-dom
-// The overview used to swallow a failed fetch (`catch(() => {})`), leaving `o`
-// null — which the page renders as a skeleton. An outage therefore looked like
-// an endless load. A failure must be visible and retryable.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";

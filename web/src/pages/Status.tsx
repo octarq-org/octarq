@@ -117,7 +117,6 @@ export default function StatusPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
-      {/* Header */}
       <header className="border-b border-border bg-background sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -146,9 +145,7 @@ export default function StatusPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-5 space-y-4">
-        {/* Banner */}
         <div className={`p-4 rounded-lg border flex items-center gap-4 ${
           error ? "bg-danger-bg border-danger-border text-danger-fg" : banner.bg
         }`}>
@@ -182,7 +179,6 @@ export default function StatusPage() {
           )}
         </div>
 
-        {/* Subsystems Card */}
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
             <h3 className="font-semibold text-base text-foreground">{t("status.subsystems")}</h3>
@@ -221,8 +217,6 @@ export default function StatusPage() {
         </div>
       </main>
 
-      {/* Footer: what this page actually monitors, when it last got an answer.
-          The timestamp is machine-produced → mono. */}
       <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-muted-foreground border-t border-border mt-12 space-y-1">
         {data && (
           <p className="font-mono tnum">

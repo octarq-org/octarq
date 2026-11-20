@@ -3,10 +3,6 @@ import { ColumnDef } from "@tanstack/react-table";
 import { z } from "zod";
 import { ProColumn, ProTableActionRef } from "./types";
 
-/**
- * Remove empty strings, null, undefined, and whitespace-only values from search params.
- * Empty fields become undefined, preventing dirty parameters from overriding default behavior.
- */
 export function cleanParams<T extends Record<string, any>>(params: T): Record<string, any> {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(params || {})) {
@@ -26,10 +22,6 @@ export function cleanParams<T extends Record<string, any>>(params: T): Record<st
   return result;
 }
 
-/**
- * Validates data against a Zod schema, returning the fallback on validation failure.
- * Ensures network boundary type safety without throwing exceptions or bare `as T` casting.
- */
 export function parseWithFallback<T>(
   schema: z.ZodType<T>,
   data: unknown,
@@ -48,10 +40,6 @@ export function parseWithFallback<T>(
   return fallback;
 }
 
-/**
- * Validates an array of items against a Zod schema. Invalid items are either discarded
- * or replaced with the optional fallback item.
- */
 export function parseArrayWithFallback<T>(
   itemSchema: z.ZodType<T>,
   data: unknown,
@@ -70,9 +58,6 @@ export function parseArrayWithFallback<T>(
   return valid;
 }
 
-/**
- * Normalizes ProColumn definitions into TanStack Table ColumnDef.
- */
 export function normalizeColumns<TData>(
   columns: ProColumn<TData>[],
   actionRef?: ProTableActionRef

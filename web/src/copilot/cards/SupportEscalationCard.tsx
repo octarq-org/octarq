@@ -1,8 +1,3 @@
-/**
- * SupportEscalationCard: Support query resolution and high-risk incident escalation card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { LifeBuoy, AlertCircle, ExternalLink, ShieldAlert, ArrowUpRight } from "lucide-react";

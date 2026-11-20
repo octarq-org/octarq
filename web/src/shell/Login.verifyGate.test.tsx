@@ -1,14 +1,4 @@
 // @vitest-environment happy-dom
-//
-// Guards the sign-up half of the email-verification gate in the REAL Login
-// screen. When the instance requires a verified email the server creates the
-// account but issues no session (internal/api/register.go), so the UI must
-// send the user to their mailbox instead of pushing them at a dashboard they
-// can't load.
-//
-// The server's answer is the same whether the address was free or already
-// had an account — it must not say which — so the page never asks. What the
-// mailbox holds decides what happens next.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { api } from "../api";
@@ -33,7 +23,6 @@ function renderLogin(onLogin = vi.fn()) {
   return onLogin;
 }
 
-// Drives the register form the way a person does: switch mode, type, submit.
 async function signUp() {
   fireEvent.click(await screen.findByRole("button", { name: /create one/i }));
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "new@user.com" } });
@@ -57,12 +46,9 @@ describe("sign-up when the instance requires a verified email", () => {
 
     await signUp();
 
-    // The address is echoed back so the user knows which mailbox to open.
     expect(await screen.findByText(/check your email/i)).toBeTruthy();
     expect(screen.getByText(/new@user\.com/)).toBeTruthy();
-    // A resend action is reachable from this state, not just from a failed login.
     expect(screen.getByRole("button", { name: /resend email/i })).toBeTruthy();
-    // No session exists, so nothing may try to enter the app.
     expect(onLogin).not.toHaveBeenCalled();
     expect(me).not.toHaveBeenCalled();
   });
@@ -85,9 +71,7 @@ describe("sign-up when the instance requires a verified email", () => {
 
     await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
 
-    // Success notice must NOT be rendered
     expect(screen.queryByText(/email sent/i)).toBeNull();
-    // Error banner must display the unconfigured mail notice
     expect(await screen.findByText(/mail service is not configured/i)).toBeTruthy();
   });
 
@@ -109,9 +93,7 @@ describe("sign-up when the instance requires a verified email", () => {
 
     await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
 
-    // Success notice MUST be rendered
     expect(await screen.findByText(/email sent/i)).toBeTruthy();
-    // Error notice must NOT be displayed
     expect(screen.queryByText(/mail service is not configured/i)).toBeNull();
   });
 });

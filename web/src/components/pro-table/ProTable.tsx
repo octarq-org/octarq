@@ -23,7 +23,6 @@ import { ProTableProps } from "./types";
 import { useProTable } from "./useProTable";
 import { TableToolbar } from "./TableToolbar";
 
-// Safe fallback QueryClient for standalone tests or components rendered outside a provider
 const fallbackQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -104,7 +103,6 @@ function ProTableInner<
 
   return (
     <PageCard className={`mt-0 overflow-hidden p-0 ${cardClassName} ${className}`.trim()}>
-      {/* Toolbar / Search form */}
       {showToolbar && (
         <TableToolbar
           columns={columns}
@@ -135,14 +133,12 @@ function ProTableInner<
         />
       )}
 
-      {/* Extra render slot */}
       {tableExtraRender && (
         <div className="border-t border-border px-4 py-2">
           {tableExtraRender(table)}
         </div>
       )}
 
-      {/* Table Content with Density Provider */}
       <TableDensityProvider density={density} onDensityChange={setDensity}>
         {isLoading ? (
           <TableSkeleton columnsCount={visibleColumnsCount} ariaLabel={ariaLabel} />
@@ -222,7 +218,6 @@ function ProTableInner<
           </Table>
         )}
 
-        {/* Pagination Section */}
         {!isLoading && !isError && data.length > 0 && pagination !== false && (
           <TablePagination
             page={page}

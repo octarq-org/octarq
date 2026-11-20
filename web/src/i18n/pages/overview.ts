@@ -35,7 +35,6 @@ export const overview = {
     domains: "Domains",
     domainsDelta: "{{link}} link · {{mail}} mail",
 
-    // System Health Monitoring
     healthTitle: "System health",
     healthDesc: "Diagnostic metrics and subsystem status",
     healthStatusHealthy: "Healthy",
@@ -113,7 +112,6 @@ export const overview = {
     domains: "域名",
     domainsDelta: "{{link}} 链接 · {{mail}} 邮件",
 
-    // System Health Monitoring
     healthTitle: "系统健康",
     healthDesc: "系统健康诊断与运行时监控",
     healthStatusHealthy: "运行正常",
@@ -191,7 +189,6 @@ export const overview = {
     domains: "Dominios",
     domainsDelta: "{{link}} enlaces · {{mail}} correo",
 
-    // System Health Monitoring
     healthTitle: "Salud del sistema",
     healthDesc: "Métricas de diagnóstico y estado del subsistema",
     healthStatusHealthy: "Saludable",
@@ -269,7 +266,6 @@ export const overview = {
     domains: "Domínios",
     domainsDelta: "{{link}} links · {{mail}} correio",
 
-    // System Health Monitoring
     healthTitle: "Saúde do sistema",
     healthDesc: "Métricas de diagnóstico e status do subsistema",
     healthStatusHealthy: "Saudável",
@@ -347,7 +343,6 @@ export const overview = {
     domains: "ドメイン",
     domainsDelta: "{{link}} リンク · {{mail}} メール",
 
-    // System Health Monitoring
     healthTitle: "システムヘルス",
     healthDesc: "診断メトリクスとサブシステムの状態",
     healthStatusHealthy: "正常",

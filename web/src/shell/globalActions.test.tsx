@@ -39,19 +39,15 @@ describe("Global Actions pure helpers", () => {
   ];
 
   it("1. visibleActions filters actions based on role and instance admin bypass", () => {
-    // Normal member: only empty requiredRole or member requiredRole
     const memberActions = visibleActions(sampleActions, "member", false);
     expect(memberActions.map((a) => a.id)).toEqual(["create-link"]);
 
-    // Admin: empty, member, or admin requiredRole
     const adminActions = visibleActions(sampleActions, "admin", false);
     expect(adminActions.map((a) => a.id)).toEqual(["create-link", "create-domain"]);
 
-    // Owner: all actions
     const ownerActions = visibleActions(sampleActions, "owner", false);
     expect(ownerActions.map((a) => a.id)).toEqual(["create-link", "create-domain", "create-mailbox"]);
 
-    // Instance admin bypass: all actions regardless of role
     const bypassActions = visibleActions(sampleActions, "member", true);
     expect(bypassActions.map((a) => a.id)).toEqual(["create-link", "create-domain", "create-mailbox"]);
   });
@@ -70,7 +66,6 @@ describe("Global Actions pure helpers", () => {
 
     const merged = mergeCommandItems(sampleActions, navItems);
 
-    // Actions must be placed before nav items
     expect(merged[0].isAction).toBe(true);
     expect(merged[0].id).toBe("create-link");
     expect(merged[1].id).toBe("create-domain");
@@ -78,7 +73,6 @@ describe("Global Actions pure helpers", () => {
     expect(merged[3].isAction).toBe(false);
     expect(merged[3].id).toBe("/links");
 
-    // Search matching test
     const needle = "new link";
     const matched = merged.filter((c) => c.label.toLowerCase().includes(needle));
     expect(matched).toHaveLength(1);
@@ -109,7 +103,6 @@ describe("Global Actions pure helpers", () => {
       onOpenCopilot,
     });
 
-    // 4 builtin quick actions + 1 nav item = 5 items
     expect(merged).toHaveLength(5);
     expect(merged.map((m) => m.id)).toEqual([
       "action.new_link",
@@ -119,7 +112,6 @@ describe("Global Actions pure helpers", () => {
       "/overview",
     ]);
 
-    // Test actionType and shortcut properties
     const newLink = merged.find((m) => m.id === "action.new_link");
     expect(newLink?.actionType).toBe("create_link");
     expect(newLink?.shortcut).toBe("⌘N");

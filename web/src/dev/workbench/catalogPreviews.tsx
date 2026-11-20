@@ -91,8 +91,6 @@ export function AlertRows() {
 }
 
 export function ModalRow() {
-  // Modal has no `open` prop: mounting it IS opening it (it wraps Dialog with
-  // open). So the preview mounts it only while the button has been clicked.
   const [open, setOpen] = useState(true);
   return (
     <>

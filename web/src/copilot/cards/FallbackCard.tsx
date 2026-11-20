@@ -1,8 +1,3 @@
-/**
- * FallbackCard: renders when no specialized card can render.
- * Always renders: tool name, ASD-STE100 reason, and raw args safely.
- * Never throws and never returns blank.
- */
 import React from "react";
 import { useTranslation } from "../../i18n";
 import type { CardActionHandler } from "./registry";

@@ -59,9 +59,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
     vi.clearAllMocks();
   });
 
-  // =========================================================================
-  // SECTION 1: APPROVAL GATE ADVERSARIAL ATTACKS
-  // =========================================================================
   describe("1. Approval Gate Adversarial Attacks", () => {
     describe("ApprovalCard standalone attacks", () => {
       it("blocks submission and displays warning when approvalId is empty string", () => {
@@ -195,7 +192,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         fireEvent.click(approveBtn);
         expect(onAction).not.toHaveBeenCalled();
 
-        // Whitespace test
         rerender(
           <I18nProvider>
             <CanvasApprovalGate
@@ -266,7 +262,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         const approveBtn = screen.getByRole("button", { name: /Execute Action/i });
         fireEvent.click(approveBtn);
 
-        // Pre-v1.0 Fail-Closed rule: a 400 Bad Request or network error must NOT be marked as 'decided' or 'Action executed'
         await waitFor(() => {
           const terminal = screen.getByTestId("gate-terminal");
           expect(terminal.getAttribute("data-verdict")).not.toBe("decided");
@@ -363,7 +358,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
           />,
         );
 
-        // Adversarial check: does whitespace bypass the missing-id check?
         const missingWarning = screen.queryByTestId("approval-missing-id");
         const stageBtn = screen.getByTestId("stage-invites-btn");
         expect(missingWarning).not.toBeNull();
@@ -436,9 +430,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
     });
   });
 
-  // =========================================================================
-  // SECTION 2: ZERO-I/O SEAM VERIFICATION
-  // =========================================================================
   describe("2. Zero-I/O Seam Verification Across All Card & Canvas Files", () => {
     function getAllSourceFiles(dir: string): string[] {
       const results: string[] = [];
@@ -493,9 +484,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
     });
   });
 
-  // =========================================================================
-  // SECTION 3: ERGONOMIC STRESS & RESPONSIVE LAYOUT TRANSITIONS
-  // =========================================================================
   describe("3. Ergonomic Stress & Responsive Layout Transitions", () => {
     it("preserves active draft state in WeeklyReportCanvas through rapid drawer -> split -> maximized -> drawer -> split transitions", async () => {
       renderDrawer();
@@ -520,14 +508,11 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         expect(screen.getByTestId("copilot-canvas-pane")).toBeDefined();
       });
 
-      // User performs in-flight edit
       const textarea = screen.getByLabelText("Markdown editor");
       fireEvent.change(textarea, { target: { value: "# In-Flight Modified Content That Must Survive Transitions" } });
 
-      // Verify immediate update
       expect(screen.getByTestId("markdown-preview").textContent).toContain("In-Flight Modified Content That Must Survive Transitions");
 
-      // Rapid layout cycle: split -> maximized -> split -> drawer -> split
       act(() => {
         useCopilotStore.getState().setCanvasLayout("maximized");
       });
@@ -548,7 +533,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
       });
       expect(useCopilotStore.getState().canvasLayout).toBe("split");
 
-      // Assert draft state was NOT lost
       const currentArtifact = useCopilotStore.getState().artifacts["art-stress-weekly"];
       expect((currentArtifact.content as any).markdown_report).toContain("In-Flight Modified Content That Must Survive Transitions");
       expect(screen.getByTestId("markdown-preview").textContent).toContain("In-Flight Modified Content That Must Survive Transitions");
@@ -580,14 +564,11 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         expect(screen.getByTestId("copilot-canvas-pane")).toBeDefined();
       });
 
-      // Verify 1 item originally
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(1);
 
-      // User adds a new item
       fireEvent.click(screen.getByTestId("add-line-item-btn"));
       expect(screen.getAllByTestId("line-item-row")).toHaveLength(2);
 
-      // Rapid layout toggle: split -> maximized -> split
       act(() => {
         useCopilotStore.getState().setCanvasLayout("maximized");
       });
@@ -595,7 +576,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         useCopilotStore.getState().setCanvasLayout("split");
       });
 
-      // Assert that newly added item is still present after layout transition
       const rowsAfter = screen.getAllByTestId("line-item-row");
       expect(rowsAfter).toHaveLength(2);
     });
@@ -635,12 +615,10 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         expect(screen.getByTestId("copilot-canvas-pane")).toBeDefined();
       });
 
-      // User types custom edits into reply body textarea
       const bodyInput = screen.getByLabelText("Email reply body");
       fireEvent.change(bodyInput, { target: { value: "CRITICAL EDITED CONTENT: Special negotiated payment terms for Acme." } });
       expect((bodyInput as HTMLTextAreaElement).value).toBe("CRITICAL EDITED CONTENT: Special negotiated payment terms for Acme.");
 
-      // Rapid layout toggle: split -> maximized -> split
       act(() => {
         useCopilotStore.getState().setCanvasLayout("maximized");
       });
@@ -648,15 +626,11 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
         useCopilotStore.getState().setCanvasLayout("split");
       });
 
-      // Assert in-flight draft edits are preserved
       const bodyInputAfter = screen.getByLabelText("Email reply body") as HTMLTextAreaElement;
       expect(bodyInputAfter.value).toBe("CRITICAL EDITED CONTENT: Special negotiated payment terms for Acme.");
     });
   });
 
-  // =========================================================================
-  // SECTION 4: COPY & ACCESSIBILITY STRESS (ASD-STE100)
-  // =========================================================================
   describe("4. Copy & Accessibility Stress (ASD-STE100 Compliance)", () => {
     it("ensures no robotic filler words appear across all card and canvas components", () => {
       const copilotDir = resolve(__dirname, "../..");
@@ -694,7 +668,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
       for (const file of files) {
         const lines = readFileSync(file, "utf-8").split("\n");
         lines.forEach((line, lineNo) => {
-          // ignore comments or imports
           const trimmed = line.trim();
           if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
 
@@ -728,7 +701,6 @@ describe("Adversarial Challenger Suite — Copilot Canvas & Action Cards", () =>
       ];
 
       for (const msg of messages) {
-        // split by sentence boundary
         const sentences = msg.split(/[.!?]\s+/).filter(Boolean);
         for (const s of sentences) {
           const words = s.trim().split(/\s+/).filter(Boolean);

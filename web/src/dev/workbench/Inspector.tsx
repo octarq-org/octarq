@@ -3,12 +3,6 @@ import { SEED_TOKENS, TOKENS, readTokenValues, themeAlias, type TokenDef } from 
 import { useTheme } from "../../theme";
 import type { CatalogEntry } from "./catalog";
 
-// Reads a token's declaration in BOTH themes without leaving the page in the
-// other mode. Toggling the class on <html> is what actually re-resolves the
-// declarations, so there is no second source to keep in sync.
-//
-// WARNING: this writes <html>'s class list. Never call it from a MutationObserver
-// on that element — the observer would see its own write and re-fire forever.
 function readBothThemes(names: string[]): { light: Record<string, string>; dark: Record<string, string> } {
   const el = document.documentElement;
   const wasDark = el.classList.contains("dark");
@@ -52,9 +46,6 @@ function TokenList() {
   const theme = useTheme();
   const [values, setValues] = useState(() => readBothThemes(ALL_NAMES));
 
-  // Driven by the theme store rather than a MutationObserver on <html>:
-  // readBothThemes() itself flips the `dark` class, so an observer watching that
-  // element re-fires on its own write and loops until the tab dies.
   useEffect(() => setValues(readBothThemes(ALL_NAMES)), [theme]);
 
   const groups = useMemo(() => {
@@ -101,8 +92,6 @@ function TokenRow({
   light: Record<string, string>;
   dark: Record<string, string>;
 }) {
-  // Swatches are painted with var(--name) so the browser resolves whatever the
-  // declaration is, including color-mix/oklch derived from a rebranded seed.
   const isColor = token.group !== "radius" && token.group !== "typography";
   const alias = themeAlias(token);
   return (
@@ -155,9 +144,6 @@ function ColorEditor() {
   const [draft, setDraft] = useState<Record<string, string>>(initial);
 
   const apply = useCallback((name: string, value: string) => {
-    // The same write surface the white-label plugin uses: inline seeds on <html>.
-    // Nothing else is touched, and every derived token follows because the
-    // stylesheet mixes them from --primary.
     document.documentElement.style.setProperty(name, value);
   }, []);
 
@@ -175,7 +161,6 @@ function ColorEditor() {
     setDraft(next);
   };
 
-  // The snippet a developer pastes into styles.css to make the tweak permanent.
   const snippet = SEED_TOKENS.filter((t) => draft[t.name] !== initial[t.name])
     .map((t) => `  ${t.name}: ${draft[t.name]};`)
     .join("\n");

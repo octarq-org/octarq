@@ -1,8 +1,3 @@
-/**
- * FinancialDeckCanvas: 16:9 widescreen 3-slide visual presentation viewer and outline editor.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Presentation, Play, Edit3, Copy, Check, Plus, Trash2 } from "lucide-react";
@@ -26,7 +21,6 @@ export interface FinancialDeckCanvasProps {
 
 export function FinancialDeckCanvas({ artifactId, content, onAction }: FinancialDeckCanvasProps) {
   const { t } = useTranslation();
-  // The speaker notes field takes its name from the visible label.
   const fieldId = useId();
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [presentationMode, setPresentationMode] = useState(false);
@@ -116,7 +110,6 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="financial-deck-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -149,7 +142,6 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
         </div>
       </div>
 
-      {/* Slide Navigation Strip */}
       <div className="flex gap-2">
         {slides.map((s, idx) => (
           <button
@@ -167,7 +159,6 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
         ))}
       </div>
 
-      {/* 16:9 Widescreen Canvas Slide */}
       <div
         className="w-full aspect-[16/9] max-h-[440px] rounded-2xl border border-border bg-gradient-to-br from-card to-well/80 p-6 flex flex-col justify-between shadow-lg relative overflow-hidden"
         data-testid="presentation-slide-view"
@@ -200,7 +191,6 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
             </div>
           )}
 
-          {/* Bullet Points */}
           <div className="space-y-2 pt-2">
             {(currentSlide.bullets || []).map((bullet, idx) => (
               <div key={idx} className="flex items-start gap-2 text-xs text-foreground leading-relaxed">
@@ -241,14 +231,12 @@ export function FinancialDeckCanvas({ artifactId, content, onAction }: Financial
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground font-mono">
           <span>OCTARQ PRO ENTERPRISE BRIEFING</span>
           <span>{`${t("copilot.financePage", "PAGE #")}${activeSlideIndex + 1} ${t("copilot.financeOf", "OF 3")}`}</span>
         </div>
       </div>
 
-      {/* Speaker Notes */}
       <div className="rounded-xl border border-border bg-well p-3 space-y-1.5 text-xs">
         <label htmlFor={`${fieldId}-notes`} className="text-[11px] font-semibold text-muted-foreground uppercase">
           {t("copilot.financeSpeakerNotes", "Speaker Notes:")}

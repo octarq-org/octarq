@@ -57,7 +57,6 @@ export function CopilotChatTab({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {aiUnconfigured && (
           <div
@@ -82,7 +81,6 @@ export function CopilotChatTab({
           </div>
         )}
         {messages.length === 0 ? (
-          /* Welcome & Preset Prompts */
           <div className="my-auto py-6 space-y-6">
             <div className="text-center space-y-2">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-fg">
@@ -99,7 +97,6 @@ export function CopilotChatTab({
               </p>
             </div>
 
-            {/* Preset Action Suggestions */}
             <div className="space-y-2">
               <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
                 {t("copilot.quickPrompts", "常用运营快捷指令")}
@@ -139,7 +136,6 @@ export function CopilotChatTab({
             </div>
           </div>
         ) : (
-          /* Chat Messages */
           messages.map((msg) => (
             <div
               key={msg.id}
@@ -148,7 +144,6 @@ export function CopilotChatTab({
                 msg.role === "user" ? "items-end" : "items-start",
               )}
             >
-              {/* Role / Name Header */}
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground px-1">
                 {msg.role === "user" ? (
                   <span>{t("copilot.userLabel", "你")}</span>
@@ -160,7 +155,6 @@ export function CopilotChatTab({
                 )}
               </div>
 
-              {/* Thinking Process Accordion */}
               {msg.thinking && (
                 <div className="w-full max-w-md rounded-xl border border-primary/20 bg-accent-soft p-2.5 text-xs text-muted-foreground my-1">
                   <button
@@ -186,7 +180,6 @@ export function CopilotChatTab({
                 </div>
               )}
 
-              {/* Message Bubble */}
               {msg.content && (
                 <div
                   className={cn(
@@ -202,14 +195,12 @@ export function CopilotChatTab({
                     <MarkdownRenderer content={msg.content} />
                   )}
 
-                  {/* Typing Cursor */}
                   {msg.isStreaming && (
                     <span className="inline-block h-3.5 w-1.5 ml-1 bg-primary animate-pulse" />
                   )}
                 </div>
               )}
 
-              {/* Inline Action Diff Cards */}
               {msg.actionDiffs && msg.actionDiffs.length > 0 && (
                 <div className="w-full space-y-2.5 pt-1 max-w-full">
                   {msg.actionDiffs.map((diff) => (
@@ -218,7 +209,6 @@ export function CopilotChatTab({
                 </div>
               )}
 
-              {/* Domain Tool Call Card */}
               {msg.toolCall && (!msg.actionDiffs || msg.actionDiffs.length === 0) && (
                 <div className="w-full space-y-2.5 pt-1 max-w-full" data-testid="copilot-tool-call">
                   {renderToolCall(
@@ -267,7 +257,6 @@ export function CopilotChatTab({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input & Footer Controls */}
       <div className="border-t border-border bg-well p-3">
         <div className="relative flex flex-col rounded-2xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-accent-border/50 transition-colors">
           <textarea

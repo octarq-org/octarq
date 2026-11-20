@@ -44,7 +44,6 @@ test.describe("Design System UI Stories", () => {
           await expectNoCommentLeak(page);
           await expectNoI18nLeak(page);
 
-          // 1. Verify no horizontal scroll overflow on either desktop or mobile.
           const overflow = await page.evaluate(() => ({
             scrollWidth: document.documentElement.scrollWidth,
             clientWidth: document.documentElement.clientWidth,
@@ -54,7 +53,6 @@ test.describe("Design System UI Stories", () => {
             `${story.name} (${theme}/${vp.name}) overflowed horizontally`,
           ).toBeLessThanOrEqual(overflow.clientWidth + 1);
 
-          // 2. Verify 3-surface CSS tokens are active and distinct.
           const surfaces = await page.evaluate(() => {
             const styles = getComputedStyle(document.documentElement);
             return {
@@ -69,7 +67,6 @@ test.describe("Design System UI Stories", () => {
           expect(surfaces.sidebar).not.toBe(surfaces.background);
           expect(surfaces.background).not.toBe(surfaces.card);
 
-          // 3. Verify PageShell full-width geometry and ShellFooter alignment across all routes.
           const shell = page.locator('[data-slot="page-shell"]').first();
           await expect(shell, `${story.name} should render [data-slot="page-shell"]`).toBeVisible();
           await expect(shell).toHaveAttribute("data-width", "full");
@@ -114,7 +111,6 @@ test.describe("Design System UI Stories", () => {
             expect(renderedSurfaces.panelBg).not.toBe(renderedSurfaces.cardBg);
           }
 
-          // 4. Capture UI story screenshot artifact for light/dark + desktop/mobile regression review.
           const filename = `${story.name}-${theme}-${vp.name}.png`;
           const screenshotPath = path.join(ARTIFACT_DIR, filename);
           const buf = await page.screenshot({ path: screenshotPath, fullPage: false });

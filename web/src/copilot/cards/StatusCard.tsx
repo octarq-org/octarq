@@ -1,8 +1,3 @@
-/**
- * StatusCard: Status page and probe monitor status.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Activity } from "lucide-react";
 import { useTranslation } from "../../i18n";

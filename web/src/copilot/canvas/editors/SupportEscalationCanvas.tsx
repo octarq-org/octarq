@@ -1,8 +1,3 @@
-/**
- * SupportEscalationCanvas: Customer support incident dossier, RAG KB citations, and escalation routing editor.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useId, useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { LifeBuoy, AlertCircle, BookOpen, UserCheck, ShieldAlert, ArrowUpRight } from "lucide-react";
@@ -28,9 +23,6 @@ export interface SupportEscalationCanvasProps {
 
 export function SupportEscalationCanvas({ artifactId, content, onAction }: SupportEscalationCanvasProps) {
   const { t } = useTranslation();
-  // The visible labels are the accessible names here: a raw <select> and
-  // <textarea> take them through htmlFor, which also keeps the name in
-  // every language without a second string.
   const fieldId = useId();
   const [selectedOwner, setSelectedOwner] = useState(content.recommended_owner || "VP of Infrastructure");
   const [handoverNotes, setHandoverNotes] = useState(
@@ -56,7 +48,6 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-y-auto" data-testid="support-escalation-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -71,7 +62,6 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
         </span>
       </div>
 
-      {/* Customer Information & Complaint Chronology */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
         <div className="flex items-center justify-between border-b border-border pb-1.5">
           <div className="font-semibold text-foreground">{t("copilot.supportProfileChronology", "Customer Profile & Incident Chronology")}</div>
@@ -82,7 +72,6 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
         </p>
       </div>
 
-      {/* RAG Knowledge Base Citations */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
         <div className="flex items-center gap-1.5 font-semibold text-foreground border-b border-border pb-1.5">
           <BookOpen className="h-4 w-4 text-accent-fg" />
@@ -105,7 +94,6 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
         </div>
       </div>
 
-      {/* Escalation Routing & Notes */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-xs">
         <div className="flex items-center gap-1.5 font-semibold text-foreground border-b border-border pb-1.5">
           <UserCheck className="h-4 w-4 text-accent-fg" />
@@ -138,7 +126,6 @@ export function SupportEscalationCanvas({ artifactId, content, onAction }: Suppo
         </div>
       </div>
 
-      {/* Fail-Closed Approval Gate */}
       <CanvasApprovalGate
         approvalId={approvalId}
         toolName="support_execute_escalation"
