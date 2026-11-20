@@ -156,7 +156,7 @@ func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, plugin.ErrWorkforceBudgetExhausted):
 		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceBudgetExceeded, "This agent reached its monthly budget limit. Raise the limit before you run a turn.")
 	case errors.Is(err, plugin.ErrWorkforceModelUnpriced):
-		writeErr(w, r, http.StatusBadRequest, apierror.CodeWorkforceModelPriceAbsent, "No price is configured for this model. Add a price before you bill agent turns.")
+		writeErr(w, r, http.StatusBadRequest, apierror.CodeWorkforceModelPriceAbsent, "The pricing dataset has no price for this model. Choose another model.")
 	default:
 		writeErr(w, r, http.StatusInternalServerError, "", "Could not check the agent budget; retry the request.")
 	}
