@@ -16,14 +16,12 @@ func newTestStore(t *testing.T) (*Store, plugin.VaultService) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&Provider{}, &ModelPrice{}); err != nil {
+	if err := db.AutoMigrate(&Provider{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return NewStore(db), newTestVaultService(t, db)
 }
 
-// TestFirstProviderBecomesDefault pins that a workspace with one provider needs
-// no second step: the first row is the default, so a fresh workspace can chat.
 func TestFirstProviderBecomesDefault(t *testing.T) {
 	s, vs := newTestStore(t)
 	ctx := context.Background()
@@ -43,8 +41,6 @@ func TestFirstProviderBecomesDefault(t *testing.T) {
 	}
 }
 
-// TestSecondProviderIsNotDefault pins that only the first row is default: a
-// workspace with two providers must choose, not pick the newest.
 func TestSecondProviderIsNotDefault(t *testing.T) {
 	s, vs := newTestStore(t)
 	ctx := context.Background()
@@ -60,8 +56,6 @@ func TestSecondProviderIsNotDefault(t *testing.T) {
 	}
 }
 
-// TestSetDefaultIsExclusive pins the single-default invariant: setting one
-// provider default clears the flag on the others.
 func TestSetDefaultIsExclusive(t *testing.T) {
 	s, vs := newTestStore(t)
 	ctx := context.Background()
@@ -89,8 +83,6 @@ func TestSetDefaultIsExclusive(t *testing.T) {
 	_ = a
 }
 
-// TestActiveProviderRefusesAmbiguity pins that two providers and no default is
-// an error, not a coin flip.
 func TestActiveProviderRefusesAmbiguity(t *testing.T) {
 	s, vs := newTestStore(t)
 	ctx := context.Background()
@@ -98,7 +90,7 @@ func TestActiveProviderRefusesAmbiguity(t *testing.T) {
 	if _, err := s.CreateProvider(ctx, 1, ProviderInput{Name: "B", Backend: "openai", APIKey: "k"}, vs); err != nil {
 		t.Fatalf("create B: %v", err)
 	}
-	// Clear the default the first provider got on create.
+
 	if err := s.db.Model(&Provider{}).Where("org_id = ?", 1).Update("is_default", false).Error; err != nil {
 		t.Fatalf("clear default: %v", err)
 	}
@@ -108,8 +100,6 @@ func TestActiveProviderRefusesAmbiguity(t *testing.T) {
 	_ = a
 }
 
-// TestNoProviderFailsClosed pins the absence rule: a workspace with no provider
-// refuses rather than falling back to instance credentials.
 func TestNoProviderFailsClosed(t *testing.T) {
 	s, _ := newTestStore(t)
 	if _, err := s.ActiveProvider(context.Background(), 1); !errors.Is(err, ErrNotConfigured) {
@@ -117,69 +107,102 @@ func TestNoProviderFailsClosed(t *testing.T) {
 	}
 }
 
-// TestPriceIsTenantScoped pins that one workspace's price never answers for
-// another: prices are configuration, and a leak would mis-bill a tenant.
-func TestPriceIsTenantScoped(t *testing.T) {
+func TestPriceIsInstanceWide(t *testing.T) {
 	s, _ := newTestStore(t)
 	ctx := context.Background()
-	if err := s.SetPrice(ctx, 1, ModelPrice{Model: "claude-opus-4-8", Input: 15, Output: 75, Reasoning: 30}); err != nil {
-		t.Fatalf("set price: %v", err)
-	}
-	got, err := s.Price(ctx, 1, "claude-opus-4-8")
+	got, err := s.Price(ctx, 1, "qwen-flash")
 	if err != nil {
 		t.Fatalf("price: %v", err)
 	}
-	if got.Input != 15 || got.Output != 75 || got.Reasoning != 30 {
-		t.Fatalf("price = %+v", got)
+	if got.Input <= 0 || got.Output <= 0 {
+		t.Fatalf("price = %+v, want the catalog values", got)
 	}
-	if _, err := s.Price(ctx, 2, "claude-opus-4-8"); !errors.Is(err, plugin.ErrModelUnpriced) {
-		t.Fatalf("other tenant price = %v, want ErrModelUnpriced", err)
+
+	if got.Reasoning != got.Output {
+		t.Fatalf("reasoning = %v, want the output rate %v", got.Reasoning, got.Output)
+	}
+	other, err := s.Price(ctx, 2, "qwen-flash")
+	if err != nil || other != got {
+		t.Fatalf("other workspace price = %+v, %v, want %+v", other, err, got)
 	}
 }
 
-// TestPriceUpsertKeepsOneRow pins that saving a price twice replaces it.
-func TestPriceUpsertKeepsOneRow(t *testing.T) {
+func TestPriceLookupIsCaseInsensitiveAndAliased(t *testing.T) {
 	s, _ := newTestStore(t)
 	ctx := context.Background()
-	if err := s.SetPrice(ctx, 1, ModelPrice{Model: "m", Input: 1, Output: 2}); err != nil {
-		t.Fatalf("set: %v", err)
-	}
-	if err := s.SetPrice(ctx, 1, ModelPrice{Model: "m", Input: 3, Output: 4}); err != nil {
-		t.Fatalf("set again: %v", err)
-	}
-	rows, err := s.ListPrices(ctx, 1)
+	want, err := s.Price(ctx, 1, "qwen-flash")
 	if err != nil {
-		t.Fatalf("list: %v", err)
+		t.Fatalf("price: %v", err)
 	}
-	if len(rows) != 1 {
-		t.Fatalf("rows = %d, want 1", len(rows))
-	}
-	if rows[0].Input != 3 || rows[0].Output != 4 {
-		t.Fatalf("row = %+v", rows[0])
+	for _, name := range []string{"Qwen-Flash", " qwen-flash ", "alibaba-qwen/qwen-flash"} {
+		if got, err := s.Price(ctx, 1, name); err != nil || got != want {
+			t.Fatalf("price(%q) = %+v, %v, want %+v", name, got, err, want)
+		}
 	}
 }
 
-// TestPriceRejectsNegative pins that a negative price is refused: a negative
-// cost would credit a budget instead of spending it.
-func TestPriceRejectsNegative(t *testing.T) {
+func TestPriceCatalogRefusesWhatItCannotBill(t *testing.T) {
 	s, _ := newTestStore(t)
-	if err := s.SetPrice(context.Background(), 1, ModelPrice{Model: "m", Input: -1}); !errors.Is(err, ErrInvalidProvider) {
-		t.Fatalf("negative price = %v, want ErrInvalidProvider", err)
+	ctx := context.Background()
+	if _, err := s.Price(ctx, 1, "no-such-model"); !errors.Is(err, plugin.ErrModelUnpriced) {
+		t.Fatalf("unknown model = %v, want ErrModelUnpriced", err)
+	}
+	if _, err := s.Price(ctx, 1, ""); !errors.Is(err, plugin.ErrModelUnpriced) {
+		t.Fatalf("empty model = %v, want ErrModelUnpriced", err)
+	}
+
+	if _, err := s.Price(ctx, 1, "DetectDocumentText"); !errors.Is(err, plugin.ErrModelUnpriced) {
+		t.Fatalf("unpriced model = %v, want ErrModelUnpriced", err)
 	}
 }
 
-// TestZeroOrgIsRefused pins that a call with no workspace cannot read rows.
+func TestPriceAliasRefusesAmbiguity(t *testing.T) {
+	c, err := parsePriceCatalog([]byte(`{
+		"model_count": 3,
+		"models": [
+			{"model_id": "vendor-a/same-name", "pricing": {"input": 1, "output": 2}},
+			{"model_id": "vendor-b/same-name", "pricing": {"input": 3, "output": 4}},
+			{"model_id": "vendor-a/unique", "pricing": {"input": 5, "output": 6}}
+		]
+	}`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if _, err := c.price("same-name"); !errors.Is(err, plugin.ErrModelUnpriced) {
+		t.Fatalf("ambiguous alias = %v, want ErrModelUnpriced", err)
+	}
+	if _, err := c.price("vendor-x/same-name"); !errors.Is(err, plugin.ErrModelUnpriced) {
+		t.Fatalf("prefixed ambiguous alias = %v, want ErrModelUnpriced", err)
+	}
+	if got, err := c.price("vendor-a/unique"); err != nil || got.Input != 5 || got.Output != 6 {
+		t.Fatalf("unique = %+v, %v", got, err)
+	}
+	if got, err := c.price("vendor-x/unique"); err != nil || got.Input != 5 {
+		t.Fatalf("unique suffix = %+v, %v", got, err)
+	}
+}
+
+func TestParsePriceCatalogRefusesCorruption(t *testing.T) {
+	for _, raw := range []string{
+		`{`,
+		`{"model_count": 0, "models": []}`,
+		`{"model_count": 2, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2}}]}`,
+		`{"model_count": 2, "models": [{"model_id": "a"}, {"model_id": "a"}]}`,
+		`{"model_count": 1, "models": [{"model_id": ""}]}`,
+	} {
+		if _, err := parsePriceCatalog([]byte(raw)); err == nil {
+			t.Fatalf("parse %s = nil, want an error", raw)
+		}
+	}
+}
+
 func TestZeroOrgIsRefused(t *testing.T) {
 	s, _ := newTestStore(t)
 	if _, err := s.ListProviders(context.Background(), 0); err == nil {
 		t.Fatal("org 0 listed providers")
 	}
-	if _, err := s.Price(context.Background(), 0, "m"); err == nil {
-		t.Fatal("org 0 read a price")
-	}
 }
 
-// TestValidateBackend pins that a typo fails at save time.
 func TestValidateBackend(t *testing.T) {
 	if err := validateBackend("claude"); err != nil {
 		t.Fatalf("claude: %v", err)
@@ -196,16 +219,14 @@ func TestProviderVaultLifecycleAndGuards(t *testing.T) {
 	s, vs := newTestStore(t)
 	ctx := context.Background()
 
-	// nil Store fails closed
 	if _, err := (*Store)(nil).ListProviders(ctx, 1); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("nil store ListProviders = %v", err)
 	}
-	// CreateProvider with APIKey and nil VaultService fails closed
+
 	if _, err := s.CreateProvider(ctx, 1, ProviderInput{Name: "NoVault", Backend: "openai", APIKey: "sk-1"}, nil); !errors.Is(err, ErrInvalidProvider) {
 		t.Fatalf("nil vs CreateProvider = %v", err)
 	}
 
-	// Create without key -> VaultItemID == 0, then Update with key -> creates VaultItem
 	row, err := s.CreateProvider(ctx, 1, ProviderInput{Name: "Ollama", Backend: "ollama", BaseURL: "http://127.0.0.1:11434"}, vs)
 	if err != nil || row.VaultItemID != 0 {
 		t.Fatalf("create keyless provider: row=%+v err=%v", row, err)
@@ -217,12 +238,12 @@ func TestProviderVaultLifecycleAndGuards(t *testing.T) {
 	if err != nil || row.VaultItemID == 0 {
 		t.Fatalf("update adding key: row=%+v err=%v", row, err)
 	}
-	// Update existing VaultItem
+
 	row, err = s.UpdateProvider(ctx, 1, row.ID, ProviderInput{Name: "OpenAI", Backend: "openai", APIKey: "sk-rotated"}, vs)
 	if err != nil {
 		t.Fatalf("update rotating key: %v", err)
 	}
-	// Simulate orphaned VaultItemID (deleted in vault) -> UpdateProvider recreates vault item
+
 	if err := vs.DeleteSecret(ctx, 1, row.VaultItemID); err != nil {
 		t.Fatalf("DeleteSecret: %v", err)
 	}
@@ -231,7 +252,6 @@ func TestProviderVaultLifecycleAndGuards(t *testing.T) {
 		t.Fatalf("expected recreated vault item, row2=%+v err=%v", row2, err)
 	}
 
-	// DeleteProvider deletes vault item cleanly (and tolerates already-deleted secret)
 	if err := s.DeleteProvider(ctx, 1, row2.ID, vs); err != nil {
 		t.Fatalf("DeleteProvider: %v", err)
 	}

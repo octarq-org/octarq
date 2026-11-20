@@ -18,11 +18,6 @@ import { api } from "../../api/client";
 import type { LLMProviderDTO, LLMProviderInput, ModelPriceDTO } from "../../api/types";
 import { useTranslation } from "../../i18n";
 
-// The workspace's model backend lives here, not in each feature: one provider
-// row and one price row per model. A feature that calls a model reads them
-// through the host, so the price a budget is enforced against and the price a
-// turn is billed at come from the same row.
-
 type Draft = LLMProviderInput & { id?: number };
 
 const emptyDraft: Draft = { name: "", backend: "", apiKey: "", baseUrl: "", model: "", cheapModel: "" };
@@ -35,11 +30,7 @@ export function GatewaySettings() {
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [priceDraft, setPriceDraft] = useState<ModelPriceDTO | null>(null);
   const [busy, setBusy] = useState(false);
-  // The model names come from the provider, never from this form. `models` is
-  // empty until the provider answers, which is what keeps a typed-in name from
-  // reaching the store.
   const [models, setModels] = useState<string[]>([]);
   const [modelsBusy, setModelsBusy] = useState(false);
   const [modelsFailed, setModelsFailed] = useState(false);
@@ -94,8 +85,6 @@ export function GatewaySettings() {
     if (next.id) void loadModels(next);
   };
 
-  // The stored value stays selectable even when the provider stops listing it,
-  // so an edit does not silently drop the model the workspace runs on.
   const modelOptions = (current: string | undefined) => {
     const names = [...models];
     if (current && !names.includes(current)) names.unshift(current);
@@ -126,39 +115,10 @@ export function GatewaySettings() {
     }
   };
 
-  const savePrice = async () => {
-    if (!priceDraft) return;
-    setBusy(true);
-    try {
-      const next = await api.setModelPrice({
-        model: priceDraft.model.trim(),
-        input: Number(priceDraft.input),
-        output: Number(priceDraft.output),
-        reasoning: Number(priceDraft.reasoning),
-      });
-      setPrices(next);
-      setPriceDraft(null);
-      toast(t("gateway.saved", "Saved."));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("gateway.saveFailed", "The change did not save."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const removePrice = async (model: string) => {
-    try {
-      await api.deleteModelPrice(model);
-      setPrices((rows) => rows.filter((r) => r.model !== model));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("gateway.deleteFailed", "The delete failed."));
-    }
-  };
-
   return (
     <PageShell
       title={t("gateway.title", "Model Gateway")}
-      description={t("gateway.subtitle", "Connect the models this workspace uses. Add one provider and its prices.")}
+      description={t("gateway.subtitle", "Connect the models this workspace uses. Add one provider.")}
     >
       {loadFailed && loaded && (
         <p role="alert" className="mt-4 rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger-fg">
@@ -251,16 +211,11 @@ export function GatewaySettings() {
 
       <PageSection
         title={t("gateway.pricesTitle", "Model prices")}
-        description={t("gateway.pricesDesc", "Enter the price of one million tokens in US dollars. A model without a price cannot bill an agent.")}
-        action={
-          <Button size="sm" onClick={() => setPriceDraft({ model: "", input: 0, output: 0, reasoning: 0, updatedAt: "" })}>
-            {t("gateway.addPrice", "Add price")}
-          </Button>
-        }
+        description={t("gateway.pricesDesc", "Prices come from the bundled AICostBudget pricing dataset. Update the application to refresh them.")}
       >
         {loaded && prices.length === 0 ? (
           <PageCard>
-            <p className="text-sm text-muted-foreground">{t("gateway.noPrices", "No price yet.")}</p>
+            <p className="text-sm text-muted-foreground">{t("gateway.noPrices", "The pricing dataset lists no billable model.")}</p>
           </PageCard>
         ) : prices.length > 0 ? (
           <PageRows>
@@ -268,21 +223,18 @@ export function GatewaySettings() {
               <Fragment key={row.model}>
                 {idx > 0 && <Separator />}
                 <PageRow
-                  title={<span className="font-mono text-xs">{row.model}</span>}
+                  title={
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-xs">{row.model}</span>
+                      {row.displayName && row.displayName !== row.model && (
+                        <span className="text-xs text-muted-foreground">{row.displayName}</span>
+                      )}
+                    </span>
+                  }
                   description={t("gateway.priceSummary", "In {{input}} · Out {{output}} · Reason {{reasoning}}")
                     .replace("{{input}}", String(row.input))
                     .replace("{{output}}", String(row.output))
                     .replace("{{reasoning}}", String(row.reasoning))}
-                  control={
-                    <div className="flex items-center gap-1.5">
-                      <Button size="sm" variant="outline" onClick={() => setPriceDraft(row)}>
-                        {t("gateway.actionEdit", "Edit")}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void removePrice(row.model)}>
-                        {t("gateway.actionDelete", "Delete")}
-                      </Button>
-                    </div>
-                  }
                 />
               </Fragment>
             ))}
@@ -395,37 +347,6 @@ export function GatewaySettings() {
               {t("gateway.cancel", "Cancel")}
             </Button>
             <Button disabled={busy || !draft.name.trim() || !draft.backend} onClick={() => void save()}>
-              {t("gateway.save", "Save")}
-            </Button>
-          </div>
-        </Modal>
-      )}
-
-      {priceDraft && (
-        <Modal title={t("gateway.addPrice", "Add price")} onClose={() => setPriceDraft(null)}>
-          <Field label={t("gateway.fieldPriceModel", "Model")} hint={t("gateway.fieldPriceModelHint", "The model identifier exactly as the provider reports it.")}>
-            <Input value={priceDraft.model} onChange={(e) => setPriceDraft({ ...priceDraft, model: e.target.value })} />
-          </Field>
-          <Field label={t("gateway.fieldPriceInput", "Input price per million tokens")}>
-            <Input type="number" min="0" step="0.01" value={priceDraft.input} onChange={(e) => setPriceDraft({ ...priceDraft, input: Number(e.target.value) })} />
-          </Field>
-          <Field label={t("gateway.fieldPriceOutput", "Output price per million tokens")}>
-            <Input type="number" min="0" step="0.01" value={priceDraft.output} onChange={(e) => setPriceDraft({ ...priceDraft, output: Number(e.target.value) })} />
-          </Field>
-          <Field label={t("gateway.fieldPriceReasoning", "Reasoning price per million tokens")}>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={priceDraft.reasoning}
-              onChange={(e) => setPriceDraft({ ...priceDraft, reasoning: Number(e.target.value) })}
-            />
-          </Field>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setPriceDraft(null)}>
-              {t("gateway.cancel", "Cancel")}
-            </Button>
-            <Button disabled={busy || !priceDraft.model.trim()} onClick={() => void savePrice()}>
               {t("gateway.save", "Save")}
             </Button>
           </div>

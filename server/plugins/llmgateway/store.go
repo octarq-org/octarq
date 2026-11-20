@@ -9,20 +9,16 @@ import (
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var (
-	// ErrNotFound reports a provider this workspace does not have.
 	ErrNotFound = errors.New("llm gateway: provider not found")
-	// ErrNotConfigured reports a workspace with no usable provider.
+
 	ErrNotConfigured = errors.New("llm gateway: no LLM provider is configured for this workspace")
-	// ErrInvalidProvider reports a provider row that cannot be built.
+
 	ErrInvalidProvider = errors.New("llm gateway: invalid provider")
 )
 
-// ProviderInput is the writable shape of a provider. An empty APIKey keeps the
-// stored key, so a client can rename a provider without re-entering the secret.
 type ProviderInput struct {
 	Name       string
 	Backend    string
@@ -32,14 +28,10 @@ type ProviderInput struct {
 	CheapModel string
 }
 
-// Store is the tenant-scoped provider and price registry. Every method takes
-// the org it acts for; the handle refuses org 0, so an unattributed call can
-// never read another workspace's rows.
 type Store struct {
 	db *gorm.DB
 }
 
-// NewStore builds a store over the shared database handle.
 func NewStore(db *gorm.DB) *Store { return &Store{db: db} }
 
 func (s *Store) tenant(orgID uint) (*tenantsql.TenantDB, error) {
@@ -53,7 +45,6 @@ func (s *Store) tenant(orgID uint) (*tenantsql.TenantDB, error) {
 	return tdb, nil
 }
 
-// ListProviders returns the workspace's providers, default first.
 func (s *Store) ListProviders(ctx context.Context, orgID uint) ([]Provider, error) {
 	tdb, err := s.tenant(orgID)
 	if err != nil {
@@ -68,7 +59,6 @@ func (s *Store) ListProviders(ctx context.Context, orgID uint) ([]Provider, erro
 	return rows, nil
 }
 
-// GetProvider returns one provider of the workspace.
 func (s *Store) GetProvider(ctx context.Context, orgID, id uint) (*Provider, error) {
 	tdb, err := s.tenant(orgID)
 	if err != nil {
@@ -85,8 +75,6 @@ func (s *Store) GetProvider(ctx context.Context, orgID, id uint) (*Provider, err
 	return &row, nil
 }
 
-// CreateProvider inserts a provider. The first provider of a workspace becomes
-// the default, so a workspace with one provider needs no second step.
 func (s *Store) CreateProvider(ctx context.Context, orgID uint, in ProviderInput, vs plugin.VaultService) (*Provider, error) {
 	if err := validateInput(in); err != nil {
 		return nil, err
@@ -137,7 +125,6 @@ func (s *Store) CreateProvider(ctx context.Context, orgID uint, in ProviderInput
 	return &row, nil
 }
 
-// UpdateProvider replaces the writable fields. An empty APIKey keeps the key.
 func (s *Store) UpdateProvider(ctx context.Context, orgID, id uint, in ProviderInput, vs plugin.VaultService) (*Provider, error) {
 	if err := validateInput(in); err != nil {
 		return nil, err
@@ -188,8 +175,6 @@ func (s *Store) UpdateProvider(ctx context.Context, orgID, id uint, in ProviderI
 	return s.GetProvider(ctx, orgID, id)
 }
 
-// DeleteProvider removes a provider. Deleting the default leaves the workspace
-// without a default; ActiveProvider then fails closed until one is chosen.
 func (s *Store) DeleteProvider(ctx context.Context, orgID, id uint, vs plugin.VaultService) error {
 	row, err := s.GetProvider(ctx, orgID, id)
 	if err != nil {
@@ -210,8 +195,6 @@ func (s *Store) DeleteProvider(ctx context.Context, orgID, id uint, vs plugin.Va
 	return nil
 }
 
-// SetDefault makes one provider the workspace default, clearing the flag on the
-// others in the same transaction so two rows can never both be default.
 func (s *Store) SetDefault(ctx context.Context, orgID, id uint) error {
 	if _, err := s.GetProvider(ctx, orgID, id); err != nil {
 		return err
@@ -236,9 +219,6 @@ func (s *Store) SetDefault(ctx context.Context, orgID, id uint) error {
 	})
 }
 
-// ActiveProvider returns the provider that serves the workspace: the default
-// when one is set, otherwise the single configured provider. Two providers and
-// no default is an error rather than a coin flip.
 func (s *Store) ActiveProvider(ctx context.Context, orgID uint) (*Provider, error) {
 	rows, err := s.ListProviders(ctx, orgID)
 	if err != nil {
@@ -258,74 +238,12 @@ func (s *Store) ActiveProvider(ctx context.Context, orgID uint) (*Provider, erro
 	return nil, fmt.Errorf("%w: choose a default provider", ErrNotConfigured)
 }
 
-// ListPrices returns every priced model of the workspace.
-func (s *Store) ListPrices(ctx context.Context, orgID uint) ([]ModelPrice, error) {
-	tdb, err := s.tenant(orgID)
-	if err != nil {
-		return nil, err
-	}
-	var rows []ModelPrice
-	if err := tdb.Scoped(&ModelPrice{}).WithContext(ctx).Order("model asc").Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("llm gateway: list prices: %w", err)
-	}
-	return rows, nil
-}
-
-// SetPrice inserts or replaces the price of one model.
-func (s *Store) SetPrice(ctx context.Context, orgID uint, price ModelPrice) error {
-	model := strings.TrimSpace(price.Model)
-	if model == "" {
-		return fmt.Errorf("%w: model is required", ErrInvalidProvider)
-	}
-	if _, err := s.tenant(orgID); err != nil {
-		return err
-	}
-	if price.Input < 0 || price.Output < 0 || price.Reasoning < 0 {
-		return fmt.Errorf("%w: a price cannot be negative", ErrInvalidProvider)
-	}
-	row := ModelPrice{OrgID: orgID, Model: model, Input: price.Input, Output: price.Output, Reasoning: price.Reasoning}
-	err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "org_id"}, {Name: "model"}},
-		DoUpdates: clause.AssignmentColumns([]string{"input", "output", "reasoning", "updated_at"}),
-	}).Create(&row).Error
-	if err != nil {
-		return fmt.Errorf("llm gateway: set price: %w", err)
-	}
-	return nil
-}
-
-// DeletePrice removes the price of one model.
-func (s *Store) DeletePrice(ctx context.Context, orgID uint, model string) error {
-	model = strings.TrimSpace(model)
-	if model == "" {
-		return fmt.Errorf("%w: model is required", ErrInvalidProvider)
-	}
-	tdb, err := s.tenant(orgID)
-	if err != nil {
-		return err
-	}
-	return tdb.Scoped(&ModelPrice{}).WithContext(ctx).Where("model = ?", model).Delete(&ModelPrice{}).Error
-}
-
-// Price returns the price of one model, or plugin.ErrModelUnpriced.
 func (s *Store) Price(ctx context.Context, orgID uint, model string) (plugin.ModelPrice, error) {
-	model = strings.TrimSpace(model)
-	if model == "" {
-		return plugin.ModelPrice{}, plugin.ErrModelUnpriced
-	}
-	tdb, err := s.tenant(orgID)
+	c, err := pricingCatalog()
 	if err != nil {
-		return plugin.ModelPrice{}, err
+		return plugin.ModelPrice{}, plugin.ErrPricingUnavailable
 	}
-	var row ModelPrice
-	err = tdb.Scoped(&ModelPrice{}).WithContext(ctx).Where("model = ?", model).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return plugin.ModelPrice{}, plugin.ErrModelUnpriced
-	}
-	if err != nil {
-		return plugin.ModelPrice{}, fmt.Errorf("llm gateway: read price: %w", err)
-	}
-	return plugin.ModelPrice{Input: row.Input, Output: row.Output, Reasoning: row.Reasoning}, nil
+	return c.price(model)
 }
 
 func (s *Store) count(ctx context.Context, orgID uint) (int64, error) {

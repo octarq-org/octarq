@@ -34,7 +34,9 @@ afterEach(() => {
 describe("GatewaySettings", () => {
   it("offers the agent endpoint and the workspace models", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([provider]);
-    vi.spyOn(api, "modelPrices").mockResolvedValue([]);
+    vi.spyOn(api, "modelPrices").mockResolvedValue([
+      { model: "qwen-flash", displayName: "Qwen Flash", input: 0.05, output: 0.4, reasoning: 0.4 },
+    ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai", "ollama"]);
 
     renderGateway();
@@ -42,11 +44,26 @@ describe("GatewaySettings", () => {
     expect(await screen.findByText("Production")).toBeTruthy();
     expect(screen.getByText("Coding agents")).toBeTruthy();
     expect(screen.getByText(`${window.location.origin}/v1`)).toBeTruthy();
-    // Every wire format is stated: OpenAI, Codex, Claude Code and Gemini CLI.
     expect(screen.getByText("GET /v1/models")).toBeTruthy();
     expect(screen.getByText("POST /v1/messages")).toBeTruthy();
     expect(screen.getByText("GET /v1beta/models")).toBeTruthy();
     expect(screen.getByText("POST /v1beta/models/{model}:generateContent")).toBeTruthy();
+  });
+
+  it("lists the bundled prices and offers no editor", async () => {
+    vi.spyOn(api, "llmProviders").mockResolvedValue([]);
+    vi.spyOn(api, "modelPrices").mockResolvedValue([
+      { model: "qwen-flash", displayName: "Qwen Flash", input: 0.05, output: 0.4, reasoning: 0.4 },
+    ]);
+    vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
+
+    renderGateway();
+
+    expect(await screen.findByText("qwen-flash")).toBeTruthy();
+    expect(screen.getByText("Qwen Flash")).toBeTruthy();
+    expect(screen.getByText("In 0.05 · Out 0.4 · Reason 0.4")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add price" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /price/i })).toBeNull();
   });
 
   it("reads the model list from the provider when the form opens", async () => {
@@ -66,7 +83,6 @@ describe("GatewaySettings", () => {
       backend: "openai",
       baseUrl: "https://proxy.example/v1",
     });
-    // The stored model stays selected, so an edit does not drop it.
     expect(await screen.findByText("gpt-selected")).toBeTruthy();
   });
 

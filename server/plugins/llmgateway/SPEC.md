@@ -19,11 +19,11 @@ costs. No feature holds a provider key or a price table of its own.
 | Table | Key | Columns |
 |---|---|---|
 | `llm_gateway_providers` | `id` | `org_id`, `name`, `backend`, `api_key_encr` (sealed), `base_url`, `model`, `cheap_model`, `is_default`, timestamps |
-| `llm_gateway_prices` | unique `(org_id, model)` | `input`, `output`, `reasoning` (USD per one million tokens) |
 
-Tenant column is `org_id`. Every query goes through
-`tenantsql.NewTenantDB(db, orgID, tenantsql.WithTenantColumn("org_id"))`, so a
-call with org 0 fails closed instead of leaking rows.
+Tenant column is `org_id`. Every provider query goes through
+`tenantsql.NewTenantDB(db, orgID, tenantsql.WithTenantColumn("org_id"))`, so a call
+with org 0 fails closed instead of leaking rows. Prices have no table: the
+catalog ships inside the binary (section 4).
 
 The API key is sealed with `ctx.Host.Crypto()` and is never serialized. The API
 returns `hasKey` instead.
@@ -45,9 +45,43 @@ remains only for CLI paths that run outside a workspace.
 
 `plugin.ModelPricing.Price(ctx, orgID, model)` returns
 `plugin.ModelPrice{Input, Output, Reasoning}` or `plugin.ErrModelUnpriced`.
+Prices are instance-wide, so `orgID` is unused.
 
-A model without a row is refused rather than billed at zero: a cost ceiling over
-a zero price can never trip. A consumer without a price registry receives
+### 4.1 Catalog
+
+`server/plugins/llmgateway/prices.json` is embedded with `//go:embed` and parsed
+once (`sync.Once`) into a case-insensitive index of `model_id`.
+
+- Source: <https://aicostbudget.github.io/ai-api-pricing-data/api/v1/prices.json>
+- Dataset: `AICostBudget AI API Pricing Dataset`, version and `generated_at`
+  copied verbatim into the file.
+- Licenses: code MIT, data CC BY 4.0.
+- The committed file is a derived subset of the upstream JSON: top-level
+  provenance, plus `models[]` holding only `model_id`, `display_name`,
+  `provider_id`, and `pricing {input, output, cached_input, unit, currency}`.
+  Every upstream model is kept. Evidence objects are dropped to keep the
+  binary small. Models are ordered by `model_id` so the file is deterministic.
+- A price change arrives with a binary update. There is no manual entry and no
+  per-org price table.
+
+### 4.2 Lookup rules
+
+1. Exact `model_id` match, case-insensitive.
+2. A requested name that contains `/` also matches the segment after the last
+   `/`. That suffix resolves only when exactly one model owns it. Two models
+   with one suffix refuse the lookup instead of guessing.
+3. A model absent from the catalog returns `plugin.ErrModelUnpriced`.
+4. A model present with a `null` input or output price returns
+   `plugin.ErrModelUnpriced`: it is refused, never billed at zero.
+5. `Reasoning` repeats `Output`. The dataset publishes no reasoning rate, so
+   reasoning tokens bill at the output rate.
+
+A catalog parse failure returns `plugin.ErrPricingUnavailable` for every lookup.
+`Plugin.Validate` parses the catalog at boot and refuses to start on failure, so
+a corrupt embed never serves a turn.
+
+A cost ceiling over a zero price can never trip, which is why an unpriced model
+is refused. A consumer without a price registry receives
 `plugin.ErrPricingUnavailable` and must refuse the turn.
 
 ## 5. Route Contracts
@@ -61,9 +95,7 @@ a zero price can never trip. A consumer without a price registry receives
 | POST | `/api/llm-gateway/providers/{id}/default` | Set default (single transaction) |
 | POST | `/api/llm-gateway/providers/{id}/test` | One small completion, 15 s timeout |
 | POST | `/api/llm-gateway/models` | Ask a provider for its model list; unsaved form values are allowed |
-| GET | `/api/llm-gateway/prices` | List prices |
-| PUT | `/api/llm-gateway/prices` | Upsert one price |
-| DELETE | `/api/llm-gateway/prices?model=` | Delete one price |
+| GET | `/api/llm-gateway/prices` | List the billable models of the bundled catalog; read-only |
 | GET | `/.well-known/opencode` | Discovery document; public, names no workspace data |
 | GET | `/v1/opencode/config` | opencode config with the provider's models; workspace token |
 
@@ -303,7 +335,8 @@ Translation, both directions:
 | No provider | `ErrNotConfigured`; AI features refuse |
 | Unknown backend name | `ErrInvalidProvider` at save time |
 | Unseal failure | `ErrInvalidProvider`; the turn is refused, never retried with another key |
-| No price for a billed model | `plugin.ErrModelUnpriced` |
+| No price for a billed model | `plugin.ErrModelUnpriced`; a model with a `null` price is refused too |
+| Price catalog does not parse | `plugin.ErrPricingUnavailable`; `Validate` stops the boot |
 | Two providers, no default | `ErrNotConfigured` with "choose a default provider" |
 | Org 0 | Refused by `TenantDB` |
 | Agent token names no workspace | 403 in the OpenAI error shape |

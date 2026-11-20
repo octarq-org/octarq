@@ -1,4 +1,3 @@
-// DTO interfaces and types for the octarq REST API.
 import type {
   NotificationItem,
   NotificationPreferenceItem,
@@ -18,8 +17,8 @@ export interface Domain {
   note: string;
   forMail: boolean;
   forLink: boolean;
-  linkHosts: HostEntry[] | null; // hostnames short links are served on (usually subdomains)
-  mailHosts: HostEntry[] | null; // hostnames mailboxes live under
+  linkHosts: HostEntry[] | null;
+  mailHosts: HostEntry[] | null;
   createdAt: string;
 }
 
@@ -28,7 +27,7 @@ export interface ProviderAccount {
   name: string;
   type: string;
   config: Record<string, unknown>;
-  hasCredentials: boolean; // credentials are set (encrypted at rest, never returned)
+  hasCredentials: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,7 +45,7 @@ export interface SMTPSender {
   port: number;
   user: string;
   fromEmail: string;
-  passSet: boolean; // password is set (encrypted at rest, never returned)
+  passSet: boolean;
   createdAt: string;
 }
 
@@ -56,7 +55,6 @@ export interface SMTPSenderInput {
   port: number;
   user: string;
   fromEmail: string;
-  /** Wire field is `pass`; the server encrypts it at rest. */
   pass?: string;
 }
 
@@ -76,9 +74,6 @@ export interface NotificationChannelInput {
   enabled?: boolean;
 }
 
-// One selectable channel type in the Alerts provider list. Built-ins and
-// plugin-contributed types are the same shape — the point of the registry is
-// that the UI cannot tell them apart. Mirrors api.NotificationChannelType.
 export interface NotificationChannelType {
   type: string;
   title: string;
@@ -98,12 +93,10 @@ export interface SessionRecord {
   isCurrent?: boolean;
 }
 
-/** A workspace's URL address. */
 export interface OrgSlug {
   slug: string;
 }
 
-/** One external identity that can sign in as this account. */
 export interface LinkedIdentity {
   id: number;
   provider: string;
@@ -147,8 +140,6 @@ export interface AbuseReport {
   createdAt: string;
 }
 
-// effectiveLinkHosts / effectiveMailHosts return only the enabled hostnames —
-// disabled hosts are kept in config but don't serve traffic.
 export function effectiveLinkHosts(d: Domain): string[] {
   return (d.linkHosts ?? []).filter((h) => h.enabled).map((h) => h.host);
 }
@@ -189,11 +180,7 @@ export interface Token {
   name: string;
   prefix: string;
   note: string;
-  /** The user the token acts as. Its authority is theirs, read live, so
-   *  removing them from the workspace revokes the token too. */
   userId: number;
-  /** Narrows the token below its holder, never above: the effective role is
-   *  min(holder's role, this). "" reads as "member" server-side. */
   role: "" | "member" | "admin" | "owner";
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -210,8 +197,6 @@ export interface SubsystemStatusResponse {
   overall: "ok" | "degraded" | "down";
   subsystems: SubsystemHealth[];
   time: string;
-  // version and revision name the running build. A build the toolchain did not
-  // stamp reports neither.
   version?: string;
   revision?: string;
 }
@@ -303,8 +288,6 @@ export interface MenuItem {
   area?: string;
   order?: number;
   requiredRole?: string;
-  // Set by a plugin that mounts its own frontend outside the dashboard SPA
-  // (Context.HandleStatic). The shell renders the entry as a plain link.
   external?: boolean;
 }
 
@@ -367,7 +350,6 @@ export interface WebhookEventGroup {
   events: WebhookEventDef[];
 }
 
-// LLM Gateway — the workspace's model backend and prices.
 export interface LLMProviderDTO {
   id: number;
   name: string;
@@ -376,7 +358,6 @@ export interface LLMProviderDTO {
   model: string;
   cheapModel: string;
   isDefault: boolean;
-  /** The API key itself is never returned. */
   hasKey: boolean;
   createdAt: string;
   updatedAt: string;
@@ -385,21 +366,18 @@ export interface LLMProviderDTO {
 export interface LLMProviderInput {
   name: string;
   backend: string;
-  /** Omit to keep the stored key on update. */
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   cheapModel?: string;
 }
 
-/** One model a provider reports. The list comes from the provider, never from a typed string. */
 export interface LLMModel {
   id: string;
   object?: string;
   owned_by?: string;
 }
 
-/** A provider configuration the console may not have saved yet. */
 export interface DiscoverModelsInput {
   providerId?: number;
   backend?: string;
@@ -407,23 +385,14 @@ export interface DiscoverModelsInput {
   apiKey?: string;
 }
 
-/** Price of one million tokens, in US dollars. */
 export interface ModelPriceDTO {
   model: string;
-  input: number;
-  output: number;
-  reasoning: number;
-  updatedAt: string;
-}
-
-export interface SetModelPriceInput {
-  model: string;
+  displayName: string;
   input: number;
   output: number;
   reasoning: number;
 }
 
-// Unified Vault & Integrations
 export interface VaultSchemaField {
   key: string;
   label: string;
