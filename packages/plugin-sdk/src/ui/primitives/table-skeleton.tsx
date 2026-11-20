@@ -3,9 +3,6 @@ import { cn } from "../cn";
 import { Table, THead, TBody, TR, TH, TD } from "./table";
 import { Skeleton } from "./skeleton";
 
-// Loading placeholder shaped like the table it replaces, so the layout does not
-// jump when rows arrive. Moved here from the host app's pro-table; it depends on
-// nothing tanstack.
 export interface TableSkeletonProps {
   columnsCount?: number;
   rowsCount?: number;

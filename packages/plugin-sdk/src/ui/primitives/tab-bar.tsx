@@ -1,11 +1,6 @@
 import { forwardRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "../cn";
 
-// TabBar is the presentational tab strip used by pages that own their own
-// panels (a route-level `?tab=` param, a list pane that re-renders). SDK Tabs
-// is the right choice when the component also owns the panel content; TabBar
-// exists for the controlled case, so a page does not hand-roll a fifth
-// underline variant. It is the same segmented surface as Tabs' list.
 export interface TabBarItem {
   value: string;
   label: ReactNode;
@@ -26,9 +21,6 @@ export interface TabBarProps {
 
 export const TabBar = forwardRef<HTMLDivElement, TabBarProps>(
   ({ items, value, onValueChange, ariaLabel, className, size = "md" }, ref) => {
-    // Arrow keys move focus between tabs, Home/End jump to the ends. A
-    // controlled strip still needs that keyboard contract; without it the tabs
-    // are announceable but not operable from the keyboard.
     function onKeyDown(e: KeyboardEvent<HTMLButtonElement>, index: number) {
       const last = items.length - 1;
       let next = -1;

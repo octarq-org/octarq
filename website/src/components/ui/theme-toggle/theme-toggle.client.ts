@@ -1,8 +1,3 @@
-/**
- * theme-toggle.client.ts — light/dark toggle. Writes pref to localStorage
- * ("ui-mode"); BaseLayout's pre-paint script owns DOM application so view
- * transitions, OS changes, and cross-tab edits stay in sync.
- */
 
 import { mount } from "@cloudflare/nimbus-docs/client";
 
@@ -18,7 +13,6 @@ function initThemeToggle(button: HTMLElement): () => void {
     try {
       localStorage.setItem("ui-mode", isDark ? "light" : "dark");
     } catch {
-      // Ignore storage errors (private mode / restricted contexts).
     }
     window.__nbApplyTheme?.();
   }

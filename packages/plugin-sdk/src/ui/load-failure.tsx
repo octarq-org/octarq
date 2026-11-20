@@ -4,18 +4,6 @@ import { useTranslation } from "../i18n";
 import { TableError, errorStatus } from "./primitives/table-error";
 import { LockedFeature } from "./locked";
 
-// The four-state surface every data-backed page needs, in one component.
-//
-// Before this existed each plugin page re-derived the same three branches and
-// drifted: 402/404 (absent feature) rendered the upsell, 403 rendered an access
-// card, and everything else had to become a retryable failure. Pages that
-// collapsed the last two told a licensed operator the feature "is not in this
-// build" for a 500, or showed an empty table for a rejected fetch.
-//
-//   <LoadFailure error={error} feature={...} header={<PageHeader … />} onRetry={load} />
-//
-// `header` is rendered for the access-denied and failure branches, never above
-// the upsell mask (which speaks for the whole feature, not page content).
 export interface AccessDeniedProps {
   title?: string;
   body?: string;
@@ -43,23 +31,21 @@ AccessDenied.displayName = "AccessDenied";
 
 export interface LoadFailureProps {
   error?: unknown;
-  status?: number; // explicit override for callers that only kept the number
-  feature: string; // upsell title for 402 / 404
+  status?: number;
+  feature: string;
   description?: string;
   perks?: string[];
   icon?: ReactNode;
   tier?: "pro" | "elite";
   pricingHref?: string;
-  header?: ReactNode; // rendered on the 403 and failure branches
+  header?: ReactNode;
   onRetry?: () => void;
-  errorText?: ReactNode; // overrides the detail line derived from `error`
+  errorText?: ReactNode;
   deniedTitle?: string;
   deniedBody?: string;
   className?: string;
 }
 
-// Pulls the human-readable detail out of the two shapes callers keep: a plain
-// Error / string, or the page-local `{ status, detail }` record.
 function errorDetail(error: unknown): string | undefined {
   if (typeof error === "string") return error || undefined;
   if (error instanceof Error) return error.message || undefined;

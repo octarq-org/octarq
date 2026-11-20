@@ -8,36 +8,13 @@ import { config } from "virtual:nimbus/config";
 import { getSidebarSections } from "@cloudflare/nimbus-docs";
 
 interface Props {
-  /** Astro collection id for the current page, forwarded from DocsLayout. */
   collection?: string;
-  /** Astro entry id for the current page, forwarded from DocsLayout. */
   entryId?: string;
-  /**
-   * Whether the page has a sidebar to open. When `false`, the mobile
-   * menu button is hidden — pages that opted out via `sidebar: false`
-   * shouldn't show a button that opens an empty dialog. Default `true`.
-   */
   showSidebar?: boolean;
-  /**
-   * Landing-page in-page anchors (href + label), rendered next to the lockup
-   * in the same style as the cross-page `sections` nav. Only the front door
-   * passes these — docs pages leave the prop unset. Unlike `sections`, the
-   * links point at `id`s on the current page, so they never carry
-   * `aria-current`/active styling. When both `anchors` and `sections` are
-   * present they share the one divider line.
-   */
   anchors?: { href: string; label: string }[];
-  /**
-   * Cross-site destination links (Docs, API Reference, Pricing, Cloud).
-   * Rendered in the left navigation area. If `anchors` are provided, they take
-   * precedence and `destinations` are hidden.
-   */
   destinations?: { href: string; label: string; external?: boolean }[];
 }
 
-// `entryId` is part of Props as a forward-compat hook (the version-switcher
-// recipe reads it) but the base Header doesn't use it — leave it off the
-// destructure to avoid an unused-var warning.
 const {
   collection,
   showSidebar = true,
@@ -50,7 +27,6 @@ const {
   ]
 } = Astro.props;
 
-// Normalize trailing slash so isActive matches sidebar hrefs.
 const currentSlug = Astro.url.pathname.replace(/\/$/, "") || "/";
 const sections = await getSidebarSections(currentSlug, { collection });
 const showSections = sections.length >= 2;
@@ -59,11 +35,7 @@ const showSections = sections.length >= 2;
 <header class="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-lg h-[var(--header-height)]">
   <div class="mx-auto flex items-center justify-between h-14 px-4 lg:px-6">
     <div class="flex items-center gap-3">
-      {/* Lockup: the Octarq mark plus the wordmark. The mark inherits
-          currentColor from the link, so it tracks the light/dark theme
-          without a second asset. Geometry is kept in sync by hand with
-          web/src/shell/OctarqMark.tsx — the two live in different build
-          graphs, so there's no import to share. */}
+      
       <a href="/" class="group flex items-center gap-2">
         <svg
           viewBox="0 0 64 64"
@@ -100,14 +72,8 @@ const showSections = sections.length >= 2;
               </a>
             ))}
           {destinations?.map((dest) => {
-            // `currentSlug` has its trailing slash stripped, so strip the
-            // destination's too before comparing — otherwise "/api-reference"
-            // never startsWith "/api-reference/" and the page you are on is
-            // never the one marked current.
             const target = dest.href.replace(/\/$/, "") || "/";
             const isActive = !dest.external && (
-              // "Docs" is the site root, so it owns everything that isn't one
-              // of the other destinations rather than only "/" itself.
               target === "/"
                 ? !destinations.some(
                     (d) =>
@@ -174,8 +140,7 @@ const showSections = sections.length >= 2;
           class="lg:hidden text-muted-foreground"
         />
       )}
-      {/* The site's one primary call-to-action, fed in by the landing page;
-          last in the row so it holds the strongest position. Empty for docs. */}
+      
       <slot name="cta" />
     </div>
   </div>

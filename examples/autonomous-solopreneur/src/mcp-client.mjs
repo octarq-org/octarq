@@ -1,23 +1,13 @@
-// MCP Client implementation for Octarq
-// Supports live connection to Octarq's Remote MCP endpoint (/api/mcp/sse or /api/mcp/stream)
-// and seamless fallback to Simulation Mode for zero-friction standalone developer evaluation.
 
 import { info, warn, success, mcpCall, mcpResult } from './utils.mjs';
 
 export class OctarqMCPClient {
-  /**
-   * @param {object} options
-   * @param {string} [options.baseUrl]
-   * @param {string} [options.token]
-   * @param {string} [options.mode] 'auto' | 'live' | 'simulate'
-   */
   constructor(options = {}) {
     this.baseUrl = (options.baseUrl || process.env.OCTARQ_URL || 'http://localhost:8080').replace(/\/+$/, '');
     this.token = options.token || process.env.OCTARQ_TOKEN || '';
     this.mode = options.mode || process.env.EXECUTION_MODE || 'auto';
     this.isLive = false;
 
-    // Simulated in-memory database state
     this.simulatedState = {
       domains: [
         {
@@ -65,9 +55,6 @@ export class OctarqMCPClient {
     };
   }
 
-  /**
-   * Initializes client and negotiates live connection or simulation mode.
-   */
   async init() {
     if (this.mode === 'simulate') {
       info('Running in Forced Simulation Mode (Mock Octarq MCP Server).');
@@ -108,11 +95,6 @@ export class OctarqMCPClient {
     }
   }
 
-  /**
-   * Universal MCP Tool Invocation
-   * @param {string} toolName
-   * @param {object} args
-   */
   async callTool(toolName, args = {}) {
     mcpCall(toolName, args);
 
@@ -123,7 +105,6 @@ export class OctarqMCPClient {
   }
 
   async _callLiveMcp(toolName, args) {
-    // If live Octarq is running, execute tool via REST dual endpoint or MCP
     try {
       if (toolName === 'list_domains') {
         const res = await fetch(`${this.baseUrl}/api/domains`, {
@@ -246,9 +227,6 @@ export class OctarqMCPClient {
     }
   }
 
-  /**
-   * Helper to simulate a new incoming verification email
-   */
   injectSimulatedEmail({ from, subject, snippet }) {
     const newEmail = {
       id: this.simulatedState.emails.length + 901,

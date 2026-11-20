@@ -1,13 +1,4 @@
 ---
-/**
- * ApiReferenceExplorer — the interactive OpenAPI explorer for /api-reference/.
- *
- * Renders Scalar's reference into a fixed-height box. Scalar is a normal npm
- * dependency of this site, so its JS and CSS ship in the page's own bundle —
- * no CDN. The palette is mapped onto the site's `--nb-*` design tokens, which
- * already flip with the `[data-mode="dark"]` switch on <html>, so the explorer
- * follows the light/dark theme without any theme JavaScript of its own.
- */
 ---
 
 <div class="api-reference-explorer" data-api-reference-explorer>
@@ -22,15 +13,11 @@
     background: var(--nb-background);
   }
 
-  /* Scalar's app root fills the box; the app scrolls internally instead of
-     growing the page. */
   .api-reference-explorer .scalar-app {
     height: 100%;
     min-height: 0;
   }
 
-  /* Map the site's tokens onto Scalar's palette (light + dark) so both modes
-     are readable and match the rest of the page. */
   .api-reference-explorer {
     --scalar-background-1: var(--nb-background);
     --scalar-background-2: var(--nb-muted);

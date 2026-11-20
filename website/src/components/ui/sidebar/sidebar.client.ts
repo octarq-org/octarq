@@ -1,4 +1,3 @@
-/** Sidebar runtime: filter, persistence, "/" shortcut. */
 
 import { mount } from "@cloudflare/nimbus-docs/client";
 
@@ -25,14 +24,9 @@ function initSidebar(root: HTMLElement): () => void {
   return () => teardowns.forEach((t) => t());
 }
 
-// ---------------------------------------------------------------------------
-// Filter
-// ---------------------------------------------------------------------------
 
 function initFilter(root: HTMLElement): (() => void) | null {
   const input = root.querySelector<HTMLInputElement>("[data-nb-sidebar-filter-input]");
-  // SidebarFilter is rendered *next to* Sidebar (sibling), so also look in
-  // the parent — preserves the existing layout where filter sits above.
   const inputElement =
     input ?? root.parentElement?.querySelector<HTMLInputElement>("[data-nb-sidebar-filter-input]") ?? null;
   if (!inputElement) return null;
@@ -68,7 +62,6 @@ function resetFilter(root: HTMLElement): void {
   root.querySelectorAll<HTMLElement>("[data-nb-sidebar-hidden]").forEach((el) => {
     el.removeAttribute("data-nb-sidebar-hidden");
   });
-  // Reset groups opened by the filter back to their saved state.
   root
     .querySelectorAll<HTMLElement>("[data-nb-sidebar-group][data-nb-opened-by-filter]")
     .forEach((group) => {
@@ -122,12 +115,8 @@ function openGroup(group: HTMLElement): void {
   trigger.click();
 }
 
-// ---------------------------------------------------------------------------
-// Persistence (open state + scroll)
-// ---------------------------------------------------------------------------
 
 function initPersistence(root: HTMLElement): (() => void) | null {
-  // The scrollable container is the closest <aside> or the root itself.
   const scrollHost: HTMLElement = root.closest("aside") ?? root;
   const hash = root.dataset.nbSidebarHash ?? "";
 
@@ -147,7 +136,6 @@ function initPersistence(root: HTMLElement): (() => void) | null {
     } catch {}
   }
 
-  // Observe state changes on each group's trigger.
   const observer = new MutationObserver(save);
   root.querySelectorAll<HTMLElement>("[data-nb-collapsible-trigger]").forEach((trigger) => {
     observer.observe(trigger, {
@@ -178,9 +166,6 @@ function initPersistence(root: HTMLElement): (() => void) | null {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Global `/` shortcut — bound once at module load
-// ---------------------------------------------------------------------------
 
 (function bindFilterShortcut() {
   if (document.documentElement.hasAttribute("data-nb-sidebar-shortcut-bound")) return;

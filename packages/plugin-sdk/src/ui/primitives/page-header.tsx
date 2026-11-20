@@ -1,10 +1,6 @@
 import { forwardRef, type ReactNode } from "react";
 import { cn } from "../cn";
 
-// PageHeader is the standard title/description/action row atop every admin page.
-// The eyebrow is the optional module label above the title ("Links", "Mail",
-// "Workspace") — it gives every page the same three-step reading order:
-// where am I, what is this, what can I do.
 export interface PageHeaderProps {
   title: ReactNode;
   description?: ReactNode;

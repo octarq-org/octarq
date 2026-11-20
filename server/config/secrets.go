@@ -65,7 +65,6 @@ func randHex(n int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// line and typed by hand.
 func randPassword(n int) (string, error) {
 	const alphabet = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 	b := make([]byte, n)

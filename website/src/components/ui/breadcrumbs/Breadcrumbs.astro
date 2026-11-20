@@ -5,17 +5,14 @@ import type { Breadcrumb } from "@cloudflare/nimbus-docs/types";
 
 interface Props extends HTMLAttributes<"nav"> {
   items: Breadcrumb[];
-  /** Max visible crumbs before collapsing middle items (default: 4) */
   maxVisible?: number;
 }
 
 const { items, maxVisible = 4, class: className, ...attrs } = Astro.props;
 
-// Determine if we need to collapse the middle
 const shouldCollapse = items.length > maxVisible;
-// When collapsed: Home + first segment + ... + last 2 (parent + current)
-const headCount = 2; // Home + first segment
-const tailCount = 2; // parent + current page
+const headCount = 2;
+const tailCount = 2;
 const headItems = shouldCollapse ? items.slice(0, headCount) : items;
 const collapsedItems = shouldCollapse ? items.slice(headCount, items.length - tailCount) : [];
 const tailItems = shouldCollapse ? items.slice(items.length - tailCount) : [];

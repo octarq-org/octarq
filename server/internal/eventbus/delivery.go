@@ -24,7 +24,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// line in the process log that nobody reads. One row per (event, webhook)
 type WebhookDelivery struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	DeliveryID   string    `gorm:"uniqueIndex;size:64;not null" json:"deliveryId"`

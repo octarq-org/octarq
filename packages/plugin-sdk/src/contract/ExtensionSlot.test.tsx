@@ -6,8 +6,6 @@ import { ExtensionSlot, useExtensionSlotContext } from "./ExtensionSlot";
 import { registerUIPlugin, resetRegistry } from "./registry";
 import type { LazyPage, UIWidget } from "./types";
 
-// Real React.lazy, resolved synchronously — exercises the same Suspense path a
-// plugin's async chunk goes through.
 const lazyWidget = (text: string): LazyPage =>
   lazy(async () => ({ default: () => <div data-testid="widget">{text}</div> }));
 
@@ -26,8 +24,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // RTL's automatic cleanup hooks into a global afterEach, which is off here
-  // (no `globals: true`) — unmount explicitly so trees don't leak across tests.
   cleanup();
   vi.restoreAllMocks();
 });
@@ -65,7 +61,6 @@ describe("ExtensionSlot", () => {
   });
 
   it("isolates a throwing widget: siblings still render, the crasher disappears", async () => {
-    // React logs caught boundary errors to console.error — keep test output clean.
     vi.spyOn(console, "error").mockImplementation(() => {});
     compose("a", [
       { slot: "home", Component: lazyWidget("survivor-1"), order: 1 },
@@ -154,8 +149,6 @@ describe("ExtensionSlot", () => {
   });
 
   it("logs a crashed widget in development with its slot name", async () => {
-    // React logs caught boundary errors to console.error too — keep the spy
-    // and assert on our own line.
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     compose("a", [{ slot: "home", Component: throwingWidget() }]);
     render(<ExtensionSlot name="home" />);

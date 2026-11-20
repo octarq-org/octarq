@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Step 1: Detect Domain Sending Reputation & DNS Configuration over Octarq Remote MCP
 
 import { OctarqMCPClient } from '../src/mcp-client.mjs';
 import { auditDomainDNS, printDnsAuditReport } from '../src/dns-checker.mjs';

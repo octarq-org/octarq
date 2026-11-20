@@ -2,10 +2,6 @@ import { forwardRef, useState } from "react";
 import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 
-// Click-to-copy affordance for machine values (hostnames, DKIM records, API
-// keys). Moved here from the host app so a plugin package can render one; it
-// reads the SDK's own i18n context, so the uiCommon.* keys below come from the
-// host dictionary like every other SDK component.
 export interface CodeProps {
   children: string;
   className?: string;

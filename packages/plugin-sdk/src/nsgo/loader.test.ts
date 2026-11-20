@@ -78,10 +78,8 @@ describe("loadLoader", () => {
   it("shares one import while it is in flight and retries after it fails", async () => {
     const first = loadLoader("/definitely-missing/nsgo.js");
     const during = loadLoader("/definitely-missing/nsgo.js");
-    // In-flight work is shared, so two mounts never load the loader twice.
     expect(during).toBe(first);
     await expect(first).rejects.toBeTruthy();
-    // A settled failure is dropped: the next caller tries again.
     const after = loadLoader("/definitely-missing/nsgo.js");
     expect(after).not.toBe(first);
     await expect(after).rejects.toBeTruthy();

@@ -1,12 +1,3 @@
-/**
- * Post-build guard for the /api-reference/ page's interactive explorer.
- *
- * Reads the built HTML (and the scripts it references) from dist/ — not the
- * source — so a broken render chain (mount never emitted, Scalar bundle
- * dropped, or a CDN script sneaking back in) fails here instead of shipping.
- *
- * Run via `pnpm check:api-reference` after `pnpm build`.
- */
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -27,34 +18,18 @@ if (!htmlPath) {
 } else {
   const html = readFileSync(htmlPath, "utf8");
 
-  // The mount point the client script renders Scalar into. If the render
-  // chain breaks (route stops emitting the component, file deleted, …), this
-  // disappears from the build output and the check goes red.
   if (!html.includes("data-api-reference-explorer")) {
     report("mount point", 'Scalar mount element ("data-api-reference-explorer") is missing from the built page');
   }
 
-  // The wrapper above is only the styled box. The client script mounts into
-  // `#api-reference` (getElementById), so losing *that* id renders nothing at
-  // all while the wrapper still ships — an empty bordered rectangle, which is
-  // precisely the failure this page was in before. Check the id itself.
   if (!/id="api-reference"/.test(html)) {
     report("mount target", 'the "#api-reference" element the client script mounts into is missing from the built page');
   }
 
-  // Guard against regressing to the old RapiDoc markup.
   if (html.includes("rapi-doc")) {
     report("legacy explorer", 'built page still contains the legacy <rapi-doc> markup');
   }
 
-  // No third-party script origins. What this is really guarding is that the
-  // Scalar explorer stays vendored into /_astro/ instead of drifting back to a
-  // CDN — see the unpkg/jsdelivr check below, and the RapiDoc-era markup above.
-  //
-  // Hosts we run ourselves are not what it was aimed at. plausible.jungley.net
-  // is our own analytics server, injected site-wide by BaseLayout; excluding it
-  // here beats making this one page the only page with no analytics. Anything
-  // not on this list still fails, so the guard keeps its teeth.
   const FIRST_PARTY_SCRIPT_HOSTS = ["plausible.jungley.net"];
   const externalSrcs = [...html.matchAll(/<script[^>]*\bsrc="(https?:\/\/[^"]+)"/gi)]
     .map((m) => m[1])
@@ -74,9 +49,6 @@ if (!htmlPath) {
     }
   }
 
-  // The Scalar bundle must actually be wired into the page. Astro emits the
-  // component's script as a hashed /_astro/*.js asset referenced by the HTML;
-  // confirm at least one of those assets contains the Scalar reference code.
   const assetSrcs = [...html.matchAll(/src="(\/_astro\/[^"]+\.js)"/g)].map((m) => m[1]);
   const scalarBundled = assetSrcs.some((src) => {
     const assetPath = join(root, "dist", src.replace(/^\//, ""));

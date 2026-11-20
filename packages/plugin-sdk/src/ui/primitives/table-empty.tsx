@@ -3,10 +3,6 @@ import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 import { Empty } from "./empty";
 
-// Presentational "no rows" state for a table. Moved here from the host app's
-// pro-table: it depends on nothing tanstack, and a plugin rendering a table has
-// no way to reach it otherwise. Copy resolves from the host dictionary
-// (proTable.*), the same host-fed contract LockedFeature and FormError use.
 export interface TableEmptyProps {
   emptyText?: ReactNode;
   emptyReason?: ReactNode;
@@ -34,8 +30,6 @@ export const TableEmpty = forwardRef<HTMLDivElement, TableEmptyProps>(
 );
 TableEmpty.displayName = "TableEmpty";
 
-// Inline so the package stays free of an icon-library dependency — same reason
-// LockedFeature draws its own key glyph.
 function InboxGlyph() {
   return (
     <svg

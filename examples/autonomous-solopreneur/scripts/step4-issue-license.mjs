@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Step 4: Simulate Transaction, Sign Offline Ed25519 License & Draft Customer Email
 
 import {
   generateEd25519Keypair,
@@ -14,11 +13,9 @@ async function main() {
 
   section(4, 'Ed25519 Keypair & License Generation', 'Generating keypair and signing offline license payload...');
 
-  // 1. Keypair generation (or load from environment)
   const keypair = generateEd25519Keypair();
   info(`Public Key (SPKI Raw Base64): ${colors.brightCyan}${keypair.publicKeyRawBase64}${colors.reset}`);
 
-  // 2. Mock incoming transaction event
   const buyerEmail = process.argv[2] || 'sarah.connor@cyberdyne.ai';
   const plan = process.argv[3] || 'lifetime_pro';
 
@@ -33,15 +30,13 @@ async function main() {
     plan,
     seats: 3,
     features: ['mcp_unlimited', 'custom_subdomains', 'unattended_ops', 'priority_support'],
-    expiresAt: null, // Lifetime perpetual
+    expiresAt: null,
   };
 
-  // 3. Issue and sign license
   const issued = issueLicense(licensePayload, keypair.privateKeyPem);
   success(`Minted License ID: ${colors.bold}${issued.payload.licenseId}${colors.reset}`);
   console.log(`\n${colors.dim}Armored License Token:${colors.reset}\n${colors.brightYellow}${issued.token}${colors.reset}\n`);
 
-  // 4. Offline Verification Test (Using only the Public Key)
   info('Testing 100% offline verification using Vendor Public Key (zero network calls)...');
   const verification = verifyLicense(issued.token, keypair.publicKeyPem);
 
@@ -55,7 +50,6 @@ async function main() {
     throw new Error(`Verification failed: ${verification.reason}`);
   }
 
-  // 5. Compose customer delivery notification
   section('4b', 'Customer Notification & Dispatch', 'Generating fulfillment notification email...');
   const email = composeLicenseNotificationEmail(issued);
 

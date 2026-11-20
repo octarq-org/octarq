@@ -2,10 +2,6 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
-// cva variants — the shadcn pattern: a base class string plus a `tone` axis,
-// combined with the caller's className through cn().
-// `variant` and `tone` are accepted as synonyms for this axis (see BadgeProps):
-// both spellings exist across call sites and must keep working.
 export const badgeVariants = cva(
   "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none tracking-[0.01em] transition-colors",
   {
@@ -34,8 +30,6 @@ export const badgeVariants = cva(
 
 export type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 
-// Optional `shape` prefix: a glyph channel so status reads without color
-// (grayscale / color-blind); the text label is the third channel.
 export type BadgeShape = "square" | "square-outline" | "dot" | "dash";
 
 const SHAPE_GLYPH: Record<BadgeShape, string> = {

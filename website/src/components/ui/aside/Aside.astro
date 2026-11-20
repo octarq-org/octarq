@@ -4,7 +4,6 @@ import { cn } from "@/lib/cn";
 import type { HTMLAttributes } from "astro/types";
 
 interface Props extends HTMLAttributes<"aside"> {
-  // Keeps `type` (not `variant`) for Starlight compatibility — Starlight's <Aside> uses `type`.
   type?: "note" | "tip" | "caution" | "danger";
   title?: string;
 }
@@ -49,7 +48,6 @@ const displayTitle = title ?? c.label;
     background: var(--_t);
   }
 
-  /* Icon + title stay in semantic color; body text stays readable */
   .aside-card > :global(:first-child) { color: var(--_c); }
   .aside-card > :global(:last-child) > :global(:first-child) { color: var(--_c); }
   .aside-card-body { color: var(--nb-foreground); }
@@ -58,7 +56,6 @@ const displayTitle = title ?? c.label;
   .aside-card-body :global(p + p) { margin-top: 0.375rem; }
   .aside-card-body :global(a) { text-decoration: underline; text-underline-offset: 2px; }
 
-  /* Inline code only — exclude code inside Expressive Code pre blocks */
   .aside-card-body :global(code:not(:where(pre *))) {
     font-family: var(--nb-font-mono);
     font-size: 0.8125em;
@@ -69,7 +66,6 @@ const displayTitle = title ?? c.label;
   }
   .aside-card-body :global(strong) { font-weight: 600; color: inherit; }
 
-  /* Shiki code blocks inside Asides */
   .aside-card-body :global(.astro-code) {
     margin: 0.75rem 0;
   }

@@ -1,4 +1,3 @@
-// Root /llms.txt — sectioned index for AI agents.
 import { getIndexedTopLevel } from "@cloudflare/nimbus-docs";
 import { config } from "virtual:nimbus/config";
 
@@ -18,7 +17,6 @@ export async function GET() {
     "",
   ];
 
-  // Sort leaves + groups alphabetically into a single stable list.
   type Row = { key: string; line: string };
   const rows: Row[] = [];
 
@@ -31,7 +29,6 @@ export async function GET() {
   }
 
   for (const group of groups) {
-    // Older doc versions have their own /<v>/llms.txt; don't list them here.
     if (group.kind === "version") continue;
     rows.push({
       key: `/${group.slug}`,

@@ -1,11 +1,3 @@
-// The example plugin's page — the JS half of the feature. It calls the Go half
-// (GET /api/hello/ping) and renders with the shared UI from @octarq/plugin-sdk.
-//
-// A third-party plugin can't import octarq's internal `api` client, so it uses a
-// plain fetch and handles the two gated states octarq standardises on:
-//   402 → the feature is unlicensed (show an upsell),
-//   404 → the plugin isn't built into this installation (neutral note).
-// Both are covered by the SDK's <LockedFallback status={…} />.
 import { useEffect, useState } from "react";
 import {
   PageShell,
@@ -37,8 +29,6 @@ export default function HelloPage() {
       .catch(() => setStatus(0));
   }, []);
 
-  // 402/404 → the standard gated fallback. Anything else falls through to a
-  // neutral loading/empty state below (never a raw error).
   if (status === 402 || status === 404) {
     return (
       <PageShell title={t("hello.pageTitle", "Hello Plugin")}>

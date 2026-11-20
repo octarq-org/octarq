@@ -1,4 +1,3 @@
-// Automated test suite for Autonomous Solopreneur Blueprint modules
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
@@ -53,7 +52,6 @@ describe('Ed25519 Licensing Cryptography', () => {
     const issued = issueLicense({ customer: { email: 'bob@example.com' } }, keypair.privateKeyPem);
 
     const parts = issued.token.split('.');
-    // Tamper with payload (change base64 content)
     const tamperedPayload = Buffer.from(JSON.stringify({ hacked: true })).toString('base64url');
     const tamperedToken = `${parts[0]}.${tamperedPayload}.${parts[2]}`;
 

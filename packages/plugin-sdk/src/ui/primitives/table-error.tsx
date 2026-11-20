@@ -5,28 +5,15 @@ import { Alert } from "./alert";
 import { Button } from "./button";
 import { LockedFeature } from "../locked";
 
-// Failure state for a table load. Moved here from the host app's pro-table; it
-// depends on nothing tanstack, and plugins had no way to render it.
-//
-// 402 is the licensed-feature case, so it renders the same upsell mask the rest
-// of the product uses rather than an error.
 export interface TableErrorProps {
   error?: unknown;
   errorText?: ReactNode;
   onRetry?: () => void;
   className?: string;
-  // The upsell mask on a 402 has to say which feature is locked. The caller
-  // knows; this component does not, and the generic label it falls back to
-  // reads as a mismatch next to the page title the user just clicked.
   lockedFeature?: string;
-  // The tier the 402 asks for, so an elite-only feature is not labelled Pro.
-  // Undefined keeps LockedFeature's own default.
   lockedTier?: "pro" | "elite";
 }
 
-// Narrowed without `as any`: the error arrives from whatever the caller's data
-// layer rejected with, so both the axios-shaped { response.status } and a plain
-// { status } are accepted, and anything else is "no status".
 export function errorStatus(error: unknown): number {
   if (!error || typeof error !== "object") return 0;
   const direct = (error as { status?: unknown }).status;
@@ -59,8 +46,6 @@ export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
     const errorMessage =
       errorText ??
       (error instanceof Error ? error.message : typeof error === "string" ? error : undefined);
-    // A caller that has no detail to show gets the title once. Falling back to
-    // the title as the body rendered the same sentence twice.
     const showDetail = errorMessage !== undefined && String(errorMessage) !== title;
 
     return (
@@ -88,7 +73,6 @@ export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
 );
 TableError.displayName = "TableError";
 
-// Inline so the package stays free of an icon-library dependency.
 function AlertCircleGlyph({ className }: { className?: string }) {
   return (
     <svg

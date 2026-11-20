@@ -1,4 +1,3 @@
-// The primitives sub-barrel: the pure, app-independent shared components.
 export { GlassCard } from "./glass-card";
 export { Panel } from "./panel";
 export {
@@ -29,7 +28,6 @@ export { Modal } from "./modal";
 export { Field } from "./field";
 export { Empty } from "./empty";
 
-// Form / data components
 export { Input, fieldClass } from "./input";
 export { Textarea } from "./textarea";
 export { Select, type SelectOption } from "./select";

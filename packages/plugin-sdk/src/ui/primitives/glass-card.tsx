@@ -1,9 +1,6 @@
 import { forwardRef, type ReactNode } from "react";
 import { cn } from "../cn";
 
-// GlassCard is the frosted surface every panel in octarq sits on. `strong` picks
-// the higher-contrast `glass-strong` theme class (defined in the app's
-// styles.css); the base variant uses `glass`.
 export interface GlassCardProps {
   className?: string;
   children: ReactNode;

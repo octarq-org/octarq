@@ -1,12 +1,7 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "../cn";
 
-// Empty is the centered "nothing here yet" placeholder card. The optional slots
-// let a call site answer the three questions every empty state should: `reason`
-// (why it's empty), `detail` (a concrete fact or path, machine values in mono),
-// and `action` (the next-step control). `children` is the icon glyph only.
 export interface EmptyProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
-  /** The icon glyph. Optional: a short message needs no picture. */
   children?: ReactNode;
   reason?: ReactNode;
   detail?: ReactNode;

@@ -1,8 +1,6 @@
 import { forwardRef, type HTMLAttributes } from "react";
 import { cn } from "../cn";
 
-// Skeleton is a pulsing placeholder block for loading states. Size it with
-// className (e.g. `h-4 w-32`); defaults to a full-width line.
 export type SkeletonProps = HTMLAttributes<HTMLDivElement>;
 
 export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(({ className, ...props }, ref) => (

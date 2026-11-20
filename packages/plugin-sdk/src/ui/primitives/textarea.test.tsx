@@ -4,14 +4,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Field } from "./field";
 import { Textarea } from "./textarea";
 
-// This package's vitest setup has no globals, so testing-library does not
-// auto-clean between tests: without this, every rendered textarea stays in the
-// document and the label queries below match more than one node.
 afterEach(cleanup);
 
-// A native <textarea> inside a Field takes no part in Base UI's Field context,
-// so it renders visually labelled but unnamed for assistive tech. Textarea has
-// to be a Field.Control for the label and hint to reach it.
 describe("Textarea", () => {
   it("takes its accessible name from the enclosing Field", () => {
     render(
@@ -37,8 +31,6 @@ describe("Textarea", () => {
   });
 
   it("stays controlled and fires onChange exactly once", () => {
-    // Read the value inside the handler: a controlled textarea snaps back to its
-    // prop, so the event object shows the old value once the call returns.
     let seen = "";
     const onChange = vi.fn((e: React.ChangeEvent<HTMLTextAreaElement>) => {
       seen = e.target.value;

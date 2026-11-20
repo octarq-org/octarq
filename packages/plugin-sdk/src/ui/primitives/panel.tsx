@@ -2,24 +2,13 @@ import { forwardRef, type ReactNode } from "react";
 import { cn } from "../cn";
 import { GlassCard } from "./glass-card";
 
-// Panel is the standard titled section: a card with one heading row and its
-// content. Every page section uses it, so section titles share one size,
-// weight, and spacing instead of each page inventing an h2/h3/h4.
-//
-// The heading row reads the same three steps as PageHeader: what this section
-// is (title), why it matters (description), what you can do here (action).
 export interface PanelProps {
   title: ReactNode;
   description?: ReactNode;
-  /** Rendered at the end of the heading row: a badge, a button, a switch. */
   action?: ReactNode;
-  /** Rendered before the title, in the accent color. */
   icon?: ReactNode;
-  /** Optional: a section may be all heading and action, like a settings switch. */
   children?: ReactNode;
-  /** Extra classes on the card (padding, tone overrides). */
   className?: string;
-  /** Extra classes on the heading row, for a description that needs width. */
   headingClassName?: string;
 }
 

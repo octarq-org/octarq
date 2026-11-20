@@ -185,7 +185,6 @@ describe("usePluginStream", () => {
     let signal: AbortSignal | undefined;
     fetchMock.mockImplementationOnce(async (_url: string, init: RequestInit) => {
       signal = init.signal ?? undefined;
-      // Never resolves: the read hangs until aborted, like a live subscription.
       return await new Promise<Response>((_resolve, reject) => {
         init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
       });

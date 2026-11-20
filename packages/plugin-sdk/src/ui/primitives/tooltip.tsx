@@ -2,10 +2,6 @@ import { forwardRef, type ReactNode } from "react";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import { cn } from "../cn";
 
-// Tooltip wraps Base UI's accessible Tooltip primitive (hover + focus triggered,
-// portalled and positioned, dismissible) with octarq's glass theme. `children` is
-// the trigger; `content` is the floating label. A per-instance Provider carries
-// the open delay.
 export interface TooltipProps {
   content: ReactNode;
   children: ReactNode;

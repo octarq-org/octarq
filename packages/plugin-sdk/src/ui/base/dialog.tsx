@@ -3,17 +3,6 @@ import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 
-// Dialog is a shadcn-style wrapper over Base UI's accessible Dialog primitive.
-// Base UI gives us focus trapping, scroll locking, Escape-to-close, and the
-// aria wiring for free. The higher-level `Modal` in ../primitives adapts it to
-// the app's `{ title, onClose }` render-when-open API.
-//
-// Composition follows Base UI's canonical minimal pattern (Backdrop + Popup as
-// direct children of Portal); the Popup is fixed-positioned near the top to
-// preserve octarq's existing modal placement, and caps its height so long forms
-// scroll inside the card rather than the page.
-//
-// The ref lands on the popup card.
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -25,8 +14,6 @@ export interface DialogProps {
 
 export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
   ({ open, onOpenChange, title, wide, children, className }, ref) => {
-    // The close control is the only way out that a screen reader has to name,
-    // so it follows the host language like every other string.
     const { t } = useTranslation();
     return (
       <BaseDialog.Root open={open} onOpenChange={(v) => onOpenChange(v)}>

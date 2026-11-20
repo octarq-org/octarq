@@ -14,7 +14,6 @@ describe("Empty", () => {
     expect(screen.getByText("Add one to send mail.")).toBeDefined();
     expect(screen.getByRole("button", { name: "Add sender" })).toBeDefined();
 
-    // The glyph sits in the small icon tile; the message does not.
     const glyph = screen.getByTestId("glyph");
     const tile = glyph.parentElement as HTMLElement;
     expect(tile.className).toContain("h-12");

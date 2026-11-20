@@ -23,8 +23,6 @@ describe("Panel", () => {
   });
 
   it("keeps the caller's spacing instead of stacking a second one", () => {
-    // The caller's className must stay last in cn(): two space-y-* utilities
-    // resolve by stylesheet order, not by the order in the class list.
     const { container } = render(
       <Panel title="A" className="space-y-6">
         x
@@ -54,7 +52,6 @@ describe("Panel", () => {
     );
     expect(screen.getByTestId("plain-icon").parentElement?.className).toContain("text-accent-fg");
 
-    // A caller-supplied color on the icon itself wins over the wrapper.
     render(
       <Panel title="B" icon={<span data-testid="danger-icon" className="text-danger-fg" />}>
         x
