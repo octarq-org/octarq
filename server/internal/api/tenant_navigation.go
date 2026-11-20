@@ -60,8 +60,6 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	menus := []MenuItem{
 		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "layout-dashboard", Category: "Workspace", Area: "operations"},
 		{ID: "inbox", Label: "Inbox", Path: "/notifications", Icon: "bell", Category: "Messaging", Area: "operations"},
-
-		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "scroll-text", Category: "System", Area: "operations"},
 		{ID: "abuse", Label: "Abuse Reports", Path: "/abuse", Icon: "shield-alert", Category: "Security", Area: "operations"},
 	}
 

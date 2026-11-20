@@ -16,7 +16,7 @@ test.describe("Audit Trail E2E Journey", () => {
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
     // Navigate to audit page
-    await page.goto("/admin/audit");
+    await page.goto("/admin/governance/audit");
     await page.waitForLoadState("networkidle");
 
     // The audit table or heading should render

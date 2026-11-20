@@ -8,7 +8,7 @@ const STORIES = [
   { name: "settings-appearance", path: "/admin/settings/appearance" },
   { name: "settings-general", path: "/admin/settings/general" },
   { name: "settings-plugins", path: "/admin/settings/plugins" },
-  { name: "audit", path: "/admin/audit" },
+  { name: "audit", path: "/admin/governance/audit" },
 ] as const;
 
 const VIEWPORTS = [

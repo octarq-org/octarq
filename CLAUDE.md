@@ -49,6 +49,7 @@ Run these and make sure they pass — don't claim a change works on inspection a
   - 不需要保留 deprecated 标记的旧接口或旧字段，直接彻底清理。
   - 核心全部通过 `plugin.Host` SPI 暴露，强制 `TenantDB` 隔离，不提供绕过租户的 raw DB fallback。
   - 缺失凭据或校验失败时**严格 Fail-Closed**，拒绝启动或报错。
+- **No comments in code**: `.go`, `.ts`, `.tsx`, and every other source file carry no comments. Only `SPEC.md`, `docs/`, `README`, and `PRODUCT.md` hold design notes; commit messages hold the why. Keep compiler and tool directives (`//go:build`, `//go:embed`, `//nolint`, `eslint-disable`, `@ts-expect-error`, `/* ui-color-ok */`).
 - **Don't cram**: Split overgrown components into focused modules.
 
 ## Sandbox Note

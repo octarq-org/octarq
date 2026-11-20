@@ -1,52 +1,55 @@
 ---
 title: Integrations Hub & Vault
-description: Manage workspace integrations, personal secrets, SSH keys, 2FA codes, and instance credentials in one place.
+description: Manage workspace integrations, secrets, SSH keys, 2FA codes, and instance credentials in one place.
 category: settings
 order: 65
 ---
 
 Store and manage third-party integrations, environment variables, SSH keys, database passwords, and 2FA codes in **Settings › Integrations**.
 
-## Workspace and Personal scopes
+## Workspace vault
 
-Use the scope switcher at the top of **Settings › Integrations** to switch between shared and personal credentials:
+The page shows one workspace vault. There is no personal vault and no scope selector.
 
-- **Workspace**: Shared integrations, environment secrets, and service tokens for your organization. Workspace members can inspect metadata, test connections, view version history, and read live TOTP codes; workspace admins can create, edit, reveal, roll back, set defaults, import `.env` files, and manage service tokens; workspace owners can export secrets and delete items.
-- **Personal**: Private secrets, logins, SSH keys, and 2FA seeds visible only to your own user account inside the workspace. Any workspace member can create, edit, reveal, roll back, and delete their own personal items.
+- **Workspace**: Shared integrations, environment secrets, and service tokens for your organization.
+- Workspace members can inspect metadata, test connections, view version history, and read live TOTP codes.
+- Workspace admins can create, edit, reveal, roll back, set defaults, import `.env` files, and manage service tokens.
+- Workspace owners can export secrets and delete items.
 
 ## Add a credential
 
-1. Open **Settings › Integrations** and choose **Workspace** or **Personal**.
-2. In **Workspace** scope, select a collection and environment (`default`, `prod`, `staging`, `dev`).
+1. Open **Settings › Integrations**.
+2. Select a collection and an environment (`default`, `prod`, `staging`, `dev`).
 3. Click **New item**.
-4. Choose a category and template (for example OpenAI, Stripe, S3, Key-Value Secret, or 2FA TOTP).
-5. Enter the item name, optional key name, and required fields, then click **Create**.
+4. Choose a category and a template, for example OpenAI, Stripe, S3, Key-Value Secret, or 2FA TOTP.
+5. Enter the item name, the optional key name, and the required fields.
+6. Click **Create**.
 
 ## Reveal, test, and rotate secrets
 
-- Secret values stay hidden in list views; each item exposes a `vault://` reference you can copy with one click.
+- Secret values stay hidden in list views. Each item shows a `vault://` reference that you can copy.
 - Click **Reveal** on an item to view or copy its current value. Every reveal creates an audit entry.
-- Click **Test** on supported integrations, databases, SSH keys, or TLS certificates to verify credentials without exposing secrets.
-- Edit an item to save a new version. Open **Versions** to inspect history or click **Rollback** to restore an earlier version.
+- Click **Test** on supported integrations, databases, SSH keys, or TLS certificates. The test checks the credentials without showing secrets.
+- Edit an item to save a new version. Open **Versions** to inspect history. Click **Rollback** to restore an earlier version.
 
 ## Import and export `.env`
 
-1. Switch to **Workspace** scope and select a collection and environment.
-2. Click **Import** and paste `KEY=VALUE` lines (or JSON) to create or update secrets in bulk.
-3. Workspace owners can click **Export** to download `.env` or JSON output for that scope.
+1. Select a collection and an environment.
+2. Click **Import** and paste `KEY=VALUE` lines or JSON. This creates or updates secrets in bulk.
+3. Workspace owners can click **Export** to download `.env` or JSON output for that collection.
 
 ## Service tokens
 
-Create a scoped read-only service token under the **Service Tokens** tab in **Workspace** scope to let CI pipelines or external apps pull secrets from `/api/vault/raw` for one collection, environment, and folder prefix without a user session.
+Create a scoped read-only service token under the **Service Tokens** tab. CI pipelines and external apps then pull secrets from `/api/vault/raw` for one collection, environment, and folder prefix. The token needs no user session.
 
 ```bash
 curl -H "Authorization: Bearer octvq_..." "https://your-octarq-host/api/vault/raw?format=env"
 ```
 
 :::tip
-Service tokens only read workspace-scoped items matching their exact collection, environment, and folder prefix. They never access personal or instance secrets.
+Service tokens only read workspace items that match their exact collection, environment, and folder prefix. They never access instance secrets.
 :::
 
 ## Instance Vault
 
-Instance administrators can open **Instance Settings** (`/instance/settings`) and scroll to **Instance Vault** to manage system-wide credentials such as OAuth client secrets (`instance.oauth.google`, `instance.oauth.github`) and metrics tokens (`instance.metrics_token`).
+Instance administrators can open **Instance Settings** (`/instance/settings`) and scroll to **Instance Vault**. This section manages system-wide credentials, for example OAuth client secrets (`instance.oauth.google`, `instance.oauth.github`) and metrics tokens (`instance.metrics_token`).

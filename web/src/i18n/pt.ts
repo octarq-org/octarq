@@ -168,7 +168,6 @@ export const pt = {
     inbox: "Caixa de entrada",
     domains: "DNS",
     abuse: "Relatórios de abuso",
-    audit: "Log de auditoria",
     "hello-instance": "Olá (instância)",
     general: "Geral",
     gateway: "Gateway de modelos",
@@ -247,9 +246,6 @@ export const pt = {
   vault: {
     title: "Integrações e Cofre",
     description: "Gerencie integrações de terceiros, segredos criptografados, credenciais e tokens de serviço.",
-    scopeLabel: "Escopo",
-    scopeOrg: "Espaço de trabalho",
-    scopeUser: "Pessoal",
     allCollections: "Todas as coleções",
     collectionLabel: "Coleção",
     newCollection: "Nova coleção",

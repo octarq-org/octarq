@@ -187,7 +187,6 @@ export const en = {
     inbox: "Inbox",
     domains: "DNS",
     abuse: "Abuse reports",
-    audit: "Audit log",
     "hello-instance": "Hello (instance)",
     general: "General",
     gateway: "Model Gateway",
@@ -271,9 +270,6 @@ export const en = {
   vault: {
     title: "Integrations & Vault",
     description: "Manage third-party integrations, encrypted secrets, credentials, and service tokens.",
-    scopeLabel: "Scope",
-    scopeOrg: "Workspace",
-    scopeUser: "Personal",
     allCollections: "All collections",
     collectionLabel: "Collection",
     newCollection: "New collection",

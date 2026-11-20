@@ -30,39 +30,39 @@
 
 ## 4. Scope & Tenant Isolation
 
-- `scope = "org"` (`org_id > 0`): Strict workspace isolation; `orgID == 0` is always rejected.
-- `scope = "user"` (`org_id > 0`, `owner_user_id > 0`): Personal workspace items isolated to the owning user (`OwnerUserID == uid` required; missing `OwnerUserID` fails closed).
+- `scope = "org"` (`org_id > 0`): Strict workspace isolation; `orgID == 0` is always rejected. This is the only scope the vault HTTP API serves.
+- `scope = "user"` (`org_id > 0`, `owner_user_id > 0`): Service-level private storage for feature plugins (2FA, pt). The vault HTTP API never lists, creates, or addresses these items. `PutSecret` requires `OwnerUserID`; a missing owner fails closed.
 - `scope = "instance"` (`org_id = 0`): System-level credentials (OAuth client secrets, metrics token, system SMTP, instance S3) accessible only via `ResolveInstanceSecret` / `PutInstanceSecret` / `DeleteInstanceSecret` and `/api/instance/vault/*` (`IsInstanceAdmin`).
 - **Search Query Isolation**: `ListItems` parenthesizes `?q=` `OR` predicates (`(LOWER(name) LIKE ? OR LOWER(key_name) LIKE ? OR LOWER(provider) LIKE ? OR LOWER(tags_json) LIKE ?)`) so `org_id`, `scope`, and `owner_user_id` filters always bind across all search branches.
 
 ## 5. HTTP Endpoints & RBAC Matrix
 
-### Workspace & Personal Endpoints (`/api/vault/*`)
+### Workspace Endpoints (`/api/vault/*`)
 
-All endpoints require an authenticated user (`401`) and active workspace (`400` if `orgID == 0`), plus `RequirePerm`:
+The HTTP API exposes one workspace vault. `GET /api/vault/items` and `POST /api/vault/items` accept an empty `scope` or `scope=org`. Every other non-empty value returns `400` (`Invalid vault scope.`). All endpoints require an authenticated user (`401`) and an active workspace (`400` if `orgID == 0`), plus `RequirePerm`:
 
-| Method & Path | `scope = "org"` Min Role | `scope = "user"` Rule | Notes |
-| --- | --- | --- | --- |
-| `GET /api/vault/schemas` | Public / Any | Public / Any | Returns `SchemasCatalog()` metadata templates |
-| `GET /api/vault/collections` | `member` | N/A (`org` collections) | Auto-ensures `integrations` and `default` collections |
-| `POST /api/vault/collections` | `admin` | N/A | Rejects empty name (`400`) or duplicate slug (`409`) |
-| `DELETE /api/vault/collections/{id}` | `owner` | N/A | Rejects non-empty collection (`409`) |
-| `GET /api/vault/items` | `member` | `member` (`OwnerUserID == uid`) | `scope` defaults to `org`; rejects unknown scope (`400`) |
-| `POST /api/vault/items` | `admin` | `member` (forced `ownerUID = uid`, `isDefault = false`, default `collectionSlug = "default"`) | Rejects unknown scope or invalid payload (`400`) |
-| `GET /api/vault/items/{id}` | `member` | Owner user only (`404` otherwise) | Returns `VaultItemMeta` only |
-| `PUT /api/vault/items/{id}` | `admin` | Owner user only (`404` otherwise) | Appends new version if payload changes; rejects `isDefault: true` on `user` (`400`) |
-| `DELETE /api/vault/items/{id}` | `owner` | Owner user only (`404` otherwise) | Hard-deletes item + versions and shreds Subject DEK |
-| `POST /api/vault/items/{id}/reveal` | `admin` | Owner user only (`404` otherwise) | Decrypts active version and writes `vault.secret.revealed` audit |
-| `GET /api/vault/items/{id}/versions` | `member` | Owner user only (`404` otherwise) | Lists immutable version metadata (no ciphertext/plaintext) |
-| `POST /api/vault/items/{id}/rollback/{version}` | `admin` | Owner user only (`404` otherwise) | Appends new version restored from historical version |
-| `POST /api/vault/items/{id}/default` | `admin` | Rejected (`400`) | Sets `is_default = true` for org provider type |
-| `POST /api/vault/items/{id}/test` | `member` | Owner user only (`404` otherwise) | Validates credential/endpoint via `safehttp` SSRF guard |
-| `GET /api/vault/items/{id}/totp` | `member` | Owner user only (`404` otherwise) | Computes 6-digit RFC-6238 code without revealing seed |
-| `POST /api/vault/import` | `admin` | N/A (`org` only) | Bulk `.env` or JSON import |
-| `GET /api/vault/export` | `owner` | N/A (`org` only) | Plaintext `.env` or JSON export, audit-logged |
-| `GET /api/vault/tokens` | `admin` | N/A (`org` only) | Lists workspace service tokens (hashes never returned) |
-| `POST /api/vault/tokens` | `admin` | N/A (`org` only) | Mints `octvq_` token (`read` only); plaintext returned once |
-| `DELETE /api/vault/tokens/{id}` | `admin` | N/A (`org` only) | Revokes token (`revoked_at = now`) |
+| Method & Path | Min Role | Notes |
+| --- | --- | --- |
+| `GET /api/vault/schemas` | Public / Any | Returns `SchemasCatalog()` metadata templates |
+| `GET /api/vault/collections` | `member` | Auto-ensures `integrations` and `default` collections |
+| `POST /api/vault/collections` | `admin` | Rejects empty name (`400`) or duplicate slug (`409`) |
+| `DELETE /api/vault/collections/{id}` | `owner` | Rejects non-empty collection (`409`) |
+| `GET /api/vault/items` | `member` | `scope` defaults to `org`; rejects `user` or unknown scope (`400`) |
+| `POST /api/vault/items` | `admin` | Rejects `scope=user` or unknown scope (`400`) and invalid payload (`400`) |
+| `GET /api/vault/items/{id}` | `member` | Returns `VaultItemMeta` only; non-org items read as `404` |
+| `PUT /api/vault/items/{id}` | `admin` | Appends a new version if the payload changes |
+| `DELETE /api/vault/items/{id}` | `owner` | Hard-deletes item + versions and shreds Subject DEK |
+| `POST /api/vault/items/{id}/reveal` | `admin` | Decrypts active version and writes `vault.secret.revealed` audit |
+| `GET /api/vault/items/{id}/versions` | `member` | Lists immutable version metadata (no ciphertext/plaintext) |
+| `POST /api/vault/items/{id}/rollback/{version}` | `admin` | Appends a new version restored from a historical version |
+| `POST /api/vault/items/{id}/default` | `admin` | Sets `is_default = true` for the org provider type |
+| `POST /api/vault/items/{id}/test` | `member` | Validates credential/endpoint via `safehttp` SSRF guard |
+| `GET /api/vault/items/{id}/totp` | `member` | Computes 6-digit RFC-6238 code without revealing the seed |
+| `POST /api/vault/import` | `admin` | Bulk `.env` or JSON import |
+| `GET /api/vault/export` | `owner` | Plaintext `.env` or JSON export, audit-logged |
+| `GET /api/vault/tokens` | `admin` | Lists workspace service tokens (hashes never returned) |
+| `POST /api/vault/tokens` | `admin` | Mints `octvq_` token (`read` only); plaintext returned once |
+| `DELETE /api/vault/tokens/{id}` | `admin` | Revokes token (`revoked_at = now`) |
 
 ### Instance-Admin System Vault (`/api/instance/vault/*`)
 

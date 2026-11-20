@@ -168,7 +168,6 @@ export const es = {
     inbox: "Bandeja de entrada",
     domains: "DNS",
     abuse: "Reportes de abuso",
-    audit: "Registro de auditoría",
     "hello-instance": "Hola (instancia)",
     general: "General",
     gateway: "Puerta de modelos",
@@ -247,9 +246,6 @@ export const es = {
   vault: {
     title: "Integraciones y Bóveda",
     description: "Administra integraciones de terceros, secretos cifrados, credenciales y tokens de servicio.",
-    scopeLabel: "Alcance",
-    scopeOrg: "Espacio de trabajo",
-    scopeUser: "Uso personal",
     allCollections: "Todas las colecciones",
     collectionLabel: "Colección",
     newCollection: "Nueva colección",

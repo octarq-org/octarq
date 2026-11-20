@@ -167,7 +167,6 @@ func TestVault_VersioningRollbackAndShred(t *testing.T) {
 		t.Fatalf("unexpected ref: %s", meta.Ref)
 	}
 
-	// Update creates v2
 	meta2, err := p.UpdateSecret(ctx, 1, meta.ID, nil, nil, map[string]any{"value": "postgres://v2"}, nil, "rotate", 10)
 	if err != nil {
 		t.Fatalf("UpdateSecret: %v", err)
@@ -181,7 +180,6 @@ func TestVault_VersioningRollbackAndShred(t *testing.T) {
 		t.Fatalf("ResolveByRef v2 failed: %+v, err=%v", sec, err)
 	}
 
-	// Rollback creates v3 with v1 payload
 	meta3, err := p.RollbackVersion(ctx, 1, meta.ID, 1, 10)
 	if err != nil || meta3.CurrentVersion != 3 {
 		t.Fatalf("RollbackVersion failed: %+v, err=%v", meta3, err)
@@ -191,17 +189,14 @@ func TestVault_VersioningRollbackAndShred(t *testing.T) {
 		t.Fatalf("expected rolled back v1 value, got %+v, err=%v", sec3, err)
 	}
 
-	// Validate passes while key exists
 	if err := p.Validate(ctx, p.host); err != nil {
 		t.Fatalf("Validate failed unexpectedly: %v", err)
 	}
 
-	// Cross-tenant isolation check
 	if _, err := p.GetSecret(ctx, 2, meta.ID); !errors.Is(err, plugin.ErrSecretNotFound) {
 		t.Fatalf("expected ErrSecretNotFound across orgs, got %v", err)
 	}
 
-	// Delete hard-deletes and shreds DEK
 	if err := p.DeleteSecret(ctx, 1, meta.ID); err != nil {
 		t.Fatalf("DeleteSecret: %v", err)
 	}
@@ -293,7 +288,6 @@ func TestVault_LookupCredentialAndTOTPAndInstance(t *testing.T) {
 		t.Fatalf("unexpected credential payload: %s, err=%v", string(cred.ConfigJSON), err)
 	}
 
-	// TOTP item
 	totpMeta, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:    1,
 		Scope:    plugin.VaultScopeOrg,
@@ -309,7 +303,6 @@ func TestVault_LookupCredentialAndTOTPAndInstance(t *testing.T) {
 		t.Fatalf("ComputeTOTP failed: code=%q rem=%d err=%v", code, rem, err)
 	}
 
-	// Instance secret isolation
 	if _, err := p.PutInstanceSecret(ctx, plugin.PutSecretRequest{
 		ItemType: "oauth_app",
 		KeyName:  "instance.oauth.google",
@@ -372,7 +365,6 @@ func TestVault_UserScopeIsolationAndCrossUserAuth(t *testing.T) {
 	p, _, mux := setupVaultTestCustom(t, func(*http.Request) uint { return activeUID }, nil)
 	ctx := context.Background()
 
-	// Missing OwnerUserID for VaultScopeUser must fail closed.
 	if _, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:   1,
 		Scope:   plugin.VaultScopeUser,
@@ -383,7 +375,6 @@ func TestVault_UserScopeIsolationAndCrossUserAuth(t *testing.T) {
 		t.Fatal("expected error when OwnerUserID is 0 for VaultScopeUser")
 	}
 
-	// User A (10) and User B (20) store the same keyName in the same org/collection/env/folder.
 	metaA, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:       1,
 		Scope:       plugin.VaultScopeUser,
@@ -425,7 +416,6 @@ func TestVault_UserScopeIsolationAndCrossUserAuth(t *testing.T) {
 		t.Fatalf("User B secret mismatch: %+v, err=%v", secB, err)
 	}
 
-	// ResolveByRef must never resolve user-scoped items by ID.
 	if _, err := p.ResolveByRef(ctx, 1, fmt.Sprintf("vault://id/%d", metaA.ID)); !errors.Is(err, plugin.ErrSecretNotFound) {
 		t.Fatalf("expected ErrSecretNotFound for user-scoped vault://id ref, got %v", err)
 	}
@@ -443,7 +433,6 @@ func TestVault_UserScopeIsolationAndCrossUserAuth(t *testing.T) {
 		t.Fatalf("PutSecret user A TOTP: %v", err)
 	}
 
-	// Switch caller to User B (20) and assert 404 on rollback, default, test, and totp for User A's items.
 	activeUID = 20
 	checks := []struct {
 		method string
@@ -630,7 +619,6 @@ func TestVault_ServiceTokenFolderBoundaryAndAudit(t *testing.T) {
 		t.Fatalf("unexpected audit callback emissions: actions=%v orgs=%v targets=%v", auditActions, auditOrgIDs, auditTargetIDs)
 	}
 
-	// Also verify direct audit_logs DB persistence when p.audit is nil.
 	p.audit = nil
 	req2 := httptest.NewRequest(http.MethodGet, "/api/vault/raw?format=env", nil)
 	req2.Header.Set("Authorization", "Bearer "+rawToken)
@@ -718,7 +706,6 @@ func TestVault_ListItemsQueryIsolation(t *testing.T) {
 	p, _, _ := setupVaultTest(t)
 	ctx := context.Background()
 
-	// Org 1 matching across name, key_name, provider, and tags
 	org1Match, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:          1,
 		Scope:          plugin.VaultScopeOrg,
@@ -736,7 +723,6 @@ func TestVault_ListItemsQueryIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PutSecret org1: %v", err)
 	}
-	// Org 1 non-matching item
 	if _, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:          1,
 		Scope:          plugin.VaultScopeOrg,
@@ -749,7 +735,6 @@ func TestVault_ListItemsQueryIsolation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("PutSecret org1 other: %v", err)
 	}
-	// Org 2 item with "stripe" in key_name, provider, name, tags (must NEVER leak to Org 1)
 	if _, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:        2,
 		Scope:        plugin.VaultScopeOrg,
@@ -763,7 +748,6 @@ func TestVault_ListItemsQueryIsolation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("PutSecret org2: %v", err)
 	}
-	// User 9 personal item in Org 1 with "stripe" (must NEVER leak to Org 1 org-scope query)
 	if _, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:       1,
 		Scope:       plugin.VaultScopeUser,
@@ -775,7 +759,6 @@ func TestVault_ListItemsQueryIsolation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("PutSecret user9: %v", err)
 	}
-	// Instance item with "stripe" (must NEVER leak to Org 1 org-scope query)
 	if _, err := p.PutInstanceSecret(ctx, plugin.PutSecretRequest{
 		ItemType: "instance_secret",
 		KeyName:  "instance.stripe.webhook",
@@ -797,7 +780,6 @@ func TestVault_ListItemsQueryIsolation(t *testing.T) {
 		t.Fatalf("expected only Org 1 item %d, got %+v", org1Match.ID, got)
 	}
 
-	// Verify all filter branches & validation errors
 	filtered, err := p.ListItems(ctx, 1, plugin.VaultFilter{
 		Scope:          plugin.VaultScopeOrg,
 		CollectionSlug: "payments",
@@ -887,7 +869,33 @@ func doJSONReq(t *testing.T, mux *http.ServeMux, method, path string, body any) 
 	return rec
 }
 
-func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
+func TestVault_ValidateKeepsTheMountHost(t *testing.T) {
+	state := &struct {
+		uid             uint
+		orgID           uint
+		role            string
+		isInstanceAdmin bool
+	}{uid: 10, orgID: 1, role: "owner", isInstanceAdmin: false}
+	p, _, _ := setupVaultTestRBAC(t, state)
+
+	mounted := p.host
+	if mounted == nil || mounted.Session() == nil || mounted.Crypto() == nil {
+		t.Fatal("mount host must carry session and crypto")
+	}
+	stdioHost := &plugin.TestHost{CryptoMock: mounted.Crypto()}
+
+	if err := p.Validate(context.Background(), stdioHost); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if p.host != mounted {
+		t.Fatalf("Validate replaced the mount host with %T", p.host)
+	}
+	if p.host.Session() == nil {
+		t.Fatal("mount host lost its session after Validate")
+	}
+}
+
+func TestVault_HTTP_RBACAndWorkspaceScope(t *testing.T) {
 	state := &struct {
 		uid             uint
 		orgID           uint
@@ -896,12 +904,10 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 	}{uid: 10, orgID: 1, role: "owner", isInstanceAdmin: false}
 	p, _, mux := setupVaultTestRBAC(t, state)
 
-	// Schemas endpoint
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/schemas", nil); rec.Code != http.StatusOK {
 		t.Fatalf("GET /api/vault/schemas: %d %s", rec.Code, rec.Body.String())
 	}
 
-	// Unauthenticated (uid == 0) -> 401; Missing workspace (orgID == 0) -> 400
 	state.uid = 0
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/items", nil); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 when uid=0, got %d", rec.Code)
@@ -913,7 +919,6 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 	}
 	state.orgID = 1
 
-	// Collections RBAC: member cannot create, admin can create, owner can delete empty only
 	state.role = "member"
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/collections", nil); rec.Code != http.StatusOK {
 		t.Fatalf("member listCollections: %d %s", rec.Code, rec.Body.String())
@@ -938,7 +943,6 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 		t.Fatalf("admin deleteCollection expected 403, got %d", rec.Code)
 	}
 
-	// Admin creates org integration & TOTP item
 	createRec := doJSONReq(t, mux, http.MethodPost, "/api/vault/items", map[string]any{
 		"collectionSlug": "backend",
 		"environment":    "prod",
@@ -966,7 +970,6 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 	var orgTotp plugin.VaultItemMeta
 	_ = json.Unmarshal(totpRec.Body.Bytes(), &orgTotp)
 
-	// Invalid scope checks
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/items?scope=instance", nil); rec.Code != http.StatusBadRequest {
 		t.Fatalf("listItems invalid scope expected 400, got %d", rec.Code)
 	}
@@ -974,7 +977,6 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 		t.Fatalf("createItem invalid scope expected 400, got %d", rec.Code)
 	}
 
-	// Admin updates -> v2, reveals, rolls back, sets default, cannot delete or export
 	if rec := doJSONReq(t, mux, http.MethodPut, fmt.Sprintf("/api/vault/items/%d", orgItem.ID), map[string]any{"payload": map[string]any{"secretKey": "sk_prod_2"}}); rec.Code != http.StatusOK {
 		t.Fatalf("admin updateItem expected 200, got %d", rec.Code)
 	}
@@ -994,7 +996,6 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 		t.Fatalf("admin export expected 403, got %d", rec.Code)
 	}
 
-	// Member on org items: read/versions/test/totp allowed, write/reveal/rollback/default/delete forbidden
 	state.role = "member"
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/items?scope=org", nil); rec.Code != http.StatusOK {
 		t.Fatalf("member listItems: %d", rec.Code)
@@ -1027,74 +1028,19 @@ func TestVault_HTTP_RBACAndPersonalScope(t *testing.T) {
 		}
 	}
 
-	// Member Personal (scope = "user") self-service: full CRUD + reveal + rollback + totp + delete on OWN items
-	uCreate := doJSONReq(t, mux, http.MethodPost, "/api/vault/items", map[string]any{
-		"scope":     "user",
-		"itemType":  "twofa_totp",
-		"keyName":   "MY_GITHUB_2FA",
-		"name":      "My GitHub 2FA",
-		"isDefault": true, // must be forced false on personal scope
-		"payload":   map[string]any{"secret": "JBSWY3DPEHPK3PXP"},
-	})
-	if uCreate.Code != http.StatusCreated {
-		t.Fatalf("member personal createItem expected 201, got %d: %s", uCreate.Code, uCreate.Body.String())
-	}
-	var uItem plugin.VaultItemMeta
-	_ = json.Unmarshal(uCreate.Body.Bytes(), &uItem)
-	if uItem.Scope != plugin.VaultScopeUser || uItem.OwnerUserID != 10 || uItem.CollectionSlug != "default" || uItem.IsDefault {
-		t.Fatalf("unexpected personal item metadata: %+v", uItem)
-	}
-	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/items?scope=user", nil); rec.Code != http.StatusOK {
-		t.Fatalf("member list user items: %d", rec.Code)
-	}
-	if rec := doJSONReq(t, mux, http.MethodPut, fmt.Sprintf("/api/vault/items/%d", uItem.ID), map[string]any{"payload": map[string]any{"secret": "JBSWY3DPEHPK3PXQ"}}); rec.Code != http.StatusOK {
-		t.Fatalf("member update own personal item: %d %s", rec.Code, rec.Body.String())
-	}
-	if rec := doJSONReq(t, mux, http.MethodPut, fmt.Sprintf("/api/vault/items/%d", uItem.ID), map[string]any{"isDefault": true}); rec.Code != http.StatusBadRequest {
-		t.Fatalf("setting isDefault on personal item expected 400, got %d", rec.Code)
-	}
-	if rec := doJSONReq(t, mux, http.MethodPost, fmt.Sprintf("/api/vault/items/%d/default", uItem.ID), nil); rec.Code != http.StatusBadRequest {
-		t.Fatalf("setDefault on personal item expected 400, got %d", rec.Code)
-	}
-	if rec := doJSONReq(t, mux, http.MethodPost, fmt.Sprintf("/api/vault/items/%d/reveal", uItem.ID), nil); rec.Code != http.StatusOK {
-		t.Fatalf("member reveal own personal item: %d", rec.Code)
-	}
-	if rec := doJSONReq(t, mux, http.MethodPost, fmt.Sprintf("/api/vault/items/%d/rollback/1", uItem.ID), nil); rec.Code != http.StatusOK {
-		t.Fatalf("member rollback own personal item: %d", rec.Code)
-	}
-	if rec := doJSONReq(t, mux, http.MethodGet, fmt.Sprintf("/api/vault/items/%d/totp", uItem.ID), nil); rec.Code != http.StatusOK {
-		t.Fatalf("member TOTP own personal item: %d", rec.Code)
-	}
-
-	// Owner (different user uid=20) cannot access User 10's personal item (404 on every endpoint)
-	state.uid = 20
-	state.role = "owner"
-	for _, tc := range []struct {
-		m, p string
-		body any
-	}{
-		{http.MethodGet, fmt.Sprintf("/api/vault/items/%d", uItem.ID), nil},
-		{http.MethodPut, fmt.Sprintf("/api/vault/items/%d", uItem.ID), map[string]any{"name": "Hijack"}},
-		{http.MethodPost, fmt.Sprintf("/api/vault/items/%d/reveal", uItem.ID), nil},
-		{http.MethodGet, fmt.Sprintf("/api/vault/items/%d/versions", uItem.ID), nil},
-		{http.MethodPost, fmt.Sprintf("/api/vault/items/%d/rollback/1", uItem.ID), nil},
-		{http.MethodPost, fmt.Sprintf("/api/vault/items/%d/test", uItem.ID), nil},
-		{http.MethodGet, fmt.Sprintf("/api/vault/items/%d/totp", uItem.ID), nil},
-		{http.MethodDelete, fmt.Sprintf("/api/vault/items/%d", uItem.ID), nil},
-	} {
-		if rec := doJSONReq(t, mux, tc.m, tc.p, tc.body); rec.Code != http.StatusNotFound {
-			t.Fatalf("other user %s %s expected 404, got %d", tc.m, tc.p, rec.Code)
-		}
-	}
-
-	// User 10 deletes their own personal item as member
 	state.uid = 10
-	state.role = "member"
-	if rec := doJSONReq(t, mux, http.MethodDelete, fmt.Sprintf("/api/vault/items/%d", uItem.ID), nil); rec.Code != http.StatusOK {
-		t.Fatalf("member delete own personal item expected 200, got %d: %s", rec.Code, rec.Body.String())
+	state.role = "admin"
+	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/items?scope=user", nil); rec.Code != http.StatusBadRequest {
+		t.Fatalf("listItems scope=user expected 400, got %d", rec.Code)
+	}
+	if rec := doJSONReq(t, mux, http.MethodPost, "/api/vault/items", map[string]any{
+		"scope":   "user",
+		"name":    "My GitHub 2FA",
+		"payload": map[string]any{"secret": "JBSWY3DPEHPK3PXP"},
+	}); rec.Code != http.StatusBadRequest {
+		t.Fatalf("createItem scope=user expected 400, got %d", rec.Code)
 	}
 
-	// Owner deletes org item and collection (non-empty -> 409, empty -> 200, missing -> 404)
 	state.role = "owner"
 	if rec := doJSONReq(t, mux, http.MethodDelete, fmt.Sprintf("/api/vault/collections/%d", col.ID), nil); rec.Code != http.StatusConflict {
 		t.Fatalf("non-empty collection delete expected 409, got %d", rec.Code)
@@ -1120,7 +1066,6 @@ func TestVault_HTTP_ImportExportTokensAndInstance(t *testing.T) {
 	}{uid: 10, orgID: 1, role: "owner", isInstanceAdmin: false}
 	p, _, mux := setupVaultTestRBAC(t, state)
 
-	// Bulk import .env & json + invalid format/line
 	if rec := doJSONReq(t, mux, http.MethodPost, "/api/vault/import", map[string]any{
 		"collectionSlug": "app",
 		"environment":    "prod",
@@ -1144,7 +1089,6 @@ func TestVault_HTTP_ImportExportTokensAndInstance(t *testing.T) {
 		t.Fatalf("invalid dotenv line expected 400, got %d", rec.Code)
 	}
 
-	// Owner export env & json
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/vault/export?collection=app&environment=prod&format=env", nil); rec.Code != http.StatusOK {
 		t.Fatalf("export env failed: %d %s", rec.Code, rec.Body.String())
 	}
@@ -1152,7 +1096,6 @@ func TestVault_HTTP_ImportExportTokensAndInstance(t *testing.T) {
 		t.Fatalf("export json failed: %d %s", rec.Code, rec.Body.String())
 	}
 
-	// Service tokens HTTP CRUD + read-only enforcement
 	if rec := doJSONReq(t, mux, http.MethodPost, "/api/vault/tokens", map[string]any{"name": "Bad Perm", "permissions": "read_write"}); rec.Code != http.StatusBadRequest {
 		t.Fatalf("read_write token expected 400, got %d", rec.Code)
 	}
@@ -1181,7 +1124,6 @@ func TestVault_HTTP_ImportExportTokensAndInstance(t *testing.T) {
 		t.Fatalf("second revoke expected 404, got %d", rec.Code)
 	}
 
-	// Revoked token & expired token rejected on /api/vault/raw
 	rawReq := httptest.NewRequest(http.MethodGet, "/api/vault/raw", nil)
 	rawReq.Header.Set("Authorization", "Bearer "+tokOut.Plaintext)
 	rawRec := httptest.NewRecorder()
@@ -1204,7 +1146,6 @@ func TestVault_HTTP_ImportExportTokensAndInstance(t *testing.T) {
 		t.Fatal("expected missing token error")
 	}
 
-	// Instance vault routes: non-instance-admin forbidden, uid=0 unauthorized, instance-admin full CRUD
 	if rec := doJSONReq(t, mux, http.MethodGet, "/api/instance/vault/items", nil); rec.Code != http.StatusForbidden {
 		t.Fatalf("non-instance-admin expected 403, got %d", rec.Code)
 	}
@@ -1248,7 +1189,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 	p, _, _ := setupVaultTest(t)
 	ctx := context.Background()
 
-	// Metadata, HelpDocsFS, MCPTier
 	if p.Name() != "vault" || p.Describe().Title == "" || !p.Describe().Core || p.MCPTier() != "" || p.HelpDocsFS() == nil {
 		t.Fatalf("unexpected plugin descriptor: name=%s desc=%+v", p.Name(), p.Describe())
 	}
@@ -1257,7 +1197,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 		t.Fatalf("expected HasEncryptedData=false on empty DB, got %v err=%v", hasEnc, err)
 	}
 
-	// Valid SSH key & X.509 certificates (valid and expired)
 	_, edPriv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("ed25519 keygen: %v", err)
@@ -1319,7 +1258,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 		}
 	}
 
-	// TOTP otpauth URI + period branches
 	if code, rem, err := computeTOTPCode(map[string]any{
 		"otpauthUri": "otpauth://totp/Octarq:ops@example.com?secret=JBSWY3DPEHPK3PXP&period=60&digits=6",
 	}, time.Now()); err != nil || len(code) != 6 || rem <= 0 {
@@ -1335,7 +1273,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 		t.Fatalf("custom period TOTP failed: %v", err)
 	}
 
-	// parseVaultRef error paths + formatDotEnv multi-field escaping
 	for _, badRef := range []string{"http://x", "vault://id/", "vault://id/abc", "vault://onlycol", "vault://col/prod/"} {
 		if _, err := parseVaultRef(badRef); err == nil {
 			t.Fatalf("expected parseVaultRef error for %q", badRef)
@@ -1349,7 +1286,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 		t.Fatalf("unexpected formatDotEnv output: %q", envStr)
 	}
 
-	// Put secret -> HasEncryptedData=true -> exportData -> MCP list/meta/test -> purge -> Validate failure check
 	item, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID:          1,
 		Scope:          plugin.VaultScopeOrg,
@@ -1374,7 +1310,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 		t.Fatalf("expected exported metadata items, got %+v", exported)
 	}
 
-	// MCP list_items, get_item_meta, test_integration
 	srv := mcp.NewServer(&mcp.Implementation{Name: "vault-test", Version: "1"}, nil)
 	p.RegisterMCP(srv)
 	c := plugin.WithTokenRole(plugin.WithOrgID(ctx, 1), "member")
@@ -1394,13 +1329,11 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 	_ = cs.Close()
 	_ = ss.Close()
 
-	// Validate fails closed when DEK is missing
 	_ = p.shredItemKey(1, item.SecretID)
 	if err := p.Validate(ctx, p.host); err == nil {
 		t.Fatal("expected Validate to fail when subject DEK is missing")
 	}
 
-	// Purge removes all items/collections/tokens
 	if err := p.purge(1); err != nil {
 		t.Fatalf("purge: %v", err)
 	}
@@ -1413,7 +1346,6 @@ func TestVault_TestConnEnvTotpRefsPurgeAndValidate(t *testing.T) {
 func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
-	// Nil DB / unmounted plugin guards
 	pNil := New()
 	pNil.Mount(nil, nil)
 	if enc, err := pNil.HasEncryptedData(); err != nil || enc {
@@ -1471,7 +1403,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("exportData(0) expected empty, got %+v", got)
 	}
 
-	// Mounted plugin with Provide callback and Store edge cases
 	p, db, mux := setupVaultTest(t)
 	provided := map[string]any{}
 	p.Mount(nil, &plugin.Context{
@@ -1485,7 +1416,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("expected Mount to provide vault services, got %+v", provided)
 	}
 
-	// PutSecret validation errors
 	if _, err := p.PutSecret(ctx, plugin.PutSecretRequest{OrgID: 1, Scope: plugin.VaultScopeInstance, Name: "X"}); err == nil {
 		t.Fatal("PutSecret must reject instance scope")
 	}
@@ -1502,7 +1432,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatal("expected validatePayload error for missing required stripe secretKey")
 	}
 
-	// KeyName collision creates v2 and honors IsDefault
 	v1, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID: 1, ItemType: "integration", ProviderType: "llm", Provider: "openai",
 		KeyName: "COLLIDE_OPENAI", Name: "OpenAI 1",
@@ -1520,7 +1449,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("expected keyName collision to update v2 default, got %+v err=%v", v2, err)
 	}
 
-	// UpdateSecret: keep masked field ("••••••••"), clear field (""), non-string field, reject secret-looking metadata key
 	upd, err := p.UpdateSecret(ctx, 1, v1.ID, nil,
 		map[string]any{"apiKey": "leaked", "region": "us-east"},
 		map[string]any{"apiKey": "••••••••", "model": "", "maxRetries": 3},
@@ -1537,7 +1465,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("secret-looking key leaked into metadata: %+v", upd.Metadata)
 	}
 
-	// Not-found & invalid-param branches across store methods
 	if _, err := p.UpdateSecret(ctx, 1, 99999, nil, nil, nil, nil, "", 0); !errors.Is(err, plugin.ErrSecretNotFound) {
 		t.Fatalf("expected ErrSecretNotFound on UpdateSecret, got %v", err)
 	}
@@ -1569,7 +1496,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatal("expected error for empty instance keyName")
 	}
 
-	// LookupCredential by ID, by ProviderType only, and ErrCredentialNotFound
 	byID, err := p.LookupCredential(ctx, 1, plugin.CredentialQuery{ID: v1.ID})
 	if err != nil || byID.ID != v1.ID {
 		t.Fatalf("LookupCredential by ID: %+v err=%v", byID, err)
@@ -1581,7 +1507,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("expected ErrCredentialNotFound, got %v", err)
 	}
 
-	// CreateServiceToken error branches
 	if _, _, err := p.CreateServiceToken(ctx, 0, "t", "default", "prod", "/", "read", nil, 0); err == nil {
 		t.Fatal("expected error for orgID=0")
 	}
@@ -1592,7 +1517,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatal("expected error for missing collection")
 	}
 
-	// MCP error paths (missing orgID, missing item, invalid payload)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "vault-err-test", Version: "1"}, nil)
 	p.RegisterMCP(srv)
 	sT, cT := mcp.NewInMemoryTransports()
@@ -1616,7 +1540,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 	_ = cs.Close()
 	_ = ss.Close()
 
-	// Auth errors on HTTP routes when host/session is nil
 	pNoHost := &Plugin{db: db}
 	muxNoHost := http.NewServeMux()
 	humaNoHost := humago.New(muxNoHost, huma.DefaultConfig("NoHost", "1.0.0"))
@@ -1634,7 +1557,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("expected 401 on /api/vault/raw without bearer, got %d", rawRec.Code)
 	}
 
-	// schemas.go & extractNonSecretMetadata edge branches
 	if err := validatePayload("kv_secret", "", "", nil); err == nil {
 		t.Fatal("expected error for nil payload on required kv_secret")
 	}
@@ -1649,7 +1571,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("secretToken leaked into metadata: %+v", metaOut)
 	}
 
-	// Create item via HTTP with missing required field -> 400, update missing item -> 404
 	if rec := doJSONReq(t, mux, http.MethodPost, "/api/vault/items", map[string]any{
 		"name": "Missing Payload", "itemType": "integration", "providerType": "payment", "provider": "stripe", "payload": map[string]any{},
 	}); rec.Code != http.StatusBadRequest {
@@ -1659,7 +1580,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 		t.Fatalf("expected 404 updating missing item, got %d", rec.Code)
 	}
 
-	// Crypto seal/open error paths (corrupted ciphertext, empty ciphertext, failing SubjectVault)
 	itemEnc, err := p.PutSecret(ctx, plugin.PutSecretRequest{
 		OrgID: 1, Scope: plugin.VaultScopeOrg, Name: "Enc Test", KeyName: "ENC_TEST",
 		Payload: map[string]any{"value": "abc"},
@@ -1673,7 +1593,6 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 	if _, err := p.openPayload(1, itemEnc.SecretID, 1, "tampered-ciphertext"); err == nil {
 		t.Fatal("expected openPayload error on tampered ciphertext")
 	}
-	// Corrupt stored ciphertext in version 1 and verify GetSecret / UpdateSecret / RollbackVersion fail closed
 	db.Model(&VaultItemVersion{}).Where("item_id = ? AND version = 1", itemEnc.ID).Update("ciphertext", "corrupted")
 	if _, err := p.GetSecret(ctx, 1, itemEnc.ID); err == nil {
 		t.Fatal("expected GetSecret failure on corrupted ciphertext")
@@ -1684,13 +1603,11 @@ func TestVault_StoreErrorPathsAndEdgeCases(t *testing.T) {
 	if _, err := p.RollbackVersion(ctx, 1, itemEnc.ID, 1, 10); err == nil {
 		t.Fatal("expected RollbackVersion failure when target version ciphertext is corrupted")
 	}
-	// Missing active version row
 	db.Where("item_id = ?", itemEnc.ID).Delete(&VaultItemVersion{})
 	if _, err := p.GetSecret(ctx, 1, itemEnc.ID); err == nil {
 		t.Fatal("expected GetSecret error when active version row is missing")
 	}
 
-	// Unparseable JSON in openPayload + nil crypto in seal/open/shred
 	pNoCrypto := &Plugin{db: db}
 	if _, err := pNoCrypto.sealPayload(1, "s", 1, map[string]any{"a": 1}); err == nil {
 		t.Fatal("expected sealPayload error without crypto")

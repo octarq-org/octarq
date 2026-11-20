@@ -4,7 +4,7 @@ import type { UIPlugin } from "@octarq/plugin-sdk";
 
 const audit: UIPlugin = {
   name: "audit",
-  routes: [{ path: "/audit", Component: lazy(() => import("../../pages/Audit")) }],
+  routes: [{ path: "/governance/audit", Component: lazy(() => import("../../pages/Audit")) }],
 };
 
 export default audit;
