@@ -168,7 +168,6 @@ export const pt = {
     inbox: "Caixa de entrada",
     domains: "DNS",
     abuse: "Relatórios de abuso",
-    audit: "Log de auditoria",
     "hello-instance": "Olá (instância)",
     general: "Geral",
     gateway: "Gateway de modelos",

@@ -46,6 +46,11 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 	if len(menus) < 3 {
 		t.Errorf("expected at least 3 core menus, got %d", len(menus))
 	}
+	for _, m := range menus {
+		if m.Path == "/audit" || m.ID == "audit" {
+			t.Errorf("core /api/menus must not expose /audit menu item, got %+v", m)
+		}
+	}
 
 	rec = do(srv, "GET", "/api/actions", cookies, "")
 	if rec.Code != http.StatusOK {

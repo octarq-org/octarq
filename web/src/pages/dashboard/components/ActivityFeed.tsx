@@ -41,7 +41,7 @@ function auditCard(a: AuditLog): FeedCard {
     detail: target,
     at: a.createdAt,
     unread: false,
-    target: "/audit",
+    target: "/governance/audit",
     kind: "audit",
   };
 }

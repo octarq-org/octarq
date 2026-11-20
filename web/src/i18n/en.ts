@@ -187,7 +187,6 @@ export const en = {
     inbox: "Inbox",
     domains: "DNS",
     abuse: "Abuse reports",
-    audit: "Audit log",
     "hello-instance": "Hello (instance)",
     general: "General",
     gateway: "Model Gateway",

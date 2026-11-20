@@ -168,7 +168,6 @@ export const es = {
     inbox: "Bandeja de entrada",
     domains: "DNS",
     abuse: "Reportes de abuso",
-    audit: "Registro de auditoría",
     "hello-instance": "Hola (instancia)",
     general: "General",
     gateway: "Puerta de modelos",

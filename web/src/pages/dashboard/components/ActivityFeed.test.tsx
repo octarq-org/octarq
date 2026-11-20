@@ -46,7 +46,7 @@ describe("fetchActivityFeed", () => {
     expect(cards.map((c) => c.key)).toEqual(["notification-1", "audit-7", "notification-2"]);
     expect(cards[0].unread).toBe(true);
     expect(cards[0].target).toBe("/notifications");
-    expect(cards[1].target).toBe("/audit");
+    expect(cards[1].target).toBe("/governance/audit");
   });
 
   it("degrades to empty when both sources fail", async () => {

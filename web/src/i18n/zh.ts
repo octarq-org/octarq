@@ -169,7 +169,6 @@ export const zh: Resources = {
     inbox: "站内信",
     domains: "DNS",
     abuse: "滥用举报",
-    audit: "审计日志",
     "hello-instance": "实例示例",
     general: "通用",
     gateway: "模型网关",
