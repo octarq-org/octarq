@@ -1,8 +1,4 @@
 import { Alert, Badge, Button, PageShell, PageSection, PageCard, cn } from "@octarq/plugin-sdk";
-// The instance console home: a flat overview of the deployment. Top keeps the
-// health summary (every readiness check, including non-actionable ones like
-// database); when fixable checks need work, a blocked banner and progress bar
-// summarize attention needed above the live checklist.
 import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import { ReadinessCheck } from "../../api";
 import { useTranslation } from "../../i18n";

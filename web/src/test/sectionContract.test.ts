@@ -3,16 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-/**
- * Guards the section contract every admin page follows: headings come from
- * Panel, and empty-state copy goes in Empty's `reason`/`detail` slots.
- *
- * Both rules exist because the hand-rolled versions fail silently. A section
- * that copies the Panel heading recipe renders correctly but drifts the moment
- * Panel changes. An Empty that takes its message as a child rendered the
- * paragraph inside the 48px icon tile — the text was squeezed, not broken, so
- * nothing failed and five call sites shipped that way.
- */
 
 export type SectionViolation = {
   kind: "hand-rolled-heading" | "empty-block-markup";
@@ -20,19 +10,12 @@ export type SectionViolation = {
   snippet: string;
 };
 
-// The Panel h2 recipe. A second copy of it is a section that skipped Panel.
 const PANEL_HEADING = "font-display text-[15px]";
 
 const H2_TAG = /<h2\b[^>]*>/g;
-// Everything from an opening Empty to its closer. Empty renders detail inside a
-// single paragraph and everything else into a 48px tile, so block-level markup
-// anywhere inside it either nests paragraphs or crushes the text.
 const EMPTY_ELEMENT = /<Empty\b[\s\S]*?<\/Empty>/g;
 
 export function scanSectionSource(raw: string): SectionViolation[] {
-  // Blank out block comments, keeping their newlines so line numbers stay
-  // true. Comments explain these rules and quote the markup they warn about,
-  // and the quotes are not violations.
   const src = raw.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
   const out: SectionViolation[] = [];
   const lineOf = (index: number) => src.slice(0, index).split("\n").length;
@@ -60,9 +43,6 @@ export function scanSectionSource(raw: string): SectionViolation[] {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webSrc = path.resolve(here, "..");
 
-// Routed page modules only. Chrome in shell/ draws its own headers — the
-// copilot drawer's title sits in a bordered header row, where a Panel card
-// would be the wrong shape.
 const SECTION_ROOTS = ["pages", "plugins"].map((dir) => path.join(webSrc, dir));
 
 function sourceFiles(dir: string): string[] {

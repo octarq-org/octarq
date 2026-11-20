@@ -5,15 +5,6 @@ import { setTheme } from "../../theme";
 import { CATALOG } from "./catalog";
 import { Inspector } from "./Inspector";
 
-/**
- * Regression lock for the tab-freezing loop.
- *
- * The token table reads both themes by flipping `dark` on <html>. It used to
- * re-read from a MutationObserver watching that same element, so its own write
- * re-fired the observer forever. Each read calls getComputedStyle twice (once
- * per theme), so counting those calls is what makes the loop visible: a bounded
- * number per theme flip, not an unbounded flood.
- */
 describe("Inspector token table", () => {
   afterEach(() => setTheme("light"));
 

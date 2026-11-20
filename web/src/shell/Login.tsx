@@ -17,16 +17,9 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
   const [workspace, setWorkspace] = useState("");
   const [code, setCode] = useState("");
   const [needs2FA, setNeeds2FA] = useState(false);
-  // Set when the OAuth callback bounced us here with ?twofa=1: the account
-  // needs its second factor, and the signed challenge proving the OAuth
-  // round-trip is already waiting in an HttpOnly cookie — the page never sees
-  // its value.
   const [oauthPending, setOauthPending] = useState(false);
   const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [forgotSent, setForgotSent] = useState(false);
-  // Set from the register response's verificationRequired flag: the account
-  // exists but the instance withheld the session until the email is verified.
-  // Never inferred from "did we get a cookie" — the server states it.
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState("");
   const [resendingVerify, setResendingVerify] = useState(false);
   const [verifySent, setVerifySent] = useState(false);
@@ -42,8 +35,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
     api.authConfig()
       .then((cfg) => {
         setOauthConfig(cfg);
-        // A ?mode=register link must not force the register form when sign-up
-        // is disabled: the URL parameter is a convenience, not a bypass.
         if (!cfg.registrationEnabled) setMode((m) => (m === "register" ? "login" : m));
       })
       .catch(() => setOauthConfig(null));
@@ -53,23 +44,13 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
     const verified = isVerifiedFlag(params.get("verified"));
     if (verified) setIsVerifiedNotice(true);
 
-    // Show navigation/OAuth redirect error in banner.
     const errKey = authErrorKey(params.get("error"));
     if (errKey) setErr(t(errKey));
 
-    // Marketing entry point: /signup lands here with ?mode=register and the
-    // register form preselected. The registrationEnabled guard above runs once
-    // config arrives; until then the form renders but submitting is rejected
-    // server-side anyway.
     if (params.get("mode") === "register") {
       setMode("register");
     }
 
-    // OAuth callback with a pending second factor: /admin/?twofa=1. The query
-    // only carries the fact "this login still needs its second factor" — the
-    // challenge itself lives in the HttpOnly cookie the callback set. Safe to
-    // leave in the URL: a refresh re-reads the fact and the cookie completes
-    // the login, and there is no key material to scrub from history.
     if (params.get("twofa") === "1") {
       setOauthPending(true);
       setNeeds2FA(true);
@@ -83,7 +64,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
       const qs = remaining.toString();
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
-    // Run once on mount to prevent re-triggering dismissed banners.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -112,11 +92,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
 
       if (mode === "register") {
         await api.register(u.trim(), p, workspace.trim());
-        // A successful sign-up never carries a session: the next step is in
-        // the mailbox, and the mailbox says whether it is a verification link
-        // or an account that already exists. The page cannot tell them apart
-        // — and must not, because that difference is the one the server
-        // hides from everyone but the owner of the address.
         setPendingVerifyEmail(u.trim());
         return;
       }
@@ -183,9 +158,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
   }
 
   const isUnverifiedErr = err.toLowerCase().includes("email verification required");
-  // The register endpoint answers 503 with this detail when verification is
-  // required but no SMTP sender is configured. Show the localized notice
-  // instead of the raw English API message.
   const isMailUnavailableErr = err.toLowerCase().includes("cannot send email");
 
   return (
@@ -202,8 +174,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
               ? t("app.forgotPasswordTitle")
               : t("app.signInTo", { app: appName })}
           </h1>
-          {/* When verification is pending the explanation lives in the panel
-              below, next to the resend action — no need to say it twice. */}
           {!pendingVerifyEmail && (
             <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
               {oauthPending
@@ -250,10 +220,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
               </label>
               <input
                 id="login-email"
-                // The instance admin is seeded with a name, not an address
-                // (OCTARQ_ADMIN_USER defaults to "admin"), so the sign-in field
-                // takes any identifier. Sign-up and password recovery really do
-                // need an address, so those keep the browser's email check.
                 type={mode === "login" ? "text" : "email"}
                 name="email"
                 className="input animate-none"
@@ -380,12 +346,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number, next?: 
           <LoginOAuthSection oauthConfig={oauthConfig} />
         )}
 
-        {/* Instance identity: the host you are signing into, machine-provided so
-            mono. Deliberately the ONLY place it appears on this card — the same
-            fact stated twice reads as noise, not reassurance. Footer rather than
-            under the title because it is a stamp, not part of the heading, and
-            because this spot stays visible in every mode (login / register /
-            forgot / pending-verification). */}
         <p className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] text-muted-foreground">
           {window.location.host}
         </p>

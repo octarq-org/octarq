@@ -1,8 +1,3 @@
-/**
- * ResumeRankCard: Candidate ranking and screening action card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Users, Award, ExternalLink, Send, ShieldAlert } from "lucide-react";

@@ -7,7 +7,6 @@ import { AreaRail } from "./AreaRail";
 import { translateAreaTitle } from "./navI18n";
 import { SidebarGroupList } from "./SidebarNav";
 
-// Dual-rail sidebar on the Frame surface (`bg-sidebar`): 52px AreaRail + 200px active-area sub-panel.
 export function AreaPanel({
   areas,
   activeArea,

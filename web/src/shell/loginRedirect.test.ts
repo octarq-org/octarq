@@ -50,9 +50,6 @@ describe("safeNextPath", () => {
 describe("resolvePostLoginNavigation", () => {
   it("resolves relative dashboard paths as SPA routes", () => {
     expect(resolvePostLoginNavigation("/settings")).toEqual({ type: "spa", path: "/settings" });
-    // /domains belongs to the dns frontend plugin, which this test does not
-    // compose. Only a registered route makes the shell own the path, so the
-    // predicate stands in for that registration.
     expect(resolvePostLoginNavigation("/domains?tab=providers", "/", (p) => p.startsWith("/domains"))).toEqual({
       type: "spa",
       path: "/domains?tab=providers",
@@ -85,9 +82,6 @@ describe("resolvePostLoginNavigation", () => {
   });
 
   it("loads a page the shell does not serve instead of a missing route", () => {
-    // A plugin's own UI lives at its own prefix. Sending the browser to a
-    // route inside the shell would leave the person on a page that is not
-    // there (a bare /aiduu/ used to land on /admin/aiduu/).
     expect(resolvePostLoginNavigation("/aiduu/")).toEqual({ type: "external", url: "/aiduu/" });
     expect(resolvePostLoginNavigation("/aiduu/?room=3")).toEqual({
       type: "external",

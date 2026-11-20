@@ -1,10 +1,5 @@
 import { registerUIPlugin, resetRegistry, LazyPage } from "@octarq/plugin-sdk";
 // @vitest-environment happy-dom
-//
-// Guards the `topbar-right` extension point in the REAL TopBar (never a copy —
-// a stand-in built here would stay green while TopBar.tsx rots). Two things are
-// load-bearing: an empty slot costs nothing visually, and a contributed widget
-// sits at the LEFT end of the right-hand cluster, i.e. before the create button.
 import { lazy } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
@@ -56,9 +51,6 @@ describe("topbar-right extension slot", () => {
     const spacer = container.querySelector("header > .flex-1");
     expect(spacer).not.toBeNull();
 
-    // Nothing at all sits between the spacer and the create button: an empty
-    // slot must not even add a zero-content container, which would still take
-    // the header's gap-3.
     expect(spacer!.nextElementSibling).toBe(screen.getByLabelText("Create"));
   });
 
@@ -74,8 +66,6 @@ describe("topbar-right extension slot", () => {
     const widget = await waitFor(() => screen.getByTestId("slot-widget"));
     const create = screen.getByLabelText("Create");
 
-    // DOM order, not mere presence: moving the slot elsewhere in the header
-    // must fail here.
     expect(widget.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

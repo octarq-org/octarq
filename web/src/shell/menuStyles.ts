@@ -1,9 +1,3 @@
-// Shared Base UI Menu popover styling. TopBar and AreaPanel each carried a
-// verbatim copy of these two strings (B5); both consume this module now.
-//
-// The radius classes are semantic steps on the host's ramp (styles.css): the
-// popup is the 18px floating radius, items sit at 12px. Keep them in step with
-// Dialog, which is the other floating layer.
 
 export const MENU_POPUP =
   "glass-strong z-50 origin-[var(--transform-origin)] rounded-2xl p-1.5 outline-none " +

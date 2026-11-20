@@ -2,15 +2,6 @@ import { describe, it, expect } from "vitest";
 import type { UIArea } from "@octarq/plugin-sdk";
 import { areaForCategory, FOOTER_PLACEMENT } from "./areas";
 
-// A plugin places a menu by setting Category in its Go half. areaForCategory
-// resolves that string to an area id. What it may resolve *against* is the
-// contract in website/src/content/docs/writing-a-plugin.md: the area's id, or
-// one of its declared group labels.
-//
-// Title used to work too, which made a display string load-bearing: `title` is
-// what the sidebar renders and what translateAreaTitle localizes, so renaming
-// an area — the exact thing #134 asks about — would silently relocate every
-// menu that named it, with nothing failing to say so.
 const COMMERCE: UIArea = {
   id: "commerce",
   title: "Commerce",
@@ -30,9 +21,6 @@ describe("areaForCategory", () => {
     expect(areaForCategory("finance", [COMMERCE])).toBe("commerce");
   });
 
-  // The guard. Commerce's title happens to equal its id here, as it does in the
-  // real Pro declaration, so a title match is indistinguishable from an id
-  // match — give the area a title that resolves nowhere else.
   it("does NOT place a menu by the area title", () => {
     const renamed: UIArea = { ...COMMERCE, title: "Storefront" };
     expect(areaForCategory("Storefront", [renamed])).not.toBe("commerce");
@@ -58,8 +46,6 @@ describe("areaForCategory", () => {
   });
 
   it("uses deterministic group matching and eliminates fuzzy substring heuristics", () => {
-    // Strings that previously falsely matched keywords via substring (c.includes(...))
-    // must not falsely route to assets or operations unless they match declared groups or IDs.
     expect(areaForCategory("asset-tracker", [COMMERCE])).toBe("operations");
     expect(areaForCategory("cloud-compute-nodes", [COMMERCE])).toBe("operations");
     expect(areaForCategory("security-audit-center", [COMMERCE])).toBe("operations");

@@ -1,12 +1,5 @@
 // @vitest-environment happy-dom
-//
-// Guards the auth pages against suppression markers leaking into visible text.
 // A `/* ui-color-ok */` marker written after a closed tag (`<div /> /* ... */`)
-// is a JSX children text node, not a comment — the page renders the literal
-// marker for users to see. `web/scripts/lint-colors.mjs` flags that shape too;
-// this test guards the render side, and deliberately checks for the comment
-// syntax (`/*` / `*/`) rather than the specific marker string, so a renamed
-// marker would still be caught.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -24,9 +17,6 @@ function renderPage(ui: React.ReactElement) {
   );
 }
 
-// Comment markers must never survive into the rendered DOM. `/*` alone would
-// be enough for a children-position marker, but `*/` is checked too so either
-// half of the pair leaking is caught independently.
 function expectNoCommentTextInPage() {
   const html = document.body.innerHTML;
   expect(html).not.toContain("/*");

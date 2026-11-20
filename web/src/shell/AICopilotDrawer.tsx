@@ -11,8 +11,6 @@ import { agentFailureText } from "./agentFailureText";
 
 export interface AICopilotUIState {
   isOpen: boolean;
-  // threadId groups the turns of the open conversation. A new conversation
-  // gets a new id.
   threadId: string;
   messages: ChatMessage[];
   input: string;
@@ -80,9 +78,6 @@ export const useAICopilotStore = create<AICopilotUIState>((set) => ({
     }),
 }));
 
-/**
- * Sparkles trigger button in global TopBar header.
- */
 export function AICopilotButton({ className }: { className?: string }) {
   const { t } = useTranslation();
   const isOpen = useAICopilotStore((s) => s.isOpen);
@@ -117,10 +112,6 @@ export function AICopilotButton({ className }: { className?: string }) {
   );
 }
 
-/**
- * Inline AI Copilot Drawer component with streaming, thinking collapsible card,
- * and quick prompt cards.
- */
 export function AICopilotDrawer() {
   const { t } = useTranslation();
   const {
@@ -145,7 +136,6 @@ export function AICopilotDrawer() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Global keydown listeners for Mod+J and Mod+/ shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "j" || e.key === "J" || e.key === "/")) {
@@ -166,7 +156,6 @@ export function AICopilotDrawer() {
     };
   }, [toggleDrawer, openDrawer]);
 
-  // Focus input and cancel active stream on drawer close
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -176,14 +165,12 @@ export function AICopilotDrawer() {
     }
   }, [isOpen, setIsStreaming]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
     };
   }, []);
 
-  // Auto-scroll chat to bottom
   useEffect(() => {
     if (isOpen) {
       scrollRef.current?.scrollTo({
@@ -297,7 +284,6 @@ export function AICopilotDrawer() {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={closeDrawer}
@@ -305,14 +291,12 @@ export function AICopilotDrawer() {
         data-testid="copilot-backdrop"
       />
 
-      {/* Drawer Panel */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("copilot.drawerTitle", "AI Copilot")}
         className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-lg transition-opacity duration-150"
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg brand-gradient text-white shadow-xs">
@@ -351,7 +335,6 @@ export function AICopilotDrawer() {
           </div>
         </div>
 
-        {/* Messages Body */}
         <div
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin"
@@ -370,7 +353,6 @@ export function AICopilotDrawer() {
                 </p>
               </div>
 
-              {/* Quick Prompt Pills */}
               <div className="w-full space-y-2 pt-1 text-left">
                 {[
                   {
@@ -462,7 +444,6 @@ export function AICopilotDrawer() {
             ))
           )}
 
-          {/* Stream Error Alert */}
           {error && (
             <div
               role="alert"
@@ -477,7 +458,6 @@ export function AICopilotDrawer() {
           )}
         </div>
 
-        {/* Input Footer */}
         <div className="border-t border-border bg-background p-3 space-y-2">
           <div className="relative flex items-center rounded-xl border border-input bg-card p-1 shadow-[inset_0_1px_1px_rgb(0_0_0/0.02)] transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-out)] focus-within:border-accent-border focus-within:ring-2 focus-within:ring-accent-soft">
             <textarea

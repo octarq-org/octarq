@@ -36,12 +36,6 @@ vi.mock("@octarq/plugin-sdk", async (importOriginal) => {
 });
 
 describe("Settings Route Namespace", () => {
-  // A settings page owned by a plugin has to win over the shell's /settings/*
-  // catch-all, or every plugin in the Settings area renders the settings shell's
-  // fallback instead of itself. Nothing arranges that explicitly — it falls out
-  // of react-router ranking static segments above splats — so it needs pinning:
-  // moving SettingsPage into a nested <Routes>, or splitting the plugin routes
-  // into a second <Routes>, silently takes it away.
   it("routes /settings/demo to the plugin instead of the /settings/* splat", async () => {
     const disabledPlugins = new Set<string>();
     const disabledPaths = new Set<string>();
@@ -59,9 +53,6 @@ describe("Settings Route Namespace", () => {
       </MemoryRouter>
     );
 
-    // findBy*, not getBy*: the plugin page is lazy(), so it is absent on the
-    // first paint whether or not the route matched. A synchronous assertion here
-    // fails either way and pins nothing.
     expect(await screen.findByTestId("plugin-page")).not.toBeNull();
     expect(screen.queryByTestId("settings-page")).toBeNull();
   });

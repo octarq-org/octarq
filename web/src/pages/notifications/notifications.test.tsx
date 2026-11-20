@@ -97,7 +97,6 @@ describe("NotificationBell", () => {
 
     renderWithProviders(<NotificationBell />);
 
-    // 1 unread notification in mockNotifications
     const badge = await screen.findByTestId("notification-unread-badge");
     expect(badge).toBeTruthy();
     expect(badge.textContent).toBe("1");
@@ -235,18 +234,14 @@ describe("PreferencesPage", () => {
 
     renderWithProviders(<PreferencesPage />);
 
-    // The phone list and the desktop matrix both render, so each label appears
-    // more than once in the DOM.
     expect((await screen.findAllByText("System events")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Security and audit").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Scheduled jobs").length).toBeGreaterThan(0);
 
-    // Check dynamic channel columns
     expect(screen.getAllByText("In-App Inbox").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Email Service").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Telegram Bot").length).toBeGreaterThan(0);
 
-    // Every channel switch names its row and its channel, for both layouts.
     const switches = screen.getAllByRole("switch");
     expect(switches.length).toBeGreaterThanOrEqual(5 * mockChannels.length);
     expect(screen.getAllByRole("switch", { name: "System events — In-App Inbox" }).length).toBe(2);

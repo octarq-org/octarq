@@ -1,7 +1,4 @@
 // @vitest-environment happy-dom
-// The inbox rendered "empty" whenever `data` was empty, including when the
-// query had failed. A 500 or an offline request therefore told the operator
-// their inbox was empty.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -123,30 +120,25 @@ describe("InboxPage — 4 horizontal filter tabs", () => {
 
     renderPage();
 
-    // Verify all 4 tabs exist
     expect(screen.getByTestId("tab-unread")).toBeDefined();
     expect(screen.getByTestId("tab-all")).toBeDefined();
     expect(screen.getByTestId("tab-mentions")).toBeDefined();
     expect(screen.getByTestId("tab-system")).toBeDefined();
 
-    // Default "all": all 3 notifications are shown
     expect(screen.getByText("Task completed")).toBeDefined();
     expect(screen.getByText("Mentioned in comment")).toBeDefined();
     expect(screen.getByText("High error rate")).toBeDefined();
 
-    // Click Unread tab
     fireEvent.click(screen.getByTestId("tab-unread"));
     expect(screen.getByText("Task completed")).toBeDefined();
     expect(screen.queryByText("Mentioned in comment")).toBeNull();
     expect(screen.queryByText("High error rate")).toBeNull();
 
-    // Click Mentions tab
     fireEvent.click(screen.getByTestId("tab-mentions"));
     expect(screen.queryByText("Task completed")).toBeNull();
     expect(screen.getByText("Mentioned in comment")).toBeDefined();
     expect(screen.queryByText("High error rate")).toBeNull();
 
-    // Click System Alerts tab
     fireEvent.click(screen.getByTestId("tab-system"));
     expect(screen.queryByText("Task completed")).toBeNull();
     expect(screen.queryByText("Mentioned in comment")).toBeNull();

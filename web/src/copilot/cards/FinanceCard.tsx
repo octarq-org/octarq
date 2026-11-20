@@ -1,9 +1,3 @@
-/**
- * FinanceCard: Ledger balance and subscription queries.
- * Read-only display of financial query parameters.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { DollarSign } from "lucide-react";
 import { useTranslation } from "../../i18n";

@@ -24,18 +24,13 @@ export const uiCommon = {
     copied: "copied ✓",
     clickToCopy: "click to copy",
     toggleTheme: "Toggle theme",
-    // Form-failure detail line: HTTP status + X-Request-Id from the server.
-    // The operator is their own ops — this is what they grep their logs with.
     formErrorStatus: "HTTP {{status}}",
     formErrorRequestId: "request {{requestId}}",
-    // Localized lines for the most common failure statuses (see FormError).
     errStatus401: "Your session has expired or is not signed in. Sign in again.",
     errStatus403: "You don't have permission to do that.",
     errStatus404: "That item no longer exists.",
     errStatus429: "Too many requests. Wait a moment and try again.",
     errStatus500: "The server encountered an error. Refresh the page or try again.",
-    // Plugin route fallbacks: each answers id (mono), current state, and
-    // where the state can be changed.
     pluginId: "Plugin",
     routeUnavailableState: "Not installed in this build.",
     pluginDisabledState: "Disabled for this workspace.",

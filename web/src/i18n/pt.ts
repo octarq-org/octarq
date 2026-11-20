@@ -1,5 +1,3 @@
-// Portuguese (pt-BR) resources. Keys are shared across all locales; missing keys in other
-// locales fall back to these values.
 export const pt = {
   common: {
     done: "Concluído",

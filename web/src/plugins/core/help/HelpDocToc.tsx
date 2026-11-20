@@ -12,13 +12,8 @@ export function HelpDocToc({ items }: { items: TocItem[] }) {
   const { t } = useTranslation();
   const [activeId, setActiveId] = useState<string | undefined>(items[0]?.id);
 
-  // Track the heading the reader is inside, so the rail always answers "where
-  // am I in this page" instead of being a static list of links.
   useEffect(() => {
     if (items.length === 0) return;
-    // The doc arrives after this component mounts, so the state seeded at
-    // render time is undefined. Seed it from the first heading once the list
-    // is known, otherwise the rail shows no current section at page top.
     setActiveId((current) =>
       current && items.some((item) => item.id === current) ? current : items[0].id,
     );

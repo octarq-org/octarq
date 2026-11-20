@@ -25,8 +25,6 @@ import {
 } from "./api";
 import { PreferenceRouteRow } from "./types";
 
-// The categories the matrix always shows. Labels and descriptions come from the
-// page dictionary at render time; only the routing pattern is fixed here.
 const DEFAULT_CATEGORIES = [
   {
     pattern: "system.*",
@@ -89,7 +87,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
   const updateMutation = useUpdatePreferencesMutation();
   const resetMutation = useResetPreferencesMutation();
 
-  // Local editable state: Record<eventPattern, string[] (channels)>
   const [matrix, setMatrix] = useState<Record<string, string[]>>(() => {
     const init: Record<string, string[]> = {};
     for (const pattern of DEFAULT_PATTERNS) init[pattern] = ["in_app", "email"];
@@ -100,12 +97,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
   const [newLabel, setNewLabel] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Sync server preferences into local matrix state when data arrives.
-  //
-  // The effect must not depend on `t`: `t` changes identity on every language
-  // switch, and re-running this effect then rebuilds the matrix from the last
-  // server response, silently discarding edits the user has not saved. Custom
-  // rows therefore store no description — it is derived at render.
   useEffect(() => {
     if (!savedPreferences) return;
 
@@ -114,11 +105,9 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
     for (const pattern of DEFAULT_PATTERNS) nextMatrix[pattern] = ["in_app", "email"];
 
-    // Apply saved server preferences
     for (const pref of savedPreferences) {
       nextMatrix[pref.eventPattern] = [...pref.channels];
 
-      // If it's a custom pattern not in standard categories, add to customRows
       const isKnown = DEFAULT_PATTERNS.includes(pref.eventPattern);
       if (!isKnown && pref.eventPattern) {
         extraRows.push({
@@ -132,8 +121,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     }
 
     setMatrix(nextMatrix);
-    // Replace, never merge: a rule deleted here (or in another tab) must not
-    // linger as a ghost row that the next Save would re-create.
     setCustomRows(extraRows);
   }, [savedPreferences]);
 
@@ -148,7 +135,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     [t, customRows],
   );
 
-  // Toggle a channel for a specific pattern
   const toggleChannel = (pattern: string, channelName: string) => {
     setMatrix((prev) => {
       const current = prev[pattern] || [];
@@ -158,7 +144,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     });
   };
 
-  // Add custom pattern
   const handleAddCustomPattern = () => {
     const pat = newPattern.trim();
     if (!pat) return;
@@ -182,7 +167,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     setShowAddModal(false);
   };
 
-  // Remove custom row
   const handleRemoveCustomRow = (pattern: string) => {
     setCustomRows((prev) => prev.filter((r) => r.pattern !== pattern));
     setMatrix((prev) => {
@@ -192,7 +176,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     });
   };
 
-  // Save preferences
   const handleSave = async () => {
     const payload = Object.entries(matrix).map(([eventPattern, chs]) => ({
       eventPattern,
@@ -207,7 +190,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
     }
   };
 
-  // Reset to default
   const handleReset = async () => {
     try {
       await resetMutation.mutateAsync();
@@ -223,9 +205,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
 
   const isLoading = loadingPrefs || loadingChannels;
 
-  // A failed load leaves the matrix at its defaults. Saving then would write
-  // those defaults over the user's real routing, so both actions stay off and
-  // the matrix is replaced by the error state.
   const actionsDisabled = isLoading || prefsLoadFailed;
 
   const deleteRuleButton = (row: PreferenceRouteRow) =>
@@ -240,7 +219,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
       </button>
     );
 
-  // gap-3 keeps the expanded touch targets of neighbouring buttons apart.
   const actionButtons = (
     <div className="flex flex-wrap items-center gap-3">
       <Button
@@ -281,7 +259,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
         </div>
       )}
 
-      {/* Matrix Card */}
       <PageCard className="mt-0 overflow-hidden p-0">
         <div className="border-b border-border bg-well px-4 py-3 sm:px-6">
           <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
@@ -321,8 +298,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
           <p className="py-12 text-center text-xs text-muted-foreground">{t("notifications.loading", "Loading…")}</p>
         ) : (
           <>
-            {/* Phone: one card per event, so the channel columns never scroll
-                sideways inside the card. */}
             <ul className="divide-y divide-border sm:hidden">
               {allRows.map((row) => {
                 const rowChannels = matrix[row.pattern] || [];
@@ -341,10 +316,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
                       {deleteRuleButton(row)}
                     </div>
 
-                    {/* Each row is a full 44px tall, so the switch's expanded
-                        touch target on a coarse pointer stays inside its own
-                        row. Tighter rows overlap, and the lower switch then
-                        takes taps meant for the upper one. */}
                     <div className="mt-2 space-y-1">
                       {channels.map((ch) => (
                         <div key={ch.name} className="flex min-h-11 items-center justify-between gap-3">
@@ -364,7 +335,6 @@ export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {
               })}
             </ul>
 
-            {/* Tablet and up: the matrix. */}
             <div className="hidden sm:block">
               <Table className="text-xs sm:text-sm">
                 <THead className="border-b border-border bg-well font-medium text-muted-foreground">

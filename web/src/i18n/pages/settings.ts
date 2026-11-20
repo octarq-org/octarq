@@ -15,7 +15,6 @@ export const settings = {
     instancePluginsTitle: "Installed plugins",
     pluginsInstanceLink: "See what this instance has loaded",
     pluginsScopeNote: "These switches turn features on and off for this workspace. Nothing is installed or removed — everything listed is already available to you.",
-    // Shared
     cancel: "Cancel",
     remove: "Remove",
     edit: "Edit",
@@ -25,7 +24,6 @@ export const settings = {
     savingDots: "Saving…",
     loadingLower: "loading…",
 
-    // PluginsSettings
     pluginsTitle: "Features",
     pluginLogoAlt: "Plugin logo",
     pluginsDescription: "Turn optional features on or off for this workspace.",
@@ -59,7 +57,6 @@ export const settings = {
     pluginInUse: "{{plugin}} can't be turned off — {{dependents}} depends on it. Turn that off first.",
     enableDepsConfirm: "This also turns on the features it needs: {{deps}}. Continue?",
 
-    // GeneralSettings
     renameFailed: "Could not rename workspace",
     renameSaved: "Workspace name updated",
     exportFailed: "Could not export workspace data",
@@ -70,8 +67,6 @@ export const settings = {
     generalDescription: "Your workspace name, data settings, and privacy controls.",
     instanceTitle: "Instance",
     instanceDesc: "Instance-wide runtime settings — applied live, no restart needed.",
-    // Build stamp card: version/commit/builtAt from the authenticated
-    // /api/instance/build endpoint. Machine values, shown verbatim (UTC).
     buildTitle: "Build",
     buildVersion: "Version",
     buildCommit: "Commit",
@@ -135,10 +130,8 @@ export const settings = {
     deleting: "Deleting…",
     permanentlyDelete: "Permanently delete",
 
-    // SavedBadge
     saved: "✓ Saved",
 
-    // SessionsList
     logoutThisDevice: "Log out from this device?",
     revokeSessionConfirm: "Revoke this session? That device signs out immediately.",
     revokeFailed: "Could not revoke session",
@@ -152,7 +145,6 @@ export const settings = {
     uaUnknown: "Unknown",
     uaBrowser: "Browser",
 
-    // SecuritySettings
     twoFADisabledMsg: "Two-factor authentication disabled.",
     signOutEveryDevice: "Sign out of every device? Sign in again to continue.",
     failedStartSetup: "Could not start 2FA setup",
@@ -230,13 +222,11 @@ export const settings = {
     clearMetricsToken: "Clear Metrics token?",
     clear: "Clear",
 
-    // LinkSettings
     shortLinksSettings: "Short Links",
     reservedSlugsLabel: "Reserved Short Link Slugs",
     reservedSlugsHint: "Slugs users cannot register. Built-in: {{list}}.",
     saveSettings: "Save Settings",
 
-    // MailSettings
     inboundMailboxesSettings: "Incoming Mail Settings",
     reservedMailboxesLabel: "Reserved Mailbox Prefixes",
     reservedMailboxesHint: "Catch-all does not create inboxes for these prefixes (e.g. admin, postmaster).",
@@ -253,7 +243,6 @@ export const settings = {
     autoWrapLinks: "Auto-shorten Links in Outgoing Mail",
     autoWrapLinksDesc: "Replace external URLs with short links when sending to record click analytics.",
 
-    // WebhooksSettings
     confirmDeleteWebhook: "Delete this webhook endpoint?",
     createFailed: "Could not create webhook",
     loadFailed: "Could not load webhooks",
@@ -281,7 +270,6 @@ export const settings = {
     adding: "Adding…",
     add: "Add",
 
-    // NotificationChannels
     confirmDeleteChannel: "Delete this alert channel?",
     testAlertSent: "Test alert sent",
     testFailed: "Test failed: {{msg}}",
@@ -297,7 +285,6 @@ export const settings = {
     smtpTestSent: "Test email sent to {{to}} — check the inbox.",
     webhookTestSent: "Test event delivered to {{name}}.",
 
-    // EditNotificationChannel
     editAlertChannel: "Edit Alert Channel",
     createAlertChannel: "Create Alert Channel",
     channelName: "Channel Name",
@@ -314,7 +301,6 @@ export const settings = {
     channelEnabled: "Channel Enabled",
     saveChannel: "Save Channel",
 
-    // OrgMembersManager
     confirmRemoveMember: "Remove this member from the workspace? They lose access immediately.",
     failedRemoveMember: "Could not remove member",
     memberRoleUpdated: "Role updated for {{email}}",
@@ -338,7 +324,6 @@ export const settings = {
     statusPending: "Pending",
     statusJoined: "Joined {{time}}",
 
-    // ProviderAccounts
     confirmRemoveProvider: "Remove this provider account? Managed domains using these credentials fail synchronization.",
     failedRemove: "Could not remove provider",
     dnsApiAccounts: "DNS API Accounts",
@@ -355,7 +340,6 @@ export const settings = {
     credentialsSet: "credentials set",
     noCredentials: "no credentials",
 
-    // ProviderAccountModal
     editProviderAccount: "Edit DNS Provider",
     registerProviderAccount: "Add DNS Provider",
     providerLabelName: "Name",
@@ -367,7 +351,6 @@ export const settings = {
     apiKeysPlaceholderNew: "API token...",
     saveConnection: "Save",
 
-    // SMTPSenders
     confirmRemoveSmtp: "Remove this SMTP sender config? Outbound mail relying on it fails to send.",
     smtpOutgoingGateways: "SMTP Senders",
     smtpOutgoingGatewaysDesc: "SMTP servers used to send emails from your mailboxes.",
@@ -378,7 +361,6 @@ export const settings = {
     smtpPasswordSet: "password set",
     smtpNoPassword: "no password",
 
-    // SMTPSenderModal
     modifySmtpRelay: "Edit SMTP Sender",
     configureSmtpRelay: "Add SMTP Sender",
     senderConnectionName: "Name",
@@ -393,13 +375,11 @@ export const settings = {
     defaultFromHint: "Used when no sender address is specified.",
     saveRelay: "Save",
 
-    // NotificationChannels provider list
     notifyProvidersHeading: "Alert Dispatch Channels & Targets",
     notifyAddChannelOfType: "Add channel",
     channelNoneConfigured: "0 destinations",
     noDestinationsConfigured: "No alert destinations configured for this protocol. Add a channel to receive alerts.",
 
-    // Shared status
     replayQueued: "Delivery event queued for replay.",
     replayFailed: "Replay request failed.",
     webhooksRelaysTitle: "Webhooks & Relays",
@@ -445,7 +425,6 @@ export const settings = {
     instancePluginsTitle: "已安装插件",
     pluginsInstanceLink: "查看本实例已加载的插件",
     pluginsScopeNote: "这些开关控制当前工作区启用哪些功能，不会安装或卸载任何东西 —— 列出的功能都已可用。",
-    // Shared
     cancel: "取消",
     remove: "移除",
     edit: "编辑",
@@ -455,7 +434,6 @@ export const settings = {
     savingDots: "保存中…",
     loadingLower: "加载中…",
 
-    // PluginsSettings
     pluginsTitle: "功能",
     pluginLogoAlt: "插件徽标",
     pluginsDescription: "为当前工作区开启或关闭可选功能。",
@@ -489,7 +467,6 @@ export const settings = {
     pluginInUse: "{{plugin}} 无法关闭 —— {{dependents}} 正在依赖它，请先关闭相关依赖。",
     enableDepsConfirm: "此操作将同时开启其依赖的功能：{{deps}}。是否继续？",
 
-    // GeneralSettings
     renameFailed: "无法重命名工作区",
     renameSaved: "工作区名称已更新",
     exportFailed: "无法导出工作区数据",
@@ -563,10 +540,8 @@ export const settings = {
     deleting: "删除中…",
     permanentlyDelete: "永久删除",
 
-    // SavedBadge
     saved: "✓ 已保存",
 
-    // SessionsList
     logoutThisDevice: "从此设备登出？",
     revokeSessionConfirm: "撤销此会话？该设备立即登出。",
     revokeFailed: "撤销会话失败",
@@ -580,7 +555,6 @@ export const settings = {
     uaUnknown: "未知",
     uaBrowser: "浏览器",
 
-    // SecuritySettings
     twoFADisabledMsg: "双重验证已禁用。",
     signOutEveryDevice: "登出所有设备？需重新登录以继续。",
     failedStartSetup: "无法启动双重验证设置",
@@ -658,13 +632,11 @@ export const settings = {
     clearMetricsToken: "清除 Metrics 令牌？",
     clear: "清除",
 
-    // LinkSettings
     shortLinksSettings: "短链设置",
     reservedSlugsLabel: "保留的短链别名",
     reservedSlugsHint: "用户无法注册的别名。内置：{{list}}。",
     saveSettings: "保存设置",
 
-    // MailSettings
     inboundMailboxesSettings: "收件设置",
     reservedMailboxesLabel: "保留邮箱前缀",
     reservedMailboxesHint: "Catch-all 不会为这些前缀创建收件箱（例如 admin、postmaster）。",
@@ -681,7 +653,6 @@ export const settings = {
     autoWrapLinks: "外发邮件链接自动转短链",
     autoWrapLinksDesc: "发信时将外部链接替换为短链，记录点击统计。",
 
-    // WebhooksSettings
     confirmDeleteWebhook: "删除此 Webhook 端点？",
     createFailed: "创建失败",
     loadFailed: "无法加载 Webhook 列表",
@@ -709,7 +680,6 @@ export const settings = {
     adding: "添加中…",
     add: "添加",
 
-    // NotificationChannels
     confirmDeleteChannel: "删除此告警渠道？",
     testAlertSent: "测试提醒已发送",
     testFailed: "测试失败：{{msg}}",
@@ -725,7 +695,6 @@ export const settings = {
     smtpTestSent: "测试邮件已发送至 {{to}}，请查收。",
     webhookTestSent: "测试事件已推送到 {{name}}。",
 
-    // EditNotificationChannel
     editAlertChannel: "编辑提醒渠道",
     createAlertChannel: "创建提醒渠道",
     channelName: "渠道名称",
@@ -742,7 +711,6 @@ export const settings = {
     channelEnabled: "渠道已启用",
     saveChannel: "保存渠道",
 
-    // OrgMembersManager
     confirmRemoveMember: "从工作区移除此成员？其访问权限立即失效。",
     failedRemoveMember: "无法移除成员",
     memberRoleUpdated: "已更新 {{email}} 的角色",
@@ -766,7 +734,6 @@ export const settings = {
     statusPending: "未加入",
     statusJoined: "已加入 {{time}}",
 
-    // ProviderAccounts
     confirmRemoveProvider: "移除此提供商账户？使用这些凭据的托管域名同步将失败。",
     failedRemove: "无法移除提供商",
     dnsApiAccounts: "DNS API 账户",
@@ -783,7 +750,6 @@ export const settings = {
     credentialsSet: "已设置凭据",
     noCredentials: "无凭据",
 
-    // ProviderAccountModal
     editProviderAccount: "编辑 DNS 提供商",
     registerProviderAccount: "添加 DNS 提供商",
     providerLabelName: "名称",
@@ -795,7 +761,6 @@ export const settings = {
     apiKeysPlaceholderNew: "API token...",
     saveConnection: "保存",
 
-    // SMTPSenders
     confirmRemoveSmtp: "移除此 SMTP 发信配置？依赖该配置的外发邮件发送将失败。",
     smtpOutgoingGateways: "SMTP 发件服务器",
     smtpOutgoingGatewaysDesc: "用于发送邮件的 SMTP 服务器。",
@@ -806,7 +771,6 @@ export const settings = {
     smtpPasswordSet: "已设置密码",
     smtpNoPassword: "无密码",
 
-    // SMTPSenderModal
     modifySmtpRelay: "编辑 SMTP 发件服务器",
     configureSmtpRelay: "添加 SMTP 发件服务器",
     senderConnectionName: "名称",
@@ -821,13 +785,11 @@ export const settings = {
     defaultFromHint: "未指定发件地址时使用。",
     saveRelay: "保存",
 
-    // NotificationChannels provider list
     notifyProvidersHeading: "告警推送通道与目标",
     notifyAddChannelOfType: "添加渠道",
     channelNoneConfigured: "未配置目标",
     noDestinationsConfigured: "尚未为此协议配置告警目标。添加通道以接收告警推送。",
 
-    // Shared status
     replayQueued: "重放已入队",
     replayFailed: "重放入队失败",
     webhooksRelaysTitle: "Webhook 与中继",
@@ -873,7 +835,6 @@ export const settings = {
     instancePluginsTitle: "Complementos instalados",
     pluginsInstanceLink: "Ver qué ha cargado esta instancia",
     pluginsScopeNote: "Estos interruptores activan o desactivan funciones en este espacio de trabajo. No instalan ni eliminan nada: todo lo listado ya está disponible.",
-    // Shared
     cancel: "Cancelar",
     remove: "Eliminar",
     edit: "Editar",
@@ -883,7 +844,6 @@ export const settings = {
     savingDots: "Guardando…",
     loadingLower: "cargando…",
 
-    // PluginsSettings
     pluginsTitle: "Funciones",
     pluginLogoAlt: "Logotipo del complemento",
     pluginsDescription: "Activa o desactiva funciones opcionales para este espacio de trabajo.",
@@ -917,7 +877,6 @@ export const settings = {
     pluginInUse: "{{plugin}} no se puede desactivar: {{dependents}} depende de ello. Desactívalo primero.",
     enableDepsConfirm: "Esto también activará las funciones que necesita: {{deps}}. ¿Continuar?",
 
-    // GeneralSettings
     renameFailed: "No se pudo renombrar el espacio de trabajo",
     renameSaved: "Nombre del espacio de trabajo actualizado",
     exportFailed: "No se pudieron exportar los datos",
@@ -991,10 +950,8 @@ export const settings = {
     deleting: "Eliminando…",
     permanentlyDelete: "Eliminar permanentemente",
 
-    // SavedBadge
     saved: "✓ Guardado",
 
-    // SessionsList
     logoutThisDevice: "¿Cerrar sesión en este dispositivo?",
     revokeSessionConfirm: "¿Revocar esta sesión? Ese dispositivo se desconecta de inmediato.",
     revokeFailed: "No se pudo revocar la sesión",
@@ -1008,7 +965,6 @@ export const settings = {
     uaUnknown: "Desconocido",
     uaBrowser: "Navegador",
 
-    // SecuritySettings
     twoFADisabledMsg: "Autenticación de dos factores desactivada.",
     signOutEveryDevice: "¿Cerrar sesión en todos los dispositivos? Inicia sesión de nuevo para continuar.",
     failedStartSetup: "error al iniciar configuración",
@@ -1086,13 +1042,11 @@ export const settings = {
     clearMetricsToken: "¿Borrar token de métricas?",
     clear: "Borrar",
 
-    // LinkSettings
     shortLinksSettings: "Enlaces cortos",
     reservedSlugsLabel: "Slugs de Enlaces Cortos Reservados",
     reservedSlugsHint: "Slugs que los usuarios no pueden registrar. Integrados: {{list}}.",
     saveSettings: "Guardar Configuración",
 
-    // MailSettings
     inboundMailboxesSettings: "Configuración de Correo Entrante",
     reservedMailboxesLabel: "Prefijos de Buzón Reservados",
     reservedMailboxesHint: "Catch-all no crea buzones para estos prefijos (p. ej., admin, postmaster).",
@@ -1109,7 +1063,6 @@ export const settings = {
     autoWrapLinks: "Acortar Enlaces en Correo Saliente",
     autoWrapLinksDesc: "Reemplaza las URL externas con enlaces cortos al enviar para registrar estadísticas de clics.",
 
-    // WebhooksSettings
     confirmDeleteWebhook: "¿Eliminar este punto de enlace de Webhook?",
     createFailed: "error al crear",
     loadFailed: "No se pudieron cargar los webhooks",
@@ -1137,7 +1090,6 @@ export const settings = {
     adding: "Añadiendo…",
     add: "Añadir",
 
-    // NotificationChannels
     confirmDeleteChannel: "¿Eliminar este canal de alertas?",
     testAlertSent: "Alerta de prueba enviada",
     testFailed: "Prueba fallida: {{msg}}",
@@ -1153,7 +1105,6 @@ export const settings = {
     smtpTestSent: "Correo de prueba enviado a {{to}}; revisa la bandeja de entrada.",
     webhookTestSent: "Evento de prueba entregado a {{name}}.",
 
-    // EditNotificationChannel
     editAlertChannel: "Editar Canal de Alertas",
     createAlertChannel: "Crear Canal de Alertas",
     channelName: "Nombre del Canal",
@@ -1170,7 +1121,6 @@ export const settings = {
     channelEnabled: "Canal Habilitado",
     saveChannel: "Guardar Canal",
 
-    // OrgMembersManager
     confirmRemoveMember: "¿Eliminar a este miembro del espacio de trabajo? Pierde el acceso de inmediato.",
     failedRemoveMember: "No se pudo eliminar al miembro",
     memberRoleUpdated: "Rol actualizado para {{email}}",
@@ -1194,7 +1144,6 @@ export const settings = {
     statusPending: "Pendiente",
     statusJoined: "Unido {{time}}",
 
-    // ProviderAccounts
     confirmRemoveProvider: "¿Eliminar esta cuenta de proveedor? Los dominios gestionados que usen estas credenciales fallan la sincronización.",
     failedRemove: "No se pudo eliminar el proveedor",
     dnsApiAccounts: "Cuentas de API DNS",
@@ -1211,7 +1160,6 @@ export const settings = {
     credentialsSet: "credenciales configuradas",
     noCredentials: "sin credenciales",
 
-    // ProviderAccountModal
     editProviderAccount: "Editar Proveedor DNS",
     registerProviderAccount: "Añadir Proveedor DNS",
     providerLabelName: "Nombre",
@@ -1223,7 +1171,6 @@ export const settings = {
     apiKeysPlaceholderNew: "Token de API...",
     saveConnection: "Guardar",
 
-    // SMTPSenders
     confirmRemoveSmtp: "¿Eliminar esta configuración de remitente SMTP? El correo saliente que dependa de ella no se envía.",
     smtpOutgoingGateways: "Remitentes SMTP",
     smtpOutgoingGatewaysDesc: "Servidores SMTP utilizados para enviar correos electrónicos desde sus buzones.",
@@ -1234,7 +1181,6 @@ export const settings = {
     smtpPasswordSet: "contraseña configurada",
     smtpNoPassword: "sin contraseña",
 
-    // SMTPSenderModal
     modifySmtpRelay: "Editar Remitente SMTP",
     configureSmtpRelay: "Añadir Remitente SMTP",
     senderConnectionName: "Nombre",
@@ -1249,13 +1195,11 @@ export const settings = {
     defaultFromHint: "Se utiliza cuando no se especifica una dirección de remitente.",
     saveRelay: "Guardar",
 
-    // NotificationChannels provider list
     notifyProvidersHeading: "Canales y destinos de despacho de alertas",
     notifyAddChannelOfType: "Añadir canal",
     channelNoneConfigured: "Sin destinos",
     noDestinationsConfigured: "No hay destinos de alerta configurados para este protocolo. Añada un canal para recibir alertas.",
 
-    // Shared status
     replayQueued: "Reproducción en cola",
     replayFailed: "Error al encolar la reproducción",
     webhooksRelaysTitle: "Webhooks y retransmisiones",
@@ -1301,7 +1245,6 @@ export const settings = {
     instancePluginsTitle: "Plugins instalados",
     pluginsInstanceLink: "Ver o que esta instância carregou",
     pluginsScopeNote: "Estes interruptores ativam ou desativam recursos neste espaço de trabalho. Nada é instalado ou removido — tudo o que está listado já está disponível.",
-    // Shared
     cancel: "Cancelar",
     remove: "Remover",
     edit: "Editar",
@@ -1311,7 +1254,6 @@ export const settings = {
     savingDots: "Salvando…",
     loadingLower: "carregando…",
 
-    // PluginsSettings
     pluginsTitle: "Recursos",
     pluginLogoAlt: "Logotipo do plugin",
     pluginsDescription: "Ative ou desative recursos opcionais para este espaço de trabalho.",
@@ -1345,7 +1287,6 @@ export const settings = {
     pluginInUse: "{{plugin}} não pode ser desativado: {{dependents}} depende dele. Desative-o primeiro.",
     enableDepsConfirm: "Isso também ativará os recursos necessários: {{deps}}. Continuar?",
 
-    // GeneralSettings
     renameFailed: "Não foi possível renomear o workspace",
     renameSaved: "Nome do workspace atualizado",
     exportFailed: "Não foi possível exportar dados",
@@ -1419,10 +1360,8 @@ export const settings = {
     deleting: "Excluindo…",
     permanentlyDelete: "Excluir permanentemente",
 
-    // SavedBadge
     saved: "✓ Salvo",
 
-    // SessionsList
     logoutThisDevice: "Sair deste dispositivo?",
     revokeSessionConfirm: "Revogar esta sessão? Aquele dispositivo é desconectado imediatamente.",
     revokeFailed: "Não foi possível revogar a sessão",
@@ -1436,7 +1375,6 @@ export const settings = {
     uaUnknown: "Desconhecido",
     uaBrowser: "Navegador",
 
-    // SecuritySettings
     twoFADisabledMsg: "Autenticação de dois fatores desativada.",
     signOutEveryDevice: "Sair de todos os dispositivos? Entre novamente para continuar.",
     failedStartSetup: "falha ao iniciar configuração",
@@ -1514,13 +1452,11 @@ export const settings = {
     clearMetricsToken: "Limpar token de Metrics?",
     clear: "Limpar",
 
-    // LinkSettings
     shortLinksSettings: "Links curtos",
     reservedSlugsLabel: "Slugs Reservados para Links Curtos",
     reservedSlugsHint: "Slugs que os usuários não podem registrar. Integrados: {{list}}.",
     saveSettings: "Salvar Configurações",
 
-    // MailSettings
     inboundMailboxesSettings: "Configurações de E-mail de Entrada",
     reservedMailboxesLabel: "Prefixos de Caixa de Correio Reservados",
     reservedMailboxesHint: "O Catch-all não cria caixas de entrada para esses prefixos (ex.: admin, postmaster).",
@@ -1537,7 +1473,6 @@ export const settings = {
     autoWrapLinks: "Encurtar Automaticamente Links em E-mails de Saída",
     autoWrapLinksDesc: "Substitui URLs externas por links curtos ao enviar para registrar análises de cliques.",
 
-    // WebhooksSettings
     confirmDeleteWebhook: "Excluir este endpoint de webhook?",
     createFailed: "falha ao criar",
     loadFailed: "Não foi possível carregar os webhooks",
@@ -1565,7 +1500,6 @@ export const settings = {
     adding: "Adicionando…",
     add: "Adicionar",
 
-    // NotificationChannels
     confirmDeleteChannel: "Excluir este canal de alertas?",
     testAlertSent: "Alerta de teste enviado",
     testFailed: "O teste falhou: {{msg}}",
@@ -1581,7 +1515,6 @@ export const settings = {
     smtpTestSent: "E-mail de teste enviado para {{to}}; verifique a caixa de entrada.",
     webhookTestSent: "Evento de teste entregue a {{name}}.",
 
-    // EditNotificationChannel
     editAlertChannel: "Editar Canal de Alerta",
     createAlertChannel: "Criar Canal de Alerta",
     channelName: "Nome do Canal",
@@ -1598,7 +1531,6 @@ export const settings = {
     channelEnabled: "Canal Ativado",
     saveChannel: "Salvar Canal",
 
-    // OrgMembersManager
     confirmRemoveMember: "Remover este membro do workspace? O acesso é revogado imediatamente.",
     failedRemoveMember: "Não foi possível remover o membro",
     memberRoleUpdated: "Função atualizada para {{email}}",
@@ -1622,7 +1554,6 @@ export const settings = {
     statusPending: "Pendente",
     statusJoined: "Entrou em {{time}}",
 
-    // ProviderAccounts
     confirmRemoveProvider: "Remover esta conta de provedor? Domínios gerenciados que usam essas credenciais falham na sincronização.",
     failedRemove: "Não foi possível remover o provedor",
     dnsApiAccounts: "Contas de API de DNS",
@@ -1639,7 +1570,6 @@ export const settings = {
     credentialsSet: "credenciais definidas",
     noCredentials: "sem credenciais",
 
-    // ProviderAccountModal
     editProviderAccount: "Editar Provedor de DNS",
     registerProviderAccount: "Adicionar Provedor de DNS",
     providerLabelName: "Nome",
@@ -1651,7 +1581,6 @@ export const settings = {
     apiKeysPlaceholderNew: "Token da API...",
     saveConnection: "Salvar",
 
-    // SMTPSenders
     confirmRemoveSmtp: "Remover esta configuração de remetente SMTP? O envio de e-mails de saída dependentes dela falha.",
     smtpOutgoingGateways: "Remetentes SMTP",
     smtpOutgoingGatewaysDesc: "Servidores SMTP usados para enviar e-mails de suas caixas de correio.",
@@ -1662,7 +1591,6 @@ export const settings = {
     smtpPasswordSet: "senha definida",
     smtpNoPassword: "sem senha",
 
-    // SMTPSenderModal
     modifySmtpRelay: "Editar Remetente SMTP",
     configureSmtpRelay: "Adicionar Remetente SMTP",
     senderConnectionName: "Nome",
@@ -1677,13 +1605,11 @@ export const settings = {
     defaultFromHint: "Usado quando nenhum endereço de remetente é especificado.",
     saveRelay: "Salvar",
 
-    // NotificationChannels provider list
     notifyProvidersHeading: "Canais e destinos de despacho de alertas",
     notifyAddChannelOfType: "Adicionar canal",
     channelNoneConfigured: "Sem destinos",
     noDestinationsConfigured: "Nenhum destino de alerta configurado para este protocolo. Adicione um canal para receber alertas.",
 
-    // Shared status
     replayQueued: "Repetição enfileirada",
     replayFailed: "Falha ao enfileirar repetição",
     webhooksRelaysTitle: "Webhooks e retransmissões",
@@ -1729,7 +1655,6 @@ export const settings = {
     instancePluginsTitle: "インストール済みプラグイン",
     pluginsInstanceLink: "このインスタンスが読み込んでいるものを見る",
     pluginsScopeNote: "これらのスイッチはこのワークスペースの機能をオン・オフします。インストールや削除は行いません —— 並んでいる機能はすでに利用可能です。",
-    // Shared
     cancel: "キャンセル",
     remove: "削除",
     edit: "編集",
@@ -1739,7 +1664,6 @@ export const settings = {
     savingDots: "保存中…",
     loadingLower: "読み込み中…",
 
-    // PluginsSettings
     pluginsTitle: "機能",
     pluginLogoAlt: "プラグインのロゴ",
     pluginsDescription: "このワークスペースで使うオプション機能のオン・オフを切り替えます。",
@@ -1773,7 +1697,6 @@ export const settings = {
     pluginInUse: "{{plugin}} は無効にできません。{{dependents}} が依存しています。先にそちらを無効にしてください。",
     enableDepsConfirm: "必要な機能も同時に有効化されます：{{deps}}。続行しますか？",
 
-    // GeneralSettings
     renameFailed: "ワークスペース名の変更に失敗しました",
     renameSaved: "ワークスペース名を更新しました",
     exportFailed: "ワークスペースデータのエクスポートに失敗しました",
@@ -1847,10 +1770,8 @@ export const settings = {
     deleting: "削除中…",
     permanentlyDelete: "完全に削除",
 
-    // SavedBadge
     saved: "✓ 保存しました",
 
-    // SessionsList
     logoutThisDevice: "このデバイスからログアウトしますか？",
     revokeSessionConfirm: "このセッションを取り消しますか？そのデバイスは直ちにサインアウトします。",
     revokeFailed: "セッションの取り消しに失敗しました",
@@ -1864,7 +1785,6 @@ export const settings = {
     uaUnknown: "不明",
     uaBrowser: "ブラウザ",
 
-    // SecuritySettings
     twoFADisabledMsg: "二要素認証は無効です。",
     signOutEveryDevice: "すべてのデバイスからサインアウトしますか？続行するには再度サインインしてください。",
     failedStartSetup: "設定の開始に失敗しました",
@@ -1942,13 +1862,11 @@ export const settings = {
     clearMetricsToken: "Metricsトークンをクリアしますか？",
     clear: "クリア",
 
-    // LinkSettings
     shortLinksSettings: "ショートリンク",
     reservedSlugsLabel: "予約済みショートリンク スラグ",
     reservedSlugsHint: "ユーザーが登録できないスラグ。組み込み: {{list}}。",
     saveSettings: "設定を保存",
 
-    // MailSettings
     inboundMailboxesSettings: "受信メール設定",
     reservedMailboxesLabel: "予約済みメールボックスプレフィックス",
     reservedMailboxesHint: "キャッチオールはこれらのプレフィックス（例: admin、postmaster）の受信トレイを作成しません。",
@@ -1965,7 +1883,6 @@ export const settings = {
     autoWrapLinks: "送信メール内のリンクを自動短縮",
     autoWrapLinksDesc: "送信時に外部リンクを短縮リンクに置き換え、クリック統計を記録します。",
 
-    // WebhooksSettings
     confirmDeleteWebhook: "このWebhookエンドポイントを削除しますか？",
     createFailed: "作成に失敗しました",
     loadFailed: "Webhook を読み込めませんでした",
@@ -1993,7 +1910,6 @@ export const settings = {
     adding: "追加中…",
     add: "追加",
 
-    // NotificationChannels
     confirmDeleteChannel: "このアラートチャネルを削除しますか？",
     testAlertSent: "テストアラートを送信しました",
     testFailed: "テストに失敗しました: {{msg}}",
@@ -2009,7 +1925,6 @@ export const settings = {
     smtpTestSent: "テストメールを {{to}} に送信しました。受信箱を確認してください。",
     webhookTestSent: "{{name}} にテストイベントを配信しました。",
 
-    // EditNotificationChannel
     editAlertChannel: "アラートチャンネルを編集",
     createAlertChannel: "アラートチャンネルを作成",
     channelName: "チャンネル名",
@@ -2026,7 +1941,6 @@ export const settings = {
     channelEnabled: "チャンネル有効",
     saveChannel: "チャンネルを保存",
 
-    // OrgMembersManager
     confirmRemoveMember: "このメンバーをワークスペースから削除しますか？アクセス権は直ちに失効します。",
     failedRemoveMember: "メンバーの削除に失敗しました",
     memberRoleUpdated: "{{email}} の権限を更新しました",
@@ -2050,7 +1964,6 @@ export const settings = {
     statusPending: "保留中",
     statusJoined: "参加日時 {{time}}",
 
-    // ProviderAccounts
     confirmRemoveProvider: "このプロバイダーアカウントを削除しますか？これらの資格情報を使用する管理ドメインの同期が失敗します。",
     failedRemove: "プロバイダーの削除に失敗しました",
     dnsApiAccounts: "DNS API アカウント",
@@ -2067,7 +1980,6 @@ export const settings = {
     credentialsSet: "認証情報設定済み",
     noCredentials: "認証情報なし",
 
-    // ProviderAccountModal
     editProviderAccount: "DNSプロバイダーを編集",
     registerProviderAccount: "DNSプロバイダーを追加",
     providerLabelName: "名前",
@@ -2079,7 +1991,6 @@ export const settings = {
     apiKeysPlaceholderNew: "API token...",
     saveConnection: "保存",
 
-    // SMTPSenders
     confirmRemoveSmtp: "このSMTP送信者設定を削除しますか？これに依存する送信メールは送信に失敗します。",
     smtpOutgoingGateways: "SMTP 送信元",
     smtpOutgoingGatewaysDesc: "メールボックスからメールを送信するために使用されるSMTPサーバー。",
@@ -2090,7 +2001,6 @@ export const settings = {
     smtpPasswordSet: "パスワード設定済み",
     smtpNoPassword: "パスワードなし",
 
-    // SMTPSenderModal
     modifySmtpRelay: "SMTP送信元を編集",
     configureSmtpRelay: "SMTP送信元を追加",
     senderConnectionName: "名前",
@@ -2105,13 +2015,11 @@ export const settings = {
     defaultFromHint: "送信元アドレスが指定されていない場合に使用されます。",
     saveRelay: "保存",
 
-    // NotificationChannels provider list
     notifyProvidersHeading: "アラート送信チャネルと通知先",
     notifyAddChannelOfType: "チャンネルを追加",
     channelNoneConfigured: "通知先なし",
     noDestinationsConfigured: "このプロトコルのアラート通知先が設定されていません。通知を受け取るチャネルを追加してください。",
 
-    // Shared status
     replayQueued: "再試行をキューに追加しました",
     replayFailed: "再試行のキューへの追加に失敗しました",
     webhooksRelaysTitle: "Webhook とインバウンドリレー",

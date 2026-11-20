@@ -1,7 +1,4 @@
 import { type BadgeTone } from "@octarq/plugin-sdk";
-// Shared hooks & helpers for the instance console pages (web/src/pages/instance).
-// The console shell gates on isInstanceAdmin before any page mounts, so the
-// settings hook here skips the tenant-shell isInstanceAdmin dance entirely.
 import { useCallback, useEffect, useState } from "react";
 import { api, ReadinessCheck } from "../../api";
 
@@ -12,9 +9,6 @@ export function useInstanceSettings() {
   return { s, reload };
 }
 
-// The wizard's steps ARE the readiness checks that carry a fix action — the
-// server is the single source of truth for what a step is and whether it's
-// done; this file only selects/sorts what the API already said.
 export function useInstanceReadiness() {
   const [checks, setChecks] = useState<ReadinessCheck[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -31,8 +25,6 @@ export function fixableChecks(checks: ReadinessCheck[]): ReadinessCheck[] {
   return checks.filter((c) => !!c.fixPath);
 }
 
-// A fixable step needing work — drives the first-launch wizard entry and the
-// rail's "Setup wizard" item. Derivation only, no parallel step list.
 export function hasFixableIssues(checks: ReadinessCheck[] | null): boolean {
   if (!checks) return false;
   return fixableChecks(checks).some((c) => c.status !== "ok");

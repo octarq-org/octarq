@@ -9,8 +9,6 @@ const webSrc = path.resolve(__dirname, "../src");
 const sdkSrc = path.resolve(__dirname, "../../packages/plugin-sdk/src");
 const helloPluginDir = path.resolve(__dirname, "../../server/examples/plugin-hello/web");
 
-// Modal/drawer/palette backdrops are genuine elevated overlays; every other UI surface
-// must remain flat on the 3-surface luminance stack without backdrop-blur.
 const OVERLAY_BLUR_ALLOWLIST = new Set([
   "packages/plugin-sdk/src/ui/base/dialog.tsx",
   "web/src/shell/CommandPalette.tsx",

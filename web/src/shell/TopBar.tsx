@@ -78,7 +78,6 @@ export function TopBar({
 
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3 sm:px-4 md:gap-3">
-      {/* Sidebar drawer toggle — mobile only (desktop collapse lives on AreaRail) */}
       <button
         type="button"
         onClick={onTogglePanel}
@@ -90,7 +89,6 @@ export function TopBar({
         <PanelLeft className="h-4 w-4" strokeWidth={1.75} />
       </button>
 
-      {/* Breadcrumb trail */}
       <nav aria-label={t("topbar.breadcrumb", "Breadcrumb")} className="flex min-w-0 items-center gap-1 text-[13px]">
         {crumbs.map((crumb, idx) => {
           const isLast = idx === crumbs.length - 1;
@@ -120,7 +118,6 @@ export function TopBar({
         })}
       </nav>
 
-      {/* Centered Command Palette search bar (also serves as header > .flex-1 spacer) */}
       <div className="flex flex-1 items-center justify-end sm:justify-center">
         <button
           type="button"
@@ -139,10 +136,8 @@ export function TopBar({
         </button>
       </div>
 
-      {/* Plugin extension point — leftmost of the right-hand cluster */}
       <ExtensionSlot name="topbar-right" />
 
-      {/* Global create menu (+) */}
       {actions.length > 0 && (
         <Menu.Root>
           <Menu.Trigger
@@ -188,13 +183,10 @@ export function TopBar({
         </Menu.Root>
       )}
 
-      {/* Notifications bell icon */}
       <NotificationBell />
 
-      {/* AI Copilot Sparkles trigger (⌘+J) */}
       <AICopilotButton />
 
-      {/* Quick theme toggle */}
       <button
         type="button"
         onClick={toggleTheme}
@@ -205,10 +197,8 @@ export function TopBar({
         {theme === "dark" ? <Sun className="h-4 w-4" strokeWidth={1.75} /> : <Moon className="h-4 w-4" strokeWidth={1.75} />}
       </button>
 
-      {/* In-app Notification Inbox Drawer */}
       <InboxDrawer />
 
-      {/* Inline AI Copilot Drawer */}
       <AICopilotDrawer />
     </header>
   );

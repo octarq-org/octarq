@@ -1,4 +1,3 @@
-// Workbench page namespace.
 export const workbench = {
   en: {
     title: "Workbench",

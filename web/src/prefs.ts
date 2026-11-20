@@ -1,12 +1,8 @@
-// Client-side preferences that belong to the browser, not the account.
-// Storage is best effort: a private-mode failure must not throw, and the
-// in-memory value keeps the preference working for the rest of the session.
 import { useSyncExternalStore } from "react";
 
 const KEY = "octarq-show-personal";
 const listeners = new Set<() => void>();
 
-// Last value seen or set this session. Used when localStorage reads throw.
 let memory = true;
 
 function readStored(): boolean | null {
@@ -30,12 +26,10 @@ export function setShowPersonalArea(value: boolean) {
   try {
     localStorage.setItem(KEY, value ? "true" : "false");
   } catch {
-    /* private mode / storage disabled — memory carries the session */
   }
   listeners.forEach((l) => l());
 }
 
-// Defaults to ON: a user who never touched the preference keeps the area.
 export function useShowPersonalArea(): boolean {
   return useSyncExternalStore(
     (cb) => {

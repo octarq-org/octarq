@@ -31,21 +31,18 @@ function InboxDrawerContent() {
   return (
 
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={closeDrawer}
         aria-hidden="true"
       />
 
-      {/* Drawer Panel */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("notifications.inboxTitle", "站内信收件箱")}
         className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-lg transition-opacity duration-150"
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-foreground">
@@ -81,7 +78,6 @@ function InboxDrawerContent() {
           </div>
         </div>
 
-        {/* Filter Tabs */}
         <div className="flex border-b border-border bg-well px-4 py-2">
           <div className="flex items-center gap-1 rounded-xl bg-surface-hover/50 p-0.5">
             <button
@@ -111,7 +107,6 @@ function InboxDrawerContent() {
           </div>
         </div>
 
-        {/* Notification List */}
         <div className="flex-1 overflow-y-auto divide-y divide-border/60">
           {isLoading ? (
             <div className="space-y-3 p-4">
@@ -150,7 +145,6 @@ function InboxDrawerContent() {
                     isUnread && "bg-primary/[0.03]",
                   )}
                 >
-                  {/* Type Icon Container */}
                   <div className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card">
                     {getNotificationIcon(notif.eventType, "h-4 w-4")}
                     {isUnread && (
@@ -161,7 +155,6 @@ function InboxDrawerContent() {
                     )}
                   </div>
 
-                  {/* Content */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span
@@ -181,7 +174,6 @@ function InboxDrawerContent() {
                       {notif.body}
                     </p>
 
-                    {/* Actions */}
                     <div className="mt-2.5 flex items-center justify-between gap-2">
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
                         {notif.eventType}
@@ -213,7 +205,6 @@ function InboxDrawerContent() {
           )}
         </div>
 
-        {/* Drawer Footer Links */}
         <div className="flex items-center justify-between border-t border-border bg-well px-4 py-3 text-xs">
           <button
             type="button"

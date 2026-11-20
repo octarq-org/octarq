@@ -33,7 +33,6 @@ export function useProTable<
     onLoadingChange,
   } = options;
 
-  // ─── Pagination State ────────────────────────────────────────────────────────
   const paginationConfig = typeof pagination === "object" ? pagination : {};
   const [page, setPage] = useState<number>(
     paginationConfig.current ?? paginationConfig.defaultCurrent ?? 1
@@ -42,7 +41,6 @@ export function useProTable<
     paginationConfig.pageSize ?? paginationConfig.defaultPageSize ?? 10
   );
 
-  // ─── Sorting State ──────────────────────────────────────────────────────────
   const [sorting, setSorting] = useState<SortingState>([]);
   const sorter = useMemo(() => {
     if (sorting.length === 0) return null;
@@ -53,7 +51,6 @@ export function useProTable<
     };
   }, [sorting]);
 
-  // ─── Search / Filter State ──────────────────────────────────────────────────
   const initialSearchParams = useMemo(() => {
     const init: Record<string, any> = {};
     for (const col of columns) {
@@ -74,7 +71,6 @@ export function useProTable<
     setPage(1);
   }, [initialSearchParams]);
 
-  // ─── Column Visibility State ────────────────────────────────────────────────
   const initialVisibility = useMemo(() => {
     const vis: VisibilityState = {};
     for (const col of columns) {
@@ -92,10 +88,8 @@ export function useProTable<
     setColumnVisibility(initialVisibility);
   }, [initialVisibility]);
 
-  // ─── Density State ──────────────────────────────────────────────────────────
   const [density, setDensity] = useState<TableDensity>(defaultDensity);
 
-  // ─── TanStack Query Integration ─────────────────────────────────────────────
   const cleanedSearch = useMemo(() => cleanParams(searchParams), [searchParams]);
   const cleanedExtraParams = useMemo(() => cleanParams(params || {}), [params]);
 
@@ -143,7 +137,6 @@ export function useProTable<
       totalCount = res.total ?? rawData.length;
     }
 
-    // Boundary type safety via Zod schema + parseWithFallback
     const validData = schema
       ? parseArrayWithFallback(schema, rawData, defaultDataFallback)
       : rawData;
@@ -187,7 +180,6 @@ export function useProTable<
 
   const data = useMemo(() => {
     if (dataSource && !request) {
-      // Client-side pagination if datasource provided
       if (pagination === false) return dataSource;
       const start = (page - 1) * pageSize;
       return dataSource.slice(start, start + pageSize);
@@ -205,7 +197,6 @@ export function useProTable<
     return Math.max(1, Math.ceil(total / pageSize));
   }, [pagination, total, pageSize]);
 
-  // ─── ActionRef Handle ───────────────────────────────────────────────────────
   const reload = useCallback(
     async (resetPageIndex?: boolean) => {
       if (resetPageIndex) {
@@ -250,7 +241,6 @@ export function useProTable<
     }
   }, [externalActionRef, actionRefObj]);
 
-  // ─── TanStack Table Instance ────────────────────────────────────────────────
   const normalizedColumns = useMemo(
     () => normalizeColumns(columns, actionRefObj),
     [columns, actionRefObj]

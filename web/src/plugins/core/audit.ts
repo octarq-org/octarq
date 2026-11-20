@@ -1,4 +1,3 @@
-// Audit log — core feature as a UIPlugin (see ./index.ts for the convention).
 import { lazy } from "react";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 

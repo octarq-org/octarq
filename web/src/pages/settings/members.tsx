@@ -22,9 +22,6 @@ import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
 export function OrgMembersManager() {
   const { t } = useTranslation();
-  // Every sibling settings page gates its mutating controls this way
-  // (webhooks, notifications, tokens); this one did not, so a plain member was
-  // shown an invite form and Remove buttons that the API answers with 403.
   const { role: myRole, isInstanceAdmin } = useCurrentRole();
   const canManage = roleSatisfies("admin", myRole, isInstanceAdmin);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -76,15 +73,10 @@ export function OrgMembersManager() {
     }
   }
 
-  // An admin cannot grant or change the owner role — the server refuses it, so
-  // the control must not offer it either. Same rule the invite form's Select
-  // would need; it is stated once here because this one is per-row.
   const canGrantOwner = roleSatisfies("owner", myRole, isInstanceAdmin);
 
   async function handleRoleChange(m: OrgMember, role: string) {
     if (role === m.role) return;
-    // Optimistic: the row is a Select, and leaving it showing the old role until
-    // a refetch lands reads as "that didn't work".
     setMembers((list) => list.map((x) => (x.userId === m.userId ? { ...x, role } : x)));
     try {
       await api.updateOrgMemberRole(m.userId, role);

@@ -28,7 +28,6 @@ export function CopilotApprovalsTab({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Filter Pills */}
       <div className="flex items-center justify-between border-b border-border bg-well px-4 py-2.5">
         <div className="flex items-center gap-1 text-xs">
           <button
@@ -70,7 +69,6 @@ export function CopilotApprovalsTab({
         </div>
       </div>
 
-      {/* Approvals List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
         {approvalsError === "locked" && filteredApprovals.length === 0 ? (
           <div data-testid="copilot-approvals-locked">

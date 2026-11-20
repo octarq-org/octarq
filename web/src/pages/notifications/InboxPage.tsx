@@ -100,7 +100,6 @@ export function InboxPage() {
         </div>
       }
     >
-      {/* 4 Horizontal Filter Tabs: [Unread | All | Mentions | System Alerts] */}
       <div className="mt-6 flex items-center justify-between">
         <TabBar
           size="sm"
@@ -115,7 +114,6 @@ export function InboxPage() {
         />
       </div>
 
-      {/* Notification Cards */}
       <PageCard className="mt-4 overflow-hidden p-0">
           {isLoading ? (
             <div className="divide-y divide-border p-6 space-y-4">
@@ -130,8 +128,6 @@ export function InboxPage() {
               ))}
             </div>
           ) : isError ? (
-            // A failed query left `data` empty, so the page used to say the
-            // inbox was empty over a request that never succeeded.
             <div className="p-6">
               <Alert
                 variant="danger"
@@ -218,7 +214,6 @@ export function InboxPage() {
                       </div>
                     </div>
 
-                    {/* Action buttons */}
                     <div className="flex items-center gap-2 self-end sm:self-start shrink-0">
                       {isUnread && (
                         <Button

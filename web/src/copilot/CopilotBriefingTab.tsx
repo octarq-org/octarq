@@ -1,9 +1,3 @@
-/**
- * CopilotBriefingTab: 6-Dimension Chief-of-Staff Morning Briefing v2
- * and Multi-dimensional Anomaly Broadcasts.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button, cn } from "@octarq/plugin-sdk";
 import {
@@ -113,7 +107,6 @@ export function CopilotBriefingTab() {
     setLoading(true);
     setError(null);
     try {
-      // Simulate real refresh / generation cycle
       await new Promise((resolve) => setTimeout(resolve, 350));
       setBriefing({
         ...DEFAULT_BRIEFING,
@@ -152,7 +145,6 @@ export function CopilotBriefingTab() {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto p-4 space-y-5" data-testid="copilot-briefing-tab">
-      {/* Briefing Header Banner */}
       <div className="flex items-center justify-between rounded-2xl border border-primary/25 bg-accent-soft p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent-fg">
@@ -200,7 +192,6 @@ export function CopilotBriefingTab() {
         </div>
       ) : briefing ? (
         <>
-          {/* Executive Headline */}
           <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs">
             <div className="text-xs font-semibold text-foreground leading-relaxed flex items-center gap-2">
               <Zap className="h-4 w-4 text-warning-fg shrink-0" />
@@ -208,13 +199,11 @@ export function CopilotBriefingTab() {
             </div>
           </div>
 
-          {/* 6-Dimension Executive Breakdown */}
           <div className="space-y-2.5">
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
               {t("copilot.dimensionsTitle", "6-Dimension Executive Status")}
             </h4>
 
-            {/* 1. Schedule & Agenda */}
             <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
@@ -230,7 +219,6 @@ export function CopilotBriefingTab() {
               </p>
             </div>
 
-            {/* 2. Tasks & Commitments */}
             <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
@@ -246,7 +234,6 @@ export function CopilotBriefingTab() {
               </p>
             </div>
 
-            {/* 3. Priority Communications */}
             <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
@@ -262,7 +249,6 @@ export function CopilotBriefingTab() {
               </p>
             </div>
 
-            {/* 4. Pending Decisions */}
             <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
@@ -286,7 +272,6 @@ export function CopilotBriefingTab() {
               </div>
             </div>
 
-            {/* 5. Autonomous Actions (TierAuto) & Undo */}
             <div className="rounded-xl border border-border bg-well p-3 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
@@ -318,7 +303,6 @@ export function CopilotBriefingTab() {
               ))}
             </div>
 
-            {/* 6. Finance & Infrastructure Health */}
             <div className="rounded-xl border border-border bg-well p-3 space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
@@ -335,7 +319,6 @@ export function CopilotBriefingTab() {
             </div>
           </div>
 
-          {/* Multi-dimensional Anomaly Broadcasts */}
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
               <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
@@ -346,7 +329,6 @@ export function CopilotBriefingTab() {
               </span>
             </div>
 
-            {/* Dimension Filter Chips */}
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
               {["all", "traffic", "dns", "security", "mail"].map((filterKey) => (
                 <button
@@ -365,7 +347,6 @@ export function CopilotBriefingTab() {
               ))}
             </div>
 
-            {/* Anomalies List */}
             {filteredAnomalies.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
                 {t("copilot.noAnomalies")}

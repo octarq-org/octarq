@@ -1,8 +1,3 @@
-/**
- * ScriptStoryboardCard: Marketing video script, shot list, and visual storyboard card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Clapperboard, Video, ExternalLink, Download } from "lucide-react";

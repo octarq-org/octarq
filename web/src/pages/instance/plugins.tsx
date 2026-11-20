@@ -1,15 +1,4 @@
 import { PageShell, PageCard, PageEmpty, Badge, Alert, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
-// Instance console → Plugins: what this *binary* has loaded.
-//
-// This is the counterpart to Settings → Workspace → Features, and the two
-// answer different questions. What is compiled into the instance is decided by
-// the build and the plugin manifest, and an operator can only change it by
-// redeploying — so this view is read-only and has no toggles. Whether a given
-// workspace uses a feature is a per-org row, and that is what Features edits.
-//
-// It intentionally shows Core plumbing that the workspace view hides: an
-// operator debugging "why is there no license page" needs to see that the
-// licensing plugin is or isn't in the build.
 import { useEffect, useState } from "react";
 import { api, ApiError, InstancePluginInfo } from "../../api";
 import { ShieldAlert } from "lucide-react";
@@ -85,8 +74,6 @@ export function InstancePluginsSettings() {
                   <TD>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {p.core ? (
-                        // Core plumbing has no workspace toggle at all, so
-                        // saying "on by default" about it would be misleading.
                         <Badge tone="violet" className="text-[10px]">
                           {t("settings.instancePluginCore")}
                         </Badge>

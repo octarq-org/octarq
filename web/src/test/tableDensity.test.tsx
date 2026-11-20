@@ -34,9 +34,6 @@ describe("table density & primitives guard", () => {
   });
 
   it("hands the preferences UI a setter through the same provider", () => {
-    // The provider carries the density down and the setter back up, so a
-    // preferences control needs no second channel. Outside a provider the
-    // setter is an inert no-op rather than a crash.
     function Control() {
       const setDensity = useSetTableDensity();
       return <button onClick={() => setDensity("compact")}>set</button>;
@@ -52,7 +49,6 @@ describe("table density & primitives guard", () => {
     fireEvent.click(getByText("set"));
     expect(seen).toEqual(["compact"]);
 
-    // Scope to this render's own container — both trees share document.body.
     const orphan = render(<Control />);
     const orphanButton = orphan.container.querySelector("button")!;
     expect(() => fireEvent.click(orphanButton)).not.toThrow();
@@ -64,7 +60,6 @@ describe("table density & primitives guard", () => {
 
     for (const [file, code] of Object.entries(TSX_MODULES)) {
       if (file.endsWith(".test.tsx") || file.endsWith(".test.ts")) continue;
-      // Strip comments so code comments don't trigger match
       const scannable = code.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (c) =>
         c.replace(/[^\n]/g, " "),
       );

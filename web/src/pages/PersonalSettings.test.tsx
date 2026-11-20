@@ -146,14 +146,12 @@ describe("ProfileSettings suite", () => {
 
     const inputs = await screen.findAllByPlaceholderText("••••••••");
 
-    // Test too short
     fireEvent.change(inputs[0], { target: { value: "oldSecret" } });
     fireEvent.change(inputs[1], { target: { value: "short" } });
     fireEvent.change(inputs[2], { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: /update password/i }));
     expect(toastErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/at least 8 characters/i));
 
-    // Test mismatch
     fireEvent.change(inputs[1], { target: { value: "longenoughpass1" } });
     fireEvent.change(inputs[2], { target: { value: "longenoughpass2" } });
     fireEvent.click(screen.getByRole("button", { name: /update password/i }));

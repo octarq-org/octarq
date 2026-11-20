@@ -1,8 +1,3 @@
-/**
- * WeeklyReportCanvas: Dual-pane split Markdown editor and live preview for weekly executive briefings.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Copy, Check, FileDown, Eye, Edit3 } from "lucide-react";
@@ -75,7 +70,6 @@ Batch reconciliation processed 54 vendor invoices. Six overdue invoices flagged 
 
   return (
     <div className="flex h-full flex-col space-y-3 p-4 overflow-hidden" data-testid="weekly-report-canvas">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 shrink-0">
         <div>
           <h3 className="text-base font-bold text-foreground">
@@ -119,7 +113,6 @@ Batch reconciliation processed 54 vendor invoices. Six overdue invoices flagged 
         </div>
       </div>
 
-      {/* Editor & Preview Panes */}
       <div className="flex-1 flex gap-3 overflow-hidden">
         {(viewMode === "split" || viewMode === "edit") && (
           <div className="flex-1 flex flex-col rounded-xl border border-border bg-card overflow-hidden">

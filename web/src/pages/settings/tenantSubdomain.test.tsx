@@ -61,7 +61,6 @@ describe("Tenant subdomain settings UI", () => {
     await waitFor(() => {
       expect(screen.getByText("Workspace subdomain")).not.toBeNull();
     });
-    // The address itself renders inside the click-to-copy Code element.
     expect(await screen.findByText("acme.app.example.com")).not.toBeNull();
     const code = screen.getByText("acme.app.example.com").closest("code");
     expect(code).not.toBeNull();

@@ -1,9 +1,3 @@
-/**
- * LinkCard: Short-link management card.
- * Supports create, update, copy-to-clipboard, and enabled/disabled toggle.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Copy, Check, ExternalLink, Globe } from "lucide-react";

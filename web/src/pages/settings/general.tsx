@@ -17,13 +17,6 @@ import { api, type OrgSlug, type Settings } from "../../api";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
-// WorkspaceAddress edits the slug — the workspace's identity in URLs, not a
-// display name. Third parties hold addresses built from it (the billing
-// webhook registered with Stripe, the redirect URI registered with the org's
-// identity provider), and changing it breaks those until someone updates them
-// by hand. So the confirmation names them one by one rather than asking a
-// generic "are you sure": the cost of this change is entirely in what it
-// silently disconnects.
 function WorkspaceAddress() {
   const { t } = useTranslation();
   const [current, setCurrent] = useState<OrgSlug | null>(null);
@@ -104,10 +97,6 @@ function WorkspaceAddress() {
   );
 }
 
-// TenantAddress shows the workspace's automatic tenant subdomain — its
-// address on a cloud instance with a shared base domain configured — with the
-// one-click copy the whole app's Code component provides. Hidden entirely when
-// no base domain is configured (tenantSubdomain is "").
 function TenantAddress() {
   const { t } = useTranslation();
   const [subdomain, setSubdomain] = useState("");
@@ -156,8 +145,6 @@ export function GeneralSettings() {
     try {
       await api.updateOrg({ name: workspaceName });
       toast.success(t("settings.saved"));
-      // Tell the shell to refresh the workspace list/switcher in place instead
-      // of a full-page reload.
       window.dispatchEvent(new Event("octarq:orgs-changed"));
     } catch (err: any) { toast.error(err.message || t("settings.renameFailed")); } finally { setWorkspaceBusy(false); }
   }
@@ -194,8 +181,6 @@ export function GeneralSettings() {
       toast.success(t("settings.workspaceDeleted"));
       setShowDeleteModal(false);
       setDeleteConfirmationText("");
-      // The active workspace no longer exists — reload to re-establish a valid
-      // session/active org. Brief delay so the confirmation toast is seen.
       setTimeout(() => window.location.reload(), 700);
     } catch (err: any) {
       toast.error(err.message || t("settings.deleteWorkspaceFailed"));

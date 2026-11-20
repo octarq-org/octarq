@@ -1,10 +1,3 @@
-/**
- * CardShell: the four non-success states every generative card
- * must render — loading, error, empty, forbidden (entitlement) — plus the
- * normal body.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { type ReactNode } from "react";
 import { cn } from "@octarq/plugin-sdk";
 import { AlertCircle, Lock, Loader2, Inbox } from "lucide-react";
@@ -21,7 +14,6 @@ export const CARD_STATE_TEXT: Record<CardState, string> = {
 
 export interface CardShellProps {
   title: string;
-  /** Normal state is undefined; the four failure/empty states are explicit. */
   state?: CardState;
   errorDetail?: string;
   forbiddenReason?: string;

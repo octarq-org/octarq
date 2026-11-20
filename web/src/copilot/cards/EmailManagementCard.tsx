@@ -1,8 +1,3 @@
-/**
- * EmailManagementCard: Inbound email parsing and staged reply drafts card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Mail, Send, ExternalLink, ShieldAlert, AlertCircle } from "lucide-react";

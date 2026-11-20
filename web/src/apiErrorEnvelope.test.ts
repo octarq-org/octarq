@@ -1,15 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { req, ApiError } from "./api";
 
-// The server answers errors with the octarq envelope (internal/apierror):
-// {code, message, details, request_id}. It replaced huma's RFC 7807 document,
-// whose prose lived in `detail`, and an older ad-hoc {error} shape.
-//
-// This exists because the backend half of that change shipped without the
-// frontend half. api.ts still read `error` then `detail`, found neither, and
-// fell back to res.statusText — so every error surface in the dashboard showed
-// "Unauthorized" where it used to show what actually went wrong. The only thing
-// that caught it was one e2e assertion on the login screen; nothing here failed.
 describe("API error envelope", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());

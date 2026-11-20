@@ -94,7 +94,6 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
 
   return (
     <PageCard className={`mt-0 p-6 space-y-6 ${className}`}>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-lg bg-accent-soft text-accent-fg">
@@ -120,9 +119,7 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
         </Link>
       </div>
 
-      {/* Tabs & Token Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border">
-        {/* Client Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-well border border-border">
           {(
             [
@@ -152,7 +149,6 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
           })}
         </div>
 
-        {/* Token Selector (if tokens available) */}
         {tokens.length > 0 && selectedClient !== "claude-desktop" && (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground shrink-0">{t("personal.mcpSelectToken")}:</span>
@@ -172,7 +168,6 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
         )}
       </div>
 
-      {/* Code Snippet */}
       <div className="relative rounded-xl bg-well border border-border overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 bg-well border-b border-border text-[11px] text-muted-foreground">
           <span className="font-mono">
@@ -195,7 +190,6 @@ export function McpConnectCard({ tokens = [], className = "" }: McpConnectCardPr
         </pre>
       </div>
 
-      {/* Example Queries */}
       <div className="space-y-2 pt-2">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
           <Sparkles className="h-3.5 w-3.5 text-accent-fg" />

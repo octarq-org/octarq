@@ -4,10 +4,6 @@ import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { InstanceExitRedirect } from "./redirect";
 
-// The redirect is a full page navigation (different basename), so the only
-// observable is window.location.replace being called with the console target.
-// Mirrors the real wiring: SettingsPage mounts these routes under the parent
-// "/settings/*" match, so the child routes see the remainder of the URL.
 function renderRedirect(entry: string, props: { base?: string; to?: string } = {}) {
   render(
     <MemoryRouter initialEntries={[entry]}>

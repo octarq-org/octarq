@@ -49,19 +49,6 @@ import {
   TablePreview,
 } from "./catalogPreviews";
 
-// The workbench catalog: one entry per SDK UI component, each rendering the REAL
-// component imported from the SDK — never a copy, never a mock. That is the
-// point of the workbench: a preview that re-implements the component drifts from
-// it and then lies about what ships.
-//
-// `covers` names the SDK exports the entry is responsible for. Most are 1:1;
-// Table folds in its row/cell parts, which have no standalone meaning. The
-// coverage test (catalog.coverage.test.ts) fails if an exported component has no
-// entry, so adding a component to the SDK without previewing it breaks the build.
-//
-// `Component` is rendered as <entry.Component />, not called as a function, so
-// each entry gets its own hook/error boundary — a preview that uses useState
-// cannot corrupt the workbench's own hook order when you switch entries.
 export type CatalogGroup = "layout" | "action" | "form" | "data" | "feedback" | "overlay";
 
 export interface CatalogEntry {

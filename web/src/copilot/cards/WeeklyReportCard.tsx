@@ -1,8 +1,3 @@
-/**
- * WeeklyReportCard: Operations weekly report summary card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { FileText, Calendar, ExternalLink, Copy, Check } from "lucide-react";
@@ -119,7 +114,6 @@ export function WeeklyReportCard({
           </div>
         </div>
 
-        {/* 4 KPI Chips */}
         <div className="grid grid-cols-4 gap-1.5" data-testid="report-kpis">
           <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.weeklyTraffic", "Traffic")}</div>

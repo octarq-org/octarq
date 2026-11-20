@@ -40,10 +40,6 @@ export function ActionDiffCard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [decisionError, setDecisionError] = useState<string | null>(null);
 
-  // Cards materialized from /api/ai/approvals carry approvalId + token and
-  // must decide through the atomic CAS endpoints. Cards without a binding
-  // (e.g. inline diffs from chat tool calls) fall back to local state, and an
-  // explicit onApprove/onReject prop always wins (used by tests/embeds).
   const decideRemote = async (decision: "approve" | "reject") => {
     setIsSubmitting(true);
     setDecisionError(null);
@@ -134,24 +130,19 @@ export function ActionDiffCard({
       )}
       data-testid={`action-diff-card-${action.id}`}
     >
-      {/* Header Bar */}
       <div className="flex items-start justify-between gap-2 border-b border-border pb-3">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Agent Badge */}
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-surface-hover/80 px-2.5 py-1 text-xs font-semibold text-foreground">
             <Bot className="h-3.5 w-3.5 text-accent-fg" />
             <span>{action.agent}</span>
           </span>
 
-          {/* Risk Level Badge */}
           <RiskBadge risk={action.riskLevel} t={t} />
         </div>
 
-        {/* Status Badge */}
         <StatusBadge status={action.status} t={t} />
       </div>
 
-      {/* Title & Target */}
       <div className="pt-3 space-y-1">
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           {action.title}
@@ -164,7 +155,6 @@ export function ActionDiffCard({
         </div>
       </div>
 
-      {/* Reason / Context */}
       {action.reason && (
         <p className="mt-2.5 rounded-xl border border-border bg-well p-2.5 text-xs leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground">{t("copilot.changeReason", "变更说明")}: </span>
@@ -172,7 +162,6 @@ export function ActionDiffCard({
         </p>
       )}
 
-      {/* Diff Table / Key-value compare */}
       {action.diff.length > 0 && (
         <div className="mt-3 overflow-hidden rounded-xl border border-border bg-well text-xs">
           <div className="grid grid-cols-12 border-b border-border bg-muted px-3 py-1.5 font-medium text-muted-foreground text-[11px]">
@@ -228,7 +217,6 @@ export function ActionDiffCard({
         </div>
       )}
 
-      {/* Footer Actions / Meta info */}
       {decisionError && (
         <p
           role="alert"
@@ -249,7 +237,6 @@ export function ActionDiffCard({
           )}
         </div>
 
-        {/* Action Buttons */}
         {isPending ? (
           <div className="flex items-center gap-2">
             <Button

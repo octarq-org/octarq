@@ -102,7 +102,6 @@ describe("toFormValue", () => {
   it("renders a stored timestamp in local time for the input", () => {
     const iso = "2026-11-14T02:33:55Z";
     const local = isoToLocalInput(iso);
-    // Round-tripping through the input must land on the same instant.
     expect(new Date(local).toISOString()).toBe("2026-11-14T02:33:00.000Z");
   });
 

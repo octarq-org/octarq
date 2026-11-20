@@ -1,8 +1,3 @@
-/**
- * QuotationCard: Sales price quotation and CRM synchronization card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Receipt, Building2, Send, ExternalLink, ShieldAlert } from "lucide-react";

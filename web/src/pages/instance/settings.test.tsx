@@ -160,7 +160,7 @@ describe("InstanceSettings suite", () => {
     fireEvent.change(authRpmInput, { target: { value: "120" } });
 
     const saveButtons = screen.getAllByRole("button", { name: /^save$/i });
-    fireEvent.click(saveButtons[1]); // Rate limiting section save button
+    fireEvent.click(saveButtons[1]);
 
     await waitFor(() => {
       expect(updateSpy).toHaveBeenCalledWith(
@@ -265,14 +265,12 @@ describe("InstanceSettings suite", () => {
     expect(await screen.findByText("Google OAuth Secret")).toBeTruthy();
     expect(screen.getByText("GOOGLE_CLIENT_SECRET")).toBeTruthy();
 
-    // Reveal
     const row = screen.getByTestId("instance-vault-item-77");
     fireEvent.click(Array.from(row.querySelectorAll("button")).find((b) => b.textContent?.includes("Reveal"))!);
     await waitFor(() => expect(revealSpy).toHaveBeenCalledWith(77));
     expect(await screen.findByText("value")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
 
-    // Add new instance secret
     fireEvent.click(screen.getByRole("button", { name: /add instance secret/i }));
     fireEvent.change(screen.getAllByPlaceholderText("e.g. GOOGLE_CLIENT_SECRET")[0], {
       target: { value: "METRICS_TOKEN" },
@@ -291,7 +289,6 @@ describe("InstanceSettings suite", () => {
       ),
     );
 
-    // Delete
     fireEvent.click(Array.from(row.querySelectorAll("button")).find((b) => b.textContent?.includes("Delete"))!);
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(77));
   });

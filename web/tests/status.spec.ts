@@ -1,7 +1,5 @@
 import { test, expect } from "@playwright/test";
 
-// Fixed mock payloads matching the shape from internal/api/health.go
-// (StatusStatusOutputBody) and web/src/api.ts (SubsystemStatusResponse).
 const subsystemsOk = [
   { name: "database", status: "ok" },
   { name: "mail", status: "ok" },
@@ -32,7 +30,6 @@ function mockStatus(
 }
 
 test.describe("status page", () => {
-  // The status page is public — no login required.
 
   test("shows All Systems Operational when overall is ok", async ({ page }) => {
     await page.route("**/api/status", (route) =>

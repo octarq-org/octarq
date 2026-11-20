@@ -1,15 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { menuIcon } from "./areas";
 
-// An icon string the PLUGIN_ICONS table doesn't know is not an error anywhere:
-// the sidebar renders it literally, as text. That is how "book" ended up
-// displayed next to Help, and "sparkles" next to Octarq Cloud — the fallback is
-// deliberate (it lets a plugin ship an emoji) but it makes a typo'd or
-// not-yet-registered key look like intentional copy.
-//
-// Sidebar placement lives in the Go halves, so that is what this reads. Same
-// parse as navI18n.test.ts, and the same reason: assert against the real
-// declarations, not a list in the test that would drift from them.
 const GO_SOURCES = import.meta.glob(
   "../../../server/{plugins/**/*.go,internal/**/*.go,examples/**/*.go}",
   { query: "?raw", import: "default", eager: true },
@@ -32,8 +23,6 @@ describe("Go-declared menu icons", () => {
         }
       });
     }
-    // A parse that finds nothing would pass vacuously — worse than failing,
-    // because it goes quiet exactly when the declaration shape changes.
     expect(seen, "no Icon: literals parsed — did the Go MenuItem shape change?").toBeGreaterThan(3);
     expect(
       unknown,
@@ -42,11 +31,6 @@ describe("Go-declared menu icons", () => {
   });
 });
 
-// The ontology plugin validates a declared entity's icon against its own copy
-// of this table (server/plugins/ontology/icons.go) and refuses the boot on a
-// miss, because a declaration file is runtime data the literal scan above can
-// never see. That copy is the one place a key can drift without any other test
-// noticing: it is Go source, so nothing compares it to the sidebar.
 describe("the ontology icon allowlist", () => {
   it("holds only keys the sidebar can resolve", () => {
     const source = GO_SOURCES["../../../server/plugins/ontology/icons.go"];

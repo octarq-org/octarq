@@ -1,19 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scanTsxSource } from "../../scripts/i18n-audit-core.mjs";
 
-/**
- * Guard tests for the hardcoded-string scanner (i18n-audit.mjs Part 2).
- *
- * These lock the coverage contract that the audit runs on:
- *   - user-visible copy in JSX text and in copy attributes (label, placeholder,
- *     title, aria-label, description, hint, …) is caught;
- *   - pure JSX expression containers whose value is a bare string literal are
- *     caught (<div>{"Copy"}</div>);
- *   - already-translated expressions and identifier attributes are NOT.
- *
- * Without these, the walk drifts (a .test.tsx skip reverted once already —
- * see getTsxFiles in i18n-audit.mjs) and the gate goes quiet silently.
- */
 describe("scanTsxSource", () => {
   it("catches a hardcoded string in a copy attribute (label)", () => {
     const src = `<Field label="Untranslated" />\n`;

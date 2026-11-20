@@ -41,7 +41,6 @@ export interface CopilotUIState {
   approvalsError: string | null;
   threadId?: string;
 
-  // Artifact & Canvas layout slice
   artifacts: Record<string, Artifact>;
   activeArtifactId: string | null;
   canvasLayout: CanvasLayout;

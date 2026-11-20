@@ -38,17 +38,11 @@ const FIXABLE_READINESS = [
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // No vitest globals in this suite, so RTL's auto-cleanup never runs — unmount
-  // explicitly or prior renders leak into the next case. The instanceMenus
-  // implementation is reset here too: clearAllMocks clears call history, not
-  // the mockResolvedValue each case stacks on top.
   cleanup();
   (api.instanceMenus as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   resetRegistry();
 });
 
-// An admin session for the instance-scope tests below; readiness reports a
-// healthy instance so the wizard stays out of the way.
 function adminSession() {
   (api.me as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     email: "admin@example.com",
@@ -58,8 +52,6 @@ function adminSession() {
   (api.instanceReadiness as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 }
 
-// The frontend half of a plugin registering an instance page, like
-// examples/plugin-hello's instanceRoutes.
 const INSTANCE_MENU = {
   id: "hello-instance",
   label: "Hello (instance)",
@@ -92,7 +84,6 @@ describe("InstanceConsole gate", () => {
     await waitFor(() => {
       expect(screen.getByText("This page isn't available to your account")).toBeTruthy();
     });
-    // No readiness fetch, no wizard, no console rail — nothing instance-level.
     expect(api.instanceReadiness).not.toHaveBeenCalled();
     expect(api.instanceBuild).not.toHaveBeenCalled();
     expect(screen.queryByText("Set up this instance")).toBeNull();
@@ -111,28 +102,21 @@ describe("Console home overview", () => {
 
     renderConsole("/");
 
-    // The report drives the UI: the blocked check renders with a distinct
-    // blocked state, the degraded one with degraded, the ok one with ok.
     await waitFor(() => {
       expect(document.querySelector('[data-state="blocked"]')).toBeTruthy();
     }, { timeout: 3000 });
     expect(document.querySelector('[data-state="degraded"]')).toBeTruthy();
     expect(document.querySelector('[data-state="ok"]')).toBeTruthy();
-    // All checks are rendered — including database (no fixPath).
     expect(document.querySelectorAll("[data-state]").length).toBe(4);
     expect(screen.getByText("Database")).toBeTruthy();
     expect(screen.getByText("driver=sqlite")).toBeTruthy();
 
-    // Blocked steps carry a fix action that jumps into the dashboard.
     const blockedFix = document.querySelector(
       '[data-state="blocked"] a[href="/admin/mail?tab=settings"]',
     );
     expect(blockedFix).toBeTruthy();
 
-    // The blocked banner names the count.
     expect(screen.getByText(/1 blocked item/)).toBeTruthy();
-    // The blocked badge is the explicit "Blocked" label, distinct from
-    // degraded's — the two states must not read the same.
     expect(screen.getByText("Blocked")).toBeTruthy();
     expect(screen.getByText("Degraded")).toBeTruthy();
   });
@@ -179,12 +163,10 @@ describe("Instance console plugin seam", () => {
 
     renderConsole("/");
 
-    // The rail entry appears after the console's own static entries.
     await waitFor(() => {
       expect(screen.getByText("Hello (instance)")).toBeTruthy();
     });
 
-    // Clicking it renders the plugin's instance page.
     fireEvent.click(screen.getByText("Hello (instance)"));
     await waitFor(() => {
       expect(screen.getByText("Instance-level page")).toBeTruthy();
@@ -194,7 +176,6 @@ describe("Instance console plugin seam", () => {
   it("hides a backend-announced entry when no frontend route is registered", async () => {
     adminSession();
     (api.instanceMenus as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([INSTANCE_MENU]);
-    // No registerHelloInstancePage() — the plugin's frontend half isn't composed.
 
     renderConsole("/");
 
@@ -206,13 +187,8 @@ describe("Instance console plugin seam", () => {
 
   it("hides a frontend-registered entry the backend does not announce", async () => {
     adminSession();
-    // instanceMenus stays empty — the plugin is disabled or not in this build.
     registerHelloInstancePage();
 
-    // Landing directly on the plugin path must not render its page: without a
-    // backend announcement the route is dead, and the catch-all bounces to the
-    // console home. waitFor keeps re-checking long enough for a lazily-resolved
-    // page chunk to appear if (and only if) the route wrongly exists.
     renderConsole("/hello");
 
     await waitFor(() => {

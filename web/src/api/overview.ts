@@ -1,4 +1,3 @@
-// Overview fetcher and cached react hook.
 import { useEffect, useState } from "react";
 import { api } from "./client";
 import type { Overview } from "./types";

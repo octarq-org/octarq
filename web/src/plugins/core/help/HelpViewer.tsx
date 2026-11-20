@@ -25,13 +25,11 @@ export default function HelpViewer() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Router basename prefix for markdown href links.
   const routerBase = useHref("/").replace(/\/$/, "");
 
-  // Extract current slug from pathname: e.g. /help/services/ddns -> "ddns"
   const currentSlug = useMemo(() => {
     const parts = location.pathname.split("/").filter(Boolean);
-    if (parts.length >= 3) return parts[2]; // /help/category/slug
+    if (parts.length >= 3) return parts[2];
     if (parts.length > 1) return parts[parts.length - 1];
     return "";
   }, [location.pathname]);
@@ -42,24 +40,19 @@ export default function HelpViewer() {
   const [content, setContent] = useState<DocContent | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [error, setError] = useState("");
-  // HTTP status + X-Request-Id from the failed load: the operator's log
-  // correlation for a self-hosted instance. Both machine values → mono.
   const [errorMeta, setErrorMeta] = useState<{ status?: number; requestId?: string } | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
   const [copiedLink, setCopiedLink] = useState(false);
-  // Set when the requested doc is unavailable (e.g. Pro slug on OSS instance).
   const [notFound, setNotFound] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Helper to build doc URL: /help/{category}/{slug}
   const getDocUrl = (d: HelpDocMeta) => {
     const category = (d.category || "services").toLowerCase();
     return `/help/${category}/${d.slug}`;
   };
 
-  // Fetch doc index & handle default redirect
   useEffect(() => {
     api
       .helpIndex(lang)
@@ -84,7 +77,6 @@ export default function HelpViewer() {
       .finally(() => setLoadingDocs(false));
   }, [lang, currentSlug]);
 
-  // Fetch doc content
   useEffect(() => {
     if (!currentSlug) return;
     setLoadingContent(true);
@@ -101,7 +93,6 @@ export default function HelpViewer() {
       .finally(() => setLoadingContent(false));
   }, [currentSlug, lang, retryNonce]);
 
-  // Hook to enhance DOM for interactive code blocks, tables, GFM callouts, SPA navigation
   useDocDomEnhancer({
     contentRef,
     html: content?.html,
@@ -112,7 +103,6 @@ export default function HelpViewer() {
     t,
   });
 
-  // Extract Table of Contents from HTML content
   const toc = useMemo<TocItem[]>(() => {
     if (!content?.html) return [];
     const div = document.createElement("div");
@@ -128,7 +118,6 @@ export default function HelpViewer() {
     return items;
   }, [content?.html]);
 
-  // Previous & Next doc calculation
   const { prevDoc, nextDoc, currentIndex, totalDocs } = useMemo(() => {
     const idx = docs.findIndex((d) => d.slug === currentSlug);
     return {
@@ -168,9 +157,7 @@ export default function HelpViewer() {
 
   return (
     <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
-      {/* Top Breadcrumb & Share Action Header */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
-        {/* Left: Breadcrumbs */}
         <div className="flex min-w-0 flex-1 items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <BookOpen className="w-4 h-4 text-accent-fg" />
@@ -196,7 +183,6 @@ export default function HelpViewer() {
           )}
         </div>
 
-        {/* Right: Copy Link / Share Action */}
         <div className="flex items-center gap-3">
           <button
             onClick={handleCopyLink}
@@ -215,9 +201,7 @@ export default function HelpViewer() {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Document Scroll Area */}
         <div className="flex-1 overflow-y-auto bg-surface-hover/20 scrollbar-thin p-4 sm:p-8 lg:p-12">
           <div className="space-y-8">
             {notFound ? (
@@ -272,9 +256,7 @@ export default function HelpViewer() {
               </div>
             ) : content ? (
               <div className="space-y-8">
-                {/* Main Glass/Card Article Container */}
                 <div className="bg-card rounded-2xl border border-border p-6 sm:p-10 md:p-12 shadow-xs transition-all">
-                  {/* Document Title & Meta Header */}
                   <div className="space-y-4 border-b border-border pb-6 mb-8">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       {categoryObj && (
@@ -303,7 +285,6 @@ export default function HelpViewer() {
                     </h1>
                   </div>
 
-                  {/* Rendered Markdown HTML with Open-Source Doc Typography */}
                   <div
                     ref={contentRef}
                     className="markdown-body"
@@ -311,7 +292,6 @@ export default function HelpViewer() {
                   />
                 </div>
 
-                {/* Bottom Pagination Controls */}
                 <HelpDocPagination
                   prevDoc={prevDoc}
                   nextDoc={nextDoc}
@@ -322,7 +302,6 @@ export default function HelpViewer() {
           </div>
         </div>
 
-        {/* Right Table of Contents Sidebar (Desktop) */}
         <HelpDocToc items={toc} />
       </div>
     </div>

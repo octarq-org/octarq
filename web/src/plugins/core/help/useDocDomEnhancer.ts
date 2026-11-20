@@ -20,12 +20,11 @@ export function useDocDomEnhancer({
   getDocUrl,
   t,
 }: UseDocDomEnhancerProps) {
-  // Expands 2-segment /help/<slug> links to include category using doc index.
   const resolveInAppPath = useCallback(
     (href: string) => {
       if (!href.startsWith("/help/")) return href;
       const [path, hash] = href.split("#");
-      const parts = path.split("/").filter(Boolean); // ["help", …]
+      const parts = path.split("/").filter(Boolean);
       const slug = parts[parts.length - 1];
       const doc = docs.find((d) => d.slug === slug);
       const resolved = doc ? getDocUrl(doc) : path;
@@ -34,11 +33,9 @@ export function useDocDomEnhancer({
     [docs, getDocUrl],
   );
 
-  // Post-process HTML content for interactive code blocks, responsive tables, callouts & SPA routing
   useEffect(() => {
     if (!contentRef.current || !html) return;
 
-    // Rewrite in-app links, then intercept their clicks for SPA routing.
     const links = contentRef.current.querySelectorAll("a");
     links.forEach((a) => {
       if (a.dataset.navEnhanced || docs.length === 0) return;
@@ -54,7 +51,6 @@ export function useDocDomEnhancer({
       }
     });
 
-    // Wrap tables in responsive scroll wrapper
     const tables = contentRef.current.querySelectorAll("table");
     tables.forEach((table) => {
       if (table.parentElement?.classList.contains("table-wrapper")) return;
@@ -64,7 +60,6 @@ export function useDocDomEnhancer({
       wrapper.appendChild(table);
     });
 
-    // Add code block headers with language badges & copy buttons
     const preBlocks = contentRef.current.querySelectorAll("pre");
     preBlocks.forEach((pre) => {
       if (pre.dataset.enhanced) return;
@@ -109,7 +104,6 @@ export function useDocDomEnhancer({
       wrapper.appendChild(pre);
     });
 
-    // Style blockquotes as GFM callouts / alert cards based strictly on [!TYPE] tag at the start
     const blockquotes = contentRef.current.querySelectorAll("blockquote");
     blockquotes.forEach((bq) => {
       if (bq.dataset.enhanced) return;

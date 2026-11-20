@@ -22,7 +22,6 @@ const noop = vi.fn();
 
 function assertSTE100(container: HTMLElement) {
   const text = container.textContent || "";
-  // No robotic filler
   expect(text).not.toMatch(/\b(please|simply|just|delve|seamlessly|obviously)\b/i);
 }
 
@@ -108,7 +107,6 @@ describe("8 Workflow Visual Action Cards — 4 States & ASD-STE100", () => {
       expect(screen.getByText("98%")).toBeDefined();
       assertSTE100(container);
 
-      // Open in Canvas
       fireEvent.click(screen.getByTestId("open-canvas-btn"));
       expect(onAction).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -118,7 +116,6 @@ describe("8 Workflow Visual Action Cards — 4 States & ASD-STE100", () => {
       );
       expect(useCopilotStore.getState().activeArtifactId).toBeDefined();
 
-      // Stage Invites (with approvalId)
       fireEvent.click(screen.getByTestId("stage-invites-btn"));
       expect(onAction).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -174,7 +171,6 @@ describe("8 Workflow Visual Action Cards — 4 States & ASD-STE100", () => {
       expect(screen.getByTestId("release-payments-btn").hasAttribute("disabled")).toBe(true);
       assertSTE100(container);
 
-      // Open in Canvas
       fireEvent.click(screen.getByTestId("open-canvas-btn"));
       expect(onAction).toHaveBeenCalledWith(
         expect.objectContaining({ type: "open_canvas", toolName: "invoice_audit" }),

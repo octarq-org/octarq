@@ -4,7 +4,6 @@ import { api, AuditLog } from "../api";
 import { Badge, PageShell, timeAgo, useTranslation } from "@octarq/plugin-sdk";
 import { ProTable, ProColumn } from "../components/pro-table";
 
-// Runtime type boundary safety using Zod schema
 export const AuditLogSchema = z.object({
   id: z.number(),
   orgId: z.number(),

@@ -1,6 +1,5 @@
 import type { Resources } from "./en";
 
-// 简体中文资源。缺失的键会回退到英文。
 export const zh: Resources = {
   common: {
     done: "完成",

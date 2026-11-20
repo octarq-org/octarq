@@ -1,9 +1,3 @@
-// Guards the guard: proves the global fetch stub installed by setup.ts (the
-// file next to this one) really turns real network calls into errors.
-//
-// Do NOT "fix" this file by re-implementing fetch interception locally — that
-// would test nothing. It must go red whenever the stub in setup.ts is removed
-// or short-circuited, and green exactly when the stub blocks.
 import { describe, expect, it } from "vitest";
 
 describe("global network guard", () => {

@@ -1,17 +1,11 @@
-// Turning declared fields into form controls and back. Pure, so the conversion
-// rules can be tested without a browser: the backend coerces by declared type,
-// and a value the form sends in the wrong shape becomes a 422 the operator
-// cannot act on.
 import type { EntityField } from "./types";
 
-/** Why a field's input could not be turned into a value. The page translates it. */
 export type FieldError = "number" | "date" | "json";
 
 export type FieldParse = { ok: true; value: unknown } | { ok: false; reason: FieldError };
 
 export type FormValue = string | boolean;
 
-/** The value a form starts with: what the record holds, in the control's shape. */
 export function toFormValue(field: EntityField, value: unknown): FormValue {
   if (field.widget === "checkbox") return value === true;
   if (value === null || value === undefined) return "";
@@ -20,7 +14,6 @@ export function toFormValue(field: EntityField, value: unknown): FormValue {
   return String(value);
 }
 
-/** RFC 3339 -> the "YYYY-MM-DDTHH:mm" a datetime-local input reads, in local time. */
 export function isoToLocalInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -39,13 +32,6 @@ function prettyJSON(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-/**
- * One form control's value -> the JSON the API expects for that field.
- *
- * An empty optional control yields null so a cleared field is a clear, not a
- * silent no-op. The caller decides whether to send it: on create an omitted
- * field takes the declaration's default, on update it keeps its current value.
- */
 export function parseFieldValue(field: EntityField, raw: FormValue): FieldParse {
   if (field.widget === "checkbox") {
     return { ok: true, value: raw === true };
@@ -82,14 +68,12 @@ export function parseFieldValue(field: EntityField, raw: FormValue): FieldParse 
   }
 }
 
-/** An RFC 3339 value as the table shows it, in the reader's locale. */
 export function formatTimestamp(value: unknown, locale: string): string {
   if (value === null || value === undefined || value === "") return "";
   const d = new Date(String(value));
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString(locale);
 }
 
-/** A stored value as the table shows it. */
 export function formatFieldValue(
   field: EntityField,
   value: unknown,
@@ -108,8 +92,6 @@ export function formatFieldValue(
   }
 }
 
-/** The fields the table shows, in declaration order: the declared list columns,
- *  or every field when the declaration marks none. */
 export function tableFields(fields: EntityField[]): EntityField[] {
   const declared = fields.filter((f) => f.listColumn);
   return declared.length > 0 ? declared : fields;

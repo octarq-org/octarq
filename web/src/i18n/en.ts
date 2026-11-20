@@ -1,5 +1,3 @@
-// English resources. Keys are shared across all locales; missing keys in other
-// locales fall back to these values.
 export const en = {
   common: {
     done: "Done",
@@ -58,12 +56,7 @@ export const en = {
     verificationMailNotConfigured: "Mail service is not configured on this instance. Contact an administrator.",
     registerVerifyTitle: "Check your email to continue",
     registerVerifyNotice: "We sent a link to {{email}}.",
-    // Shown when registration cannot pass the verification gate because the
-    // instance has no SMTP sender configured: promising a verification email
-    // that can never arrive would leave the account locked out forever.
     registerMailUnavailable: "This instance cannot send email yet, so it cannot accept sign-ups. Ask an administrator to configure an SMTP sender or use an invitation.",
-    // The address already has an account. The page says so in one sentence and
-    // offers the only move left: sign in.
     workspaceCreated: "Workspace created",
     skipToContent: "Skip to content",
     switchWorkspaceFailed: "Couldn't switch workspace. Try again.",
@@ -89,8 +82,6 @@ export const en = {
     noAccount: "Don't have an account?",
     createOne: "Create one",
     orContinueWith: "or continue with",
-    // Authenticated-only build stamp: never the login page — an unauthenticated
-    // version string is a CVE checklist for scanners.
     shellBuildFooter: "octarq {{version}} ({{commit}}) · built {{builtAt}}",
   },
   topbar: {
@@ -111,8 +102,6 @@ export const en = {
     create: "Create",
     quickActions: "Quick Actions",
     placeholder: "Search pages…",
-    // Empty palette result. The query is rendered beside this in mono;
-    // the hint is the real constraint: ⌘K jumps, it doesn't create.
     emptyTitle: "No page or action matches",
     emptyHint: "⌘K opens pages — it can't create anything. Try one of: {{areas}}.",
     action: {
@@ -166,16 +155,6 @@ export const en = {
     Personal: "Personal",
     Instance: "Instance",
   },
-  // Core carries only what THIS build declares: the static area/group shells in
-  // shell/areas.tsx and the core plugins under web/src/plugins/. Everything an
-  // out-of-repo plugin invents — a Pro menu id (storefront, licenses, billing,
-  // finance, inbox-ai, vps, sshkeys, certificates) or a group heading it coins
-  // (Sales, Billing) — is contributed by that plugin package
-  // through the reserved `_shared.nav.*` / `_shared.groups.*` keys (see
-  // PluginI18n). Core must not accumulate a list of every plugin's labels;
-  // duplicating one here would silently win over the plugin's own translation.
-  // Lookups are `t(\`nav.${id}\`, item.label)`, so a build with no plugin for an
-  // id simply renders the menu's own label.
   nav: {
     "create-link": "New link",
     "create-domain": "Add domain",
@@ -256,15 +235,10 @@ export const en = {
     statusNa: "N/A",
     refresh: "Refresh",
     refreshing: "Refreshing…",
-    // Whole-probe failure (not a subsystem failure): the probe itself didn't
-    // get an answer. Time and request id are machine values → mono.
     probeFailedTitle: "Status probe failed",
     probeFailedAt: "Probe failed at {{time}}",
     requestId: "request {{requestId}}",
-    // Public status-page footer: subsystems count, fixed 15s probe interval,
-    // last successful probe timestamp (mono).
     footerLine: "{{count}} subsystems · probe every 15s · last check {{time}}",
-    // Footer line naming the running build. Empty when the build carries no stamp.
     footerBuild: "build {{build}}",
   },
   vault: {

@@ -91,7 +91,6 @@ describe("CommandPalette", () => {
     expect(screen.getByText("New link")).not.toBeNull();
     expect(screen.getByText("Links")).not.toBeNull();
 
-    // Click navigation item
     fireEvent.click(screen.getByText("Links"));
     expect(onNavigate).toHaveBeenCalledWith("/links");
   });
@@ -116,7 +115,6 @@ describe("CommandPalette", () => {
     const input = screen.getByPlaceholderText("Search pages…");
     fireEvent.change(input, { target: { value: "/help me configure DNS" } });
 
-    // Should switch to chat mode
     expect(screen.getByText("AI Chat")).not.toBeNull();
     const textarea = screen.getByLabelText("AI chat message input") as HTMLTextAreaElement;
     expect(textarea.value).toBe("help me configure DNS");
@@ -144,7 +142,6 @@ describe("CommandPalette", () => {
 
     expect(screen.getByText("AI Chat")).not.toBeNull();
 
-    // Press Escape in textarea to return to search mode
     const textarea = screen.getByLabelText("AI chat message input");
     fireEvent.keyDown(textarea, { key: "Escape" });
 
@@ -185,14 +182,12 @@ describe("CommandPalette", () => {
       </I18nProvider>,
     );
 
-    // Switch to chat mode
     fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
 
     const textarea = screen.getByLabelText("AI chat message input");
     fireEvent.change(textarea, { target: { value: "Show link stats" } });
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
-    // Verify fetch call payload
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/ai/chat/stream",
@@ -204,13 +199,11 @@ describe("CommandPalette", () => {
       );
     });
 
-    // Wait for streamed response to render
     await waitFor(() => {
       expect(screen.getByText("Here is the summary of link visits:")).not.toBeNull();
       expect(screen.getByText("Visit Stats")).not.toBeNull();
       expect(screen.getByText("Mon")).not.toBeNull();
       expect(screen.getByText("Tue")).not.toBeNull();
-      // Usage arrives with the finished run, not with each delta.
     });
   });
 
@@ -257,7 +250,7 @@ describe("CommandPalette", () => {
     let streamSignal: AbortSignal | undefined;
     const mockFetch = vi.fn().mockImplementation((_url, opts) => {
       streamSignal = opts?.signal;
-      return new Promise(() => {}); // Never resolves to keep it in-flight
+      return new Promise(() => {});
     });
     global.fetch = mockFetch;
 
@@ -286,7 +279,6 @@ describe("CommandPalette", () => {
 
     expect(streamSignal?.aborted).toBe(false);
 
-    // Unmount triggers abort()
     unmount();
     expect(streamSignal?.aborted).toBe(true);
   });
@@ -313,13 +305,10 @@ describe("CommandPalette", () => {
     );
 
     const input = screen.getByPlaceholderText("Search pages…");
-    // Filter to the builtin "Create short link"
     fireEvent.change(input, { target: { value: "Create short link" } });
 
-    // Press Enter to trigger the selected item
     fireEvent.keyDown(input, { key: "Enter" });
 
-    // actionHandler dispatched custom event and called onClose
     expect(openLinkSpy).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
 
@@ -422,7 +411,6 @@ describe("CommandPalette", () => {
     fireEvent.change(textarea, { target: { value: "Show link stats" } });
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
-    // The palette names no agent: the server bills the workspace default.
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/ai/chat/stream",
@@ -436,7 +424,6 @@ describe("CommandPalette", () => {
       expect(body).not.toHaveProperty("agentId");
     });
 
-    // A refusal becomes the next action, not the raw server prose.
     await waitFor(() => {
       expect(screen.getByText(/This agent reached its monthly budget limit/)).not.toBeNull();
     });
@@ -469,7 +456,6 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Links")).not.toBeNull();
     expect(screen.getByText("My profile")).not.toBeNull();
 
-    // Collapse Quick Actions and Operations; only Settings remains visible for ArrowDown.
     fireEvent.click(quickGroup);
     fireEvent.click(opsGroup);
     expect(quickGroup.getAttribute("aria-expanded")).toBe("false");
@@ -478,17 +464,14 @@ describe("CommandPalette", () => {
     expect(screen.queryByText("Create short link")).toBeNull();
     expect(screen.getByText("My profile")).not.toBeNull();
 
-    // Pressing Enter immediately activates the first remaining visible item ("Profile").
     const input = screen.getByPlaceholderText("Search pages…");
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onNavigate).toHaveBeenCalledWith("/settings/profile");
 
-    // Typing a query auto-expands collapsed groups with matching results.
     fireEvent.change(input, { target: { value: "Links" } });
     expect(opsGroup.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Links")).not.toBeNull();
 
-    // Clearing the query restores the user's collapsed preference.
     fireEvent.change(input, { target: { value: "" } });
     expect(opsGroup.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("Links")).toBeNull();
@@ -510,10 +493,8 @@ describe("ThinkingCollapsible", () => {
     expect(screen.getByText("Thinking")).not.toBeNull();
     expect(screen.getByText("(128 tokens)")).not.toBeNull();
 
-    // Default collapsed: thinking content is not rendered in the DOM
     expect(screen.queryByText("Detailed internal reasoning step 1, 2, 3")).toBeNull();
 
-    // Click to expand
     const trigger = screen.getByRole("button", { name: /Thinking/ });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(trigger);
@@ -521,7 +502,6 @@ describe("ThinkingCollapsible", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Detailed internal reasoning step 1, 2, 3")).not.toBeNull();
 
-    // Press Enter to collapse again
     fireEvent.keyDown(trigger, { key: "Enter" });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("Detailed internal reasoning step 1, 2, 3")).toBeNull();

@@ -77,11 +77,9 @@ describe("McpConnectCard component", () => {
       );
     });
 
-    // Default is cursor
     expect(container?.textContent).toContain(".cursor/mcp.json");
     expect(container?.textContent).toContain("/api/mcp/sse");
 
-    // Click Claude Desktop
     const claudeTab = Array.from(container?.querySelectorAll("button") || []).find((b) =>
       b.textContent?.includes("Claude Desktop")
     );

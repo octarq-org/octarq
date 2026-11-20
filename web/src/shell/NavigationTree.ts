@@ -18,9 +18,6 @@ export interface BuildNavigationTreeOptions {
   isInstanceAdmin?: boolean;
   backendLoaded?: boolean;
   helpArea?: Area;
-  // Client-side preference; when false the Personal area and its menus are
-  // hidden from the sidebar. Routes are untouched, so direct /personal/* URLs
-  // still render.
   showPersonalArea?: boolean;
 }
 
@@ -61,21 +58,14 @@ export class NavigationTree {
     this.allAreas = [...areas, settingsArea, ...(helpArea ? [helpArea] : [])];
   }
 
-  /**
-   * Deterministically resolves a category string to an AreaId or FOOTER_PLACEMENT.
-   * Eliminates keyword substring heuristic matching (c.includes(...)) in favor of
-   * exact matching against area IDs and declared group labels.
-   */
   static resolveCategoryToArea(cat?: string, pluginAreas: UIArea[] = []): AreaId {
     const c = (cat ?? "").trim().toLowerCase();
     if (!c) return "operations";
 
-    // Special placement keywords
     if (c === FOOTER_PLACEMENT || c === "resources") return FOOTER_PLACEMENT;
     if (c === "settings" || c === "instance" || c === "account" || c === "integrations") return "settings";
     if (c === "personal") return "personal";
 
-    // Match plugin-declared areas by ID or declared group labels (never title)
     const pluginHit = pluginAreas.find(
       (a) =>
         a.id.toLowerCase() === c ||
@@ -83,7 +73,6 @@ export class NavigationTree {
     );
     if (pluginHit) return pluginHit.id;
 
-    // Match built-in Infrastructure/Assets area
     if (
       c === "assets" ||
       c === "infrastructure" ||
@@ -92,7 +81,6 @@ export class NavigationTree {
       return "assets";
     }
 
-    // Match built-in Operations area
     if (
       c === "operations" ||
       BUILTIN_AREA_GROUPS.operations.some((g) => g.toLowerCase() === c)
@@ -100,15 +88,9 @@ export class NavigationTree {
       return "operations";
     }
 
-    // Default fallback for unclaimed categories
     return "operations";
   }
 
-  /**
-   * Deterministically resolves a menu item to an AreaId or FOOTER_PLACEMENT.
-   * Prioritizes explicit `menu.area` metadata declared by the plugin/backend
-   * before falling back to category-based area resolution.
-   */
   static resolveMenuToArea(menu: MenuItem, pluginAreas: UIArea[] = []): AreaId {
     const rawCat = (menu.category ?? "").trim().toLowerCase();
     if (rawCat === FOOTER_PLACEMENT || rawCat === "resources") {
@@ -122,21 +104,15 @@ export class NavigationTree {
       if (rawArea === "assets" || rawArea === "infrastructure") return "assets";
       if (rawArea === "operations") return "operations";
 
-      // Match plugin-declared areas by ID
       const pluginHit = pluginAreas.find((a) => a.id.toLowerCase() === rawArea);
       if (pluginHit) return pluginHit.id;
 
-      // If declared area is any custom area id, respect it
       return rawArea;
     }
 
     return NavigationTree.resolveCategoryToArea(menu.category, pluginAreas);
   }
 
-  /**
-   * Pure logic builder: merges backend menus, plugin areas, role gating, and disabled states
-   * into a high-cohesion NavigationTree model.
-   */
   static build(options: BuildNavigationTreeOptions = {}): NavigationTree {
     const menus = options.menus ?? [];
     const plugins = options.plugins ?? [];
@@ -150,7 +126,6 @@ export class NavigationTree {
       plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)),
     );
 
-    // Deduplicate backend menus by path
     const seenPaths = new Set<string>();
     const dedupedMenus = menus.filter((m) => {
       if (seenPaths.has(m.path)) return false;
@@ -158,12 +133,10 @@ export class NavigationTree {
       return true;
     });
 
-    // Extract valid plugin areas (avoiding "settings" and collisions with static areas)
     const validPluginAreas = (options.pluginAreas ?? []).filter(
       (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
     );
 
-    // Base area list: built-in static areas, settings area, and plugin areas
     const baseAreas = [
       ...STATIC_AREAS,
       SETTINGS_AREA,
@@ -174,8 +147,6 @@ export class NavigationTree {
       baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))),
     );
 
-    // Filter dynamic items by static presence, disabled plugins, the Personal
-    // area preference, and role authorization
     const extras = dedupedMenus.filter(
       (m) =>
         !staticPaths.has(m.path) &&
@@ -198,21 +169,17 @@ export class NavigationTree {
       };
     };
 
-    // Separate footer-placed items
     const footerItems = extras
       .filter((m) => NavigationTree.resolveMenuToArea(m, validPluginAreas) === FOOTER_PLACEMENT)
       .map(toNavItem)
       .sort((a, b) => a.order - b.order);
 
-    // Assemble groups for each area
     const mergedAreas = baseAreas.map((baseArea) => {
-      // Retain static items that are not owned by disabled plugins
       const groups: NavGroup[] = baseArea.groups.map((g) => ({
         label: g.label,
         items: g.items.filter((i) => !disabledPaths.has(i.path)),
       }));
 
-      // Menus directed to this area
       const areaExtras = extras.filter(
         (m) => NavigationTree.resolveMenuToArea(m, validPluginAreas) === baseArea.id,
       );
@@ -220,7 +187,6 @@ export class NavigationTree {
       areaExtras.forEach((m) => {
         const item = toNavItem(m);
 
-        // In Settings area, generic "settings" category routes to the "Workspace" group
         const effectiveCategory =
           baseArea.id === "settings" && (m.category || "").toLowerCase() === "settings"
             ? "Workspace"
@@ -246,12 +212,10 @@ export class NavigationTree {
         }
       });
 
-      // Sort items within each group
       groups.forEach((g) => {
         g.items.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
       });
 
-      // Enforce declared group ordering if specified
       const declaredOrder =
         BUILTIN_AREA_GROUPS[baseArea.id] ??
         validPluginAreas.find((pa) => pa.id === baseArea.id)?.groups ??
@@ -268,14 +232,12 @@ export class NavigationTree {
         });
       }
 
-      // Drop groups that have no items
       return {
         ...baseArea,
         groups: groups.filter((g) => g.items.length > 0),
       };
     });
 
-    // Resolve Settings area
     const rawSettings = mergedAreas.find((a) => a.id === "settings") ?? SETTINGS_AREA;
     const settingsArea: Area = isInstanceAdmin
       ? rawSettings
@@ -288,8 +250,6 @@ export class NavigationTree {
       settingsArea.groups.flatMap((g) => g.items.map((i) => i.path)),
     );
 
-    // Business areas (excluding settings and the hidden Personal area, and
-    // dropping empty areas)
     const businessAreas = mergedAreas.filter(
       (a) =>
         a.id !== "settings" &&
@@ -323,9 +283,6 @@ export class NavigationTree {
     return path.startsWith("/help") || path.startsWith("/admin/help");
   }
 
-  /**
-   * Deterministic path to AreaId resolution using longest prefix matching.
-   */
   areaForPath(path: string): AreaId {
     if (this.isSettingsPath(path)) return "settings";
     if (this.isHelpPath(path)) return "help";

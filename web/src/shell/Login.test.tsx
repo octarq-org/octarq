@@ -186,8 +186,6 @@ describe("Login form suite", () => {
     await waitFor(() => {
       expect(regSpy).toHaveBeenCalledWith("newreg@user.com", "secret123", "Acme Corp");
     });
-    // The sign-up never carries a session: the next step is in the mailbox.
-    // The page must not try to enter the app.
     expect(await screen.findByText(/check your email/i)).toBeTruthy();
     expect(onLogin).not.toHaveBeenCalled();
     expect(meSpy).not.toHaveBeenCalled();
@@ -196,14 +194,10 @@ describe("Login form suite", () => {
   it("never prefills a credential on the sign-in form", async () => {
     renderLogin();
     const emailInput = await screen.findByLabelText(/email/i);
-    // The instance admin is seeded with a name, not with a credential the
-    // page may offer. The form starts empty.
     expect((emailInput as HTMLInputElement).value).toBe("");
   });
 
   it("accepts a sign-in identifier that is not an email address", async () => {
-    // The seeded instance admin is named "admin" (OCTARQ_ADMIN_USER), and the
-    // sign-in field is typed as text so such a name can be entered at all.
     const onLogin = renderLogin();
     const loginSpy = vi.spyOn(api, "login").mockResolvedValue({ ok: true, email: "admin" });
     vi.spyOn(api, "me").mockResolvedValue({ email: "admin", orgId: 1 });

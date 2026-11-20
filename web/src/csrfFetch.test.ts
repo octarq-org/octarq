@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockFetch = vi.fn().mockResolvedValue(new Response());
 window.fetch = mockFetch as any;
 
-// Ensure wrapper runs
 await import('./csrfFetch');
 
 describe('csrfFetch', () => {

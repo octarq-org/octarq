@@ -1,5 +1,3 @@
-// Instance console (web/src/pages/instance) — the standalone /instance shell:
-// health summary and the migrated instance settings pages.
 export const instance = {
   en: {
     title: "Instance console",

@@ -8,7 +8,6 @@ export function ChartCard({ widget }: { widget: ChartWidget }) {
   const labels = data?.labels || [];
   const series = data?.series || [];
 
-  // Compute maximum value for scaling
   const allValues = series.flatMap((s) => s.values || []);
   const maxVal = Math.max(1, ...allValues);
 

@@ -1,36 +1,10 @@
-/* Inter is loaded via <link rel="stylesheet"> in index.html (with
-   preconnect) so it doesn't block CSS parsing. */
 @import "tailwindcss";
 @source "../../packages/plugin-sdk/src/ui/**/*.tsx";
 @source "../../packages/plugin-*/src/**/*.tsx";
-/* Composed Pro/third-party UI plugins. They are not workspace source — the
-   manifest build (scripts/install-manifest-plugins.mjs, OCTARQ_PLUGINS_MANIFEST)
-   fetches each published package into web/node_modules — and Tailwind's default
-   content detection skips node_modules entirely. Without this line NONE of a
-   composed plugin's utility classes are generated: the Pro dashboard was
-   shipping pages whose `text-gray-500`, `max-w-5xl` and `border-l-4` had no
-   rules at all, which is why those pages never picked up the brand accents
-   either. An OSS build has no such packages and the glob simply matches
-   nothing. */
 @source "../node_modules/@octarq-org/plugin-*/dist/**/*.js";
-/* The other way a Pro plugin reaches this build: octarq.plugins.dev.json points
-   at LOCAL SOURCE in a sibling checkout (../../../octarq-pro from this file), so
-   `make dev` composes plugins that are neither workspace source nor in
-   node_modules. Without this line every Pro page lost the utilities the rest of
-   the stylesheet already uses — one-off values like `border-foreground/[0.04]`
-   and `bg-foreground/[0.02]` — and borders fell back to currentColor, so the
-   roles matrix drew a black grid over the warm-paper surface. An OSS checkout
-   has no sibling octarq-pro and the glob matches nothing. */
 @source "../../../octarq-pro/packages/plugin-*/src/**/*.tsx";
-/* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
-   animation vocabulary. tw-animate-css resolves to
-   node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
 @import "tw-animate-css";
 
-/* Dark mode is class-based (`.dark` on <html>, set pre-paint from localStorage in
-   index.html), NOT prefers-color-scheme. The default is LIGHT — a flat, bordered,
-   spacious surface in the Wise/Cloudflare idiom — and `.dark` restores the
-   original frosted-glass theme. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 html,
@@ -40,24 +14,12 @@ body,
   margin: 0;
 }
 
-/* ─── Design tokens ──────────────────────────────────────────────────────────
-   Single source of truth. LIGHT lives in :root; DARK overrides under `.dark`.
-   The whole app re-themes from here: shared component classes (below) reference
-   these vars, and app/plugin components use `foreground`/`muted`/`border`
-   utilities whose opacity variants (e.g. text-foreground/55) resolve to the
-   right value in each mode automatically — near-black on light, near-white on
-   dark — so a single class set works in both themes. */
 :root {
   color-scheme: light;
 
-  /* Single control knobs: radius & row height */
   --radius: 0.5rem;
   --row-height: 3.5rem;
 
-  /* Three surfaces in oklch neutral scale, darkest to lightest (Linear / OpenBot2):
-     1. Frame (--sidebar): ~95% lightness neutral frame & navigation rail.
-     2. Panel (--background): ~98.5% lightness inset workspace canvas.
-     3. Card (--card): 100% pure white content cards & row groups. */
   --background: oklch(0.985 0.002 260);
   --foreground: oklch(0.16 0.012 260);
   --card: oklch(1 0 0);
@@ -75,48 +37,19 @@ body,
   --sidebar-border: oklch(0.905 0.005 260);
   --sidebar-ring: var(--primary);
 
-  /* Accents. The primary action surface stays flat so it follows a rebrand; the
-     gradient partner is reserved for the brand mark. --accent-fg is the readable
-     accent for text/icons on the current surface.
-
-     Only the three SEED values below are literal: --primary, --accent-violet and
-     --primary-foreground. Every other brand-tinted token is mixed from --primary
-     so the white-label plugin re-themes the whole app by overriding the seeds
-     alone (brand.tsx applyAccents). Hardcoding a derived value here is how the
-     accent, hover and info surfaces used to stay indigo on a rebranded instance.
-     Tints are color-mix, which is what a wash of the accent over the surface
-     means. The text and hover ramp is `oklch(from …)` instead, moving ONLY
-     lightness and keeping chroma and hue: mixing toward black drags a/b toward
-     zero too, which desaturated the accent into a muddy grey.
-
-     The text tokens clamp their lightness rather than just offsetting it. An
-     operator may pick a near-white brand (a bright yellow, a pale cyan), and an
-     accent label one step darker than that is still unreadable on white. The
-     clamp floors readability at any hue — that is the whole point of accepting
-     an arbitrary brand colour. */
-  --primary: #4f46e5;                             /* SEED — indigo-600 */
-  --accent-violet: #7c3aed;                        /* SEED — violet-600, gradient end */
-  --primary-foreground: #ffffff;                   /* SEED — text on the primary fill */
+  --primary: #4f46e5;
+  --accent-violet: #7c3aed;
+  --primary-foreground: #ffffff;
 
   --primary-hover: oklch(from var(--primary) calc(l - 0.07) c h);
-  /* The filled primary surface (buttons, chat bubbles). Split from --primary
-     so dark mode can darken the fill for label contrast without moving the
-     seed that every other accent token derives from. */
   --primary-solid: var(--primary);
   --primary-solid-hover: var(--primary-hover);
-  --accent-indigo: var(--primary);                 /* gradient start — legacy name */
-  --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.06, 0.55) c h);  /* accent text/icons on surface */
-  --accent-soft: color-mix(in oklab, var(--primary) 11%, transparent);   /* tinted fill */
-  --accent-border: color-mix(in oklab, var(--primary) 26%, transparent); /* tinted hairline */
-  /* The mark and the account avatar paint white text on this gradient, so the
-     seed stop uses the filled-surface fill, not the raw seed (4.47:1 in dark). */
+  --accent-indigo: var(--primary);
+  --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.06, 0.55) c h);
+  --accent-soft: color-mix(in oklab, var(--primary) 11%, transparent);
+  --accent-border: color-mix(in oklab, var(--primary) 26%, transparent);
   --gradient-primary: linear-gradient(135deg, var(--primary-solid) 0%, var(--accent-violet) 100%);
 
-  /* Status accents — readable on the current surface (600-weight on light).
-     Info is the brand-tinted one: it mixes from --primary so it follows a
-     rebrand. Success/warning/danger are semantic, not brand, and stay literal.
-     The *-solid pair is the filled destructive action (confirm dialogs), which
-     needs a stable foreground in both themes. */
   --info-bg: color-mix(in oklab, var(--primary) 9%, #fff);
   --info-border: color-mix(in oklab, var(--primary) 28%, #fff);
   --info-fg: oklch(from var(--primary) clamp(0.30, l - 0.11, 0.50) c h);
@@ -139,19 +72,15 @@ body,
   --review-border: #ddd6fe;
   --review-fg: #6d28d9;
 
-  /* Lines & focus */
   --border: oklch(0.905 0.005 260);
   --border-strong: oklch(0.84 0.007 260);
   --input: oklch(0.86 0.006 260);
   --ring: var(--primary);
 
-  /* Elevation — hairline borders carry layout structure; only floating overlays
-     (dialog / popover / command palette) cast a drop shadow. */
   --shadow-card: none;
   --shadow-float: 0 4px 16px rgb(0 0 0 / 0.08), 0 16px 40px -12px rgb(0 0 0 / 0.14);
   --shadow-accent: none;
 
-  /* Motion — restrained, uniform durations. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-fast: 100ms;
@@ -180,18 +109,11 @@ body,
   --sidebar-border: oklch(0.28 0.01 265);
   --sidebar-ring: var(--primary);
 
-  /* Same seed, opposite mix direction: on dark the accents lighten toward #fff
-     instead of darkening toward #000. Derived tokens are NOT repeated here —
-     they inherit the :root formulas, which re-resolve against whatever --primary
-     is in scope, including the white-label override applyAccents writes inline
-     on <html> (the same element .dark sits on, so the inline seed wins). */
-  --primary: #6366f1;                              /* SEED */
+  --primary: #6366f1;
   --primary-hover: oklch(from var(--primary) calc(l + 0.08) c h);
-  /* White labels on the raw seed measure 4.47:1 — just under the 4.5:1 text
-     minimum — so the filled surface darkens 0.04 L in dark mode. */
   --primary-solid: oklch(from var(--primary) calc(l - 0.04) c h);
   --primary-solid-hover: oklch(from var(--primary) calc(l - 0.015) c h);
-  --accent-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);  /* accent text on dark */
+  --accent-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);
   --accent-soft: color-mix(in oklab, var(--primary) 16%, transparent);
   --accent-border: color-mix(in oklab, var(--primary) 34%, transparent);
 
@@ -313,7 +235,6 @@ body {
   z-index: 1;
 }
 
-/* Surface — clean card with a 1px border; no frosted blur or ambient halo. */
 .glass,
 .card {
   background: var(--card);
@@ -324,23 +245,16 @@ body {
   border-radius: var(--radius-lg);
 }
 
-/* Floating layers (dialog / popover / dropdown / toast / tooltip / ⌘K) get the
-   deeper shadow so the layer reads off the surface beneath it — functional
-   separation, not decoration. */
 .glass-strong {
   background: var(--popover);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-float);
 }
 
-/* Brand gradient — the mark surface (BrandMark). Reads the accent design token
-   so the Pro white-label plugin recolors every brand glyph by overriding
-   --gradient-primary at runtime. */
 .brand-gradient {
   background-image: var(--gradient-primary);
 }
 
-/* Scrollbars — track the foreground so they read on either surface. */
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--foreground) 18%, transparent) transparent;
@@ -360,7 +274,6 @@ body {
   background: transparent;
 }
 
-/* Focus — global focus-visible ring, sourced from the --ring token. */
 *:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
@@ -379,13 +292,10 @@ h1, h2, h3, h4, h5, h6 {
   color: inherit;
 }
 
-/* Tabular figures for metric values and data columns so digits align as
-   they tick. */
 .tnum {
   font-variant-numeric: tabular-nums;
 }
 
-/* Muted section eyebrow without decorative dot noise. */
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -395,7 +305,6 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--muted-foreground);
 }
 
-/* ─── Shared component classes ───────────────────────────────────────────── */
 
 .btn,
 .btn-primary,
@@ -507,8 +416,6 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--muted-foreground);
 }
 
-/* Skeleton — a slow sheen, not a pulse. The placeholder keeps its own light
-   surface so a loading table does not strobe next to real rows. */
 @keyframes skeleton-sheen {
   from { transform: translateX(-100%); }
   to   { transform: translateX(100%); }
@@ -527,7 +434,6 @@ h1, h2, h3, h4, h5, h6 {
   animation: skeleton-sheen 1.8s var(--ease-in-out) infinite;
 }
 
-/* Modal Animations */
 @keyframes modal-enter {
   0%   { opacity: 0; transform: translateY(-4px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -547,10 +453,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 .animate-expand { animation: expand-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-/* ─── Reduced motion ─────────────────────────────────────────────────────────
-   Honour prefers-reduced-motion for ALL CSS-driven animation. framer-motion
-   animations are JS-driven and guarded at the component level (MotionConfig
-   reducedMotion="user"); see docs/ACCESSIBILITY.md. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -564,15 +466,6 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* ─── Touch targets ──────────────────────────────────────────────────────────
-   HIG asks for a 44×44 pt target. Compact controls keep their visual size and
-   grow an invisible one on touch screens, so desktop density does not change.
-   `.tap-expand` covers 36px controls, `.tap-expand-sm` covers 32px ones.
-
-   The expanded box is invisible but it still takes taps, and a later sibling
-   paints over an earlier one. Two expanded controls therefore need at least a
-   44px pitch between them, or the lower one eats taps meant for the upper one.
-   Rows and gaps that carry these controls size for that pitch. */
 @media (pointer: coarse) {
   .tap-expand,
   .tap-expand-sm {
@@ -601,9 +494,8 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* ─── Open-Source Markdown Documentation Typography (.markdown-body) ──────── */
 .markdown-body {
-  font-size: 0.9375rem; /* 15px */
+  font-size: 0.9375rem;
   line-height: 1.75;
   color: var(--foreground);
 }
@@ -749,7 +641,6 @@ h1, h2, h3, h4, h5, h6 {
   display: block;
 }
 
-/* Responsive Table Wrapper */
 .markdown-body .table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -794,7 +685,6 @@ h1, h2, h3, h4, h5, h6 {
   background-color: var(--surface-hover);
 }
 
-/* Fenced Code Cards (VitePress/Shiki Style) */
 .markdown-body .code-block-wrapper {
   margin: 1.5rem 0;
   border-radius: 0.875rem;
@@ -861,7 +751,6 @@ h1, h2, h3, h4, h5, h6 {
   color: inherit;
 }
 
-/* Callout Alert Cards (GitHub GFM & Standard Blockquotes) */
 .markdown-body .callout {
   margin: 1.5rem 0;
   padding: 1rem 1.25rem;

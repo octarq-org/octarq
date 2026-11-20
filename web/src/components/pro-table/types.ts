@@ -19,23 +19,19 @@ export interface ValueEnumItem {
 export type ValueEnumType = Record<string, ValueEnumItem | ReactNode>;
 
 export type ProColumn<TData = any, TValue = any> = Omit<ColumnDef<TData, TValue>, "header"> & {
-  // Key / Field identification
   dataIndex?: keyof TData | string;
   key?: string;
 
-  // Header / Title display
   title?: ReactNode;
   header?: ColumnDef<TData, TValue>["header"];
   tooltip?: ReactNode;
 
-  // Search form configuration
   hideInSearch?: boolean;
   valueType?: ProTableValueType;
   valueEnum?: ValueEnumType;
   initialValue?: any;
   fieldProps?: Record<string, any>;
 
-  // Table display configuration
   hideInTable?: boolean;
   sorter?: boolean | ((a: TData, b: TData) => number);
   width?: number | string;
@@ -44,7 +40,6 @@ export type ProColumn<TData = any, TValue = any> = Omit<ColumnDef<TData, TValue>
   ellipsis?: boolean;
   copyable?: boolean;
 
-  // Custom render
   render?: (
     dom: ReactNode,
     record: TData,
@@ -170,8 +165,6 @@ export interface ProTableProps<TData, TParams extends Record<string, any> = Reco
   emptyText?: ReactNode;
   emptyReason?: ReactNode;
   errorText?: ReactNode;
-  // Forwarded to TableError's upsell mask: the feature name and the tier a 402
-  // is asking for. A page that knows its own name should pass both.
   lockedFeature?: string;
   lockedTier?: "pro" | "elite";
   showToolbar?: boolean;

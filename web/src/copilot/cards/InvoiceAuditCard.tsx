@@ -1,8 +1,3 @@
-/**
- * InvoiceAuditCard: Batch invoice audit and ledger reconciliation card.
- *
- * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
- */
 import React from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { DollarSign, Clock, AlertTriangle, ExternalLink, ShieldCheck, ShieldAlert } from "lucide-react";
@@ -143,7 +138,6 @@ export function InvoiceAuditCard({
           </span>
         </div>
 
-        {/* 4 Metric Chips */}
         <div className="grid grid-cols-4 gap-1.5" data-testid="audit-metrics">
           <div className="rounded-lg border border-border bg-well p-1.5 text-center">
             <div className="text-[10px] text-muted-foreground">{t("copilot.invoiceScanned", "Scanned")}</div>
@@ -171,7 +165,6 @@ export function InvoiceAuditCard({
           </div>
         </div>
 
-        {/* Discrepancies list preview */}
         {discrepancies.length > 0 && (
           <div className="space-y-1.5" data-testid="discrepancies-preview">
             <div className="text-[11px] font-semibold text-muted-foreground">

@@ -1,11 +1,3 @@
-/**
- * Card registry: tool name to component mapping.
- *
- * - registerCard throws on duplicates (Fail-Closed, preventing duplicate ambiguity).
- * - resolveCard returns null for unregistered tools.
- * - renderToolCall validates args against schema before component sees them.
- * - Components receive valid args or FallbackCard renders with reason.
- */
 import React, { type ComponentType, type ReactNode } from "react";
 import { validateArgs, type JsonSchema } from "./validate";
 import { FallbackCard } from "./FallbackCard";
@@ -26,7 +18,6 @@ import { SupportEscalationCard } from "./SupportEscalationCard";
 import { FinancialAnalysisCard } from "./FinancialAnalysisCard";
 
 export interface CardAction {
-  /** approve/reject feed approval endpoints; custom/open_canvas/edit_artifact is domain-specific. */
   type: "approve" | "reject" | "custom" | "open_canvas" | "edit_artifact" | "refresh";
   approvalId?: string;
   approvalToken?: string;
@@ -80,7 +71,6 @@ export function clearCards(): void {
   schemaRegistry.clear();
 }
 
-/** carriesApprovalID reports whether parsed args name an approval. */
 export function carriesApprovalID(args: unknown): boolean {
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
     return false;
@@ -111,11 +101,6 @@ export const WORKFLOW_TOOLS = new Set([
   "financial_analysis",
 ]);
 
-/**
- * Render one tool call: resolve -> parse -> schema-check -> component.
- * Every failure branch renders FallbackCard with a machine-readable reason.
- * Never throws and never returns blank.
- */
 export function renderToolCall(
   toolName: string,
   callId: string,
@@ -139,7 +124,6 @@ export function renderToolCall(
     }
   }
 
-  // Any call carrying an approval ID renders ApprovalCard (unless handled by a dedicated workflow card)
   if (carriesApprovalID(parsedArgs) && !WORKFLOW_TOOLS.has(toolName)) {
     return (
       <ApprovalCard
@@ -541,7 +525,6 @@ const DEFAULT_SCHEMAS: Record<string, JsonSchema> = {
   },
 };
 
-/** Register the domain cards and standard schemas. Idempotent. */
 export function registerDomainCards(): void {
   const registrations: Array<[string, ToolCardComponent]> = [
     ["links_create", LinkCard],
@@ -564,7 +547,6 @@ export function registerDomainCards(): void {
     ["portal_licenses", PortalCard],
     ["portal_devices", PortalCard],
 
-    // 8 Enterprise Knowledge Work Cards
     ["recruiting_screen", ResumeRankCard],
     ["invoice_audit", InvoiceAuditCard],
     ["quotation_generate", QuotationCard],
@@ -595,5 +577,4 @@ export function registerDomainCards(): void {
   }
 }
 
-// Initial bootstrap
 registerDomainCards();

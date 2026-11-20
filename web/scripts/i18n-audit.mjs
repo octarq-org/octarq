@@ -2,9 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
-// The hardcoded-string scanner and its allowlists live in i18n-audit-core.mjs so
-// they can be unit-tested without executing this CLI (importing this module
-// would run every audit at module top level).
 import { scanTsxSource } from "./i18n-audit-core.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,18 +9,10 @@ const __dirname = path.dirname(__filename);
 
 const webDir = path.resolve(__dirname, "..");
 const repoDir = path.resolve(webDir, "..");
-// The commercial repo, when it's checked out beside this one: its plugin
-// packages carry UI that this dictionary feeds, so auditing them together
-// catches a key that only one side knows about. Absent (CI, a third-party
-// clone) every Pro check simply doesn't run — the path is probed, never
-// required.
 const proDir = process.env.OCTARQ_PRO_DIR || path.resolve(repoDir, "../octarq-pro");
 
 let hasErrors = false;
 
-// ---------------------------------------------------------------------------
-// Part 1: i18n Key Completeness Audit
-// ---------------------------------------------------------------------------
 
 function loadTsExports(filePath) {
   const code = fs.readFileSync(filePath, "utf8");
@@ -51,8 +40,6 @@ function getNestedKeys(obj, prefix = "") {
   return keys;
 }
 
-// getNestedStrings is getNestedKeys but keeping the values, so a translation can
-// be compared against its English source rather than merely counted.
 function getNestedStrings(obj, prefix = "", out = new Map()) {
   if (!obj || typeof obj !== "object") return out;
   for (const [k, v] of Object.entries(obj)) {
@@ -69,17 +56,12 @@ function placeholdersIn(text) {
   return new Set([...text.matchAll(PLACEHOLDER)].map((m) => m[1]));
 }
 
-// A translation that drops (or invents) a {{placeholder}} still has the right
-// key in the right locale, so key-parity above passes it. What ships is the
-// literal "{{count}}" rendered on screen in that language only — visible to
-// everyone except whoever added it. Interpolation is exactly what a translator
-// or a bulk edit gets wrong, so it is worth comparing directly.
 function checkPlaceholderParity(label, enObj, langObj, lang) {
   const en = getNestedStrings(enObj);
   const other = getNestedStrings(langObj || {});
   const bad = [];
   for (const [key, enText] of en) {
-    if (!other.has(key)) continue; // absent is key-parity's job, reported there
+    if (!other.has(key)) continue;
     const want = placeholdersIn(enText);
     const got = placeholdersIn(other.get(key));
     const missing = [...want].filter((p) => !got.has(p));
@@ -134,7 +116,6 @@ function checkDictionaryCompleteness() {
   const REQUIRED_WEB_LOCALES = ["zh", "es", "pt", "ja"];
   const allowlist = loadUntranslatedAllowlist();
 
-  // 1. Check web/src/i18n/ (en.ts vs zh.ts, es.ts, pt.ts, ja.ts)
   const rootLocales = {};
   for (const lang of ["en", ...REQUIRED_WEB_LOCALES]) {
     const file = path.join(webDir, "src/i18n", `${lang}.ts`);
@@ -158,7 +139,6 @@ function checkDictionaryCompleteness() {
     }
   }
 
-  // 2. Check web/src/i18n/pages/*.ts (Requires all 5 locales: en, zh, es, pt, ja)
   const pagesDir = path.join(webDir, "src/i18n/pages");
   if (fs.existsSync(pagesDir)) {
     const files = fs.readdirSync(pagesDir).filter((f) => f.endsWith(".ts") && f !== "index.ts");
@@ -184,7 +164,6 @@ function checkDictionaryCompleteness() {
     }
   }
 
-  // 3. Check Pro package i18n files (Checks all defined locales on each package against en)
   const proPackagesDir = path.join(proDir, "packages");
   if (fs.existsSync(proPackagesDir)) {
     const pkgDirs = fs.readdirSync(proPackagesDir);
@@ -213,19 +192,7 @@ function checkDictionaryCompleteness() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Part 2: Hardcoded User-Visible String Audit
-// ---------------------------------------------------------------------------
-//
-// The scanner (scanTsxSource) and its allowlists (ALLOWLIST_EXACT,
-// ALLOWLIST_PATTERNS) are imported from i18n-audit-core.mjs — see there for the
-// coverage rules and how they are tested.
 
-// Dev-only tooling is not shipped UI. web/src/dev/** is tree-shaken out of the
-// production bundle (the workbench is reached through a DEV-guarded lazy import
-// in App.tsx), so its strings are preview fixtures rather than product copy —
-// translating dev-tool chrome into five locales would be noise in the dictionary
-// real pages read. Same reasoning as the test-file skip just below.
 const DEV_ONLY_DIRS = [path.join(webDir, "src", "dev")];
 
 function isDevOnly(dir) {
@@ -243,8 +210,6 @@ function getTsxFiles(dir) {
         res = res.concat(getTsxFiles(p));
       }
     } else if (f.endsWith(".tsx") && !/\.(test|spec)\.tsx?$/.test(f)) {
-      // Test files are fixtures, not shipped UI — the key-resolution walk below
-      // already skips them; this walk drifted and did not.
       res.push(p);
     }
   }
@@ -275,32 +240,7 @@ function checkHardcodedStrings() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Part 3: Key Resolution Audit — references vs definitions
-// ---------------------------------------------------------------------------
-//
-// Parts 1 and 2 check locale parity and untranslated literals. Neither catches
-// the two failure modes that actually shipped:
-//
-//   - `t("settings.pluginInUse")` with that key defined in NO locale, not even
-//     en. Parity is perfect (all five are equally missing), nothing is
-//     hardcoded, and the UI renders the literal string "settings.pluginInUse".
-//   - `t("pageTitle")` where the key really lives at `storage.pageTitle`,
-//     because a UIPlugin's dictionary is nested under its `name`. Same silent
-//     result: the key itself renders as the label.
-//
-// Both are invisible to a reader (t() falls back to the key, which looks like a
-// plausible identifier, not an error) and invisible to tsc (t takes a string).
-// So resolve every static key against the dictionary the runtime actually
-// builds, and flag the reverse too: keys defined and translated five times over
-// that nothing references.
 
-// Mirrors the runtime merge in packages/plugin-sdk/src/i18n and
-// contract/registry.ts. Namespacing rules, which differ by source:
-//   - web/src/i18n/en.ts        → keys sit at the root
-//   - web/src/i18n/pages/x.ts   → nested under the export name ("settings.save")
-//   - a UIPlugin's `i18n`       → nested under the plugin's `name`, EXCEPT
-//                                 `_shared`, which merges at the root
 function collectObjectKeys(node, prefix, out) {
   if (!node || !ts.isObjectLiteralExpression(node)) return;
   for (const prop of node.properties) {
@@ -316,7 +256,6 @@ function collectObjectKeys(node, prefix, out) {
   }
 }
 
-// findProp returns the initializer of a named property on an object literal.
 function findProp(objLit, name) {
   for (const prop of objLit.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
@@ -326,10 +265,6 @@ function findProp(objLit, name) {
   return null;
 }
 
-// Dictionary literals reached by name (`i18n: settings`) rather than written
-// inline, so a UIPlugin that imports its dictionary still resolves. Maps the
-// local identifier to its object literal, per file and across the i18n.ts files
-// a plugin package imports from.
 function indexDictionaryIdentifiers(sourceFiles) {
   const byName = new Map();
   for (const sf of sourceFiles) {
@@ -348,7 +283,6 @@ function indexDictionaryIdentifiers(sourceFiles) {
 
 function definedKeysFor(sourceFiles, dictIdents) {
   const defined = new Set();
-  // Where each key was defined, for the "never referenced" report.
   const origin = new Map();
 
   const record = (keys, file) => {
@@ -364,11 +298,6 @@ function definedKeysFor(sourceFiles, dictIdents) {
     const isPageDict = /web\/src\/i18n\/pages\/[^/]+\.ts$/.test(rel) && !rel.endsWith("index.ts");
 
     const visit = (node) => {
-      // Two shapes, and they nest differently:
-      //   web/src/i18n/en.ts       → `export const en = { common: {...}, … }`
-      //     the object IS the root dictionary, no per-locale wrapper.
-      //   web/src/i18n/pages/x.ts  → `export const x = { en: {...}, zh: {...} }`
-      //     the en block hangs off the export name.
       if (
         (isShellDict || isPageDict) &&
         ts.isVariableDeclaration(node) &&
@@ -390,7 +319,6 @@ function definedKeysFor(sourceFiles, dictIdents) {
         }
       }
 
-      // A UIPlugin object literal: has both `name` (string) and `i18n`.
       if (ts.isObjectLiteralExpression(node)) {
         const nameProp = findProp(node, "name");
         const i18nProp = findProp(node, "i18n");
@@ -407,20 +335,12 @@ function definedKeysFor(sourceFiles, dictIdents) {
                 if (!ts.isPropertyAssignment(prop)) continue;
                 const n = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
                 if (n === null) continue;
-                // `_shared` merges at the root; everything else hangs off the
-                // plugin name.
                 const base = n === "_shared" ? "" : pluginName;
                 if (n === "_shared" && ts.isObjectLiteralExpression(prop.initializer)) {
                   collectObjectKeys(prop.initializer, base, keys);
                 } else if (ts.isObjectLiteralExpression(prop.initializer)) {
                   collectObjectKeys(prop.initializer, `${pluginName}.${n}`, keys);
                 } else if (ts.isPropertyAccessExpression(prop.initializer)) {
-                  // The plugin dictionary borrows another dictionary verbatim —
-                  // `agentHarness: agentHarness.en` — instead of repeating it.
-                  // The keys then live under the referenced literal, so resolve
-                  // `<identifier>.<lang>` through dictIdents. Recording only
-                  // `plugin.n` would make every key in that block read as
-                  // undefined, and the call sites that use them as unresolved.
                   const ref = dictIdents.get(prop.initializer.expression.getText());
                   const borrowed = ref ? findProp(ref, prop.initializer.name.text) : null;
                   if (borrowed && ts.isObjectLiteralExpression(borrowed)) {
@@ -444,19 +364,9 @@ function definedKeysFor(sourceFiles, dictIdents) {
   return { defined, origin };
 }
 
-// Every t("…") / t(`…`) call. Static keys resolve exactly; a key built by
-// concatenation or interpolation (t(`help.group.${g}`), t("settings.pluginDesc." + k))
-// can only contribute a PREFIX — the suffix is runtime data, so any defined key
-// under that prefix counts as referenced and none of them can be checked.
 function collectReferences(sourceFiles) {
   const staticRefs = [];
   const dynamicPrefixes = [];
-  // Every string literal in the tree, t() call or not. A key is routinely
-  // passed around before it is translated — auth.tsx hands
-  // "settings.clearGoogleSecret" to a helper that calls t(confirmKey), and the
-  // plugin manager stores "settings.pluginCategory.ai" in a lookup table. Those
-  // keys are live, but no t("…") mentions them, so without this they'd read as
-  // dead. Only used to suppress the unreferenced report, never to resolve.
   const literals = new Set();
 
   for (const sf of sourceFiles) {
@@ -481,10 +391,6 @@ function collectReferences(sourceFiles) {
             while (ts.isBinaryExpression(left)) left = left.left;
             if (ts.isStringLiteral(left)) dynamicPrefixes.push(left.text);
           }
-          // t(someVariable) contributes nothing either way: it can't be
-          // resolved, and it can't be used to prove a key is dead. Such keys
-          // surface as false positives in the unreferenced report, which is why
-          // that report is a warning and not a failure.
         }
       }
       ts.forEachChild(node, visit);
@@ -518,11 +424,6 @@ function getSourceFiles(dir) {
 function checkKeyResolution() {
   console.log("\n=== Checking i18n Key Resolution (references vs definitions) ===");
 
-  // packages/ on this side holds the plugin SDK, whose own components call t()
-  // for the shared uiCommon keys — leave it out and those read as dead.
-  // examples/ is in scope because it is the plugin authors copy: its dictionary
-  // has to satisfy the same rules the audit enforces everywhere else, or the
-  // reference implementation teaches the gap.
   const roots = [path.join(webDir, "src"), path.join(repoDir, "packages"), path.join(repoDir, "server", "examples")];
   if (fs.existsSync(path.join(proDir, "packages"))) roots.push(path.join(proDir, "packages"));
 
@@ -534,13 +435,10 @@ function checkKeyResolution() {
 
   const display = (f) => (f.startsWith(proDir) ? path.relative(proDir, f) : path.relative(repoDir, f));
 
-  // 3a. Referenced but never defined — this is a bug on screen, so it fails.
   const unresolved = staticRefs.filter((r) => !defined.has(r.key));
   if (unresolved.length > 0) {
     console.error(`❌ ${unresolved.length} t() key(s) resolve to nothing (the key itself renders):`);
     for (const r of unresolved) {
-      // Point at the likely namespace when one exists, since the usual cause is
-      // a missing plugin-name prefix rather than a truly absent key.
       const suffixMatch = [...defined].filter((d) => d.endsWith(`.${r.key}`));
       const hint = suffixMatch.length === 1 ? `  → did you mean "${suffixMatch[0]}"?` : "";
       console.error(`   ${display(r.file)}:${r.line}  t("${r.key}")${hint}`);
@@ -548,9 +446,6 @@ function checkKeyResolution() {
     hasErrors = true;
   }
 
-  // 3b. Defined but never referenced — dead weight, translated five times over.
-  // A warning, not a failure: t(variable) call sites are unresolvable, so this
-  // list can name a key that is genuinely used.
   const referenced = new Set(staticRefs.map((r) => r.key));
   const orphans = [...defined].filter(
     (k) => !referenced.has(k) && !literals.has(k) && !dynamicPrefixes.some((p) => k.startsWith(p)),
@@ -566,28 +461,10 @@ function checkKeyResolution() {
     console.log(`✅ all ${staticRefs.length} static t() keys resolve`);
   }
 
-  // Reuse the parse — walking every source file twice to answer a second
-  // question about the same trees is pure waste.
   checkLocaleCoverage(sourceFiles, dictIdents);
   checkGoMenuI18n(defined);
 }
 
-// ---------------------------------------------------------------------------
-// Part 5: Go menu i18n — every sidebar entry the backend announces
-// ---------------------------------------------------------------------------
-//
-// Sidebar labels come from the Go half's MenuProvider, and the shell renders
-// them as t(`nav.${id}`, item.label) / t(`groups.${category}`, label). The
-// second argument means a missing key does NOT show the key on screen — it
-// shows the English label the Go source declared. That is why this gap is
-// invisible: the sidebar looks fine in every language, it is simply half
-// untranslated, and nothing in the pipeline complains.
-//
-// navI18n.test.ts asserts the same property, but it reads Go sources through
-// import.meta.glob, which cannot escape the Vite root — so it only ever saw
-// THIS repo's menus. Every Pro menu (15 of them) was unchecked, and two were in
-// fact untranslated. This check runs in the same process as the Pro dictionary
-// scan above, so it can see both sides whenever both are checked out.
 
 const GO_MENU_ROOTS = [
   [repoDir, ["server/internal/api", "server/plugins", "server/examples"]],
@@ -612,9 +489,6 @@ function goSourceFiles(root, subdirs) {
   return out;
 }
 
-// A MenuItem literal, e.g. {ID: "vps", Label: "Servers", Category: "Hosting", …}.
-// Category is optional in the shape but present on every real entry; an entry
-// without one is skipped rather than guessed at.
 const GO_MENU_LITERAL = /\{ID:\s*"([^"]+)"([^}]*)\}/g;
 const GO_MENU_CATEGORY = /Category:\s*"([^"]*)"/;
 
@@ -632,20 +506,8 @@ function collectGoMenus() {
   return menus;
 }
 
-// Categories that never render as a group heading, so they need no groups.* key:
-//   footer / resources → the rail footer, which draws no heading at all
-//   settings           → App.tsx remaps a generic "settings" category to the
-//                        Workspace group inside the Settings area, so the word
-//                        "Settings" is never itself a heading
-// Kept deliberately short: this mirrors placement logic that lives in
-// areas.tsx/App.tsx, and every entry here is a chance for the two to drift.
 const NON_HEADING_CATEGORIES = new Set(["footer", "resources", "settings"]);
 
-// Every icon key a Go source names, from either place one can appear: a
-// MenuItem's Icon (sidebar) or plugin.Info's Icon (feature card). A key that
-// isn't in the PLUGIN_ICONS table doesn't fail — the shell renders the string
-// itself, so "book" appeared as the word "book" next to Help in the sidebar for
-// as long as it took someone to notice.
 const GO_ICON = /\bIcon:\s*"([^"]*)"/g;
 
 function collectGoIcons() {
@@ -661,9 +523,6 @@ function collectGoIcons() {
   return icons;
 }
 
-// The keys of the PLUGIN_ICONS map in web/src/shell/areas.tsx, read from the
-// source rather than restated here — a copy in this script would drift from the
-// table and start passing icons the shell can't resolve.
 function registeredIconKeys() {
   const file = path.join(webDir, "src/shell/areas.tsx");
   const sf = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -675,7 +534,6 @@ function registeredIconKeys() {
       node.name.text === "PLUGIN_ICONS" &&
       node.initializer
     ) {
-      // The map may be written as `{...} as const` / with a type assertion.
       let init = node.initializer;
       while (ts.isAsExpression(init) || ts.isTypeAssertionExpression?.(init)) init = init.expression;
       if (ts.isObjectLiteralExpression(init)) {
@@ -723,8 +581,6 @@ function checkGoMenuI18n(defined) {
   console.log("\n=== Checking Go Menu i18n (sidebar ids & group headings) ===");
 
   const menus = collectGoMenus();
-  // An empty parse would make this pass vacuously — which is worse than failing,
-  // because the check would go quiet exactly when the Go MenuItem shape changed.
   if (menus.length < 4) {
     console.error(`❌ parsed only ${menus.length} Go menu entries — the MenuItem literal shape probably changed`);
     hasErrors = true;
@@ -759,21 +615,6 @@ function checkGoMenuI18n(defined) {
   checkGoMenuIcons();
 }
 
-// ---------------------------------------------------------------------------
-// Part 4: Locale Coverage — which dictionaries don't ship all five languages
-// ---------------------------------------------------------------------------
-//
-// Part 1 compares each locale a dictionary DECLARES against its en block, so a
-// dictionary that simply omits es/pt/ja passes: there is nothing to compare.
-// That is exactly how the links/mail/dns plugins came to serve ~90% English to
-// Spanish, Portuguese and Japanese users while the audit stayed green — the
-// runtime falls back to en per key, so nothing looks broken, it just isn't
-// translated.
-//
-// Enforced. It was reported-only while the five-locale commitment was still an
-// open question; the answer is yes, ship all five, and every dictionary now
-// does. Anything less is a regression, and a silent one — the runtime falls
-// back per key, so an untranslated page looks fine to whoever added it.
 function checkLocaleCoverage(sourceFiles, dictIdents) {
   console.log("\n=== Checking Locale Coverage (plugin dictionaries) ===");
   const REQUIRED = ["zh", "es", "pt", "ja"];
@@ -824,7 +665,6 @@ function checkLocaleCoverage(sourceFiles, dictIdents) {
   hasErrors = true;
 }
 
-// Run audits
 checkDictionaryCompleteness();
 checkHardcodedStrings();
 checkKeyResolution();

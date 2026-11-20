@@ -7,8 +7,6 @@ const KEY = "octarq-show-personal";
 
 describe("showPersonalArea preference", () => {
   beforeEach(() => {
-    // Reset the module-level memory, then leave storage empty so the default
-    // path (nothing stored) is the one under test.
     localStorage.clear();
     setShowPersonalArea(true);
     localStorage.clear();

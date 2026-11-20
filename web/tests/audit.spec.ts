@@ -15,14 +15,11 @@ test.describe("Audit Trail E2E Journey", () => {
     await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
-    // Navigate to audit page
     await page.goto("/admin/governance/audit");
     await page.waitForLoadState("networkidle");
 
-    // The audit table or heading should render
     await expect(page.getByRole("heading", { name: /Audit/i })).toBeVisible();
 
-    // Verify backstop guards
     await expectNoCommentLeak(page);
     await expectNoI18nLeak(page);
     guard.assertClean();
