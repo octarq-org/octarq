@@ -189,6 +189,9 @@ func TestParsePriceCatalogRefusesCorruption(t *testing.T) {
 		`{"model_count": 2, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2}}]}`,
 		`{"model_count": 2, "models": [{"model_id": "a"}, {"model_id": "a"}]}`,
 		`{"model_count": 1, "models": [{"model_id": ""}]}`,
+		`{"model_count": 1, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2, "unit": "1K tokens"}}]}`,
+		`{"model_count": 1, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2, "currency": "EUR"}}]}`,
+		`{"model_count": 1, "models": [{"model_id": "a", "pricing": {"input": -1, "output": 2}}]}`,
 	} {
 		if _, err := parsePriceCatalog([]byte(raw)); err == nil {
 			t.Fatalf("parse %s = nil, want an error", raw)

@@ -63,6 +63,11 @@ once (`sync.Once`) into a case-insensitive index of `model_id`.
   binary small. Models are ordered by `model_id` so the file is deterministic.
 - A price change arrives with a binary update. There is no manual entry and no
   per-org price table.
+- Row guards, checked at parse time: a non-empty `unit` must be `1M tokens`
+  (case-insensitive), a non-empty `currency` must be `USD`, and no price may be
+  negative. One violating row rejects the whole file, so a per-1K, per-image or
+  foreign-currency figure can never be read as USD per 1M tokens. A `null`
+  price is not a guard failure: it marks an unpriced model.
 
 ### 4.2 Lookup rules
 
@@ -78,7 +83,8 @@ once (`sync.Once`) into a case-insensitive index of `model_id`.
 
 A catalog parse failure returns `plugin.ErrPricingUnavailable` for every lookup.
 `Plugin.Validate` parses the catalog at boot and refuses to start on failure, so
-a corrupt embed never serves a turn.
+a corrupt embed never serves a turn. The parse also refuses a row whose unit is
+not `1M tokens`, whose currency is not `USD`, or whose price is negative.
 
 A cost ceiling over a zero price can never trip, which is why an unpriced model
 is refused. A consumer without a price registry receives

@@ -79,6 +79,24 @@ func parsePriceCatalog(raw []byte) (*priceCatalog, error) {
 		if _, dup := c.byID[id]; dup {
 			return nil, fmt.Errorf("llm gateway: price catalog repeats model_id %q", e.ModelID)
 		}
+		if unit := strings.ToLower(strings.TrimSpace(e.Pricing.Unit)); unit != "" && unit != "1m tokens" {
+			return nil, fmt.Errorf("llm gateway: price catalog row %d (%s) has unit %q, want 1M tokens", i, e.ModelID, e.Pricing.Unit)
+		}
+		if currency := strings.ToUpper(strings.TrimSpace(e.Pricing.Currency)); currency != "" && currency != "USD" {
+			return nil, fmt.Errorf("llm gateway: price catalog row %d (%s) has currency %q, want USD", i, e.ModelID, e.Pricing.Currency)
+		}
+		for _, p := range []struct {
+			name  string
+			value *float64
+		}{
+			{"input", e.Pricing.Input},
+			{"output", e.Pricing.Output},
+			{"cached_input", e.Pricing.CachedInput},
+		} {
+			if p.value != nil && *p.value < 0 {
+				return nil, fmt.Errorf("llm gateway: price catalog row %d (%s) has a negative %s price", i, e.ModelID, p.name)
+			}
+		}
 		c.byID[id] = i
 		suffix := id
 		if slash := strings.LastIndex(id, "/"); slash >= 0 {
