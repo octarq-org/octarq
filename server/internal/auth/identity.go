@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/tenancy"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
@@ -169,6 +167,9 @@ func joinOrg(db *gorm.DB, userID uint, id plugin.ExternalIdentity) (uint, uint, 
 	var member models.OrgMember
 	e := db.Where("org_id = ? AND user_id = ?", id.OrgID, userID).First(&member).Error
 	if e == nil {
+		if _, err := EnsurePersonalOrg(db, userID); err != nil {
+			return 0, 0, err
+		}
 		return userID, id.OrgID, nil
 	}
 	if !errors.Is(e, gorm.ErrRecordNotFound) {
@@ -178,6 +179,9 @@ func joinOrg(db *gorm.DB, userID uint, id plugin.ExternalIdentity) (uint, uint, 
 		return 0, 0, ErrRegistrationDisabled
 	}
 	if err := db.Create(&models.OrgMember{OrgID: id.OrgID, UserID: userID, Role: jitRole(id.JITRole)}).Error; err != nil {
+		return 0, 0, err
+	}
+	if _, err := EnsurePersonalOrg(db, userID); err != nil {
 		return 0, 0, err
 	}
 	return userID, id.OrgID, nil
@@ -196,28 +200,13 @@ func firstOrPersonalOrg(db *gorm.DB, userID uint) (uint, error) {
 	var member models.OrgMember
 	e := db.Where("user_id = ?", userID).Order("org_id").First(&member).Error
 	if e == nil {
+		if _, err := EnsurePersonalOrg(db, userID); err != nil {
+			return 0, err
+		}
 		return member.OrgID, nil
 	}
 	if !errors.Is(e, gorm.ErrRecordNotFound) {
 		return 0, e
 	}
-	var user models.User
-	if err := db.First(&user, userID).Error; err != nil {
-		return 0, err
-	}
-	slug, err := models.AllocateOrgSlug(db)
-	if err != nil {
-		return 0, err
-	}
-	org := models.Org{Name: user.Email, Slug: slug, Kind: models.OrgKindPersonal, InboundToken: uuid.NewString()}
-	if err := db.Create(&org).Error; err != nil {
-		return 0, err
-	}
-	if _, _, err := tenancy.Provision(db, org.ID, org.Slug); err != nil {
-		return 0, err
-	}
-	if err := db.Create(&models.OrgMember{OrgID: org.ID, UserID: userID, Role: "owner"}).Error; err != nil {
-		return 0, err
-	}
-	return org.ID, nil
+	return EnsurePersonalOrg(db, userID)
 }
