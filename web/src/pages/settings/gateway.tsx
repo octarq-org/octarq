@@ -273,7 +273,7 @@ export function GatewaySettings() {
                   { value: "all", label: t("gateway.pricesAllProviders", "All providers") },
                   ...priceProviders.map((id) => ({ value: id, label: id })),
                 ]}
-                className="h-9 min-w-44"
+                className="h-9 w-44 shrink-0"
               />
               <span className="text-xs text-muted-foreground">
                 {t("gateway.pricesShown", "{{shown}} of {{total}} models")
