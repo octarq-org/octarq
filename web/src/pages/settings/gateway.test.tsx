@@ -35,7 +35,7 @@ describe("GatewaySettings", () => {
   it("offers the agent endpoint and the workspace models", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([provider]);
     vi.spyOn(api, "modelPrices").mockResolvedValue([
-      { model: "qwen-flash", displayName: "Qwen Flash", input: 0.05, output: 0.4, reasoning: 0.4 },
+      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4 },
     ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai", "ollama"]);
 
@@ -53,7 +53,7 @@ describe("GatewaySettings", () => {
   it("lists the bundled prices and offers no editor", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([]);
     vi.spyOn(api, "modelPrices").mockResolvedValue([
-      { model: "qwen-flash", displayName: "Qwen Flash", input: 0.05, output: 0.4, reasoning: 0.4 },
+      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4 },
     ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
 
@@ -64,6 +64,73 @@ describe("GatewaySettings", () => {
     expect(screen.getByText("In 0.05 · Out 0.4 · Reason 0.4")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add price" })).toBeNull();
     expect(screen.queryByRole("button", { name: /price/i })).toBeNull();
+  });
+
+  it("shows the cached price when the catalog carries one", async () => {
+    vi.spyOn(api, "llmProviders").mockResolvedValue([]);
+    vi.spyOn(api, "modelPrices").mockResolvedValue([
+      {
+        model: "qwen-flash",
+        displayName: "Qwen Flash",
+        providerId: "alibaba-qwen",
+        input: 0.05,
+        output: 0.4,
+        reasoning: 0.4,
+        cachedInput: 0.01,
+      },
+    ]);
+    vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
+
+    renderGateway();
+
+    expect(await screen.findByText("In 0.05 · Cached 0.01 · Out 0.4 · Reason 0.4")).toBeTruthy();
+    expect(screen.getByText("alibaba-qwen")).toBeTruthy();
+  });
+
+  it("filters the price list by free text", async () => {
+    vi.spyOn(api, "llmProviders").mockResolvedValue([]);
+    vi.spyOn(api, "modelPrices").mockResolvedValue([
+      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4 },
+      { model: "gpt-4o", displayName: "GPT-4o", providerId: "openai", input: 2.5, output: 10, reasoning: 10 },
+    ]);
+    vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
+
+    renderGateway();
+
+    expect(await screen.findByText("qwen-flash")).toBeTruthy();
+    expect(screen.getByText("gpt-4o")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Search models"), { target: { value: "gpt" } });
+    await waitFor(() => expect(screen.queryByText("qwen-flash")).toBeNull());
+    expect(screen.getByText("gpt-4o")).toBeTruthy();
+    expect(screen.getByText("1 of 2 models")).toBeTruthy();
+    expect(screen.getByLabelText("Provider")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Search models"), { target: { value: "nothing-matches" } });
+    expect(await screen.findByText("No model matches the filter.")).toBeTruthy();
+  });
+
+  it("paginates the price list", async () => {
+    const rows = Array.from({ length: 25 }, (_, i) => ({
+      model: `model-${String(i + 1).padStart(2, "0")}`,
+      displayName: "",
+      providerId: "openai",
+      input: 1,
+      output: 2,
+      reasoning: 2,
+    }));
+    vi.spyOn(api, "llmProviders").mockResolvedValue([]);
+    vi.spyOn(api, "modelPrices").mockResolvedValue(rows);
+    vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
+
+    renderGateway();
+
+    expect(await screen.findByText("model-01")).toBeTruthy();
+    expect(screen.queryByText("model-21")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(await screen.findByText("model-21")).toBeTruthy();
+    expect(screen.queryByText("model-01")).toBeNull();
   });
 
   it("reads the model list from the provider when the form opens", async () => {

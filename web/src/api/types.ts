@@ -388,9 +388,11 @@ export interface DiscoverModelsInput {
 export interface ModelPriceDTO {
   model: string;
   displayName: string;
+  providerId: string;
   input: number;
   output: number;
   reasoning: number;
+  cachedInput?: number;
 }
 
 export interface VaultSchemaField {

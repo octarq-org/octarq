@@ -27,11 +27,13 @@ type ProviderDTO struct {
 }
 
 type PriceDTO struct {
-	Model       string  `json:"model"`
-	DisplayName string  `json:"displayName"`
-	Input       float64 `json:"input"`
-	Output      float64 `json:"output"`
-	Reasoning   float64 `json:"reasoning"`
+	Model       string   `json:"model"`
+	DisplayName string   `json:"displayName"`
+	ProviderID  string   `json:"providerId"`
+	Input       float64  `json:"input"`
+	Output      float64  `json:"output"`
+	Reasoning   float64  `json:"reasoning"`
+	CachedInput *float64 `json:"cachedInput,omitempty"`
 }
 
 func toProviderDTO(row Provider) ProviderDTO {

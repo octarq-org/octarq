@@ -11,11 +11,13 @@ import {
   PageShell,
   Select,
   Separator,
+  TablePagination,
   toast,
 } from "@octarq/plugin-sdk";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type { LLMProviderDTO, LLMProviderInput, ModelPriceDTO } from "../../api/types";
+import { filterModelPrices, paginatePrices, PRICE_PAGE_SIZE } from "./priceList";
 import { useTranslation } from "../../i18n";
 
 type Draft = LLMProviderInput & { id?: number };
@@ -34,6 +36,10 @@ export function GatewaySettings() {
   const [models, setModels] = useState<string[]>([]);
   const [modelsBusy, setModelsBusy] = useState(false);
   const [modelsFailed, setModelsFailed] = useState(false);
+  const [priceQuery, setPriceQuery] = useState("");
+  const [priceProvider, setPriceProvider] = useState("all");
+  const [pricePage, setPricePage] = useState(1);
+  const [pricePageSize, setPricePageSize] = useState(PRICE_PAGE_SIZE);
 
   const load = useCallback(async () => {
     try {
@@ -113,6 +119,32 @@ export function GatewaySettings() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const priceProviders = useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of prices) if (row.providerId) seen.add(row.providerId);
+    return [...seen].sort();
+  }, [prices]);
+
+  const filteredPrices = useMemo(
+    () => filterModelPrices(prices, priceQuery, priceProvider),
+    [prices, priceProvider, priceQuery],
+  );
+
+  const pricePages = paginatePrices(filteredPrices, pricePage, pricePageSize);
+  const visiblePrices = pricePages.rows;
+
+  const priceLine = (row: ModelPriceDTO) => {
+    const parts = [
+      t("gateway.priceInput", "In {{value}}").replace("{{value}}", String(row.input)),
+    ];
+    if (row.cachedInput != null) {
+      parts.push(t("gateway.priceCached", "Cached {{value}}").replace("{{value}}", String(row.cachedInput)));
+    }
+    parts.push(t("gateway.priceOutput", "Out {{value}}").replace("{{value}}", String(row.output)));
+    parts.push(t("gateway.priceReasoning", "Reason {{value}}").replace("{{value}}", String(row.reasoning)));
+    return parts.join(" · ");
   };
 
   return (
@@ -218,27 +250,76 @@ export function GatewaySettings() {
             <p className="text-sm text-muted-foreground">{t("gateway.noPrices", "The pricing dataset lists no billable model.")}</p>
           </PageCard>
         ) : prices.length > 0 ? (
-          <PageRows>
-            {prices.map((row, idx) => (
-              <Fragment key={row.model}>
-                {idx > 0 && <Separator />}
-                <PageRow
-                  title={
-                    <span className="flex items-center gap-2">
-                      <span className="font-mono text-xs">{row.model}</span>
-                      {row.displayName && row.displayName !== row.model && (
-                        <span className="text-xs text-muted-foreground">{row.displayName}</span>
-                      )}
-                    </span>
-                  }
-                  description={t("gateway.priceSummary", "In {{input}} · Out {{output}} · Reason {{reasoning}}")
-                    .replace("{{input}}", String(row.input))
-                    .replace("{{output}}", String(row.output))
-                    .replace("{{reasoning}}", String(row.reasoning))}
-                />
-              </Fragment>
-            ))}
-          </PageRows>
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Input
+                aria-label={t("gateway.pricesSearch", "Search models")}
+                placeholder={t("gateway.pricesSearch", "Search models")}
+                value={priceQuery}
+                onChange={(e) => {
+                  setPriceQuery(e.target.value);
+                  setPricePage(1);
+                }}
+                className="h-9 w-full max-w-xs"
+              />
+              <Select
+                aria-label={t("gateway.pricesProvider", "Provider")}
+                value={priceProvider}
+                onValueChange={(value) => {
+                  setPriceProvider(value);
+                  setPricePage(1);
+                }}
+                options={[
+                  { value: "all", label: t("gateway.pricesAllProviders", "All providers") },
+                  ...priceProviders.map((id) => ({ value: id, label: id })),
+                ]}
+                className="h-9 min-w-44"
+              />
+              <span className="text-xs text-muted-foreground">
+                {t("gateway.pricesShown", "{{shown}} of {{total}} models")
+                  .replace("{{shown}}", String(filteredPrices.length))
+                  .replace("{{total}}", String(prices.length))}
+              </span>
+            </div>
+            {filteredPrices.length === 0 ? (
+              <PageCard>
+                <p className="text-sm text-muted-foreground">{t("gateway.noPriceMatches", "No model matches the filter.")}</p>
+              </PageCard>
+            ) : (
+              <PageRows>
+                {visiblePrices.map((row, idx) => (
+                  <Fragment key={row.model}>
+                    {idx > 0 && <Separator />}
+                    <PageRow
+                      title={
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono text-xs">{row.model}</span>
+                          {row.displayName && row.displayName !== row.model && (
+                            <span className="text-xs text-muted-foreground">{row.displayName}</span>
+                          )}
+                        </span>
+                      }
+                      description={
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span>{priceLine(row)}</span>
+                          {row.providerId && <Badge>{row.providerId}</Badge>}
+                        </span>
+                      }
+                    />
+                  </Fragment>
+                ))}
+              </PageRows>
+            )}
+            <TablePagination
+              page={pricePages.page}
+              pageSize={pricePageSize}
+              total={filteredPrices.length}
+              pageCount={pricePages.pageCount}
+              onPageChange={setPricePage}
+              onPageSizeChange={setPricePageSize}
+              config={{ hideOnSinglePage: true }}
+            />
+          </>
         ) : null}
       </PageSection>
 
