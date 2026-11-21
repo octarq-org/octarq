@@ -144,3 +144,96 @@ func TestBackfillPersonalOrgsProvisionsEveryUser(t *testing.T) {
 		t.Fatalf("personal orgs = %d, want 2", count)
 	}
 }
+
+func TestEnsurePersonalOrgRejectsEmptyInputs(t *testing.T) {
+	if id, err := EnsurePersonalOrg(nil, 7); err != nil || id != 0 {
+		t.Fatalf("nil db: got (%d, %v), want (0, nil)", id, err)
+	}
+	db := identityDB(t)
+	if id, err := EnsurePersonalOrg(db, 0); err != nil || id != 0 {
+		t.Fatalf("zero user: got (%d, %v), want (0, nil)", id, err)
+	}
+	if _, err := EnsurePersonalOrg(db, 9999); err == nil {
+		t.Fatal("unknown user: want an error")
+	}
+}
+
+func TestBackfillPersonalOrgsToleratesNilDB(t *testing.T) {
+	if err := BackfillPersonalOrgs(nil); err != nil {
+		t.Fatalf("BackfillPersonalOrgs(nil) = %v, want nil", err)
+	}
+}
+
+func TestFirstOrPersonalOrgCreatesForUnattachedUser(t *testing.T) {
+	db := identityDB(t)
+	user := mustUser(t, db, "loner@acme.com")
+
+	orgID, err := firstOrPersonalOrg(db, user.ID)
+	if err != nil {
+		t.Fatalf("firstOrPersonalOrg: %v", err)
+	}
+	if orgID == 0 {
+		t.Fatal("firstOrPersonalOrg returned 0")
+	}
+	var org models.Org
+	if err := db.First(&org, orgID).Error; err != nil {
+		t.Fatalf("load org: %v", err)
+	}
+	if org.Kind != models.OrgKindPersonal {
+		t.Fatalf("kind = %q, want %q", org.Kind, models.OrgKindPersonal)
+	}
+}
+
+func TestEnsurePersonalOrgSurfacesDatabaseErrors(t *testing.T) {
+	db := identityDB(t)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("sql db: %v", err)
+	}
+	if err := sqlDB.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if _, err := EnsurePersonalOrg(db, 1); err == nil {
+		t.Fatal("EnsurePersonalOrg on a closed database: want an error")
+	}
+	if err := BackfillPersonalOrgs(db); err == nil {
+		t.Fatal("BackfillPersonalOrgs on a closed database: want an error")
+	}
+	if _, err := firstOrPersonalOrg(db, 1); err == nil {
+		t.Fatal("firstOrPersonalOrg on a closed database: want an error")
+	}
+}
+
+func TestPersonalOrgIDSurfacesNoRowOnClosedDatabase(t *testing.T) {
+	db := identityDB(t)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("sql db: %v", err)
+	}
+	if err := sqlDB.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if got := PersonalOrgID(db, 1); got != 0 {
+		t.Fatalf("PersonalOrgID on a closed database = %d, want 0", got)
+	}
+}
+
+func TestFirstOrPersonalOrgKeepsTeamOrgAndAddsPersonal(t *testing.T) {
+	db := identityDB(t)
+	user := mustUser(t, db, "member@acme.com")
+	team := mustOrg(t, db, "Team")
+	if err := db.Create(&models.OrgMember{OrgID: team.ID, UserID: user.ID, Role: "member"}).Error; err != nil {
+		t.Fatalf("membership: %v", err)
+	}
+
+	got, err := firstOrPersonalOrg(db, user.ID)
+	if err != nil {
+		t.Fatalf("firstOrPersonalOrg: %v", err)
+	}
+	if got != team.ID {
+		t.Fatalf("firstOrPersonalOrg = %d, want the team org %d", got, team.ID)
+	}
+	if personal := PersonalOrgID(db, user.ID); personal == 0 || personal == team.ID {
+		t.Fatalf("personal org = %d, want a new org after the call", personal)
+	}
+}

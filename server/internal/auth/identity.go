@@ -167,6 +167,9 @@ func joinOrg(db *gorm.DB, userID uint, id plugin.ExternalIdentity) (uint, uint, 
 	var member models.OrgMember
 	e := db.Where("org_id = ? AND user_id = ?", id.OrgID, userID).First(&member).Error
 	if e == nil {
+		if _, err := EnsurePersonalOrg(db, userID); err != nil {
+			return 0, 0, err
+		}
 		return userID, id.OrgID, nil
 	}
 	if !errors.Is(e, gorm.ErrRecordNotFound) {
@@ -176,6 +179,9 @@ func joinOrg(db *gorm.DB, userID uint, id plugin.ExternalIdentity) (uint, uint, 
 		return 0, 0, ErrRegistrationDisabled
 	}
 	if err := db.Create(&models.OrgMember{OrgID: id.OrgID, UserID: userID, Role: jitRole(id.JITRole)}).Error; err != nil {
+		return 0, 0, err
+	}
+	if _, err := EnsurePersonalOrg(db, userID); err != nil {
 		return 0, 0, err
 	}
 	return userID, id.OrgID, nil
