@@ -77,3 +77,70 @@ func mustUserID(t *testing.T, db *gorm.DB, email string) uint {
 	}
 	return u.ID
 }
+
+func TestEnsurePersonalOrgCreatesForExistingTeamMember(t *testing.T) {
+	db := identityDB(t)
+	user := mustUser(t, db, "teammate@acme.com")
+	team := mustOrg(t, db, "Team")
+	if err := db.Create(&models.OrgMember{OrgID: team.ID, UserID: user.ID, Role: "member"}).Error; err != nil {
+		t.Fatalf("team membership: %v", err)
+	}
+
+	first, err := EnsurePersonalOrg(db, user.ID)
+	if err != nil {
+		t.Fatalf("EnsurePersonalOrg: %v", err)
+	}
+	if first == 0 || first == team.ID {
+		t.Fatalf("personal org = %d, want a new org distinct from team %d", first, team.ID)
+	}
+	var org models.Org
+	if err := db.First(&org, first).Error; err != nil {
+		t.Fatalf("load org: %v", err)
+	}
+	if org.Kind != models.OrgKindPersonal {
+		t.Fatalf("kind = %q, want %q", org.Kind, models.OrgKindPersonal)
+	}
+	if got := PersonalOrgID(db, user.ID); got != first {
+		t.Fatalf("PersonalOrgID = %d, want %d", got, first)
+	}
+
+	second, err := EnsurePersonalOrg(db, user.ID)
+	if err != nil {
+		t.Fatalf("EnsurePersonalOrg second: %v", err)
+	}
+	if second != first {
+		t.Fatalf("second call returned %d, want the existing %d", second, first)
+	}
+}
+
+func TestBackfillPersonalOrgsProvisionsEveryUser(t *testing.T) {
+	db := identityDB(t)
+	withTeam := mustUser(t, db, "one@acme.com")
+	team := mustOrg(t, db, "Team")
+	if err := db.Create(&models.OrgMember{OrgID: team.ID, UserID: withTeam.ID, Role: "owner"}).Error; err != nil {
+		t.Fatalf("membership: %v", err)
+	}
+	solo := mustUser(t, db, "two@acme.com")
+	if err := db.Create(&models.OrgMember{OrgID: team.ID, UserID: solo.ID, Role: "member"}).Error; err != nil {
+		t.Fatalf("membership: %v", err)
+	}
+
+	if err := BackfillPersonalOrgs(db); err != nil {
+		t.Fatalf("BackfillPersonalOrgs: %v", err)
+	}
+	for _, uid := range []uint{withTeam.ID, solo.ID} {
+		if got := PersonalOrgID(db, uid); got == 0 {
+			t.Fatalf("user %d has no personal org after backfill", uid)
+		}
+	}
+	if err := BackfillPersonalOrgs(db); err != nil {
+		t.Fatalf("BackfillPersonalOrgs second: %v", err)
+	}
+	var count int64
+	if err := db.Table("orgs").Where("kind = ?", models.OrgKindPersonal).Count(&count).Error; err != nil {
+		t.Fatalf("count personal orgs: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("personal orgs = %d, want 2", count)
+	}
+}

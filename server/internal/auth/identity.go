@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/tenancy"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
@@ -196,28 +194,13 @@ func firstOrPersonalOrg(db *gorm.DB, userID uint) (uint, error) {
 	var member models.OrgMember
 	e := db.Where("user_id = ?", userID).Order("org_id").First(&member).Error
 	if e == nil {
+		if _, err := EnsurePersonalOrg(db, userID); err != nil {
+			return 0, err
+		}
 		return member.OrgID, nil
 	}
 	if !errors.Is(e, gorm.ErrRecordNotFound) {
 		return 0, e
 	}
-	var user models.User
-	if err := db.First(&user, userID).Error; err != nil {
-		return 0, err
-	}
-	slug, err := models.AllocateOrgSlug(db)
-	if err != nil {
-		return 0, err
-	}
-	org := models.Org{Name: user.Email, Slug: slug, Kind: models.OrgKindPersonal, InboundToken: uuid.NewString()}
-	if err := db.Create(&org).Error; err != nil {
-		return 0, err
-	}
-	if _, _, err := tenancy.Provision(db, org.ID, org.Slug); err != nil {
-		return 0, err
-	}
-	if err := db.Create(&models.OrgMember{OrgID: org.ID, UserID: userID, Role: "owner"}).Error; err != nil {
-		return 0, err
-	}
-	return org.ID, nil
+	return EnsurePersonalOrg(db, userID)
 }

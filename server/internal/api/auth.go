@@ -130,7 +130,18 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	}
 	var member models.OrgMember
 	if err := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error; errors.Is(err, gorm.ErrRecordNotFound) {
-		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
+		var orgExists int64
+		if err := h.db.Model(&models.Org{}).Where("id = ?", orgID).Count(&orgExists).Error; err != nil {
+			return 0
+		}
+		if orgExists > 0 {
+			if err := h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"}).Error; err != nil {
+				return 0
+			}
+		}
+	}
+	if _, err := auth.EnsurePersonalOrg(h.db, user.ID); err != nil {
+		return 0
 	}
 	return user.ID
 }

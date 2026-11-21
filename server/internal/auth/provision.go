@@ -57,7 +57,80 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 		return 0, 0, me
 	}
 
+	if _, err := EnsurePersonalOrg(db, user.ID); err != nil {
+		return 0, 0, err
+	}
+
 	return user.ID, member.OrgID, nil
+}
+
+func EnsurePersonalOrg(db *gorm.DB, userID uint) (uint, error) {
+	if db == nil || userID == 0 {
+		return 0, nil
+	}
+	orgID, err := personalOrgID(db, userID)
+	if err != nil {
+		return 0, err
+	}
+	if orgID != 0 {
+		return orgID, nil
+	}
+
+	var created uint
+	err = db.Transaction(func(tx *gorm.DB) error {
+		again, err := personalOrgID(tx, userID)
+		if err != nil {
+			return err
+		}
+		if again != 0 {
+			created = again
+			return nil
+		}
+		var user models.User
+		if err := tx.First(&user, userID).Error; err != nil {
+			return err
+		}
+		name := strings.ToLower(strings.TrimSpace(user.Email))
+		if name == "" {
+			name = "personal"
+		}
+		slug, err := models.AllocateOrgSlug(tx)
+		if err != nil {
+			return err
+		}
+		org := models.Org{Name: name, Slug: slug, Kind: models.OrgKindPersonal, InboundToken: uuid.NewString()}
+		if err := tx.Create(&org).Error; err != nil {
+			return err
+		}
+		if _, _, err := tenancy.Provision(tx, org.ID, org.Slug); err != nil {
+			return err
+		}
+		if err := tx.Create(&models.OrgMember{OrgID: org.ID, UserID: userID, Role: "owner"}).Error; err != nil {
+			return err
+		}
+		created = org.ID
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return created, nil
+}
+
+func BackfillPersonalOrgs(db *gorm.DB) error {
+	if db == nil {
+		return nil
+	}
+	var ids []uint
+	if err := db.Model(&models.User{}).Pluck("id", &ids).Error; err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if _, err := EnsurePersonalOrg(db, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func registrationAllowed(db *gorm.DB) bool {

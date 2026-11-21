@@ -35,18 +35,24 @@ func TestAdminLoginDoesNotDuplicateOrg(t *testing.T) {
 		lastRec = rec
 	}
 
-	var orgCount, memberCount int64
+	var orgCount, memberCount, personalCount int64
 	if err := db.Model(&models.Org{}).Count(&orgCount).Error; err != nil {
 		t.Fatalf("count orgs: %v", err)
 	}
-	if orgCount != 1 {
-		t.Fatalf("orgs after two admin logins: got %d, want 1 (each login minted a new org)", orgCount)
+	if orgCount != 2 {
+		t.Fatalf("orgs after two admin logins: got %d, want 2 (one team org plus one personal org, minted once)", orgCount)
+	}
+	if err := db.Model(&models.Org{}).Where("kind = ?", models.OrgKindPersonal).Count(&personalCount).Error; err != nil {
+		t.Fatalf("count personal orgs: %v", err)
+	}
+	if personalCount != 1 {
+		t.Fatalf("personal orgs after two admin logins: got %d, want 1", personalCount)
 	}
 	if err := db.Model(&models.OrgMember{}).Count(&memberCount).Error; err != nil {
 		t.Fatalf("count memberships: %v", err)
 	}
-	if memberCount != 1 {
-		t.Fatalf("org_members after two admin logins: got %d, want 1", memberCount)
+	if memberCount != 2 {
+		t.Fatalf("org_members after two admin logins: got %d, want 2", memberCount)
 	}
 	if got := h.bootstrapOrgID(); got != org.ID {
 		t.Fatalf("bootstrapOrgID after two logins: got %d, want %d (org resolution drifted)", got, org.ID)

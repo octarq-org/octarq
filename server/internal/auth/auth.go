@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
@@ -221,8 +222,16 @@ func (m *Manager) PersonalOrgID(r *http.Request) uint {
 }
 
 func PersonalOrgID(db *gorm.DB, userID uint) uint {
-	if db == nil || userID == 0 {
+	id, err := personalOrgID(db, userID)
+	if err != nil {
 		return 0
+	}
+	return id
+}
+
+func personalOrgID(db *gorm.DB, userID uint) (uint, error) {
+	if db == nil || userID == 0 {
+		return 0, nil
 	}
 	var member models.OrgMember
 	err := db.Table("org_members").
@@ -231,9 +240,12 @@ func PersonalOrgID(db *gorm.DB, userID uint) uint {
 		Order("org_members.org_id").
 		First(&member).Error
 	if err != nil {
-		return 0
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, err
 	}
-	return member.OrgID
+	return member.OrgID, nil
 }
 
 func (m *Manager) SessionID(r *http.Request) uint {

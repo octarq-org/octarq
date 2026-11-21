@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/server/idempotency"
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/db"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
@@ -43,6 +44,9 @@ func (a *App) prepareMigrationAndCipher() error {
 	}
 	if err := db.RecordSchemaVersion(a.gdb, db.SchemaVersion); err != nil {
 		return err
+	}
+	if err := auth.BackfillPersonalOrgs(a.gdb); err != nil {
+		return fmt.Errorf("provision personal workspaces: %w", err)
 	}
 	return a.cipher.EnableEnvelope(settingsStore{a.gdb})
 }
