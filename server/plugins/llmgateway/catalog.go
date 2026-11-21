@@ -150,9 +150,11 @@ func (c *priceCatalog) billable() []PriceDTO {
 		out = append(out, PriceDTO{
 			Model:       e.ModelID,
 			DisplayName: e.DisplayName,
+			ProviderID:  e.ProviderID,
 			Input:       *e.Pricing.Input,
 			Output:      *e.Pricing.Output,
 			Reasoning:   *e.Pricing.Output,
+			CachedInput: e.Pricing.CachedInput,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Model < out[j].Model })

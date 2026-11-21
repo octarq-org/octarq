@@ -362,6 +362,12 @@ func TestHTTPPricesAreReadOnly(t *testing.T) {
 		if row["input"].(float64) <= 0 || row["reasoning"] != row["output"] {
 			t.Fatalf("row = %v, want the catalog price with reasoning at the output rate", row)
 		}
+		if row["providerId"] != "alibaba-qwen" {
+			t.Fatalf("row = %v, want providerId alibaba-qwen", row)
+		}
+		if cached, _ := row["cachedInput"].(float64); cached != 0.01 {
+			t.Fatalf("row = %v, want cachedInput 0.01", row)
+		}
 	}
 	if !found {
 		t.Fatalf("prices = %v, want qwen-flash", listed["prices"])
