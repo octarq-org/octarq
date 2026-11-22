@@ -56,7 +56,7 @@ func coreGoFiles(t *testing.T, server string) []string {
 	return files
 }
 
-func TestWorkforceTablesStayOutOfCore(t *testing.T) {
+func TestSpendTablesStayOutOfCore(t *testing.T) {
 	server := findServerDir(t)
 	fset := token.NewFileSet()
 	sawSPI := false
@@ -66,7 +66,12 @@ func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 		if err != nil {
 			rel = path
 		}
-		if filepath.ToSlash(rel) == "plugin/workforce.go" {
+		slashRel := filepath.ToSlash(rel)
+		if slashRel == "plugin/workforce.go" {
+			t.Errorf("plugin/workforce.go still exists: workforce contract was replaced by plugin/spend.go")
+			continue
+		}
+		if slashRel == "plugin/spend.go" {
 			sawSPI = true
 			continue
 		}
@@ -89,8 +94,8 @@ func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 				if err != nil {
 					return true
 				}
-				if strings.HasPrefix(name, "workforce_") {
-					t.Errorf("%s: TableName() returns %q — workforce tables belong to the Pro module, core keeps only the contract", rel, name)
+				if strings.HasPrefix(name, "workforce_") || strings.HasPrefix(name, "spend_") {
+					t.Errorf("%s: TableName() returns %q — spend tables belong to the Pro module, core keeps only the contract", rel, name)
 				}
 				return true
 			})
@@ -106,26 +111,28 @@ func TestWorkforceTablesStayOutOfCore(t *testing.T) {
 			if err != nil {
 				return true
 			}
-			if strings.HasPrefix(value, "/api/workforce") {
-				t.Errorf("%s: mounts route %q — workforce routes belong to the Pro module", rel, value)
+			if strings.HasPrefix(value, "/api/workforce") || strings.HasPrefix(value, "/api/spend") {
+				t.Errorf("%s: mounts route %q — spend routes belong to the Pro module", rel, value)
 			}
 			return true
 		})
 	}
 
 	if !sawSPI {
-		t.Fatalf("plugin/workforce.go is missing: core must keep the workforce contract even though it ships no implementation")
+		t.Fatalf("plugin/spend.go is missing: core must keep the spend contract even though it ships no implementation")
 	}
 }
 
-func TestNoWorkforcePackageInCore(t *testing.T) {
+func TestNoSpendPackageInCore(t *testing.T) {
 	server := findServerDir(t)
 	for _, dir := range []string{
 		filepath.Join(server, "plugins", "workforce"),
 		filepath.Join(server, "internal", "workforce"),
+		filepath.Join(server, "plugins", "spend"),
+		filepath.Join(server, "internal", "spend"),
 	} {
 		if _, err := os.Stat(dir); err == nil {
-			t.Errorf("%s exists: the workforce implementation belongs to octarq-pro, not core", dir)
+			t.Errorf("%s exists: the spend implementation belongs to octarq-pro, not core", dir)
 		} else if !os.IsNotExist(err) {
 			t.Fatalf("stat %s: %v", dir, err)
 		}

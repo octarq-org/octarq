@@ -32,7 +32,7 @@ export async function streamChatResponse({
   messages,
   threadId,
   runId,
-  agentId,
+  accountId,
   signal,
   onThinking,
   onText,
@@ -43,7 +43,7 @@ export async function streamChatResponse({
   messages: Array<{ role: string; content: string }>;
   threadId?: string;
   runId?: string;
-  agentId?: string;
+  accountId?: string;
   signal?: AbortSignal;
   onThinking: (delta: string, tokens?: number) => void;
   onText: (delta: string) => void;
@@ -59,7 +59,7 @@ export async function streamChatResponse({
         threadId: threadId ?? newChatThreadId(),
         runId: runId ?? newChatRunId(),
         messages,
-        ...(agentId ? { agentId } : {}),
+        ...(accountId ? { accountId } : {}),
       }),
       signal,
     });

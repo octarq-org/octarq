@@ -80,13 +80,13 @@ func (h *hostRuntime) LookupCredential(ctx context.Context, orgID uint, query pl
 
 var _ plugin.Host = (*hostRuntime)(nil)
 
-func (h *hostRuntime) Workforce() plugin.Workforce {
+func (h *hostRuntime) SpendLedger() plugin.SpendLedger {
 	if h == nil || h.services == nil {
-		return plugin.EnsureHost(nil).Workforce()
+		return plugin.EnsureHost(nil).SpendLedger()
 	}
-	ledger, ok := plugin.LookupServiceAs[plugin.Workforce](h.services.Lookup, plugin.ServiceWorkforceLedger)
+	ledger, ok := plugin.LookupServiceAs[plugin.SpendLedger](h.services.Lookup, plugin.ServiceSpendLedger)
 	if !ok || ledger == nil {
-		return plugin.EnsureHost(nil).Workforce()
+		return plugin.EnsureHost(nil).SpendLedger()
 	}
 	return ledger
 }

@@ -432,14 +432,14 @@ The spec is versioned per workspace. Rows live in `agent_harness_specs`
 
 ### 7.2 Admin API
 
-Core does not ship the harness admin API. A plugin that owns agents registers a
-`plugin.HarnessSpecProvider` under `workforce.spec` and serves the version
+Core does not ship the harness admin API. A plugin that owns spend and agent harness registers a
+`plugin.HarnessSpecProvider` under `harness.spec` and serves the version
 management routes itself. Core's chat reads the published document through
 `plugin.Host.HarnessSpec`, compiles it here, and fails closed when the store
 returns an error.
 
 The routes, the audit actions and the version lifecycle below belong to that
-plugin (octarq-pro `modules/workforce`).
+plugin (octarq-pro `modules/spend`).
 
 | Method | Path | Purpose |
 |---|---|---|

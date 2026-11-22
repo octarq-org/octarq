@@ -65,7 +65,7 @@ func (h *stubHelpHost) HarnessSpec(context.Context, uint) (json.RawMessage, erro
 func (h *stubHelpHost) LookupCredential(context.Context, uint, plugin.CredentialQuery) (*plugin.Credential, error) {
 	return nil, plugin.ErrCredentialNotFound
 }
-func (h *stubHelpHost) Workforce() plugin.Workforce { return (&plugin.TestHost{}).Workforce() }
+func (h *stubHelpHost) SpendLedger() plugin.SpendLedger { return (&plugin.TestHost{}).SpendLedger() }
 
 func TestHelpDocs(t *testing.T) {
 	org1Enabled := true

@@ -259,11 +259,11 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
 
         <div className="flex items-center gap-1">
           <a
-            href="/workforce"
+            href="/spend"
             onClick={() => closeCopilot()}
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
-            title={t("copilot.openWorkforce", "AI Workforce Control Plane")}
-            aria-label={t("copilot.openWorkforce", "AI Workforce Control Plane")}
+            title={t("copilot.openSpend", "AI Spend Control Plane")}
+            aria-label={t("copilot.openSpend", "AI Spend Control Plane")}
           >
             <Bot className="h-4 w-4" />
           </a>

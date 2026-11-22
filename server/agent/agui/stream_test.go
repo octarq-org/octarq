@@ -145,13 +145,13 @@ func TestStream_TruncatesHugeToolResults(t *testing.T) {
 
 func TestStream_FailCarriesCodeAndStops(t *testing.T) {
 	s, rec := newRecorded()
-	s.Fail("workforce_spend_not_recorded", "spend was not recorded")
+	s.Fail("spend_not_recorded", "spend was not recorded")
 
 	if len(rec.types) != 1 || rec.types[0] != "RUN_ERROR" {
 		t.Fatalf("events = %v, want one RUN_ERROR", rec.types)
 	}
 	ev := jsonOf(t, rec.events[0])
-	if ev["code"] != "workforce_spend_not_recorded" || ev["runId"] != "run-abcdefgh" {
+	if ev["code"] != "spend_not_recorded" || ev["runId"] != "run-abcdefgh" {
 		t.Fatalf("run error = %v", ev)
 	}
 }

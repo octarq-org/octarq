@@ -15,7 +15,7 @@ type TestHost struct {
 	TenantDBMock         func(orgID uint) *TenantDB
 	HarnessSpecFn        func(ctx context.Context, orgID uint) (json.RawMessage, error)
 	LookupCredentialMock func(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
-	WorkforceMock        Workforce
+	SpendLedgerMock      SpendLedger
 }
 
 func (h *TestHost) Session() HostSession {
@@ -67,11 +67,11 @@ func (h *TestHost) LookupCredential(ctx context.Context, orgID uint, query Crede
 	return nil, ErrCredentialResolverUnavailable
 }
 
-func (h *TestHost) Workforce() Workforce {
-	if h != nil && h.WorkforceMock != nil {
-		return h.WorkforceMock
+func (h *TestHost) SpendLedger() SpendLedger {
+	if h != nil && h.SpendLedgerMock != nil {
+		return h.SpendLedgerMock
 	}
-	return unavailableWorkforce{}
+	return unavailableSpendLedger{}
 }
 
 var _ Host = (*TestHost)(nil)

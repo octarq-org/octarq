@@ -1,6 +1,7 @@
 package llmgateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,7 +21,58 @@ const (
 	AgentChatPath    = "/v1/chat/completions"
 	agentMaxBody     = 16 << 20
 	agentListTimeout = 15 * time.Second
+	virtualKeyPrefix = "sk-octarq-"
+	spendSourceProxy = "gateway_api"
 )
+
+type spendAuthContextKey struct{}
+
+func withSpendAccount(ctx context.Context, acct *plugin.SpendAccountAuth) context.Context {
+	ctx = plugin.WithOrgID(ctx, acct.OrgID)
+	return context.WithValue(ctx, spendAuthContextKey{}, acct)
+}
+
+func spendAccountFromContext(ctx context.Context) *plugin.SpendAccountAuth {
+	acct, _ := ctx.Value(spendAuthContextKey{}).(*plugin.SpendAccountAuth)
+	return acct
+}
+
+func extractVirtualKey(r *http.Request) (string, bool) {
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	if len(auth) < 7 || !strings.EqualFold(auth[:7], "bearer ") {
+		return "", false
+	}
+	token := strings.TrimSpace(auth[7:])
+	if !strings.HasPrefix(token, virtualKeyPrefix) {
+		return "", false
+	}
+	return token, true
+}
+
+func (p *Plugin) virtualKeyMiddleware(guard func(http.Handler) http.Handler, next http.Handler) http.Handler {
+	guarded := guard(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, ok := extractVirtualKey(r)
+		if !ok || p.pctx == nil || p.pctx.Host == nil || p.pctx.Host.SpendLedger() == nil {
+			guarded.ServeHTTP(w, r)
+			return
+		}
+		acct, err := p.pctx.Host.SpendLedger().ResolveVirtualKey(r.Context(), token)
+		if errors.Is(err, plugin.ErrSpendAccountPaused) || errors.Is(err, plugin.ErrSpendBudgetExhausted) {
+			writeAgentError(w, http.StatusPaymentRequired, "billing_error", "The spend account is paused or has exhausted its budget.")
+			return
+		}
+		if err != nil || acct == nil || acct.OrgID == 0 {
+			writeAgentError(w, http.StatusUnauthorized, "authentication_error", "The virtual key is invalid.")
+			return
+		}
+		if strings.EqualFold(acct.Status, "paused") || (acct.BudgetLimit > 0 && acct.BudgetUsed >= acct.BudgetLimit) {
+			writeAgentError(w, http.StatusPaymentRequired, "billing_error", "The spend account is paused or has exhausted its budget.")
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(withSpendAccount(r.Context(), acct)))
+	})
+}
 
 var hopByHop = map[string]bool{
 	"connection":          true,
@@ -38,8 +90,8 @@ func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	if mux == nil || ctx == nil || ctx.Guard == nil {
 		return
 	}
-	mux.Handle("GET "+AgentModelsPath, ctx.Guard(http.HandlerFunc(p.handleAgentModels)))
-	mux.Handle("POST "+AgentChatPath, ctx.Guard(http.HandlerFunc(p.handleAgentChat)))
+	mux.Handle("GET "+AgentModelsPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentModels)))
+	mux.Handle("POST "+AgentChatPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentChat)))
 	mux.Handle("POST "+AgentResponsesPath, ctx.Guard(http.HandlerFunc(p.handleAgentResponses)))
 	mux.Handle("POST "+AgentMessagesPath, ctx.Guard(http.HandlerFunc(p.handleAgentMessages)))
 	mux.Handle("POST "+AgentCountTokensPath, ctx.Guard(http.HandlerFunc(p.handleAgentCountTokens)))
@@ -332,6 +384,115 @@ func (p *Plugin) handleAgentModels(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(modelList{Object: "list", Data: models})
 }
 
+func isModelAllowed(model string, allowed []string) bool {
+	if model == "" {
+		return false
+	}
+	for _, a := range allowed {
+		trimmed := strings.TrimSpace(a)
+		if trimmed == "*" || strings.EqualFold(trimmed, model) {
+			return true
+		}
+	}
+	return false
+}
+
+type chatCompletionUsageEnvelope struct {
+	ID    string `json:"id"`
+	Model string `json:"model"`
+	Usage *struct {
+		PromptTokens            int `json:"prompt_tokens"`
+		CompletionTokens        int `json:"completion_tokens"`
+		InputTokens             int `json:"input_tokens"`
+		OutputTokens            int `json:"output_tokens"`
+		CacheReadInputTokens    int `json:"cache_read_input_tokens"`
+		CacheCreationInputToken int `json:"cache_creation_input_tokens"`
+		PromptTokensDetails     *struct {
+			CachedTokens int `json:"cached_tokens"`
+		} `json:"prompt_tokens_details"`
+		CompletionTokensDetails *struct {
+			ReasoningTokens int `json:"reasoning_tokens"`
+		} `json:"completion_tokens_details"`
+	} `json:"usage"`
+}
+
+func extractUsageFromEnvelope(env chatCompletionUsageEnvelope, turnID, model *string, in, out, reasoning, cacheRead, cacheWrite *int, sawUsage *bool) {
+	if env.ID != "" {
+		*turnID = env.ID
+	}
+	if env.Model != "" {
+		*model = env.Model
+	}
+	if env.Usage == nil {
+		return
+	}
+	*sawUsage = true
+	if env.Usage.PromptTokens > 0 || env.Usage.InputTokens == 0 {
+		*in = env.Usage.PromptTokens
+	} else {
+		*in = env.Usage.InputTokens
+	}
+	if env.Usage.CompletionTokens > 0 || env.Usage.OutputTokens == 0 {
+		*out = env.Usage.CompletionTokens
+	} else {
+		*out = env.Usage.OutputTokens
+	}
+	if env.Usage.CompletionTokensDetails != nil {
+		*reasoning = env.Usage.CompletionTokensDetails.ReasoningTokens
+	}
+	if env.Usage.PromptTokensDetails != nil && env.Usage.PromptTokensDetails.CachedTokens > 0 {
+		*cacheRead = env.Usage.PromptTokensDetails.CachedTokens
+	} else if env.Usage.CacheReadInputTokens > 0 {
+		*cacheRead = env.Usage.CacheReadInputTokens
+	}
+	if env.Usage.CacheCreationInputToken > 0 {
+		*cacheWrite = env.Usage.CacheCreationInputToken
+	}
+}
+
+func parseRelayedChatUsage(raw []byte, fallbackModel string) (plugin.TurnSpend, bool) {
+	turnID := ""
+	model := fallbackModel
+	var inTok, outTok, reasonTok, cacheReadTok, cacheWriteTok int
+	sawUsage := false
+
+	var single chatCompletionUsageEnvelope
+	if err := json.Unmarshal(raw, &single); err == nil && single.Usage != nil {
+		extractUsageFromEnvelope(single, &turnID, &model, &inTok, &outTok, &reasonTok, &cacheReadTok, &cacheWriteTok, &sawUsage)
+	} else {
+		for _, line := range strings.Split(string(raw), "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "data:") {
+				continue
+			}
+			payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			if payload == "" || payload == "[DONE]" {
+				continue
+			}
+			var chunk chatCompletionUsageEnvelope
+			if err := json.Unmarshal([]byte(payload), &chunk); err == nil {
+				extractUsageFromEnvelope(chunk, &turnID, &model, &inTok, &outTok, &reasonTok, &cacheReadTok, &cacheWriteTok, &sawUsage)
+			}
+		}
+	}
+	if !sawUsage {
+		return plugin.TurnSpend{}, false
+	}
+	if turnID == "" {
+		turnID = fmt.Sprintf("gw-%d", time.Now().UnixNano())
+	}
+	return plugin.TurnSpend{
+		Model:            model,
+		InputTokens:      inTok,
+		OutputTokens:     outTok,
+		ReasoningTokens:  reasonTok,
+		CacheReadTokens:  cacheReadTok,
+		CacheWriteTokens: cacheWriteTok,
+		Source:           spendSourceProxy,
+		TurnID:           turnID,
+	}, true
+}
+
 func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := p.agentOrg(w, r)
 	if !ok {
@@ -349,14 +510,40 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 	body := http.MaxBytesReader(w, r.Body, agentMaxBody)
 	defer body.Close()
 
+	acct := spendAccountFromContext(r.Context())
+	var forwardBody io.Reader = body
+	contentLength := r.ContentLength
+	reqModel := ap.Model
+
+	if acct != nil {
+		rawBody, readErr := io.ReadAll(body)
+		if readErr != nil {
+			writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The request body cannot be read.")
+			return
+		}
+		var chatReq struct {
+			Model string `json:"model"`
+		}
+		_ = json.Unmarshal(rawBody, &chatReq)
+		if m := strings.TrimSpace(chatReq.Model); m != "" {
+			reqModel = m
+		}
+		if len(acct.AllowedModels) > 0 && !isModelAllowed(strings.TrimSpace(chatReq.Model), acct.AllowedModels) {
+			writeAgentError(w, http.StatusForbidden, "permission_error", "The requested model is not allowed for this spend account.")
+			return
+		}
+		forwardBody = bytes.NewReader(rawBody)
+		contentLength = int64(len(rawBody))
+	}
+
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost,
-		ap.BaseURL+"/chat/completions", body)
+		ap.BaseURL+"/chat/completions", forwardBody)
 	if err != nil {
 		writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The request cannot be built.")
 		return
 	}
-	if r.ContentLength > 0 && r.ContentLength <= agentMaxBody {
-		req.ContentLength = r.ContentLength
+	if contentLength > 0 && contentLength <= agentMaxBody {
+		req.ContentLength = contentLength
 	}
 	ap.sign(req)
 	req.Header.Set("Content-Type", "application/json")
@@ -370,7 +557,18 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	relay(w, resp)
+
+	if acct == nil {
+		relay(w, resp)
+		return
+	}
+	captured := relayAndCapture(w, resp, 2<<20)
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 && p.pctx != nil && p.pctx.Host != nil && p.pctx.Host.SpendLedger() != nil {
+		if spend, hasUsage := parseRelayedChatUsage(captured, reqModel); hasUsage {
+			spend.AccountID = acct.AccountID
+			_, _ = p.pctx.Host.SpendLedger().RecordSpend(r.Context(), orgID, spend)
+		}
+	}
 }
 
 func acceptOf(r *http.Request) string {
@@ -381,6 +579,10 @@ func acceptOf(r *http.Request) string {
 }
 
 func relay(w http.ResponseWriter, resp *http.Response) {
+	_ = relayAndCapture(w, resp, 0)
+}
+
+func relayAndCapture(w http.ResponseWriter, resp *http.Response, maxCapture int) []byte {
 	for k, values := range resp.Header {
 		if hopByHop[strings.ToLower(k)] {
 			continue
@@ -391,24 +593,35 @@ func relay(w http.ResponseWriter, resp *http.Response) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	flusher, _ := w.(http.Flusher)
+	var captured bytes.Buffer
 	buf := make([]byte, 32<<10)
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
+			if maxCapture > 0 && captured.Len() < maxCapture {
+				rem := maxCapture - captured.Len()
+				if n < rem {
+					rem = n
+				}
+				captured.Write(buf[:rem])
+			}
 			if _, werr := w.Write(buf[:n]); werr != nil {
-				return
+				return captured.Bytes()
 			}
 			if flusher != nil {
 				flusher.Flush()
 			}
 		}
 		if err != nil {
-			return
+			return captured.Bytes()
 		}
 	}
 }
 
 func (p *Plugin) agentOrg(w http.ResponseWriter, r *http.Request) (uint, bool) {
+	if acct := spendAccountFromContext(r.Context()); acct != nil && acct.OrgID != 0 {
+		return acct.OrgID, true
+	}
 	if p.pctx == nil || p.pctx.Host == nil || p.pctx.Host.Session() == nil {
 		writeAgentError(w, http.StatusInternalServerError, "server_error", "The workspace cannot be read.")
 		return 0, false
