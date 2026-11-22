@@ -22,6 +22,7 @@ var (
 	_ plugin.Describer  = (*Plugin)(nil)
 	_ plugin.HelpDocsFS = (*Plugin)(nil)
 	_ plugin.Validator  = (*Plugin)(nil)
+	_ plugin.Starter    = (*Plugin)(nil)
 )
 
 func New() *Plugin { return &Plugin{} }
@@ -44,10 +45,16 @@ func (p *Plugin) Models() []any {
 }
 
 func (p *Plugin) Validate(ctx context.Context, host plugin.Host) error {
-	if _, err := pricingCatalog(); err != nil {
+	seed, err := initSeedCatalog()
+	if err != nil {
 		return err
 	}
+	replaceCatalog(seed)
 	return nil
+}
+
+func (p *Plugin) Start(ctx context.Context) {
+	startPricingRefresher(ctx)
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {

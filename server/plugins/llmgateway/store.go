@@ -239,11 +239,51 @@ func (s *Store) ActiveProvider(ctx context.Context, orgID uint) (*Provider, erro
 }
 
 func (s *Store) Price(ctx context.Context, orgID uint, model string) (plugin.ModelPrice, error) {
-	c, err := pricingCatalog()
-	if err != nil {
+	c := loadCatalog()
+	if c == nil {
 		return plugin.ModelPrice{}, plugin.ErrPricingUnavailable
 	}
-	return c.price(model)
+
+	price, err := s.priceInternal(ctx, c, orgID, model)
+	if errors.Is(err, plugin.ErrModelUnpriced) {
+		triggerUnpricedRefresh()
+	}
+	return price, err
+}
+
+func (s *Store) priceInternal(ctx context.Context, c *Catalog, orgID uint, model string) (plugin.ModelPrice, error) {
+	tdb, err := s.tenant(orgID)
+	if err != nil {
+		return plugin.ModelPrice{}, err
+	}
+	var rows []Provider
+	if err := tdb.Scoped(&Provider{}).WithContext(ctx).Where("model = ? OR cheap_model = ?", model, model).Find(&rows).Error; err != nil {
+		return plugin.ModelPrice{}, fmt.Errorf("llm gateway: query provider for model: %w", err)
+	}
+
+	if len(rows) == 0 {
+		_, _, price, err := c.ResolveBare(model)
+		return price, err
+	}
+
+	pids := make(map[string]bool)
+	for _, row := range rows {
+		pid, err := ProviderIDFor(row)
+		if err != nil {
+			return plugin.ModelPrice{}, err
+		}
+		pids[pid] = true
+	}
+
+	if len(pids) > 1 {
+		return plugin.ModelPrice{}, plugin.ErrModelAmbiguous
+	}
+
+	var singlePID string
+	for pid := range pids {
+		singlePID = pid
+	}
+	return c.PriceFor(singlePID, model)
 }
 
 func (s *Store) count(ctx context.Context, orgID uint) (int64, error) {
