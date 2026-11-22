@@ -59,9 +59,12 @@ describe("GatewaySettings", () => {
 
     renderGateway();
 
-    expect(await screen.findByText("qwen-flash")).toBeTruthy();
+    expect(await screen.findByText("alibaba-qwen/qwen-flash")).toBeTruthy();
     expect(screen.getByText("Qwen Flash")).toBeTruthy();
-    expect(screen.getByText("In 0.05 · Out 0.4 · Reason 0.4")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Model" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Cached input" })).toBeTruthy();
+    expect(screen.getByText("0.05")).toBeTruthy();
+    expect(screen.getAllByText("0.4")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Add price" })).toBeNull();
     expect(screen.queryByRole("button", { name: /price/i })).toBeNull();
   });
@@ -83,8 +86,8 @@ describe("GatewaySettings", () => {
 
     renderGateway();
 
-    expect(await screen.findByText("In 0.05 · Cached 0.01 · Out 0.4 · Reason 0.4")).toBeTruthy();
-    expect(screen.getByText("alibaba-qwen")).toBeTruthy();
+    expect(await screen.findByText("alibaba-qwen/qwen-flash")).toBeTruthy();
+    expect(screen.getByText("0.01")).toBeTruthy();
   });
 
   it("filters the price list by free text", async () => {
@@ -97,12 +100,12 @@ describe("GatewaySettings", () => {
 
     renderGateway();
 
-    expect(await screen.findByText("qwen-flash")).toBeTruthy();
-    expect(screen.getByText("gpt-4o")).toBeTruthy();
+    expect(await screen.findByText("alibaba-qwen/qwen-flash")).toBeTruthy();
+    expect(screen.getByText("openai/gpt-4o")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search models"), { target: { value: "gpt" } });
-    await waitFor(() => expect(screen.queryByText("qwen-flash")).toBeNull());
-    expect(screen.getByText("gpt-4o")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("alibaba-qwen/qwen-flash")).toBeNull());
+    expect(screen.getByText("openai/gpt-4o")).toBeTruthy();
     expect(screen.getByText("1 of 2 models")).toBeTruthy();
     expect(screen.getByLabelText("Provider")).toBeTruthy();
 
@@ -125,12 +128,12 @@ describe("GatewaySettings", () => {
 
     renderGateway();
 
-    expect(await screen.findByText("model-01")).toBeTruthy();
-    expect(screen.queryByText("model-21")).toBeNull();
+    expect(await screen.findByText("openai/model-01")).toBeTruthy();
+    expect(screen.queryByText("openai/model-21")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "2" }));
-    expect(await screen.findByText("model-21")).toBeTruthy();
-    expect(screen.queryByText("model-01")).toBeNull();
+    expect(await screen.findByText("openai/model-21")).toBeTruthy();
+    expect(screen.queryByText("openai/model-01")).toBeNull();
   });
 
   it("reads the model list from the provider when the form opens", async () => {
