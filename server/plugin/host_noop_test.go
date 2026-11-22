@@ -38,27 +38,29 @@ func TestTestHostDefaultsAreFailClosed(t *testing.T) {
 	}
 }
 
-type stubWorkforce struct{ calls int }
+type stubSpendLedger struct{ calls int }
 
-func (s *stubWorkforce) AuthorizeTurn(context.Context, uint, string, string) error {
+func (s *stubSpendLedger) AuthorizeTurn(context.Context, uint, string, string) error {
 	s.calls++
 	return nil
 }
-func (s *stubWorkforce) TurnCost(context.Context, uint, string) (func(input, output, cacheRead, cacheWrite int) float64, error) {
+func (s *stubSpendLedger) TurnCost(context.Context, uint, string) (func(input, output, cacheRead, cacheWrite int) float64, error) {
 	return func(int, int, int, int) float64 { return 0 }, nil
 }
-func (s *stubWorkforce) RecordSpend(context.Context, uint, plugin.TurnSpend) (*plugin.SpendRecord, error) {
+func (s *stubSpendLedger) RecordSpend(context.Context, uint, plugin.TurnSpend) (*plugin.SpendRecord, error) {
 	return &plugin.SpendRecord{}, nil
 }
-func (s *stubWorkforce) DecideApproval(context.Context, uint, string, bool) error { return nil }
+func (s *stubSpendLedger) ResolveVirtualKey(context.Context, string) (*plugin.SpendAccountAuth, error) {
+	return &plugin.SpendAccountAuth{OrgID: 1, AccountID: "acc", Status: "active"}, nil
+}
 
-func TestTestHostWorkforceUsesTheMock(t *testing.T) {
-	mock := &stubWorkforce{}
-	th := &plugin.TestHost{WorkforceMock: mock}
-	if got := th.Workforce(); got != plugin.Workforce(mock) {
-		t.Fatalf("Workforce = %T, want the mock", got)
+func TestTestHostSpendLedgerUsesTheMock(t *testing.T) {
+	mock := &stubSpendLedger{}
+	th := &plugin.TestHost{SpendLedgerMock: mock}
+	if got := th.SpendLedger(); got != plugin.SpendLedger(mock) {
+		t.Fatalf("SpendLedger = %T, want the mock", got)
 	}
-	if err := th.Workforce().AuthorizeTurn(context.Background(), 1, "a", "m"); err != nil {
+	if err := th.SpendLedger().AuthorizeTurn(context.Background(), 1, "a", "m"); err != nil {
 		t.Fatalf("AuthorizeTurn = %v, want nil", err)
 	}
 	if mock.calls != 1 {
@@ -66,28 +68,28 @@ func TestTestHostWorkforceUsesTheMock(t *testing.T) {
 	}
 
 	var nilHost *plugin.TestHost
-	if err := nilHost.Workforce().AuthorizeTurn(context.Background(), 1, "a", "m"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-		t.Fatalf("nil host: AuthorizeTurn = %v, want ErrWorkforceUnavailable", err)
+	if err := nilHost.SpendLedger().AuthorizeTurn(context.Background(), 1, "a", "m"); !errors.Is(err, plugin.ErrSpendUnavailable) {
+		t.Fatalf("nil host: AuthorizeTurn = %v, want ErrSpendUnavailable", err)
 	}
 }
 
-func TestWorkforceWithoutALedgerRefusesEveryCall(t *testing.T) {
+func TestSpendLedgerWithoutALedgerRefusesEveryCall(t *testing.T) {
 	ctx := context.Background()
-	for name, w := range map[string]plugin.Workforce{
-		"noop host": plugin.EnsureHost(nil).Workforce(),
-		"test host": (&plugin.TestHost{}).Workforce(),
+	for name, l := range map[string]plugin.SpendLedger{
+		"noop host": plugin.EnsureHost(nil).SpendLedger(),
+		"test host": (&plugin.TestHost{}).SpendLedger(),
 	} {
-		if err := w.AuthorizeTurn(ctx, 1, "agent", "model"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-			t.Fatalf("%s: AuthorizeTurn = %v, want ErrWorkforceUnavailable", name, err)
+		if err := l.AuthorizeTurn(ctx, 1, "account", "model"); !errors.Is(err, plugin.ErrSpendUnavailable) {
+			t.Fatalf("%s: AuthorizeTurn = %v, want ErrSpendUnavailable", name, err)
 		}
-		if _, err := w.TurnCost(ctx, 1, "model"); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-			t.Fatalf("%s: TurnCost = %v, want ErrWorkforceUnavailable", name, err)
+		if _, err := l.TurnCost(ctx, 1, "model"); !errors.Is(err, plugin.ErrSpendUnavailable) {
+			t.Fatalf("%s: TurnCost = %v, want ErrSpendUnavailable", name, err)
 		}
-		if _, err := w.RecordSpend(ctx, 1, plugin.TurnSpend{AgentID: "agent"}); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-			t.Fatalf("%s: RecordSpend = %v, want ErrWorkforceUnavailable", name, err)
+		if _, err := l.RecordSpend(ctx, 1, plugin.TurnSpend{AccountID: "account"}); !errors.Is(err, plugin.ErrSpendUnavailable) {
+			t.Fatalf("%s: RecordSpend = %v, want ErrSpendUnavailable", name, err)
 		}
-		if err := w.DecideApproval(ctx, 1, "task", true); !errors.Is(err, plugin.ErrWorkforceUnavailable) {
-			t.Fatalf("%s: DecideApproval = %v, want ErrWorkforceUnavailable", name, err)
+		if _, err := l.ResolveVirtualKey(ctx, "sk-octarq-test"); !errors.Is(err, plugin.ErrSpendUnavailable) {
+			t.Fatalf("%s: ResolveVirtualKey = %v, want ErrSpendUnavailable", name, err)
 		}
 	}
 }

@@ -138,7 +138,7 @@ const spendWriteTimeout = 10 * time.Second
 
 const spendSourceChat = "chat"
 
-func recordTurnSpend(parent context.Context, ledger plugin.Workforce, orgID uint, in plugin.TurnSpend) error {
+func recordTurnSpend(parent context.Context, ledger plugin.SpendLedger, orgID uint, in plugin.TurnSpend) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), spendWriteTimeout)
 	defer cancel()
 	_, err := ledger.RecordSpend(ctx, orgID, in)
@@ -147,18 +147,18 @@ func recordTurnSpend(parent context.Context, ledger plugin.Workforce, orgID uint
 
 func writeBillingRefusal(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, plugin.ErrWorkforceUnavailable):
-		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceAgentNotFound, "This build has no workforce ledger. Install the workforce feature to bill agent turns.")
-	case errors.Is(err, plugin.ErrWorkforceAgentNotFound):
-		writeErr(w, r, http.StatusNotFound, apierror.CodeWorkforceAgentNotFound, "No such workforce agent found in this workspace.")
-	case errors.Is(err, plugin.ErrWorkforceAgentPaused):
-		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceAgentPaused, "This agent is paused. Resume it before you run a turn.")
-	case errors.Is(err, plugin.ErrWorkforceBudgetExhausted):
-		writeErr(w, r, http.StatusConflict, apierror.CodeWorkforceBudgetExceeded, "This agent reached its monthly budget limit. Raise the limit before you run a turn.")
-	case errors.Is(err, plugin.ErrWorkforceModelUnpriced):
-		writeErr(w, r, http.StatusBadRequest, apierror.CodeWorkforceModelPriceAbsent, "The pricing dataset has no price for this model. Choose another model.")
+	case errors.Is(err, plugin.ErrSpendUnavailable):
+		writeErr(w, r, http.StatusConflict, apierror.CodeSpendAccountNotFound, "This build has no spend ledger. Install the spend feature to bill turns.")
+	case errors.Is(err, plugin.ErrSpendAccountNotFound):
+		writeErr(w, r, http.StatusNotFound, apierror.CodeSpendAccountNotFound, "No such spend account found in this workspace.")
+	case errors.Is(err, plugin.ErrSpendAccountPaused):
+		writeErr(w, r, http.StatusConflict, apierror.CodeSpendAccountPaused, "This account is paused. Resume it before you run a turn.")
+	case errors.Is(err, plugin.ErrSpendBudgetExhausted):
+		writeErr(w, r, http.StatusConflict, apierror.CodeSpendBudgetExceeded, "This account reached its monthly budget limit. Raise the limit before you run a turn.")
+	case errors.Is(err, plugin.ErrSpendModelUnpriced):
+		writeErr(w, r, http.StatusBadRequest, apierror.CodeSpendModelPriceAbsent, "The pricing dataset has no price for this model. Choose another model.")
 	default:
-		writeErr(w, r, http.StatusInternalServerError, "", "Could not check the agent budget; retry the request.")
+		writeErr(w, r, http.StatusInternalServerError, "", "Could not check the account budget; retry the request.")
 	}
 }
 
@@ -172,9 +172,9 @@ type AIChatStreamRequest struct {
 	RunID    string                `json:"runId"`
 	Messages []AIChatStreamMessage `json:"messages"`
 
-	Model    string `json:"model,omitempty"`
-	Thinking *bool  `json:"thinking,omitempty"`
-	AgentID  string `json:"agentId,omitempty"`
+	Model     string `json:"model,omitempty"`
+	Thinking  *bool  `json:"thinking,omitempty"`
+	AccountID string `json:"accountId,omitempty"`
 
 	Tools          json.RawMessage `json:"tools,omitempty"`
 	State          json.RawMessage `json:"state,omitempty"`
@@ -312,14 +312,14 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		model = req.Model
 	}
 
-	ledger := h.workforce()
-	billingAgent := req.AgentID
-	if billingAgent != "" {
+	ledger := h.spend()
+	billingAccount := req.AccountID
+	if billingAccount != "" {
 		if !h.callerHoldsRole(r, authz.RoleAdmin) {
 			writeErr(w, r, http.StatusForbidden, "", "Workspace permission denied; higher workspace role required")
 			return
 		}
-		if err := ledger.AuthorizeTurn(r.Context(), orgID, billingAgent, model); err != nil {
+		if err := ledger.AuthorizeTurn(r.Context(), orgID, billingAccount, model); err != nil {
 			writeBillingRefusal(w, r, err)
 			return
 		}
@@ -424,9 +424,9 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if billingAgent != "" {
+	if billingAccount != "" {
 		err := recordTurnSpend(r.Context(), ledger, orgID, plugin.TurnSpend{
-			AgentID:          billingAgent,
+			AccountID:        billingAccount,
 			Model:            model,
 			InputTokens:      turn.InputTokens,
 			OutputTokens:     turn.OutputTokens,
@@ -437,9 +437,9 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 			SessionID:        threadID,
 			TurnID:           runID,
 		})
-		if err != nil && !errors.Is(err, plugin.ErrWorkforceSpendReplayed) {
-			slog.Error("failed to record agent spend", "orgId", orgID, "agentId", billingAgent, "err", err)
-			stream.Fail(apierror.CodeWorkforceSpendNotRecorded,
+		if err != nil && !errors.Is(err, plugin.ErrSpendReplayed) {
+			slog.Error("failed to record turn spend", "orgId", orgID, "accountId", billingAccount, "err", err)
+			stream.Fail(apierror.CodeSpendNotRecorded,
 				"The turn finished, but its spend was not recorded. Check the billing setup before the next turn.")
 			return
 		}

@@ -71,7 +71,7 @@ support. The handler calls it only when the run produced no text at all.
 | `threadId` | Optional, ≤ 128 chars. Generated when absent. Becomes the harness session id and the spend row's `session_id`. |
 | `runId` | Optional, ≤ 64 chars. Generated when absent. Becomes the **billing idempotency key**; a retried turn reuses it and is charged once. |
 | `messages` | Required. Roles `user` and `assistant` only; content must be a JSON string. The last message must be from the user and must have text. |
-| `agentId` | Optional. Attributes the turn to a workforce agent. Requires the admin role. When absent, the workspace default agent bills the turn; when neither exists, the turn is unbilled. |
+| `accountId` | Optional. Attributes the turn to a spend account. Requires the admin role. When absent, the turn is unbilled. |
 | `model`, `thinking` | Optional run options. |
 
 Refused with `400` before the stream opens, never silently dropped:
@@ -95,10 +95,10 @@ and a stable `code`:
 
 - `401` not authenticated; `400` no active workspace.
 - `400` invalid run input (messages, oversized ids, malformed JSON).
-- `403` `agentId` sent without the admin role.
-- `409` `workforce_budget_exceeded`, `workforce_agent_paused`.
-- `404` `workforce_agent_not_found`.
-- `400` `workforce_model_price_missing`.
+- `403` `accountId` sent without the admin role.
+- `409` `spend_budget_exceeded`, `spend_account_paused`.
+- `404` `spend_account_not_found`.
+- `400` `spend_model_price_missing`.
 - `500` unwired harness, unreadable budget state, or a published spec that
   fails validation. The spec is resolved before the response starts; an
   invalid spec fails the request instead of degrading to the built-in default.
@@ -108,7 +108,7 @@ After the stream opens, the only failure channel is `RUN_ERROR`:
 | Case | Code | Notes |
 |---|---|---|
 | The run failed (provider error, `ErrApprovalRequired`, step ceiling) | empty | `message` carries the harness error. A refused tool call surfaces here as "... requires operator approval". |
-| Spend could not be recorded | `workforce_spend_not_recorded` | The turn ran; the budget does not know it. Surfaced, not swallowed. |
+| Spend could not be recorded | `spend_not_recorded` | The turn ran; the budget does not know it. Surfaced, not swallowed. |
 
 A spent turn that replayed is not an error: `ErrSpendReplayed` is tolerated and
 the run finishes normally.

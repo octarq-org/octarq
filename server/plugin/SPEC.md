@@ -58,34 +58,34 @@ stateDiagram-v2
   - `WithUserID(ctx, uid)` & `UserIDFromContext(ctx)`
 - MCP Tools contributed by plugins must extract `org_id` dynamically from context via `plugin.OrgIDFromContext(ctx)`. Caching `org_id` during `Mount` is strictly forbidden.
 
-### 3.3 Host Agent Ledger (`plugin.Host.Workforce`)
+### 3.3 Host Spend Ledger (`plugin.Host.SpendLedger`)
 
-A plugin that runs agents reports to the host's ledger instead of keeping its own
-budget counter and its own approval table. Two ledgers disagree the first time one
+A plugin that runs turns reports to the host's ledger instead of keeping its own
+budget counter. Two ledgers disagree the first time one
 of them misses a turn, and the operator's monthly budget is the number that has to
 be right.
 
 The contract is core; the implementation is not. Core ships the interface and a
-host that refuses every call. The plugin that owns agents registers the ledger
-under `workforce.ledger`, and the published-harness store under `workforce.spec`
-(`plugin.HarnessSpecProvider`). `plugin.Host.Workforce()` and
+host that refuses every call. The plugin that owns spend registers the ledger
+under `spend.ledger`, and the published-harness store under `harness.spec`
+(`plugin.HarnessSpecProvider`). `plugin.Host.SpendLedger()` and
 `plugin.Host.HarnessSpec()` resolve those services lazily on each call, so mount
 order does not matter and core never imports the feature plugin.
 
 | Method | Contract |
 |---|---|
-| `AuthorizeTurn` | Refuses an unknown agent, a paused agent, an unpriced model, and an exhausted budget. A model without a price is refused because a cost ceiling over it could never trip. |
+| `AuthorizeTurn` | Refuses an unknown account, a paused account, an unpriced model, and an exhausted budget. A model without a price is refused because a cost ceiling over it could never trip. |
 | `TurnCost` | Returns the price function a plugin's own ceiling uses. It is the same price `RecordSpend` charges, so a turn that stops at its ceiling stops at the number the ledger would have billed. |
-| `RecordSpend` | Prices the turn, appends the ledger row, and accrues the agent's monthly budget. A runtime turn must carry `TurnID`; a replay is refused with `ErrWorkforceSpendReplayed`. |
-| `DecideApproval` | Compare-and-swap on the task's current status. A replayed or concurrent decision returns `ErrWorkforceApprovalNotPending`. |
+| `RecordSpend` | Prices the turn, appends the ledger row, and accrues the account's monthly budget. A runtime turn must carry `TurnID`; a replay is refused with `ErrSpendReplayed`. |
+| `ResolveVirtualKey` | Resolves a virtual API key (`sk-octarq-...`) to its spend account authorization (`SpendAccountAuth`). |
 
 - Prices come from `plugin.ModelPricing` (`llmgateway.pricing`). The ledger has no
   price table of its own, so a ceiling and a charge over the same model are the
   same number.
-- Every outcome a caller branches on is a `ErrWorkforce*` sentinel, so a plugin
+- Every outcome a caller branches on is a `ErrSpend*` sentinel, so a plugin
   never parses a store error message.
-- A build with no ledger plugin registered has no ledger: `Workforce()` returns
-  the fail-closed host and every call returns `ErrWorkforceUnavailable`. A turn
+- A build with no ledger plugin registered has no ledger: `SpendLedger()` returns
+  the fail-closed host and every call returns `ErrSpendUnavailable`. A turn
   nobody can bill must not start on a zero-cost answer.
 
 ---

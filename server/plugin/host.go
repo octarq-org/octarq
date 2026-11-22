@@ -51,7 +51,7 @@ type Host interface {
 	TenantDB(orgID uint) *TenantDB
 	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
-	Workforce() Workforce
+	SpendLedger() SpendLedger
 }
 
 type Credential struct {

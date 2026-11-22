@@ -25,11 +25,11 @@ const (
 	CodeEmailInUse                = "email_in_use"
 	CodeEmailVerificationRequired = "email_verification_required"
 	CodeNoWorkspace               = "no_workspace"
-	CodeWorkforceAgentNotFound    = "workforce_agent_not_found"
-	CodeWorkforceAgentPaused      = "workforce_agent_paused"
-	CodeWorkforceBudgetExceeded   = "workforce_budget_exceeded"
-	CodeWorkforceModelPriceAbsent = "workforce_model_price_missing"
-	CodeWorkforceSpendNotRecorded = "workforce_spend_not_recorded"
+	CodeSpendAccountNotFound      = "spend_account_not_found"
+	CodeSpendAccountPaused        = "spend_account_paused"
+	CodeSpendBudgetExceeded       = "spend_budget_exceeded"
+	CodeSpendModelPriceAbsent     = "spend_model_price_missing"
+	CodeSpendNotRecorded          = "spend_not_recorded"
 	CodeUnsupportedMedia          = "unsupported_media_type"
 	CodeUnprocessableEntity       = "unprocessable_entity"
 	CodeRateLimitExceeded         = "rate_limit_exceeded"
@@ -53,11 +53,11 @@ var codes = []string{
 	CodeEmailInUse,
 	CodeEmailVerificationRequired,
 	CodeNoWorkspace,
-	CodeWorkforceAgentNotFound,
-	CodeWorkforceAgentPaused,
-	CodeWorkforceBudgetExceeded,
-	CodeWorkforceModelPriceAbsent,
-	CodeWorkforceSpendNotRecorded,
+	CodeSpendAccountNotFound,
+	CodeSpendAccountPaused,
+	CodeSpendBudgetExceeded,
+	CodeSpendModelPriceAbsent,
+	CodeSpendNotRecorded,
 	CodeUnsupportedMedia,
 	CodeUnprocessableEntity,
 	CodeRateLimitExceeded,

@@ -497,3 +497,114 @@ func TestAIChatStream_WireFraming(t *testing.T) {
 		t.Fatalf("the stream carries named event lines: %q", body)
 	}
 }
+
+type fakeSpendLedger struct {
+	authErr   error
+	costErr   error
+	recordErr error
+	recorded  []plugin.TurnSpend
+}
+
+func (f *fakeSpendLedger) AuthorizeTurn(context.Context, uint, string, string) error {
+	return f.authErr
+}
+
+func (f *fakeSpendLedger) TurnCost(context.Context, uint, string) (func(int, int, int, int) float64, error) {
+	if f.costErr != nil {
+		return nil, f.costErr
+	}
+	return func(int, int, int, int) float64 { return 0.001 }, nil
+}
+
+func (f *fakeSpendLedger) RecordSpend(_ context.Context, _ uint, in plugin.TurnSpend) (*plugin.SpendRecord, error) {
+	f.recorded = append(f.recorded, in)
+	if f.recordErr != nil {
+		return nil, f.recordErr
+	}
+	return &plugin.SpendRecord{CostUSD: 0.001, BudgetUsed: 0.001, BudgetLimit: 10}, nil
+}
+
+func (f *fakeSpendLedger) ResolveVirtualKey(context.Context, string) (*plugin.SpendAccountAuth, error) {
+	return nil, plugin.ErrSpendUnavailable
+}
+
+func TestAIChatStream_SpendBillingAndRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{plugin.ErrSpendUnavailable, http.StatusConflict, "spend_account_not_found"},
+		{plugin.ErrSpendAccountNotFound, http.StatusNotFound, "spend_account_not_found"},
+		{plugin.ErrSpendAccountPaused, http.StatusConflict, "spend_account_paused"},
+		{plugin.ErrSpendBudgetExhausted, http.StatusConflict, "spend_budget_exceeded"},
+		{plugin.ErrSpendModelUnpriced, http.StatusBadRequest, "spend_model_price_missing"},
+		{errors.New("db error"), http.StatusInternalServerError, "internal_error"},
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", nil)
+		writeBillingRefusal(rec, req, tc.err)
+		if rec.Code != tc.wantStatus || !strings.Contains(rec.Body.String(), tc.wantCode) {
+			t.Fatalf("err=%v: got %d %s, want %d %s", tc.err, rec.Code, rec.Body.String(), tc.wantStatus, tc.wantCode)
+		}
+	}
+
+	fake := &fakeStreamingLLM{texts: []string{"billed answer"}, resp: llmprovider.Response{StopReason: "end_turn"}}
+	srv, db, h := newAIStreamTestHandlerFull(t, fake, nil)
+	ledger := &fakeSpendLedger{}
+	spec := harness.DefaultHarnessSpec()
+	spec.MaxCostUSD = 1.5
+	specRaw, _ := json.Marshal(spec)
+	h.SetHost(&plugin.TestHost{
+		SpendLedgerMock: ledger,
+		HarnessSpecFn: func(context.Context, uint) (json.RawMessage, error) {
+			return specRaw, nil
+		},
+	})
+
+	postAccountTurn := func(cookies []*http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream",
+			strings.NewReader(`{"accountId":"acc-1","messages":[{"role":"user","content":"hi"}]}`))
+		req.Header.Set("Content-Type", "application/json")
+		for _, c := range cookies {
+			req.AddCookie(c)
+		}
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		return rec
+	}
+
+	memberCookies := sessionCookies(t, 2, 1)
+	if err := db.Exec(`UPDATE org_members SET role = 'member' WHERE org_id = 1 AND user_id = 2`).Error; err != nil {
+		t.Fatalf("demote member: %v", err)
+	}
+	if rec := postAccountTurn(memberCookies); rec.Code != http.StatusForbidden {
+		t.Fatalf("non-admin accountId turn status = %d, want 403", rec.Code)
+	}
+
+	adminCookies := sessionCookies(t, 1, 1)
+	ledger.authErr = plugin.ErrSpendBudgetExhausted
+	if rec := postAccountTurn(adminCookies); rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "spend_budget_exceeded") {
+		t.Fatalf("exhausted budget status = %d %s", rec.Code, rec.Body.String())
+	}
+
+	ledger.authErr = nil
+	ledger.costErr = plugin.ErrSpendModelUnpriced
+	if rec := postAccountTurn(adminCookies); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "spend_model_price_missing") {
+		t.Fatalf("unpriced model status = %d %s", rec.Code, rec.Body.String())
+	}
+
+	ledger.costErr = nil
+	if rec := postAccountTurn(adminCookies); rec.Code != http.StatusOK {
+		t.Fatalf("valid billed turn status = %d %s", rec.Code, rec.Body.String())
+	}
+	if len(ledger.recorded) != 1 || ledger.recorded[0].AccountID != "acc-1" {
+		t.Fatalf("recorded spend = %+v", ledger.recorded)
+	}
+
+	ledger.recordErr = errors.New("ledger write failed")
+	rec := postAccountTurn(adminCookies)
+	if !strings.Contains(rec.Body.String(), "spend_not_recorded") {
+		t.Fatalf("expected spend_not_recorded in stream: %s", rec.Body.String())
+	}
+}

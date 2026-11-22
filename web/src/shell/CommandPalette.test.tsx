@@ -387,8 +387,8 @@ describe("CommandPalette", () => {
       statusText: "Conflict",
       headers: { get: () => "application/json" },
       json: async () => ({
-        code: "workforce_budget_exceeded",
-        message: "The agent budget is exhausted.",
+        code: "spend_budget_exceeded",
+        message: "The account budget is exhausted.",
       }),
     });
     global.fetch = mockFetch as unknown as typeof fetch;
@@ -421,11 +421,11 @@ describe("CommandPalette", () => {
       const chatCall = mockFetch.mock.calls.find(([url]) => url === "/api/ai/chat/stream");
       const body = JSON.parse(String(chatCall![1].body));
       expect(body.messages).toEqual([{ role: "user", content: "Show link stats" }]);
-      expect(body).not.toHaveProperty("agentId");
+      expect(body).not.toHaveProperty("accountId");
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/This agent reached its monthly budget limit/)).not.toBeNull();
+      expect(screen.getByText(/This account reached its monthly budget limit/)).not.toBeNull();
     });
   });
 

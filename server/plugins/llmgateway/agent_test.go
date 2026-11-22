@@ -628,3 +628,172 @@ func TestPricingServicesWithoutAPluginFailClosed(t *testing.T) {
 		t.Fatalf("gateway err = %v", err)
 	}
 }
+
+type mockGatewaySpendLedger struct {
+	mu       sync.Mutex
+	accounts map[string]*plugin.SpendAccountAuth
+	recorded []plugin.TurnSpend
+}
+
+func (m *mockGatewaySpendLedger) AuthorizeTurn(context.Context, uint, string, string) error {
+	return nil
+}
+
+func (m *mockGatewaySpendLedger) TurnCost(context.Context, uint, string) (func(int, int, int, int) float64, error) {
+	return func(int, int, int, int) float64 { return 0.01 }, nil
+}
+
+func (m *mockGatewaySpendLedger) RecordSpend(_ context.Context, _ uint, spend plugin.TurnSpend) (*plugin.SpendRecord, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.recorded = append(m.recorded, spend)
+	return &plugin.SpendRecord{CostUSD: 0.01, BudgetUsed: 1.01, BudgetLimit: 50}, nil
+}
+
+func (m *mockGatewaySpendLedger) ResolveVirtualKey(_ context.Context, rawToken string) (*plugin.SpendAccountAuth, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	acct, ok := m.accounts[rawToken]
+	if !ok {
+		return nil, plugin.ErrSpendAccountNotFound
+	}
+	return acct, nil
+}
+
+func TestVirtualKeyGatewayAuthAndSpend(t *testing.T) {
+	f := newHTTPFixture(t, 0, 0, "")
+	id := createProvider(t, f, ProviderInput{
+		Name: "stub", Backend: "openai", APIKey: "k-upstream",
+		BaseURL: "http://placeholder.invalid", Model: "gpt-4o",
+	})
+	u := &upstream{
+		listBody: `{"object":"list","data":[{"id":"gpt-4o"}]}`,
+		chatBody: `{"id":"chatcmpl-vk1","model":"gpt-4o","choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":12,"completion_tokens":8,"completion_tokens_details":{"reasoning_tokens":3}}}`,
+	}
+	withUpstream(t, f, u, id)
+
+	ledger := &mockGatewaySpendLedger{
+		accounts: map[string]*plugin.SpendAccountAuth{
+			"sk-octarq-valid": {
+				OrgID:         1,
+				AccountID:     "octarch-local",
+				Status:        "active",
+				BudgetLimit:   50.0,
+				BudgetUsed:    10.0,
+				AllowedModels: []string{"gpt-4o"},
+			},
+			"sk-octarq-paused": {
+				OrgID:       1,
+				AccountID:   "paused-acc",
+				Status:      "paused",
+				BudgetLimit: 50.0,
+				BudgetUsed:  5.0,
+			},
+			"sk-octarq-exhausted": {
+				OrgID:       1,
+				AccountID:   "exhausted-acc",
+				Status:      "active",
+				BudgetLimit: 50.0,
+				BudgetUsed:  50.0,
+			},
+		},
+	}
+	f.plugin.pctx.Host = &plugin.TestHost{
+		SessionMock:     &plugin.TestSession{},
+		SpendLedgerMock: ledger,
+	}
+
+	doVK := func(method, path, token, body string) int {
+		t.Helper()
+		var rdr io.Reader
+		if body != "" {
+			rdr = strings.NewReader(body)
+		}
+		req, err := http.NewRequest(method, f.server.URL+path, rdr)
+		if err != nil {
+			t.Fatalf("new req: %v", err)
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("do req: %v", err)
+		}
+		defer resp.Body.Close()
+		_, _ = io.ReadAll(resp.Body)
+		return resp.StatusCode
+	}
+
+	if code := doVK(http.MethodGet, "/v1/models", "sk-octarq-unknown", ""); code != http.StatusUnauthorized {
+		t.Fatalf("unknown virtual key status = %d, want 401", code)
+	}
+	if code := doVK(http.MethodGet, "/v1/models", "sk-octarq-paused", ""); code != http.StatusPaymentRequired {
+		t.Fatalf("paused virtual key status = %d, want 402", code)
+	}
+	if code := doVK(http.MethodPost, "/v1/chat/completions", "sk-octarq-exhausted", `{"model":"gpt-4o"}`); code != http.StatusPaymentRequired {
+		t.Fatalf("exhausted virtual key status = %d, want 402", code)
+	}
+	if code := doVK(http.MethodPost, "/v1/chat/completions", "sk-octarq-valid", `{"model":"claude-3-5-sonnet"}`); code != http.StatusForbidden {
+		t.Fatalf("disallowed model status = %d, want 403", code)
+	}
+	if code := doVK(http.MethodGet, "/v1/models", "sk-octarq-valid", ""); code != http.StatusOK {
+		t.Fatalf("valid virtual key /v1/models status = %d, want 200", code)
+	}
+	if code := doVK(http.MethodPost, "/v1/chat/completions", "sk-octarq-valid", `{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}`); code != http.StatusOK {
+		t.Fatalf("valid virtual key /v1/chat/completions status = %d, want 200", code)
+	}
+
+	ledger.mu.Lock()
+	if len(ledger.recorded) != 1 {
+		ledger.mu.Unlock()
+		t.Fatalf("recorded spends = %d, want 1", len(ledger.recorded))
+	}
+	got := ledger.recorded[0]
+	ledger.mu.Unlock()
+	if got.AccountID != "octarch-local" || got.Model != "gpt-4o" || got.InputTokens != 12 || got.OutputTokens != 8 || got.ReasoningTokens != 3 || got.TurnID != "chatcmpl-vk1" || got.Source != "gateway_api" {
+		t.Fatalf("unexpected recorded spend: %+v", got)
+	}
+
+	u.chatBody = "data: {\"id\":\"sse-1\",\"model\":\"gpt-4o\",\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: {\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"cache_read_input_tokens\":2,\"cache_creation_input_tokens\":1,\"prompt_tokens_details\":{\"cached_tokens\":4}}}\n\ndata: [DONE]\n\n"
+	if code := doVK(http.MethodPost, "/v1/chat/completions", "sk-octarq-valid", `{"model":"gpt-4o","stream":true}`); code != http.StatusOK {
+		t.Fatalf("valid virtual key streaming /v1/chat/completions status = %d, want 200", code)
+	}
+	ledger.mu.Lock()
+	defer ledger.mu.Unlock()
+	if len(ledger.recorded) != 2 || ledger.recorded[1].InputTokens != 5 || ledger.recorded[1].OutputTokens != 7 || ledger.recorded[1].CacheReadTokens != 4 || ledger.recorded[1].CacheWriteTokens != 1 {
+		t.Fatalf("unexpected streaming recorded spend: %+v", ledger.recorded)
+	}
+}
+
+func TestVirtualKeyHelperEdges(t *testing.T) {
+	if spendAccountFromContext(context.Background()) != nil {
+		t.Fatal("empty context should return nil spend account")
+	}
+	reqNoBearer, _ := http.NewRequest(http.MethodGet, "/v1/models", nil)
+	reqNoBearer.Header.Set("Authorization", "Basic abc")
+	if _, ok := extractVirtualKey(reqNoBearer); ok {
+		t.Fatal("non-bearer header should not match")
+	}
+	reqNonVK, _ := http.NewRequest(http.MethodGet, "/v1/models", nil)
+	reqNonVK.Header.Set("Authorization", "Bearer regular-token")
+	if _, ok := extractVirtualKey(reqNonVK); ok {
+		t.Fatal("non-virtual-key bearer should not match")
+	}
+	if isModelAllowed("", []string{"gpt-4o"}) {
+		t.Fatal("empty model should not be allowed")
+	}
+	if !isModelAllowed("any-model", []string{"*"}) {
+		t.Fatal("wildcard should allow any model")
+	}
+	if _, ok := parseRelayedChatUsage([]byte(`{"choices":[]}`), "gpt-4o"); ok {
+		t.Fatal("response without usage should return false")
+	}
+	spend, ok := parseRelayedChatUsage([]byte(`{"usage":{"input_tokens":3,"output_tokens":4,"cache_read_input_tokens":2}}`), "fallback-m")
+	if !ok || spend.Model != "fallback-m" || spend.InputTokens != 3 || spend.OutputTokens != 4 || spend.CacheReadTokens != 2 || !strings.HasPrefix(spend.TurnID, "gw-") {
+		t.Fatalf("unexpected fallback usage parse: %+v ok=%v", spend, ok)
+	}
+}

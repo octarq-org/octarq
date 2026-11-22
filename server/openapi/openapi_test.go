@@ -34,7 +34,7 @@ func TestGenerateValidSpec(t *testing.T) {
 		t.Fatal("missing or non-object 'paths' key in spec")
 	}
 	if n := len(paths); n < 90 {
-		t.Errorf("paths count = %d, want ≥ 90 (guard against regression to the old hand-written spec; workforce and harness routes moved to Pro)", n)
+		t.Errorf("paths count = %d, want ≥ 90 (guard against regression to the old hand-written spec; spend and harness routes moved to Pro)", n)
 	}
 
 	checks := []struct {

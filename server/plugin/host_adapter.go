@@ -28,24 +28,24 @@ func (noopHost) LookupCredential(context.Context, uint, CredentialQuery) (*Crede
 	return nil, ErrCredentialResolverUnavailable
 }
 
-func (noopHost) Workforce() Workforce { return unavailableWorkforce{} }
+func (noopHost) SpendLedger() SpendLedger { return unavailableSpendLedger{} }
 
-type unavailableWorkforce struct{}
+type unavailableSpendLedger struct{}
 
-func (unavailableWorkforce) AuthorizeTurn(context.Context, uint, string, string) error {
-	return ErrWorkforceUnavailable
+func (unavailableSpendLedger) AuthorizeTurn(context.Context, uint, string, string) error {
+	return ErrSpendUnavailable
 }
 
-func (unavailableWorkforce) TurnCost(context.Context, uint, string) (func(input, output, cacheRead, cacheWrite int) float64, error) {
-	return nil, ErrWorkforceUnavailable
+func (unavailableSpendLedger) TurnCost(context.Context, uint, string) (func(input, output, cacheRead, cacheWrite int) float64, error) {
+	return nil, ErrSpendUnavailable
 }
 
-func (unavailableWorkforce) RecordSpend(context.Context, uint, TurnSpend) (*SpendRecord, error) {
-	return nil, ErrWorkforceUnavailable
+func (unavailableSpendLedger) RecordSpend(context.Context, uint, TurnSpend) (*SpendRecord, error) {
+	return nil, ErrSpendUnavailable
 }
 
-func (unavailableWorkforce) DecideApproval(context.Context, uint, string, bool) error {
-	return ErrWorkforceUnavailable
+func (unavailableSpendLedger) ResolveVirtualKey(context.Context, string) (*SpendAccountAuth, error) {
+	return nil, ErrSpendUnavailable
 }
 
 type noopSession struct{}

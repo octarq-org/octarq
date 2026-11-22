@@ -274,17 +274,24 @@ func TestStartPricingRefresherRefreshesAndStops(t *testing.T) {
 		defer close(done)
 		startPricingRefresher(ctx)
 	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
 
 	deadline := time.Now().Add(3 * time.Second)
-	for calls.Load() == 0 && time.Now().Before(deadline) {
+	for time.Now().Before(deadline) {
+		if calls.Load() > 0 {
+			if _, err := loadCatalog().PriceFor("anthropic", "fresh-model"); err == nil {
+				break
+			}
+		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	if calls.Load() == 0 {
-		cancel()
 		t.Fatal("the startup refresh did not run")
 	}
 	if _, err := loadCatalog().PriceFor("anthropic", "fresh-model"); err != nil {
-		cancel()
 		t.Fatalf("fresh catalog was not installed: %v", err)
 	}
 	cancel()

@@ -88,11 +88,11 @@ func (h *Handler) SetHost(host plugin.Host) {
 	h.host = host
 }
 
-func (h *Handler) workforce() plugin.Workforce {
+func (h *Handler) spend() plugin.SpendLedger {
 	if h.host == nil {
-		return plugin.EnsureHost(nil).Workforce()
+		return plugin.EnsureHost(nil).SpendLedger()
 	}
-	return h.host.Workforce()
+	return h.host.SpendLedger()
 }
 
 func (h *Handler) Storage() *plugin.LocalStorageService {
