@@ -36,7 +36,7 @@ func (unavailableWorkforce) AuthorizeTurn(context.Context, uint, string, string)
 	return ErrWorkforceUnavailable
 }
 
-func (unavailableWorkforce) TurnCost(context.Context, uint, string) (func(input, output, reasoning int) float64, error) {
+func (unavailableWorkforce) TurnCost(context.Context, uint, string) (func(input, output, cacheRead, cacheWrite int) float64, error) {
 	return nil, ErrWorkforceUnavailable
 }
 

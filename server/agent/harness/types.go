@@ -53,15 +53,17 @@ type PendingCall struct {
 }
 
 type Turn struct {
-	Input           string
-	Steps           []Step
-	Status          TurnStatus
-	Thinking        bool
-	HasDestructive  bool
-	InputTokens     int
-	OutputTokens    int
-	ReasoningTokens int
-	PendingCall     *PendingCall
+	Input            string
+	Steps            []Step
+	Status           TurnStatus
+	Thinking         bool
+	HasDestructive   bool
+	InputTokens      int
+	OutputTokens     int
+	ReasoningTokens  int
+	CacheReadTokens  int
+	CacheWriteTokens int
+	PendingCall      *PendingCall
 
 	Rounds int
 

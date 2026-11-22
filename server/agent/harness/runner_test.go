@@ -443,16 +443,20 @@ func TestCompleterAdapter_PropagatesTokensIntoTurn(t *testing.T) {
 	prov := &tokenMockProvider{
 		steps: []llmprovider.Response{
 			{
-				Text:            toolCallBlock("list_domains", `{}`),
-				InputTokens:     120,
-				OutputTokens:    45,
-				ReasoningTokens: 10,
+				Text:                toolCallBlock("list_domains", `{}`),
+				InputTokens:         120,
+				OutputTokens:        45,
+				ReasoningTokens:     10,
+				CacheReadTokens:     400,
+				CacheCreationTokens: 60,
 			},
 			{
-				Text:            "You have 2 domains.",
-				InputTokens:     180,
-				OutputTokens:    30,
-				ReasoningTokens: 5,
+				Text:                "You have 2 domains.",
+				InputTokens:         180,
+				OutputTokens:        30,
+				ReasoningTokens:     5,
+				CacheReadTokens:     800,
+				CacheCreationTokens: 40,
 			},
 		},
 	}
@@ -472,5 +476,11 @@ func TestCompleterAdapter_PropagatesTokensIntoTurn(t *testing.T) {
 	}
 	if turn.ReasoningTokens != 15 {
 		t.Fatalf("turn.ReasoningTokens = %d, want 15", turn.ReasoningTokens)
+	}
+	if turn.CacheReadTokens != 1200 {
+		t.Fatalf("turn.CacheReadTokens = %d, want 1200", turn.CacheReadTokens)
+	}
+	if turn.CacheWriteTokens != 100 {
+		t.Fatalf("turn.CacheWriteTokens = %d, want 100", turn.CacheWriteTokens)
 	}
 }

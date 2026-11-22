@@ -33,11 +33,13 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 	r.tracer.Event(ctx, TraceEvent{Kind: TraceKindTurnStart})
 	err := r.streamLoop(ctx, s, t, sp, h)
 	r.tracer.Event(ctx, TraceEvent{
-		Kind:            TraceKindTurnEnd,
-		Status:          t.Status.String(),
-		InputTokens:     t.InputTokens,
-		OutputTokens:    t.OutputTokens,
-		ReasoningTokens: t.ReasoningTokens,
+		Kind:             TraceKindTurnEnd,
+		Status:           t.Status.String(),
+		InputTokens:      t.InputTokens,
+		OutputTokens:     t.OutputTokens,
+		ReasoningTokens:  t.ReasoningTokens,
+		CacheReadTokens:  t.CacheReadTokens,
+		CacheWriteTokens: t.CacheWriteTokens,
 	})
 	return err
 }
@@ -93,6 +95,8 @@ func (r *defaultRunner) streamRounds(ctx context.Context, s *Session, t *Turn, s
 		t.InputTokens += resp.InputTokens
 		t.OutputTokens += resp.OutputTokens
 		t.ReasoningTokens += resp.ReasoningTokens
+		t.CacheReadTokens += resp.CacheReadTokens
+		t.CacheWriteTokens += resp.CacheCreationTokens
 
 		calls, remaining, invalid := collector.parsePlan()
 		if len(calls) == 0 {

@@ -18,7 +18,7 @@ type HarnessSpecProvider interface {
 type Workforce interface {
 	AuthorizeTurn(ctx context.Context, orgID uint, agentID, model string) error
 
-	TurnCost(ctx context.Context, orgID uint, model string) (func(input, output, reasoning int) float64, error)
+	TurnCost(ctx context.Context, orgID uint, model string) (func(input, output, cacheRead, cacheWrite int) float64, error)
 
 	RecordSpend(ctx context.Context, orgID uint, spend TurnSpend) (*SpendRecord, error)
 
@@ -26,14 +26,16 @@ type Workforce interface {
 }
 
 type TurnSpend struct {
-	AgentID         string
-	Model           string
-	InputTokens     int
-	OutputTokens    int
-	ReasoningTokens int
-	Source          string
-	SessionID       string
-	TurnID          string
+	AgentID          string
+	Model            string
+	InputTokens      int
+	OutputTokens     int
+	ReasoningTokens  int
+	CacheReadTokens  int
+	CacheWriteTokens int
+	Source           string
+	SessionID        string
+	TurnID           string
 }
 
 type SpendRecord struct {

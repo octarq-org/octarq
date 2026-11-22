@@ -26,10 +26,12 @@ type Completer interface {
 }
 
 type CompletionResult struct {
-	Text            string
-	InputTokens     int
-	OutputTokens    int
-	ReasoningTokens int
+	Text             string
+	InputTokens      int
+	OutputTokens     int
+	ReasoningTokens  int
+	CacheReadTokens  int
+	CacheWriteTokens int
 }
 
 type ResultCompleter interface {
@@ -202,11 +204,13 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 	r.tracer.Event(ctx, TraceEvent{Kind: TraceKindTurnStart})
 	err := r.loop(ctx, s, t)
 	r.tracer.Event(ctx, TraceEvent{
-		Kind:            TraceKindTurnEnd,
-		Status:          t.Status.String(),
-		InputTokens:     t.InputTokens,
-		OutputTokens:    t.OutputTokens,
-		ReasoningTokens: t.ReasoningTokens,
+		Kind:             TraceKindTurnEnd,
+		Status:           t.Status.String(),
+		InputTokens:      t.InputTokens,
+		OutputTokens:     t.OutputTokens,
+		ReasoningTokens:  t.ReasoningTokens,
+		CacheReadTokens:  t.CacheReadTokens,
+		CacheWriteTokens: t.CacheWriteTokens,
 	})
 	return err
 }
@@ -250,6 +254,8 @@ func (r *defaultRunner) runRounds(ctx context.Context, s *Session, t *Turn, star
 			t.InputTokens += res.InputTokens
 			t.OutputTokens += res.OutputTokens
 			t.ReasoningTokens += res.ReasoningTokens
+			t.CacheReadTokens += res.CacheReadTokens
+			t.CacheWriteTokens += res.CacheWriteTokens
 		} else {
 			var err error
 			text, err = r.completer.Complete(ctx, r.model, r.system, s.History)
@@ -429,10 +435,12 @@ func (a *CompleterAdapter) CompleteResult(ctx context.Context, model string, sys
 		return CompletionResult{}, err
 	}
 	res := CompletionResult{
-		Text:            resp.Text,
-		InputTokens:     resp.InputTokens,
-		OutputTokens:    resp.OutputTokens,
-		ReasoningTokens: resp.ReasoningTokens,
+		Text:             resp.Text,
+		InputTokens:      resp.InputTokens,
+		OutputTokens:     resp.OutputTokens,
+		ReasoningTokens:  resp.ReasoningTokens,
+		CacheReadTokens:  resp.CacheReadTokens,
+		CacheWriteTokens: resp.CacheCreationTokens,
 	}
 	a.LastResult = res
 	return res, nil

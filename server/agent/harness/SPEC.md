@@ -173,6 +173,10 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   - `CanonicalJSON` omits a zero ceiling, so the fingerprint of an existing
     spec does not change when the field is added; a spec that uses a ceiling
     fingerprints differently, as it should.
+  - The check passes `(input, output, cacheRead, cacheWrite)` tokens to
+    `Budget.Cost`; `ReasoningTokens` stays an audit count and is never priced
+    separately. `MaxTokens` counts cache reads and writes as real context
+    tokens.
   - The streaming loop and the non-streaming loop both call `checkBudget`.
     Two loops that disagree about a safety limit are a defect waiting for the
     first streaming client.
@@ -330,6 +334,19 @@ type PendingCall struct {
   never run. `executeSteps` writes them into one `tool` message before it
   returns: a model that is not told repeats calls whose results are never
   coming. The blocked call is not in that list — `Resume` runs it.
+
+**Token accounting** (`types.go`, `runner.go`, `stream.go`):
+
+- `Turn.InputTokens` counts **uncached** input only. `CacheReadTokens` and
+  `CacheWriteTokens` carry the cached prompt tokens as their own totals.
+- The provider adapters normalize this: Anthropic already excludes cached
+  tokens from `input_tokens`; OpenAI-compatible and Gemini responses report a
+  prompt total that includes the cached subset, and the adapter subtracts it
+  (or reads the provider's own non-cached count when it publishes one).
+  A billing formula that adds input and cache tokens must not subtract again.
+- `ReasoningTokens` is an audit count. Vendors already include thinking tokens
+  in the output total, so the output rate covers them.
+- A resumed turn carries no token totals: the host starts a new `Turn`.
 
 **Resume** (`Runner.Resume`): runs the stored call and continues the turn.
 
@@ -533,7 +550,7 @@ Every turn emits a `TraceEvent` stream:
 |---|---|---|
 | `turn_start` | before the first model call | — |
 | `step` | once per tool invocation | tool, outcome, error code, duration |
-| `turn_end` | at the terminal state | turn status, input/output/reasoning tokens |
+| `turn_end` | at the terminal state | turn status, input/output/reasoning/cache-read/cache-write tokens |
 
 The web assistant records the trace into the audit log (`action = agent.turn`,
 `target_type = agent_session`) with the prompt version, the prompt
