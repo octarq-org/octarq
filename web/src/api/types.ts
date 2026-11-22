@@ -392,7 +392,8 @@ export interface ModelPriceDTO {
   input: number;
   output: number;
   reasoning: number;
-  cachedInput?: number;
+  cacheRead: number;
+  cacheWrite: number;
 }
 
 export interface VaultSchemaField {

@@ -35,7 +35,7 @@ describe("GatewaySettings", () => {
   it("offers the agent endpoint and the workspace models", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([provider]);
     vi.spyOn(api, "modelPrices").mockResolvedValue([
-      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4 },
+      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4, cacheRead: 0.01, cacheWrite: 0.02 },
     ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai", "ollama"]);
 
@@ -53,7 +53,7 @@ describe("GatewaySettings", () => {
   it("lists the bundled prices and offers no editor", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([]);
     vi.spyOn(api, "modelPrices").mockResolvedValue([
-      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4 },
+      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4, cacheRead: 0.01, cacheWrite: 0.02 },
     ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
 
@@ -62,14 +62,15 @@ describe("GatewaySettings", () => {
     expect(await screen.findByText("alibaba-qwen/qwen-flash")).toBeTruthy();
     expect(screen.getByText("Qwen Flash")).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Model" })).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "Cached input" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Cache read" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Cache write" })).toBeTruthy();
     expect(screen.getByText("0.05")).toBeTruthy();
     expect(screen.getAllByText("0.4")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Add price" })).toBeNull();
     expect(screen.queryByRole("button", { name: /price/i })).toBeNull();
   });
 
-  it("shows the cached price when the catalog carries one", async () => {
+  it("shows the cache read and cache write prices when the catalog carries them", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([]);
     vi.spyOn(api, "modelPrices").mockResolvedValue([
       {
@@ -79,7 +80,8 @@ describe("GatewaySettings", () => {
         input: 0.05,
         output: 0.4,
         reasoning: 0.4,
-        cachedInput: 0.01,
+        cacheRead: 0.5,
+        cacheWrite: 6.25,
       },
     ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
@@ -87,14 +89,15 @@ describe("GatewaySettings", () => {
     renderGateway();
 
     expect(await screen.findByText("alibaba-qwen/qwen-flash")).toBeTruthy();
-    expect(screen.getByText("0.01")).toBeTruthy();
+    expect(screen.getByText("0.5")).toBeTruthy();
+    expect(screen.getByText("6.25")).toBeTruthy();
   });
 
   it("filters the price list by free text", async () => {
     vi.spyOn(api, "llmProviders").mockResolvedValue([]);
     vi.spyOn(api, "modelPrices").mockResolvedValue([
-      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4 },
-      { model: "gpt-4o", displayName: "GPT-4o", providerId: "openai", input: 2.5, output: 10, reasoning: 10 },
+      { model: "qwen-flash", displayName: "Qwen Flash", providerId: "alibaba-qwen", input: 0.05, output: 0.4, reasoning: 0.4, cacheRead: 0.01, cacheWrite: 0.02 },
+      { model: "gpt-4o", displayName: "GPT-4o", providerId: "openai", input: 2.5, output: 10, reasoning: 10, cacheRead: 1.25, cacheWrite: 5 },
     ]);
     vi.spyOn(api, "llmBackends").mockResolvedValue(["openai"]);
 
@@ -121,6 +124,8 @@ describe("GatewaySettings", () => {
       input: 1,
       output: 2,
       reasoning: 2,
+      cacheRead: 0.5,
+      cacheWrite: 1,
     }));
     vi.spyOn(api, "llmProviders").mockResolvedValue([]);
     vi.spyOn(api, "modelPrices").mockResolvedValue(rows);

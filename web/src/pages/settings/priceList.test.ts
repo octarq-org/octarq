@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelPriceDTO } from "../../api/types";
-import { filterModelPrices, formatPrice, modelId, paginatePrices } from "./priceList";
+import { filterModelPrices, formatPrice, modelId, paginatePrices, priceRowKey } from "./priceList";
 
 const row = (model: string, providerId: string): ModelPriceDTO => ({
   model,
@@ -9,6 +9,8 @@ const row = (model: string, providerId: string): ModelPriceDTO => ({
   input: 1,
   output: 2,
   reasoning: 2,
+  cacheRead: 0.5,
+  cacheWrite: 1,
 });
 
 const rows = [
@@ -81,5 +83,15 @@ describe("formatPrice", () => {
   it("marks a missing price", () => {
     expect(formatPrice(null)).toBe("—");
     expect(formatPrice(undefined)).toBe("—");
+  });
+});
+
+describe("priceRowKey", () => {
+  it("distinguishes the same model across providers", () => {
+    const a = priceRowKey({ model: "llama-3-8b", providerId: "groq" });
+    const b = priceRowKey({ model: "llama-3-8b", providerId: "together" });
+    expect(a).toBe("groq/llama-3-8b");
+    expect(b).toBe("together/llama-3-8b");
+    expect(a).not.toBe(b);
   });
 });

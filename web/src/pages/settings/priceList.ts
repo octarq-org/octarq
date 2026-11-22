@@ -6,6 +6,10 @@ export function modelId(row: Pick<ModelPriceDTO, "model" | "providerId">): strin
   return row.providerId ? `${row.providerId}/${row.model}` : row.model;
 }
 
+export function priceRowKey(row: Pick<ModelPriceDTO, "model" | "providerId">): string {
+  return `${row.providerId}/${row.model}`;
+}
+
 export function formatPrice(value: number | null | undefined): string {
   if (value == null) return "—";
   return value

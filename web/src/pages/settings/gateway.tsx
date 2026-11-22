@@ -23,7 +23,7 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type { LLMProviderDTO, LLMProviderInput, ModelPriceDTO } from "../../api/types";
-import { filterModelPrices, formatPrice, modelId, paginatePrices, PRICE_PAGE_SIZE } from "./priceList";
+import { filterModelPrices, formatPrice, modelId, paginatePrices, priceRowKey, PRICE_PAGE_SIZE } from "./priceList";
 import { useTranslation } from "../../i18n";
 
 type Draft = LLMProviderInput & { id?: number };
@@ -237,7 +237,7 @@ export function GatewaySettings() {
 
       <PageSection
         title={t("gateway.pricesTitle", "Model prices")}
-        description={t("gateway.pricesDesc", "Prices come from the bundled AICostBudget pricing dataset. Update the application to refresh them.")}
+        description={t("gateway.pricesDesc", "Prices come from the models.dev dataset. The gateway refreshes them every 24 hours.")}
       >
         {loaded && prices.length === 0 ? (
           <PageCard>
@@ -287,21 +287,23 @@ export function GatewaySettings() {
                       <TH className="whitespace-nowrap">{t("gateway.priceModel", "Model")}</TH>
                       <TH className="hidden whitespace-nowrap sm:table-cell">{t("gateway.priceName", "Name")}</TH>
                       <TH className="whitespace-nowrap text-right">{t("gateway.priceInput", "Input")}</TH>
-                      <TH className="hidden whitespace-nowrap text-right sm:table-cell">{t("gateway.priceCached", "Cached input")}</TH>
+                      <TH className="whitespace-nowrap text-right">{t("gateway.priceCacheRead", "Cache read")}</TH>
+                      <TH className="hidden whitespace-nowrap text-right md:table-cell">{t("gateway.priceCacheWrite", "Cache write")}</TH>
                       <TH className="whitespace-nowrap text-right">{t("gateway.priceOutput", "Output")}</TH>
                       <TH className="hidden whitespace-nowrap text-right md:table-cell">{t("gateway.priceReasoning", "Reasoning")}</TH>
                     </TR>
                   </THead>
                   <TBody>
                     {visiblePrices.map((row) => (
-                      <TR key={modelId(row)}>
+                      <TR key={priceRowKey(row)}>
                         <TD className="whitespace-nowrap font-mono text-xs text-foreground">{modelId(row)}</TD>
                         <TD className="hidden max-w-[16rem] truncate text-xs text-muted-foreground sm:table-cell">
                           {row.displayName || "—"}
                         </TD>
                         <TD className="whitespace-nowrap text-right font-mono text-xs tabular-nums">{formatPrice(row.input)}</TD>
-                        <TD className="hidden whitespace-nowrap text-right font-mono text-xs tabular-nums sm:table-cell">
-                          {formatPrice(row.cachedInput)}
+                        <TD className="whitespace-nowrap text-right font-mono text-xs tabular-nums">{formatPrice(row.cacheRead)}</TD>
+                        <TD className="hidden whitespace-nowrap text-right font-mono text-xs tabular-nums md:table-cell">
+                          {formatPrice(row.cacheWrite)}
                         </TD>
                         <TD className="whitespace-nowrap text-right font-mono text-xs tabular-nums">{formatPrice(row.output)}</TD>
                         <TD className="hidden whitespace-nowrap text-right font-mono text-xs tabular-nums md:table-cell">
