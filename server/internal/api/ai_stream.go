@@ -325,7 +325,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var cost func(input, output, reasoning int) float64
+	var cost func(input, output, cacheRead, cacheWrite int) float64
 	if spec.MaxCostUSD > 0 {
 		cost, err = ledger.TurnCost(r.Context(), orgID, model)
 		if err != nil {
@@ -426,14 +426,16 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 
 	if billingAgent != "" {
 		err := recordTurnSpend(r.Context(), ledger, orgID, plugin.TurnSpend{
-			AgentID:         billingAgent,
-			Model:           model,
-			InputTokens:     turn.InputTokens,
-			OutputTokens:    turn.OutputTokens,
-			ReasoningTokens: turn.ReasoningTokens,
-			Source:          spendSourceChat,
-			SessionID:       threadID,
-			TurnID:          runID,
+			AgentID:          billingAgent,
+			Model:            model,
+			InputTokens:      turn.InputTokens,
+			OutputTokens:     turn.OutputTokens,
+			ReasoningTokens:  turn.ReasoningTokens,
+			CacheReadTokens:  turn.CacheReadTokens,
+			CacheWriteTokens: turn.CacheWriteTokens,
+			Source:           spendSourceChat,
+			SessionID:        threadID,
+			TurnID:           runID,
 		})
 		if err != nil && !errors.Is(err, plugin.ErrWorkforceSpendReplayed) {
 			slog.Error("failed to record agent spend", "orgId", orgID, "agentId", billingAgent, "err", err)

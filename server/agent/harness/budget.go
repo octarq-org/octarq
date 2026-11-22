@@ -15,11 +15,11 @@ type Budget struct {
 	MaxTokens   int
 	MaxCostUSD  float64
 	MaxWallTime time.Duration
-	Cost        func(input, output, reasoning int) float64
+	Cost        func(input, output, cacheRead, cacheWrite int) float64
 }
 
 func turnTokens(t *Turn) int {
-	return t.InputTokens + t.OutputTokens
+	return t.InputTokens + t.OutputTokens + t.CacheReadTokens + t.CacheWriteTokens
 }
 
 func (r *defaultRunner) checkBudget(t *Turn, started time.Time) error {
@@ -38,7 +38,7 @@ func (r *defaultRunner) checkBudget(t *Turn, started time.Time) error {
 		}
 	}
 	if b.MaxCostUSD > 0 {
-		if used := b.Cost(t.InputTokens, t.OutputTokens, t.ReasoningTokens); used >= b.MaxCostUSD {
+		if used := b.Cost(t.InputTokens, t.OutputTokens, t.CacheReadTokens, t.CacheWriteTokens); used >= b.MaxCostUSD {
 			return fmt.Errorf("%w: %.4f of %.4f USD used", ErrBudgetExceeded, used, b.MaxCostUSD)
 		}
 	}
@@ -53,7 +53,7 @@ func WithBudget(b Budget) RunnerOption {
 	return func(r *defaultRunner) { r.budget = b }
 }
 
-func BudgetFromSpec(spec HarnessSpec, cost func(input, output, reasoning int) float64) Budget {
+func BudgetFromSpec(spec HarnessSpec, cost func(input, output, cacheRead, cacheWrite int) float64) Budget {
 	b := Budget{
 		MaxTokens:   spec.MaxTokens,
 		MaxCostUSD:  spec.MaxCostUSD,

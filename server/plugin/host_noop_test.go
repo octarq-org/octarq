@@ -44,8 +44,8 @@ func (s *stubWorkforce) AuthorizeTurn(context.Context, uint, string, string) err
 	s.calls++
 	return nil
 }
-func (s *stubWorkforce) TurnCost(context.Context, uint, string) (func(input, output, reasoning int) float64, error) {
-	return func(int, int, int) float64 { return 0 }, nil
+func (s *stubWorkforce) TurnCost(context.Context, uint, string) (func(input, output, cacheRead, cacheWrite int) float64, error) {
+	return func(int, int, int, int) float64 { return 0 }, nil
 }
 func (s *stubWorkforce) RecordSpend(context.Context, uint, plugin.TurnSpend) (*plugin.SpendRecord, error) {
 	return &plugin.SpendRecord{}, nil

@@ -56,7 +56,7 @@ func TestBudgetStopsTheLoopAtTheTokenCeiling(t *testing.T) {
 
 func TestBudgetStopsTheLoopAtTheCostCeiling(t *testing.T) {
 	comp := &tokenCompleter{input: 1000, output: 0}
-	cost := func(in, _, _ int) float64 { return float64(in) / 10000 }
+	cost := func(in, _, _, _ int) float64 { return float64(in) / 10000 }
 	r := newTestRunner(t, comp, &fakeExecutor{},
 		WithBudget(Budget{MaxCostUSD: 0.15, Cost: cost}),
 	)
@@ -68,6 +68,26 @@ func TestBudgetStopsTheLoopAtTheCostCeiling(t *testing.T) {
 	}
 	if comp.calls != 2 {
 		t.Fatalf("completer called %d times, want 2 (0.10 then 0.20 crosses 0.15)", comp.calls)
+	}
+}
+
+func TestBudgetCountsCacheTokens(t *testing.T) {
+	turn := &Turn{InputTokens: 10, OutputTokens: 5, CacheReadTokens: 100, CacheWriteTokens: 50}
+	if got := turnTokens(turn); got != 165 {
+		t.Fatalf("turnTokens = %d, want 165", got)
+	}
+
+	var seenIn, seenOut, seenRead, seenWrite int
+	cost := func(in, out, read, write int) float64 {
+		seenIn, seenOut, seenRead, seenWrite = in, out, read, write
+		return 0
+	}
+	r := newTestRunner(t, &tokenCompleter{}, &fakeExecutor{}, WithBudget(Budget{MaxCostUSD: 1, Cost: cost}))
+	if err := r.(*defaultRunner).checkBudget(turn, time.Now()); err != nil {
+		t.Fatalf("checkBudget = %v", err)
+	}
+	if seenIn != 10 || seenOut != 5 || seenRead != 100 || seenWrite != 50 {
+		t.Fatalf("cost args = %d/%d/%d/%d, want 10/5/100/50", seenIn, seenOut, seenRead, seenWrite)
 	}
 }
 
@@ -182,7 +202,7 @@ func TestSpecFingerprintCoversBudgets(t *testing.T) {
 }
 
 func TestBudgetFromSpec(t *testing.T) {
-	cost := func(int, int, int) float64 { return 0 }
+	cost := func(int, int, int, int) float64 { return 0 }
 	spec := HarnessSpec{MaxTokens: 500, MaxCostUSD: 0.25, MaxWallTimeSec: 90}
 	got := BudgetFromSpec(spec, cost)
 	if got.MaxTokens != 500 || got.MaxCostUSD != 0.25 || got.MaxWallTime != 90*time.Second {

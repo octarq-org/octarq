@@ -131,6 +131,7 @@ func (p *langchainProvider) Complete(ctx context.Context, req Request) (Response
 	in, out := tokensFromInfo(c.GenerationInfo)
 	reasoning := reasoningTokensFromInfo(c.GenerationInfo)
 	cacheRead, cacheCreation := cacheTokensFromInfo(c.GenerationInfo)
+	in = normalizedInput(in, cacheRead, c.GenerationInfo)
 
 	var toolCalls []ToolCall
 	for _, tc := range c.ToolCalls {
@@ -220,6 +221,7 @@ func (p *langchainProvider) StreamComplete(ctx context.Context, req Request, h S
 	in, out := tokensFromInfo(c.GenerationInfo)
 	reasoning := reasoningTokensFromInfo(c.GenerationInfo)
 	cacheRead, cacheCreation := cacheTokensFromInfo(c.GenerationInfo)
+	in = normalizedInput(in, cacheRead, c.GenerationInfo)
 	return Response{
 		Text:                c.Content,
 		Model:               model,
@@ -291,9 +293,54 @@ func cacheTokensFromInfo(info map[string]any) (read, creation int) {
 		}
 		return 0
 	}
-	read = pick("cached_tokens", "cache_read_input_tokens", "prompt_cache_hit_tokens", "prompt_tokens_details.cached_tokens")
+	read = pick("cached_tokens", "cache_read_input_tokens", "prompt_cache_hit_tokens",
+		"PromptCachedTokens", "prompt_cached_tokens", "CachedTokens", "cachedTokens",
+		"CacheReadInputTokens", "cacheReadInputTokens")
+	if read == 0 {
+		for _, k := range []string{"prompt_tokens_details", "PromptTokensDetails"} {
+			details, ok := info[k].(map[string]any)
+			if !ok {
+				continue
+			}
+			if v, ok := pickInt(details, "cached_tokens", "cachedTokens"); ok {
+				read = v
+				break
+			}
+		}
+	}
 	creation = pick("cache_creation_input_tokens", "cache_creation_tokens")
 	return read, creation
+}
+
+func pickInt(info map[string]any, keys ...string) (int, bool) {
+	for _, k := range keys {
+		switch n := info[k].(type) {
+		case int:
+			return n, true
+		case int64:
+			return int(n), true
+		case float64:
+			return int(n), true
+		}
+	}
+	return 0, false
+}
+
+func uncachedInput(input, cacheRead int) int {
+	if cacheRead <= 0 {
+		return input
+	}
+	if cacheRead >= input {
+		return 0
+	}
+	return input - cacheRead
+}
+
+func normalizedInput(input, cacheRead int, info map[string]any) int {
+	if v, ok := pickInt(info, "NonCachedInputTokens", "non_cached_input_tokens"); ok {
+		return v
+	}
+	return uncachedInput(input, cacheRead)
 }
 
 func makeOpenAI(o Options) (Provider, error) {

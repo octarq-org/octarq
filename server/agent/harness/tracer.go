@@ -25,15 +25,17 @@ const (
 )
 
 type TraceEvent struct {
-	Kind            TraceKind
-	Step            int
-	Tool            string
-	Status          string
-	ErrorCode       string
-	DurationMS      int64
-	InputTokens     int
-	OutputTokens    int
-	ReasoningTokens int
+	Kind             TraceKind
+	Step             int
+	Tool             string
+	Status           string
+	ErrorCode        string
+	DurationMS       int64
+	InputTokens      int
+	OutputTokens     int
+	ReasoningTokens  int
+	CacheReadTokens  int
+	CacheWriteTokens int
 }
 
 type NopTracer struct{}
