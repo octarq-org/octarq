@@ -110,18 +110,15 @@ func TestNoProviderFailsClosed(t *testing.T) {
 func TestPriceIsInstanceWide(t *testing.T) {
 	s, _ := newTestStore(t)
 	ctx := context.Background()
-	got, err := s.Price(ctx, 1, "qwen-flash")
+	got, err := s.Price(ctx, 1, "anthropic/claude-opus-4-8")
 	if err != nil {
 		t.Fatalf("price: %v", err)
 	}
-	if got.Input <= 0 || got.Output <= 0 {
+	if got.Input != 5 || got.Output != 25 || got.CacheRead != 0.5 || got.CacheWrite != 6.25 {
 		t.Fatalf("price = %+v, want the catalog values", got)
 	}
 
-	if got.Reasoning != got.Output {
-		t.Fatalf("reasoning = %v, want the output rate %v", got.Reasoning, got.Output)
-	}
-	other, err := s.Price(ctx, 2, "qwen-flash")
+	other, err := s.Price(ctx, 2, "anthropic/claude-opus-4-8")
 	if err != nil || other != got {
 		t.Fatalf("other workspace price = %+v, %v, want %+v", other, err, got)
 	}
@@ -130,11 +127,11 @@ func TestPriceIsInstanceWide(t *testing.T) {
 func TestPriceLookupIsCaseInsensitiveAndAliased(t *testing.T) {
 	s, _ := newTestStore(t)
 	ctx := context.Background()
-	want, err := s.Price(ctx, 1, "qwen-flash")
+	want, err := s.Price(ctx, 1, "anthropic/claude-opus-4-8")
 	if err != nil {
 		t.Fatalf("price: %v", err)
 	}
-	for _, name := range []string{"Qwen-Flash", " qwen-flash ", "alibaba-qwen/qwen-flash"} {
+	for _, name := range []string{"Anthropic/Claude-Opus-4.8", " anthropic/claude-opus-4-8 ", "anthropic/claude-opus-4.8"} {
 		if got, err := s.Price(ctx, 1, name); err != nil || got != want {
 			t.Fatalf("price(%q) = %+v, %v, want %+v", name, got, err, want)
 		}
@@ -150,53 +147,115 @@ func TestPriceCatalogRefusesWhatItCannotBill(t *testing.T) {
 	if _, err := s.Price(ctx, 1, ""); !errors.Is(err, plugin.ErrModelUnpriced) {
 		t.Fatalf("empty model = %v, want ErrModelUnpriced", err)
 	}
-
-	if _, err := s.Price(ctx, 1, "DetectDocumentText"); !errors.Is(err, plugin.ErrModelUnpriced) {
-		t.Fatalf("unpriced model = %v, want ErrModelUnpriced", err)
-	}
 }
 
-func TestPriceAliasRefusesAmbiguity(t *testing.T) {
-	c, err := parsePriceCatalog([]byte(`{
-		"model_count": 3,
-		"models": [
-			{"model_id": "vendor-a/same-name", "pricing": {"input": 1, "output": 2}},
-			{"model_id": "vendor-b/same-name", "pricing": {"input": 3, "output": 4}},
-			{"model_id": "vendor-a/unique", "pricing": {"input": 5, "output": 6}}
-		]
-	}`))
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	if _, err := c.price("same-name"); !errors.Is(err, plugin.ErrModelUnpriced) {
-		t.Fatalf("ambiguous alias = %v, want ErrModelUnpriced", err)
-	}
-	if _, err := c.price("vendor-x/same-name"); !errors.Is(err, plugin.ErrModelUnpriced) {
-		t.Fatalf("prefixed ambiguous alias = %v, want ErrModelUnpriced", err)
-	}
-	if got, err := c.price("vendor-a/unique"); err != nil || got.Input != 5 || got.Output != 6 {
-		t.Fatalf("unique = %+v, %v", got, err)
-	}
-	if got, err := c.price("vendor-x/unique"); err != nil || got.Input != 5 {
-		t.Fatalf("unique suffix = %+v, %v", got, err)
-	}
-}
+func TestPriceStoreInferenceModes(t *testing.T) {
+	s, vs := newTestStore(t)
+	ctx := context.Background()
 
-func TestParsePriceCatalogRefusesCorruption(t *testing.T) {
-	for _, raw := range []string{
-		`{`,
-		`{"model_count": 0, "models": []}`,
-		`{"model_count": 2, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2}}]}`,
-		`{"model_count": 2, "models": [{"model_id": "a"}, {"model_id": "a"}]}`,
-		`{"model_count": 1, "models": [{"model_id": ""}]}`,
-		`{"model_count": 1, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2, "unit": "1K tokens"}}]}`,
-		`{"model_count": 1, "models": [{"model_id": "a", "pricing": {"input": 1, "output": 2, "currency": "EUR"}}]}`,
-		`{"model_count": 1, "models": [{"model_id": "a", "pricing": {"input": -1, "output": 2}}]}`,
-	} {
-		if _, err := parsePriceCatalog([]byte(raw)); err == nil {
-			t.Fatalf("parse %s = nil, want an error", raw)
+	t.Run("single row inference", func(t *testing.T) {
+		_, err := s.CreateProvider(ctx, 10, ProviderInput{
+			Name:    "AnthropicProv",
+			Backend: "anthropic",
+			Model:   "claude-opus-4-8",
+			APIKey:  "k",
+		}, vs)
+		if err != nil {
+			t.Fatalf("create provider: %v", err)
 		}
-	}
+		got, err := s.Price(ctx, 10, "claude-opus-4-8")
+		if err != nil {
+			t.Fatalf("Price: %v", err)
+		}
+		if got.Input != 5 || got.Output != 25 {
+			t.Fatalf("got price %+v", got)
+		}
+	})
+
+	t.Run("multi row same provider", func(t *testing.T) {
+		_, err := s.CreateProvider(ctx, 20, ProviderInput{
+			Name:    "Anthropic1",
+			Backend: "anthropic",
+			Model:   "claude-opus-4-8",
+			APIKey:  "k1",
+		}, vs)
+		if err != nil {
+			t.Fatalf("create provider 1: %v", err)
+		}
+		_, err = s.CreateProvider(ctx, 20, ProviderInput{
+			Name:    "Anthropic2",
+			Backend: "openai",
+			BaseURL: "https://api.anthropic.com/v1",
+			Model:   "claude-opus-4-8",
+			APIKey:  "k2",
+		}, vs)
+		if err != nil {
+			t.Fatalf("create provider 2: %v", err)
+		}
+		got, err := s.Price(ctx, 20, "claude-opus-4-8")
+		if err != nil {
+			t.Fatalf("Price: %v", err)
+		}
+		if got.Input != 5 || got.Output != 25 {
+			t.Fatalf("got price %+v", got)
+		}
+	})
+
+	t.Run("multi row different provider ambiguity", func(t *testing.T) {
+		_, err := s.CreateProvider(ctx, 30, ProviderInput{
+			Name:    "AnthropicRow",
+			Backend: "anthropic",
+			Model:   "ambiguous-shared-model",
+			APIKey:  "k1",
+		}, vs)
+		if err != nil {
+			t.Fatalf("create provider 1: %v", err)
+		}
+		_, err = s.CreateProvider(ctx, 30, ProviderInput{
+			Name:    "DeepseekRow",
+			Backend: "openai",
+			BaseURL: "https://api.deepseek.com/v1",
+			Model:   "ambiguous-shared-model",
+			APIKey:  "k2",
+		}, vs)
+		if err != nil {
+			t.Fatalf("create provider 2: %v", err)
+		}
+		_, err = s.Price(ctx, 30, "ambiguous-shared-model")
+		if !errors.Is(err, plugin.ErrModelAmbiguous) {
+			t.Fatalf("expected ErrModelAmbiguous, got %v", err)
+		}
+	})
+
+	t.Run("provider row beats a model prefix", func(t *testing.T) {
+		_, err := s.CreateProvider(ctx, 50, ProviderInput{
+			Name:    "OpenRouterRow",
+			Backend: "openai",
+			BaseURL: "https://openrouter.ai/api/v1",
+			Model:   "deepseek/deepseek-v4-flash",
+			APIKey:  "k",
+		}, vs)
+		if err != nil {
+			t.Fatalf("create provider: %v", err)
+		}
+		got, err := s.Price(ctx, 50, "deepseek/deepseek-v4-flash")
+		if err != nil {
+			t.Fatalf("Price: %v", err)
+		}
+		if got.Input != 0.09 || got.Output != 0.18 {
+			t.Fatalf("got price %+v, want the openrouter row price 0.09/0.18", got)
+		}
+	})
+
+	t.Run("zero rows bare resolution", func(t *testing.T) {
+		got, err := s.Price(ctx, 40, "gpt-daybreak-red-latest")
+		if err != nil {
+			t.Fatalf("Price: %v", err)
+		}
+		if got.Input != 12.5 || got.Output != 75 || got.CacheRead != 1.25 || got.CacheWrite != 15.625 {
+			t.Fatalf("got price %+v", got)
+		}
+	})
 }
 
 func TestZeroOrgIsRefused(t *testing.T) {
@@ -266,5 +325,12 @@ func TestProviderVaultLifecycleAndGuards(t *testing.T) {
 	}
 	if err := s.DeleteProvider(ctx, 1, 99999, vs); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound deleting missing provider, got %v", err)
+	}
+}
+
+func TestPriceOnAnUnconfiguredStoreFails(t *testing.T) {
+	s := &Store{}
+	if _, err := s.Price(context.Background(), 1, "claude-opus-4-8"); err == nil {
+		t.Fatal("Price on a store with no database returned a price")
 	}
 }

@@ -1,4 +1,4 @@
-.PHONY: all web build run dev docker clean tidy plugin-build plugin-build-reset test lint vulncheck openapi release
+.PHONY: all web build run dev docker clean tidy plugin-build plugin-build-reset test lint vulncheck openapi release pricing
 
 BINARY := octarq
 AIR    := $(shell go env GOPATH)/bin/air
@@ -20,6 +20,9 @@ LDFLAGS     := -s -w \
 	-X github.com/octarq-org/octarq/server/internal/buildinfo.Version=$(GIT_VERSION) \
 	-X github.com/octarq-org/octarq/server/internal/buildinfo.Commit=$(GIT_COMMIT) \
 	-X github.com/octarq-org/octarq/server/internal/buildinfo.BuiltAt=$(BUILD_TIME)
+
+pricing:
+	cd server && go run ./cmd/pricinggen -out plugins/llmgateway/bundled/models.json.gz
 
 # Build the single binary (assumes web is already built).
 build:

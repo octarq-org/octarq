@@ -27,13 +27,14 @@ type ProviderDTO struct {
 }
 
 type PriceDTO struct {
-	Model       string   `json:"model"`
-	DisplayName string   `json:"displayName"`
-	ProviderID  string   `json:"providerId"`
-	Input       float64  `json:"input"`
-	Output      float64  `json:"output"`
-	Reasoning   float64  `json:"reasoning"`
-	CachedInput *float64 `json:"cachedInput,omitempty"`
+	Model       string  `json:"model"`
+	DisplayName string  `json:"displayName"`
+	ProviderID  string  `json:"providerId"`
+	Input       float64 `json:"input"`
+	Output      float64 `json:"output"`
+	Reasoning   float64 `json:"reasoning"`
+	CacheRead   float64 `json:"cacheRead"`
+	CacheWrite  float64 `json:"cacheWrite"`
 }
 
 func toProviderDTO(row Provider) ProviderDTO {
@@ -381,12 +382,12 @@ func (p *Plugin) listPrices(ctx context.Context, input *ListPricesInput) (*ListP
 }
 
 func (p *Plugin) prices() (*ListPricesOutput, error) {
-	c, err := pricingCatalog()
-	if err != nil {
-		return nil, mapError(err)
+	c := loadCatalog()
+	if c == nil {
+		return nil, mapError(plugin.ErrPricingUnavailable)
 	}
 	out := &ListPricesOutput{}
-	out.Body.Prices = c.billable()
+	out.Body.Prices = c.Billable()
 	return out, nil
 }
 

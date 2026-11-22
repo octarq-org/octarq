@@ -355,22 +355,29 @@ func TestHTTPPricesAreReadOnly(t *testing.T) {
 	found := false
 	for _, raw := range prices {
 		row, _ := raw.(map[string]any)
-		if row["model"] != "qwen-flash" {
+		deprecatedKey := "cached" + "Input"
+		if _, ok := row[deprecatedKey]; ok {
+			t.Fatalf("row holds %s: %v", deprecatedKey, row)
+		}
+		if row["model"] != "claude-opus-4-8" || row["providerId"] != "anthropic" {
 			continue
 		}
 		found = true
-		if row["input"].(float64) <= 0 || row["reasoning"] != row["output"] {
-			t.Fatalf("row = %v, want the catalog price with reasoning at the output rate", row)
+		if row["input"].(float64) != 5 || row["output"].(float64) != 25 {
+			t.Fatalf("row = %v, want input 5 and output 25", row)
 		}
-		if row["providerId"] != "alibaba-qwen" {
-			t.Fatalf("row = %v, want providerId alibaba-qwen", row)
+		if row["cacheRead"].(float64) != 0.5 {
+			t.Fatalf("row = %v, want cacheRead 0.5", row)
 		}
-		if cached, _ := row["cachedInput"].(float64); cached != 0.01 {
-			t.Fatalf("row = %v, want cachedInput 0.01", row)
+		if row["cacheWrite"].(float64) != 6.25 {
+			t.Fatalf("row = %v, want cacheWrite 6.25", row)
+		}
+		if row["displayName"] != "Claude Opus 4.8" {
+			t.Fatalf("row = %v, want displayName Claude Opus 4.8", row)
 		}
 	}
 	if !found {
-		t.Fatalf("prices = %v, want qwen-flash", listed["prices"])
+		t.Fatalf("prices = %v, want claude-opus-4-8", listed["prices"])
 	}
 
 	for _, method := range []string{http.MethodPut, http.MethodDelete} {

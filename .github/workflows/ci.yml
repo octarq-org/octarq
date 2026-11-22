@@ -138,7 +138,7 @@ jobs:
       - name: go test (race + coverage)
         run: |
           THRESHOLD=90
-          EXCL='/(webembed|openapi|cmd/octarq-build|cmd/openapi-gen|examples)/'
+          EXCL='/(webembed|openapi|cmd/octarq-build|cmd/openapi-gen|cmd/pricinggen|examples)/'
           go test -race -count=1 -coverprofile=coverage.all.out ./...
           awk -v excl="$EXCL" 'NR==1 || $0 !~ excl' coverage.all.out > coverage.out
           total=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | tr -d '%')

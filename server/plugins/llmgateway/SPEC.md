@@ -44,47 +44,64 @@ remains only for CLI paths that run outside a workspace.
 ## 4. Price Contract
 
 `plugin.ModelPricing.Price(ctx, orgID, model)` returns
-`plugin.ModelPrice{Input, Output, Reasoning}` or `plugin.ErrModelUnpriced`.
-Prices are instance-wide, so `orgID` is unused.
+`plugin.ModelPrice{Input, Output, Reasoning, CacheRead, CacheWrite}` or
+`plugin.ErrModelUnpriced`. `orgID` scopes the provider row that decides which
+provider's price applies.
 
 ### 4.1 Catalog
 
-`server/plugins/llmgateway/prices.json` is embedded with `//go:embed` and parsed
-once (`sync.Once`) into a case-insensitive index of `model_id`.
+`server/plugins/llmgateway/bundled/models.json.gz` is embedded with `//go:embed`
+and parsed into an index keyed by `provider/model`.
 
-- Source: <https://aicostbudget.github.io/ai-api-pricing-data/api/v1/prices.json>
-- Dataset: `AICostBudget AI API Pricing Dataset`, version and `generated_at`
-  copied verbatim into the file.
-- Licenses: code MIT, data CC BY 4.0.
-- The committed file is a derived subset of the upstream JSON: top-level
-  provenance, plus `models[]` holding only `model_id`, `display_name`,
-  `provider_id`, and `pricing {input, output, cached_input, unit, currency}`.
-  Every upstream model is kept. Evidence objects are dropped to keep the
-  binary small. Models are ordered by `model_id` so the file is deterministic.
-- A price change arrives with a binary update. There is no manual entry and no
+- Source: <https://models.dev/api.json>. The repository license is MIT.
+- Bundle shape: `{"generated_at", "source", "models": [[modelID, providerID,
+  input, output, cacheRead, cacheWrite, reasoning, name], ...]}`. Prices are
+  USD per one million tokens. `name` is the display name; an empty name falls
+  back to the model ID.
+- `server/cmd/pricinggen` writes the bundle (`make pricing`). It keeps only
+  models whose `cost.input` and `cost.output` are non-negative numbers, skips
+  `experimental.modes`, and sorts by provider then model.
+- Parse guards: an empty `models` array, a row shorter than eight fields, a
+  missing or negative `input`/`output`, or a negative `cache_read`,
+  `cache_write`, or `reasoning` rejects the whole file. A reseller row and a
+  first-party row for the same model are both kept; the provider decides.
+- `reasoning` is display metadata. It is never billed separately: vendors
+  already count thinking tokens in the output total.
+- A price change arrives with a bundle refresh, not a manual entry. There is no
   per-org price table.
-- Row guards, checked at parse time: a non-empty `unit` must be `1M tokens`
-  (case-insensitive), a non-empty `currency` must be `USD`, and no price may be
-  negative. One violating row rejects the whole file, so a per-1K, per-image or
-  foreign-currency figure can never be read as USD per 1M tokens. A `null`
-  price is not a guard failure: it marks an unpriced model.
 
 ### 4.2 Lookup rules
 
-1. Exact `model_id` match, case-insensitive.
-2. A requested name that contains `/` also matches the segment after the last
-   `/`. That suffix resolves only when exactly one model owns it. Two models
-   with one suffix refuse the lookup instead of guessing.
-3. A model absent from the catalog returns `plugin.ErrModelUnpriced`.
-4. A model present with a `null` input or output price returns
-   `plugin.ErrModelUnpriced`: it is refused, never billed at zero.
-5. `Reasoning` repeats `Output`. The dataset publishes no reasoning rate, so
-   reasoning tokens bill at the output rate.
+1. Provider rows win. The store finds every provider row in the workspace whose
+   `model` or `cheapModel` equals the requested name. One distinct mapped
+   provider answers the lookup; two distinct providers return
+   `plugin.ErrModelAmbiguous`.
+2. A row maps to a models.dev provider by backend (`anthropic` → `anthropic`,
+   `gemini` → `google`, `openai` with no base URL → `openai`) or by the base URL
+   host (`api.deepseek.com` → `deepseek`, `openrouter.ai` → `openrouter`, and
+   the table in `providerid.go`). An unmapped host returns
+   `plugin.ErrModelUnpriced`.
+3. With no matching row, a name whose first segment is a known provider is
+   looked up as `provider/rest`. Otherwise the bare name resolves only when
+   every provider that publishes it agrees on the price. Disagreement returns
+   `plugin.ErrModelAmbiguous`.
+4. Lookup normalizes case and treats `.` and `-` as equal, then strips one
+   trailing `-YYYYMMDD` or `-YYYY-MM-DD` snapshot suffix.
+5. A model absent from the catalog returns `plugin.ErrModelUnpriced`.
 
 A catalog parse failure returns `plugin.ErrPricingUnavailable` for every lookup.
-`Plugin.Validate` parses the catalog at boot and refuses to start on failure, so
-a corrupt embed never serves a turn. The parse also refuses a row whose unit is
-not `1M tokens`, whose currency is not `USD`, or whose price is negative.
+`Plugin.Validate` parses the embedded seed at boot and refuses to start on
+failure, so a corrupt embed never serves a turn.
+
+### 4.3 Refresh
+
+`Plugin.Start` loads the newest of the embedded seed and
+`<os.UserCacheDir()>/octarq/models.json.gz`, then refreshes
+<https://models.dev/api.json> every 24 hours. `OCTARQ_PRICING_REFRESH=off` stops
+the loop. A failed fetch, parse, or cache write keeps the current catalog; it
+never empties it. An `ErrModelUnpriced` lookup triggers at most one asynchronous
+refresh every six hours. The cache write is a temp file plus rename. The binary
+never reads another application's cache.
 
 A cost ceiling over a zero price can never trip, which is why an unpriced model
 is refused. A consumer without a price registry receives
