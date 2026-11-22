@@ -2,6 +2,18 @@ import type { ModelPriceDTO } from "../../api/types";
 
 export const PRICE_PAGE_SIZE = 20;
 
+export function modelId(row: Pick<ModelPriceDTO, "model" | "providerId">): string {
+  return row.providerId ? `${row.providerId}/${row.model}` : row.model;
+}
+
+export function formatPrice(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return value
+    .toFixed(6)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
+}
+
 export function filterModelPrices(
   prices: ModelPriceDTO[],
   query: string,

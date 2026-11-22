@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelPriceDTO } from "../../api/types";
-import { filterModelPrices, paginatePrices } from "./priceList";
+import { filterModelPrices, formatPrice, modelId, paginatePrices } from "./priceList";
 
 const row = (model: string, providerId: string): ModelPriceDTO => ({
   model,
@@ -58,5 +58,28 @@ describe("paginatePrices", () => {
     expect(page.pageCount).toBe(1);
     expect(page.page).toBe(1);
     expect(page.rows).toEqual([]);
+  });
+});
+
+describe("modelId", () => {
+  it("prefixes the provider", () => {
+    expect(modelId({ model: "qwen-flash", providerId: "alibaba-qwen" })).toBe("alibaba-qwen/qwen-flash");
+  });
+
+  it("leaves a model without a provider alone", () => {
+    expect(modelId({ model: "qwen-flash", providerId: "" })).toBe("qwen-flash");
+  });
+});
+
+describe("formatPrice", () => {
+  it("trims trailing zeros", () => {
+    expect(formatPrice(0.05)).toBe("0.05");
+    expect(formatPrice(10)).toBe("10");
+    expect(formatPrice(0.0005)).toBe("0.0005");
+  });
+
+  it("marks a missing price", () => {
+    expect(formatPrice(null)).toBe("—");
+    expect(formatPrice(undefined)).toBe("—");
   });
 });
