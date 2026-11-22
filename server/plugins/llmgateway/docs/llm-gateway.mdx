@@ -1,6 +1,6 @@
 ---
 title: Model gateway
-description: Connect a model backend and read the bundled model prices.
+description: Connect a model backend and read model prices.
 category: settings
 order: 70
 ---
@@ -45,19 +45,17 @@ Delete a provider only after you make another one the default. A workspace with 
 
 **Model prices** lists the price of each model per one million tokens. The list is read-only.
 
-Prices come from the AICostBudget pricing dataset. The application bundles this dataset. The dataset covers 199 models.
+Prices come from the models.dev dataset. The gateway refreshes the dataset every 24 hours. The gateway uses a built-in seed dataset when offline.
 
-Reasoning tokens bill at the output rate. The dataset has no separate reasoning rate.
+Each provider sets separate prices. The same model can have different prices under different providers. Billing uses the provider configured for the workspace.
 
-Update the application to refresh the prices. Do not enter a price by hand.
+Reasoning tokens bill at the output rate.
 
-AI features that charge a budget refuse a model with no price. The refusal covers a model outside the dataset, and a model with no published token price.
+AI features refuse a model outside the catalog. The refusal also covers a model with no published token price.
 
 The list shows only the models that have a token price.
 
-Data source: <https://aicostbudget.github.io/ai-api-pricing-data/api/v1/prices.json>
-
-The dataset code is MIT licensed. The data is CC BY 4.0 licensed.
+Data source: <https://models.dev/api.json>
 
 ## Use a coding agent
 

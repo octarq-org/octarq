@@ -1,6 +1,6 @@
 ---
 title: 模型网关
-description: 连接模型后端，并查看内置的模型价格。
+description: 连接模型后端，并查看模型价格。
 category: settings
 order: 70
 ---
@@ -45,19 +45,17 @@ order: 70
 
 **模型价格** 列出每个模型每百万 token 的价格。列表为只读。
 
-价格来自 AICostBudget 定价数据集。应用内置该数据集。数据集覆盖 199 个模型。
+价格来自 models.dev 数据集。网关每 24 小时自动刷新一次数据集。离线时使用内置种子数据。
 
-推理 token 按输出价计费。数据集没有单独的推理价。
+价格按提供商限定。同一模型在不同提供商下价格可能不同。计费使用工作区实际配置的提供商。
 
-更新应用即可刷新价格。不要手动输入价格。
+推理 token 按输出价计费。
 
-带预算的 AI 功能拒绝没有价格的模型。拒绝范围包括数据集之外的模型，以及没有公开 token 价格的模型。
+模型未收录时，AI 功能拒绝执行。AI 功能也拒绝没有公开 token 价格的模型。
 
 列表只显示有 token 价格的模型。
 
-数据来源：<https://aicostbudget.github.io/ai-api-pricing-data/api/v1/prices.json>
-
-数据集代码使用 MIT 许可。数据使用 CC BY 4.0 许可。
+数据来源：<https://models.dev/api.json>
 
 ## 使用编程代理
 
