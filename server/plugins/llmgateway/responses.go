@@ -322,9 +322,14 @@ type respOutPart struct {
 }
 
 type respUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-	TotalTokens  int `json:"total_tokens"`
+	InputTokens        int               `json:"input_tokens"`
+	InputTokensDetails *respInputDetails `json:"input_tokens_details,omitempty"`
+	OutputTokens       int               `json:"output_tokens"`
+	TotalTokens        int               `json:"total_tokens"`
+}
+
+type respInputDetails struct {
+	CachedTokens int `json:"cached_tokens"`
 }
 
 func fromOpenAIResponse(providerID, model string, in *oaiResponse) *respResponse {
@@ -364,10 +369,14 @@ func fromOpenAIResponse(providerID, model string, in *oaiResponse) *respResponse
 			out.Output = append(out.Output, respTextItem(0, ""))
 		}
 	}
+	inTokens, outTokens, cachedTokens := wireTokenTotals(in.Usage)
 	out.Usage = respUsage{
-		InputTokens:  in.Usage.PromptTokens,
-		OutputTokens: in.Usage.CompletionTokens,
-		TotalTokens:  in.Usage.PromptTokens + in.Usage.CompletionTokens,
+		InputTokens:  inTokens,
+		OutputTokens: outTokens,
+		TotalTokens:  inTokens + outTokens,
+	}
+	if cachedTokens > 0 {
+		out.Usage.InputTokensDetails = &respInputDetails{CachedTokens: cachedTokens}
 	}
 	return out
 }
@@ -440,6 +449,23 @@ func (p *Plugin) handleAgentResponses(w http.ResponseWriter, r *http.Request) {
 	if out.Stream {
 		out.StreamOptions = &oaiStreamOptions{IncludeUsage: true}
 	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil {
+		reqModel := strings.TrimSpace(in.Model)
+		if modelRefused(acct, reqModel) {
+			writeAgentError(w, http.StatusForbidden, "permission_error", "The requested model is not allowed for this spend account.")
+			return
+		}
+		ledger := p.spendLedger()
+		if ledger == nil {
+			writeAgentError(w, http.StatusConflict, "billing_error", "This build has no spend ledger.")
+			return
+		}
+		if err := ledger.AuthorizeTurn(r.Context(), orgID, acct.AccountID, reqModel); err != nil {
+			refusal := billingRefusalFor(err)
+			writeAgentError(w, refusal.status, billingErrorType(refusal.status), refusal.message)
+			return
+		}
+	}
 	if in.Stream {
 		p.streamResponses(w, r, ap, out, in.Model)
 		return
@@ -468,6 +494,11 @@ func (p *Plugin) completeResponses(w http.ResponseWriter, r *http.Request, ap ag
 	if err := json.Unmarshal(raw, &oai); err != nil {
 		writeAgentError(w, http.StatusBadGateway, "upstream_error", "The provider answer is not a completion.")
 		return
+	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil {
+		if usage, ok := normalizeUsage(oai.Usage); ok {
+			p.recordSpend(r.Context(), acct.OrgID, buildTurnSpend(acct, body.Model, oai.ID, usage))
+		}
 	}
 	writeJSON(w, http.StatusOK, fromOpenAIResponse(oai.ID, model, &oai))
 }
@@ -671,11 +702,14 @@ func (s *respStreamer) closeTools() {
 	s.tools = map[int]*respToolStream{}
 }
 
-func (s *respStreamer) finish(inputTokens, outputTokens int) {
+func (s *respStreamer) finish(inputTokens, outputTokens, cachedTokens int) {
 	s.closeText()
 	s.closeTools()
 	if inputTokens > 0 {
 		s.response.Usage.InputTokens = inputTokens
+	}
+	if cachedTokens > 0 {
+		s.response.Usage.InputTokensDetails = &respInputDetails{CachedTokens: cachedTokens}
 	}
 	s.response.Usage.OutputTokens = outputTokens
 	s.response.Usage.TotalTokens = s.response.Usage.InputTokens + outputTokens
@@ -702,6 +736,9 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 	scanner.Buffer(make([]byte, 64<<10), 8<<20)
 	outputTokens := 0
 	inputTokens := estimateResponsesTokens(body)
+	cachedTokens := 0
+	turnID := ""
+	var capturedUsage *tokenUsage
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if !strings.HasPrefix(line, "data:") {
@@ -712,19 +749,21 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 			continue
 		}
 		var chunk struct {
+			ID      string `json:"id"`
+			Model   string `json:"model"`
 			Choices []struct {
 				Delta struct {
 					Content   string        `json:"content"`
 					ToolCalls []oaiToolCall `json:"tool_calls"`
 				} `json:"delta"`
 			} `json:"choices"`
-			Usage *struct {
-				PromptTokens     int `json:"prompt_tokens"`
-				CompletionTokens int `json:"completion_tokens"`
-			} `json:"usage"`
+			Usage *tokenUsage `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
 			continue
+		}
+		if chunk.ID != "" {
+			turnID = chunk.ID
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != "" {
@@ -738,15 +777,30 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 			}
 		}
 		if chunk.Usage != nil {
-			if chunk.Usage.PromptTokens > 0 {
-				inputTokens = chunk.Usage.PromptTokens
+			capturedUsage = chunk.Usage
+			wireInput, wireOutput, wireCached := wireTokenTotals(chunk.Usage)
+			if wireInput > 0 {
+				inputTokens = wireInput
 			}
-			if chunk.Usage.CompletionTokens > 0 {
-				outputTokens = chunk.Usage.CompletionTokens
+			if wireOutput > 0 {
+				outputTokens = wireOutput
+			}
+			if wireCached > 0 {
+				cachedTokens = wireCached
 			}
 		}
 	}
-	st.finish(inputTokens, outputTokens)
+	st.finish(inputTokens, outputTokens, cachedTokens)
+	if acct := spendAccountFromContext(r.Context()); acct != nil && capturedUsage != nil {
+		normalized, _ := normalizeUsage(capturedUsage)
+		if normalized.Input == 0 {
+			normalized.Input = inputTokens
+		}
+		if normalized.Output == 0 {
+			normalized.Output = outputTokens
+		}
+		p.recordSpend(r.Context(), acct.OrgID, buildTurnSpend(acct, model, turnID, normalized))
+	}
 }
 
 func estimateResponsesTokens(body *oaiRequest) int {

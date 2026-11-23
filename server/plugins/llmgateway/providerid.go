@@ -40,7 +40,7 @@ var hostMappings = []hostMapping{
 
 func ProviderIDFor(row Provider) (string, error) {
 	backend := strings.ToLower(strings.TrimSpace(row.Backend))
-	if backend == "anthropic" {
+	if backend == "anthropic" || backend == "claude" {
 		return "anthropic", nil
 	}
 	if backend == "gemini" {

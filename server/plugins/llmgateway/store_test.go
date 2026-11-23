@@ -258,6 +258,49 @@ func TestPriceStoreInferenceModes(t *testing.T) {
 	})
 }
 
+func TestPriceFallsBackToTheActiveProviderOnAmbiguity(t *testing.T) {
+	s, vs := newTestStore(t)
+	ctx := context.Background()
+	if _, err := s.CreateProvider(ctx, 60, ProviderInput{
+		Name:    "Anthropic",
+		Backend: "claude",
+		Model:   "some-other-model",
+		APIKey:  "k",
+	}, vs); err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	got, err := s.Price(ctx, 60, "claude-opus-4-8")
+	if err != nil {
+		t.Fatalf("Price: %v", err)
+	}
+	if got.Input != 5 || got.Output != 25 {
+		t.Fatalf("price = %+v, want the anthropic row", got)
+	}
+}
+
+func TestPriceKeepsTheAmbiguityWhenTheFallbackHasNoPrice(t *testing.T) {
+	s, vs := newTestStore(t)
+	ctx := context.Background()
+	if _, err := s.CreateProvider(ctx, 70, ProviderInput{
+		Name:    "Google",
+		Backend: "gemini",
+		Model:   "some-other-model",
+		APIKey:  "k",
+	}, vs); err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	if _, err := s.Price(ctx, 70, "claude-opus-4-8"); !errors.Is(err, plugin.ErrModelAmbiguous) {
+		t.Fatalf("price = %v, want the original ambiguity", err)
+	}
+}
+
+func TestPriceKeepsTheAmbiguityWithoutAProvider(t *testing.T) {
+	s, _ := newTestStore(t)
+	if _, err := s.Price(context.Background(), 80, "claude-opus-4-8"); !errors.Is(err, plugin.ErrModelAmbiguous) {
+		t.Fatalf("price = %v, want the original ambiguity", err)
+	}
+}
+
 func TestZeroOrgIsRefused(t *testing.T) {
 	s, _ := newTestStore(t)
 	if _, err := s.ListProviders(context.Background(), 0); err == nil {

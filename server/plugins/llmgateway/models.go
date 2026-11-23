@@ -11,8 +11,8 @@ type Provider struct {
 	Backend     string    `gorm:"size:32;not null" json:"backend"`
 	VaultItemID uint      `gorm:"column:vault_item_id;default:0" json:"-"`
 	BaseURL     string    `gorm:"size:256" json:"baseUrl"`
-	Model       string    `gorm:"size:64" json:"model"`
-	CheapModel  string    `gorm:"size:64" json:"cheapModel"`
+	Model       string    `gorm:"size:128" json:"model"`
+	CheapModel  string    `gorm:"size:128" json:"cheapModel"`
 	IsDefault   bool      `gorm:"default:false" json:"isDefault"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

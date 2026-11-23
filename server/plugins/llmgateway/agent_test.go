@@ -629,14 +629,25 @@ func TestPricingServicesWithoutAPluginFailClosed(t *testing.T) {
 	}
 }
 
-type mockGatewaySpendLedger struct {
-	mu       sync.Mutex
-	accounts map[string]*plugin.SpendAccountAuth
-	recorded []plugin.TurnSpend
+type authorizeCall struct {
+	orgID     uint
+	accountID string
+	model     string
 }
 
-func (m *mockGatewaySpendLedger) AuthorizeTurn(context.Context, uint, string, string) error {
-	return nil
+type mockGatewaySpendLedger struct {
+	mu           sync.Mutex
+	accounts     map[string]*plugin.SpendAccountAuth
+	recorded     []plugin.TurnSpend
+	authorized   []authorizeCall
+	authorizeErr error
+}
+
+func (m *mockGatewaySpendLedger) AuthorizeTurn(_ context.Context, orgID uint, accountID, model string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.authorized = append(m.authorized, authorizeCall{orgID: orgID, accountID: accountID, model: model})
+	return m.authorizeErr
 }
 
 func (m *mockGatewaySpendLedger) TurnCost(context.Context, uint, string) (func(int, int, int, int) float64, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -265,6 +266,27 @@ func (f *httpFixture) do(t *testing.T, method, path, body string) (int, map[stri
 	out := map[string]any{}
 	_ = json.Unmarshal(raw, &out)
 	return resp.StatusCode, out
+}
+
+func TestProviderBodyAcceptsLongModelIDs(t *testing.T) {
+	f := newHTTPFixture(t, 1, 1, "admin")
+	model := strings.Repeat("m", 67)
+	status, body := f.do(t, http.MethodPost, "/api/llm-gateway/providers",
+		fmt.Sprintf(`{"name":"long","backend":%q,"model":%q}`, testBackend, model))
+	if status != http.StatusCreated {
+		t.Fatalf("create with a 67-character model = %d %v, want 201", status, body)
+	}
+	provider, _ := body["provider"].(map[string]any)
+	if provider["model"] != model {
+		t.Fatalf("model = %v, want the long id kept", provider["model"])
+	}
+
+	tooLong := strings.Repeat("m", 129)
+	status, _ = f.do(t, http.MethodPost, "/api/llm-gateway/providers",
+		fmt.Sprintf(`{"name":"long","backend":%q,"model":%q}`, testBackend, tooLong))
+	if status != http.StatusUnprocessableEntity {
+		t.Fatalf("create with a 129-character model = %d, want 422", status)
+	}
 }
 
 func TestHTTPProviderLifecycle(t *testing.T) {
