@@ -2,6 +2,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "../../../i18n";
 import { CopilotDrawer } from "../../CopilotDrawer";
@@ -21,7 +22,9 @@ function renderDrawer() {
   return render(
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <CopilotDrawer />
+        <MemoryRouter>
+          <CopilotDrawer />
+        </MemoryRouter>
       </I18nProvider>
     </QueryClientProvider>,
   );

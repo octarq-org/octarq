@@ -2,6 +2,7 @@
 import React from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { CopilotDrawer } from "./CopilotDrawer";
 import { useCopilotStore } from "./store";
 import { I18nProvider } from "../i18n";
@@ -17,7 +18,9 @@ function renderDrawer() {
   return render(
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <CopilotDrawer />
+        <MemoryRouter>
+          <CopilotDrawer />
+        </MemoryRouter>
       </I18nProvider>
     </QueryClientProvider>,
   );
