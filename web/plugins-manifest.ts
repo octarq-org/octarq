@@ -11,17 +11,23 @@ function installed(name: string): boolean {
 }
 
 function generate(entries: ReturnType<typeof resolveEntries>): string {
+  const parsed = entries.map((entry) => parseEntry(entry));
+  const missing = parsed
+    .filter((entry) => !entry.isLocal && !installed(entry.importSpec))
+    .map((entry) => entry.importSpec);
+  if (missing.length > 0) {
+    throw new Error(
+      `[octarq-plugins] manifest plugins are not installed: ${missing.join(", ")}. ` +
+        `Run the install step (pnpm build, or node scripts/install-manifest-plugins.mjs). ` +
+        `Then check octarq.plugins.json / OCTARQ_PLUGINS against the published packages.`,
+    );
+  }
   const lines = [
     "// AUTO-GENERATED from the plugin manifest — do not edit.",
     'import { registerUIPlugin } from "@octarq/plugin-sdk";',
   ];
   const locals: string[] = [];
-  entries.forEach((entry, i) => {
-    const { isLocal, importSpec, named } = parseEntry(entry);
-    if (!isLocal && !installed(importSpec)) {
-      console.warn(`[octarq-plugins] skipping "${importSpec}" — not installed; its page will 404-degrade`);
-      return;
-    }
+  parsed.forEach(({ importSpec, named }, i) => {
     const local = `__p${i}`;
     const from = JSON.stringify(importSpec);
     lines.push(named ? `import { ${named} as ${local} } from ${from};` : `import ${local} from ${from};`);
