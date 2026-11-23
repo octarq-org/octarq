@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	neturl "net/url"
 	"strconv"
@@ -17,12 +18,14 @@ import (
 )
 
 const (
-	AgentModelsPath  = "/v1/models"
-	AgentChatPath    = "/v1/chat/completions"
-	agentMaxBody     = 16 << 20
-	agentListTimeout = 15 * time.Second
-	virtualKeyPrefix = "sk-octarq-"
-	spendSourceProxy = "gateway_api"
+	AgentModelsPath    = "/v1/models"
+	AgentChatPath      = "/v1/chat/completions"
+	agentMaxBody       = 16 << 20
+	agentListTimeout   = 15 * time.Second
+	virtualKeyPrefix   = "sk-octarq-"
+	spendSourceProxy   = "gateway_api"
+	spendWriteTimeout  = 10 * time.Second
+	streamUsageTailCap = 1 << 20
 )
 
 type spendAuthContextKey struct{}
@@ -39,14 +42,20 @@ func spendAccountFromContext(ctx context.Context) *plugin.SpendAccountAuth {
 
 func extractVirtualKey(r *http.Request) (string, bool) {
 	auth := strings.TrimSpace(r.Header.Get("Authorization"))
-	if len(auth) < 7 || !strings.EqualFold(auth[:7], "bearer ") {
-		return "", false
+	if len(auth) >= 7 && strings.EqualFold(auth[:7], "bearer ") {
+		if token := strings.TrimSpace(auth[7:]); strings.HasPrefix(token, virtualKeyPrefix) {
+			return token, true
+		}
 	}
-	token := strings.TrimSpace(auth[7:])
-	if !strings.HasPrefix(token, virtualKeyPrefix) {
-		return "", false
+	for _, name := range []string{"x-api-key", "x-goog-api-key"} {
+		if token := strings.TrimSpace(r.Header.Get(name)); strings.HasPrefix(token, virtualKeyPrefix) {
+			return token, true
+		}
 	}
-	return token, true
+	if token := strings.TrimSpace(r.URL.Query().Get("key")); strings.HasPrefix(token, virtualKeyPrefix) {
+		return token, true
+	}
+	return "", false
 }
 
 func (p *Plugin) virtualKeyMiddleware(guard func(http.Handler) http.Handler, next http.Handler) http.Handler {
@@ -92,14 +101,14 @@ func (p *Plugin) registerAgentRoutes(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	mux.Handle("GET "+AgentModelsPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentModels)))
 	mux.Handle("POST "+AgentChatPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentChat)))
-	mux.Handle("POST "+AgentResponsesPath, ctx.Guard(http.HandlerFunc(p.handleAgentResponses)))
-	mux.Handle("POST "+AgentMessagesPath, ctx.Guard(http.HandlerFunc(p.handleAgentMessages)))
-	mux.Handle("POST "+AgentCountTokensPath, ctx.Guard(http.HandlerFunc(p.handleAgentCountTokens)))
+	mux.Handle("POST "+AgentResponsesPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentResponses)))
+	mux.Handle("POST "+AgentMessagesPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentMessages)))
+	mux.Handle("POST "+AgentCountTokensPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleAgentCountTokens)))
 	mux.Handle("GET "+AgentWellKnownPath, http.HandlerFunc(p.handleOpencodeManifest))
-	mux.Handle("GET "+AgentOpencodeConfigPath, ctx.Guard(http.HandlerFunc(p.handleOpencodeConfig)))
-	mux.Handle("GET "+AgentGeminiModelsPath, ctx.Guard(http.HandlerFunc(p.handleGeminiModels)))
-	mux.Handle("GET "+agentGeminiPrefix+"{model}", ctx.Guard(http.HandlerFunc(p.handleGeminiModel)))
-	mux.Handle("POST "+agentGeminiPrefix+"{model}", ctx.Guard(http.HandlerFunc(p.handleGeminiAction)))
+	mux.Handle("GET "+AgentOpencodeConfigPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleOpencodeConfig)))
+	mux.Handle("GET "+AgentGeminiModelsPath, p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleGeminiModels)))
+	mux.Handle("GET "+agentGeminiPrefix+"{model}", p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleGeminiModel)))
+	mux.Handle("POST "+agentGeminiPrefix+"{model}", p.virtualKeyMiddleware(ctx.Guard, http.HandlerFunc(p.handleGeminiAction)))
 }
 
 type agentProvider struct {
@@ -397,68 +406,108 @@ func isModelAllowed(model string, allowed []string) bool {
 	return false
 }
 
-type chatCompletionUsageEnvelope struct {
-	ID    string `json:"id"`
-	Model string `json:"model"`
-	Usage *struct {
-		PromptTokens            int `json:"prompt_tokens"`
-		CompletionTokens        int `json:"completion_tokens"`
-		InputTokens             int `json:"input_tokens"`
-		OutputTokens            int `json:"output_tokens"`
-		CacheReadInputTokens    int `json:"cache_read_input_tokens"`
-		CacheCreationInputToken int `json:"cache_creation_input_tokens"`
-		PromptTokensDetails     *struct {
-			CachedTokens int `json:"cached_tokens"`
-		} `json:"prompt_tokens_details"`
-		CompletionTokensDetails *struct {
-			ReasoningTokens int `json:"reasoning_tokens"`
-		} `json:"completion_tokens_details"`
-	} `json:"usage"`
+type promptTokensDetails struct {
+	CachedTokens int `json:"cached_tokens"`
 }
 
-func extractUsageFromEnvelope(env chatCompletionUsageEnvelope, turnID, model *string, in, out, reasoning, cacheRead, cacheWrite *int, sawUsage *bool) {
-	if env.ID != "" {
-		*turnID = env.ID
+type completionTokensDetails struct {
+	ReasoningTokens int `json:"reasoning_tokens"`
+}
+
+type tokenUsage struct {
+	PromptTokens             int                      `json:"prompt_tokens"`
+	CompletionTokens         int                      `json:"completion_tokens"`
+	InputTokens              int                      `json:"input_tokens"`
+	OutputTokens             int                      `json:"output_tokens"`
+	CacheReadInputTokens     int                      `json:"cache_read_input_tokens"`
+	CacheCreationInputTokens int                      `json:"cache_creation_input_tokens"`
+	PromptTokensDetails      *promptTokensDetails     `json:"prompt_tokens_details"`
+	CompletionTokensDetails  *completionTokensDetails `json:"completion_tokens_details"`
+}
+
+type normalizedUsage struct {
+	Input      int
+	Output     int
+	Reasoning  int
+	CacheRead  int
+	CacheWrite int
+}
+
+func normalizeUsage(u *tokenUsage) (normalizedUsage, bool) {
+	if u == nil {
+		return normalizedUsage{}, false
 	}
-	if env.Model != "" {
-		*model = env.Model
+	var n normalizedUsage
+	cached := 0
+	if u.PromptTokensDetails != nil {
+		cached = u.PromptTokensDetails.CachedTokens
 	}
-	if env.Usage == nil {
-		return
-	}
-	*sawUsage = true
-	if env.Usage.PromptTokens > 0 || env.Usage.InputTokens == 0 {
-		*in = env.Usage.PromptTokens
+	if u.PromptTokens > 0 {
+		n.Input = u.PromptTokens - cached
+		if n.Input < 0 {
+			n.Input = 0
+		}
 	} else {
-		*in = env.Usage.InputTokens
+		n.Input = u.InputTokens
 	}
-	if env.Usage.CompletionTokens > 0 || env.Usage.OutputTokens == 0 {
-		*out = env.Usage.CompletionTokens
+	if cached > 0 {
+		n.CacheRead = cached
+	} else if u.CacheReadInputTokens > 0 {
+		n.CacheRead = u.CacheReadInputTokens
+	}
+	if u.CompletionTokens > 0 || u.OutputTokens == 0 {
+		n.Output = u.CompletionTokens
 	} else {
-		*out = env.Usage.OutputTokens
+		n.Output = u.OutputTokens
 	}
-	if env.Usage.CompletionTokensDetails != nil {
-		*reasoning = env.Usage.CompletionTokensDetails.ReasoningTokens
+	if u.CompletionTokensDetails != nil {
+		n.Reasoning = u.CompletionTokensDetails.ReasoningTokens
 	}
-	if env.Usage.PromptTokensDetails != nil && env.Usage.PromptTokensDetails.CachedTokens > 0 {
-		*cacheRead = env.Usage.PromptTokensDetails.CachedTokens
-	} else if env.Usage.CacheReadInputTokens > 0 {
-		*cacheRead = env.Usage.CacheReadInputTokens
+	if u.CacheCreationInputTokens > 0 {
+		n.CacheWrite = u.CacheCreationInputTokens
 	}
-	if env.Usage.CacheCreationInputToken > 0 {
-		*cacheWrite = env.Usage.CacheCreationInputToken
+	return n, true
+}
+
+func responseTokenCounts(u *tokenUsage) (int, int) {
+	n, ok := normalizeUsage(u)
+	if !ok {
+		return 0, 0
 	}
+	return n.Input, n.Output
+}
+
+type chatCompletionUsageEnvelope struct {
+	ID    string      `json:"id"`
+	Model string      `json:"model"`
+	Usage *tokenUsage `json:"usage"`
 }
 
 func parseRelayedChatUsage(raw []byte, fallbackModel string) (plugin.TurnSpend, bool) {
 	turnID := ""
 	model := fallbackModel
-	var inTok, outTok, reasonTok, cacheReadTok, cacheWriteTok int
+	var total normalizedUsage
 	sawUsage := false
+
+	consume := func(env chatCompletionUsageEnvelope) {
+		if env.ID != "" {
+			turnID = env.ID
+		}
+		if env.Model != "" {
+			model = env.Model
+		}
+		if env.Usage == nil {
+			return
+		}
+		if n, ok := normalizeUsage(env.Usage); ok {
+			total = n
+			sawUsage = true
+		}
+	}
 
 	var single chatCompletionUsageEnvelope
 	if err := json.Unmarshal(raw, &single); err == nil && single.Usage != nil {
-		extractUsageFromEnvelope(single, &turnID, &model, &inTok, &outTok, &reasonTok, &cacheReadTok, &cacheWriteTok, &sawUsage)
+		consume(single)
 	} else {
 		for _, line := range strings.Split(string(raw), "\n") {
 			line = strings.TrimSpace(line)
@@ -471,26 +520,144 @@ func parseRelayedChatUsage(raw []byte, fallbackModel string) (plugin.TurnSpend, 
 			}
 			var chunk chatCompletionUsageEnvelope
 			if err := json.Unmarshal([]byte(payload), &chunk); err == nil {
-				extractUsageFromEnvelope(chunk, &turnID, &model, &inTok, &outTok, &reasonTok, &cacheReadTok, &cacheWriteTok, &sawUsage)
+				consume(chunk)
 			}
 		}
 	}
 	if !sawUsage {
 		return plugin.TurnSpend{}, false
 	}
-	if turnID == "" {
-		turnID = fmt.Sprintf("gw-%d", time.Now().UnixNano())
-	}
 	return plugin.TurnSpend{
 		Model:            model,
-		InputTokens:      inTok,
-		OutputTokens:     outTok,
-		ReasoningTokens:  reasonTok,
-		CacheReadTokens:  cacheReadTok,
-		CacheWriteTokens: cacheWriteTok,
+		InputTokens:      total.Input,
+		OutputTokens:     total.Output,
+		ReasoningTokens:  total.Reasoning,
+		CacheReadTokens:  total.CacheRead,
+		CacheWriteTokens: total.CacheWrite,
 		Source:           spendSourceProxy,
-		TurnID:           turnID,
+		TurnID:           gatewayTurnID(turnID),
 	}, true
+}
+
+func gatewayTurnID(upstreamID string) string {
+	if id := strings.TrimSpace(upstreamID); id != "" {
+		return id
+	}
+	return fmt.Sprintf("gw-%d", time.Now().UnixNano())
+}
+
+func (p *Plugin) spendLedger() plugin.SpendLedger {
+	if p == nil || p.pctx == nil || p.pctx.Host == nil {
+		return nil
+	}
+	return p.pctx.Host.SpendLedger()
+}
+
+func (p *Plugin) recordSpend(parent context.Context, orgID uint, spend plugin.TurnSpend) {
+	ledger := p.spendLedger()
+	if ledger == nil {
+		slog.WarnContext(parent, "llmgateway: no spend ledger to record a turn", "org", orgID, "turn", spend.TurnID)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), spendWriteTimeout)
+	defer cancel()
+	if _, err := ledger.RecordSpend(ctx, orgID, spend); err != nil {
+		slog.WarnContext(ctx, "llmgateway: record spend failed",
+			"org", orgID, "account", spend.AccountID, "turn", spend.TurnID, "error", err)
+	}
+}
+
+func modelRefused(acct *plugin.SpendAccountAuth, model string) bool {
+	return acct != nil && len(acct.AllowedModels) > 0 && !isModelAllowed(strings.TrimSpace(model), acct.AllowedModels)
+}
+
+type billingRefusal struct {
+	status  int
+	message string
+}
+
+func billingRefusalFor(err error) billingRefusal {
+	switch {
+	case errors.Is(err, plugin.ErrSpendModelUnpriced),
+		errors.Is(err, plugin.ErrModelUnpriced),
+		errors.Is(err, plugin.ErrPricingUnavailable):
+		return billingRefusal{http.StatusBadRequest, "The pricing dataset has no price for this model. Choose another model."}
+	case errors.Is(err, plugin.ErrSpendAccountPaused), errors.Is(err, plugin.ErrSpendBudgetExhausted):
+		return billingRefusal{http.StatusPaymentRequired, "The spend account is paused or has exhausted its budget."}
+	case errors.Is(err, plugin.ErrSpendAccountNotFound):
+		return billingRefusal{http.StatusNotFound, "The spend account does not exist in this workspace."}
+	case errors.Is(err, plugin.ErrSpendUnavailable):
+		return billingRefusal{http.StatusConflict, "This build has no spend ledger."}
+	default:
+		return billingRefusal{http.StatusInternalServerError, "The gateway cannot check the account budget. Retry the request."}
+	}
+}
+
+func billingErrorType(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "invalid_request_error"
+	case http.StatusPaymentRequired, http.StatusConflict:
+		return "billing_error"
+	case http.StatusForbidden:
+		return "permission_error"
+	case http.StatusNotFound:
+		return "not_found_error"
+	default:
+		return "server_error"
+	}
+}
+
+func buildTurnSpend(acct *plugin.SpendAccountAuth, model, turnID string, n normalizedUsage) plugin.TurnSpend {
+	return plugin.TurnSpend{
+		AccountID:        acct.AccountID,
+		Model:            model,
+		InputTokens:      n.Input,
+		OutputTokens:     n.Output,
+		ReasoningTokens:  n.Reasoning,
+		CacheReadTokens:  n.CacheRead,
+		CacheWriteTokens: n.CacheWrite,
+		Source:           spendSourceProxy,
+		TurnID:           gatewayTurnID(turnID),
+	}
+}
+
+func rawStringField(envelope map[string]json.RawMessage, key string) string {
+	raw, ok := envelope[key]
+	if !ok {
+		return ""
+	}
+	var value string
+	if json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+func rawBoolField(envelope map[string]json.RawMessage, key string) bool {
+	raw, ok := envelope[key]
+	if !ok {
+		return false
+	}
+	var value bool
+	if json.Unmarshal(raw, &value) != nil {
+		return false
+	}
+	return value
+}
+
+func withStreamUsage(rawBody []byte, envelope map[string]json.RawMessage) ([]byte, error) {
+	options := map[string]json.RawMessage{}
+	if existing, ok := envelope["stream_options"]; ok {
+		_ = json.Unmarshal(existing, &options)
+	}
+	options["include_usage"] = json.RawMessage("true")
+	merged, err := json.Marshal(options)
+	if err != nil {
+		return nil, err
+	}
+	envelope["stream_options"] = merged
+	return json.Marshal(envelope)
 }
 
 func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
@@ -514,6 +681,7 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 	var forwardBody io.Reader = body
 	contentLength := r.ContentLength
 	reqModel := ap.Model
+	captureLimit := 0
 
 	if acct != nil {
 		rawBody, readErr := io.ReadAll(body)
@@ -521,16 +689,35 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 			writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The request body cannot be read.")
 			return
 		}
-		var chatReq struct {
-			Model string `json:"model"`
-		}
-		_ = json.Unmarshal(rawBody, &chatReq)
-		if m := strings.TrimSpace(chatReq.Model); m != "" {
+		var envelope map[string]json.RawMessage
+		_ = json.Unmarshal(rawBody, &envelope)
+		if m := rawStringField(envelope, "model"); m != "" {
 			reqModel = m
 		}
-		if len(acct.AllowedModels) > 0 && !isModelAllowed(strings.TrimSpace(chatReq.Model), acct.AllowedModels) {
+		if modelRefused(acct, reqModel) {
 			writeAgentError(w, http.StatusForbidden, "permission_error", "The requested model is not allowed for this spend account.")
 			return
+		}
+		ledger := p.spendLedger()
+		if ledger == nil {
+			writeAgentError(w, http.StatusConflict, "billing_error", "This build has no spend ledger.")
+			return
+		}
+		if err := ledger.AuthorizeTurn(r.Context(), orgID, acct.AccountID, reqModel); err != nil {
+			refusal := billingRefusalFor(err)
+			writeAgentError(w, refusal.status, billingErrorType(refusal.status), refusal.message)
+			return
+		}
+		if rawBoolField(envelope, "stream") {
+			injected, injErr := withStreamUsage(rawBody, envelope)
+			if injErr != nil {
+				writeAgentError(w, http.StatusBadRequest, "invalid_request_error", "The request body cannot be read.")
+				return
+			}
+			rawBody = injected
+			captureLimit = streamUsageTailCap
+		} else {
+			captureLimit = agentMaxBody
 		}
 		forwardBody = bytes.NewReader(rawBody)
 		contentLength = int64(len(rawBody))
@@ -562,11 +749,11 @@ func (p *Plugin) handleAgentChat(w http.ResponseWriter, r *http.Request) {
 		relay(w, resp)
 		return
 	}
-	captured := relayAndCapture(w, resp, 2<<20)
-	if resp.StatusCode >= 200 && resp.StatusCode <= 299 && p.pctx != nil && p.pctx.Host != nil && p.pctx.Host.SpendLedger() != nil {
+	captured := relayAndCapture(w, resp, captureLimit)
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 		if spend, hasUsage := parseRelayedChatUsage(captured, reqModel); hasUsage {
 			spend.AccountID = acct.AccountID
-			_, _ = p.pctx.Host.SpendLedger().RecordSpend(r.Context(), orgID, spend)
+			p.recordSpend(r.Context(), orgID, spend)
 		}
 	}
 }
@@ -593,27 +780,27 @@ func relayAndCapture(w http.ResponseWriter, resp *http.Response, maxCapture int)
 	}
 	w.WriteHeader(resp.StatusCode)
 	flusher, _ := w.(http.Flusher)
-	var captured bytes.Buffer
+	var captured []byte
 	buf := make([]byte, 32<<10)
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
-			if maxCapture > 0 && captured.Len() < maxCapture {
-				rem := maxCapture - captured.Len()
-				if n < rem {
-					rem = n
+			if maxCapture > 0 {
+				captured = append(captured, buf[:n]...)
+				if len(captured) > maxCapture {
+					copy(captured, captured[len(captured)-maxCapture:])
+					captured = captured[:maxCapture]
 				}
-				captured.Write(buf[:rem])
 			}
 			if _, werr := w.Write(buf[:n]); werr != nil {
-				return captured.Bytes()
+				return captured
 			}
 			if flusher != nil {
 				flusher.Flush()
 			}
 		}
 		if err != nil {
-			return captured.Bytes()
+			return captured
 		}
 	}
 }

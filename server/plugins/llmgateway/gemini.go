@@ -274,9 +274,10 @@ type gemCandidate struct {
 }
 
 type gemUsage struct {
-	PromptTokenCount     int `json:"promptTokenCount"`
-	CandidatesTokenCount int `json:"candidatesTokenCount"`
-	TotalTokenCount      int `json:"totalTokenCount"`
+	PromptTokenCount        int `json:"promptTokenCount"`
+	CandidatesTokenCount    int `json:"candidatesTokenCount"`
+	TotalTokenCount         int `json:"totalTokenCount"`
+	CachedContentTokenCount int `json:"cachedContentTokenCount,omitempty"`
 }
 
 func geminiFinishReason(finish string) string {
@@ -323,10 +324,13 @@ func geminiFromOpenAI(in *oaiResponse, model string) (*gemResponse, error) {
 		candidate.Content.Parts = append(candidate.Content.Parts, gemPart{Text: ""})
 	}
 	out.Candidates = []gemCandidate{candidate}
+	inTokens, outTokens := responseTokenCounts(in.Usage)
+	normalized, _ := normalizeUsage(in.Usage)
 	out.UsageMetadata = &gemUsage{
-		PromptTokenCount:     in.Usage.PromptTokens,
-		CandidatesTokenCount: in.Usage.CompletionTokens,
-		TotalTokenCount:      in.Usage.PromptTokens + in.Usage.CompletionTokens,
+		PromptTokenCount:        inTokens,
+		CandidatesTokenCount:    outTokens,
+		TotalTokenCount:         inTokens + outTokens,
+		CachedContentTokenCount: normalized.CacheRead,
 	}
 	return out, nil
 }
@@ -357,6 +361,10 @@ func (p *Plugin) handleGeminiModel(w http.ResponseWriter, r *http.Request) {
 	name, action := geminiPathModel(r)
 	if action != "" {
 		writeGeminiError(w, http.StatusNotFound, "NOT_FOUND", "The path names no model.")
+		return
+	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil && modelRefused(acct, name) {
+		writeGeminiError(w, http.StatusForbidden, "PERMISSION_DENIED", "The requested model is not allowed for this spend account.")
 		return
 	}
 	orgID, ok := p.agentOrg(w, r)
@@ -425,6 +433,10 @@ func (p *Plugin) handleGeminiAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if action == "countTokens" {
+		if acct := spendAccountFromContext(r.Context()); acct != nil && modelRefused(acct, geminiRequestedModel(r, ap)) {
+			writeGeminiError(w, http.StatusForbidden, "PERMISSION_DENIED", "The requested model is not allowed for this spend account.")
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]int{"totalTokens": estimateGeminiTokens(&in)})
 		return
 	}
@@ -436,6 +448,22 @@ func (p *Plugin) handleGeminiAction(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeGeminiError(w, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error())
 		return
+	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil {
+		if modelRefused(acct, model) {
+			writeGeminiError(w, http.StatusForbidden, "PERMISSION_DENIED", "The requested model is not allowed for this spend account.")
+			return
+		}
+		ledger := p.spendLedger()
+		if ledger == nil {
+			writeGeminiError(w, http.StatusConflict, "FAILED_PRECONDITION", "This build has no spend ledger.")
+			return
+		}
+		if err := ledger.AuthorizeTurn(r.Context(), orgID, acct.AccountID, model); err != nil {
+			refusal := billingRefusalFor(err)
+			writeGeminiError(w, refusal.status, geminiReason(refusal.status), refusal.message)
+			return
+		}
 	}
 	if action == "generateContent" {
 		p.completeGemini(w, r, ap, out, model, false)
@@ -458,12 +486,16 @@ func geminiPathModel(r *http.Request) (string, string) {
 	return raw, ""
 }
 
-func (p *Plugin) geminiModel(w http.ResponseWriter, r *http.Request, ap agentProvider) (string, bool) {
+func geminiRequestedModel(r *http.Request, ap agentProvider) string {
 	if want := strings.TrimSpace(r.URL.Query().Get("model")); want != "" {
-		return want, true
+		return want
 	}
-	if ap.Model != "" {
-		return ap.Model, true
+	return strings.TrimSpace(ap.Model)
+}
+
+func (p *Plugin) geminiModel(w http.ResponseWriter, r *http.Request, ap agentProvider) (string, bool) {
+	if model := geminiRequestedModel(r, ap); model != "" {
+		return model, true
 	}
 	writeGeminiError(w, http.StatusServiceUnavailable, "FAILED_PRECONDITION",
 		"This workspace has no model configured. Add one in the console.")
@@ -496,6 +528,11 @@ func (p *Plugin) completeGemini(w http.ResponseWriter, r *http.Request, ap agent
 	if err != nil {
 		writeGeminiError(w, http.StatusBadGateway, "UNAVAILABLE", err.Error())
 		return
+	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil {
+		if usage, ok := normalizeUsage(oai.Usage); ok {
+			p.recordSpend(r.Context(), acct.OrgID, buildTurnSpend(acct, model, oai.ID, usage))
+		}
 	}
 	if asArray {
 		writeJSON(w, http.StatusOK, []*gemResponse{answer})
@@ -537,6 +574,8 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 	var order []int
 	finish := ""
 	var usage *gemUsage
+	var capturedUsage *tokenUsage
+	turnID := ""
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64<<10), 8<<20)
@@ -550,6 +589,8 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 			continue
 		}
 		var chunk struct {
+			ID      string `json:"id"`
+			Model   string `json:"model"`
 			Choices []struct {
 				Delta struct {
 					Content   string        `json:"content"`
@@ -557,13 +598,13 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 				} `json:"delta"`
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
-			Usage *struct {
-				PromptTokens     int `json:"prompt_tokens"`
-				CompletionTokens int `json:"completion_tokens"`
-			} `json:"usage"`
+			Usage *tokenUsage `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
 			continue
+		}
+		if chunk.ID != "" {
+			turnID = chunk.ID
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != "" {
@@ -595,10 +636,13 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 			}
 		}
 		if chunk.Usage != nil {
+			capturedUsage = chunk.Usage
+			normalized, _ := normalizeUsage(chunk.Usage)
 			usage = &gemUsage{
-				PromptTokenCount:     chunk.Usage.PromptTokens,
-				CandidatesTokenCount: chunk.Usage.CompletionTokens,
-				TotalTokenCount:      chunk.Usage.PromptTokens + chunk.Usage.CompletionTokens,
+				PromptTokenCount:        normalized.Input,
+				CandidatesTokenCount:    normalized.Output,
+				TotalTokenCount:         normalized.Input + normalized.Output,
+				CachedContentTokenCount: normalized.CacheRead,
 			}
 		}
 	}
@@ -631,6 +675,10 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 		UsageMetadata: usage,
 		ModelVersion:  model,
 	})
+	if acct := spendAccountFromContext(r.Context()); acct != nil && capturedUsage != nil {
+		normalized, _ := normalizeUsage(capturedUsage)
+		p.recordSpend(r.Context(), acct.OrgID, buildTurnSpend(acct, model, turnID, normalized))
+	}
 }
 
 type gemModelList struct {
@@ -689,6 +737,25 @@ func gemErrorBody(status int, reason, message string) map[string]any {
 		"error": map[string]any{
 			"code": status, "message": message, "status": reason,
 		},
+	}
+}
+
+func geminiReason(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "INVALID_ARGUMENT"
+	case http.StatusUnauthorized:
+		return "UNAUTHENTICATED"
+	case http.StatusPaymentRequired:
+		return "RESOURCE_EXHAUSTED"
+	case http.StatusForbidden:
+		return "PERMISSION_DENIED"
+	case http.StatusNotFound:
+		return "NOT_FOUND"
+	case http.StatusConflict:
+		return "FAILED_PRECONDITION"
+	default:
+		return "INTERNAL"
 	}
 }
 

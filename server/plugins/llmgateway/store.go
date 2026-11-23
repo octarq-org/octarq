@@ -263,6 +263,13 @@ func (s *Store) priceInternal(ctx context.Context, c *Catalog, orgID uint, model
 
 	if len(rows) == 0 {
 		_, _, price, err := c.ResolveBare(model)
+		if errors.Is(err, plugin.ErrModelAmbiguous) {
+			if providerID, pidErr := s.activeProviderIDFor(ctx, orgID); pidErr == nil {
+				if priced, priceErr := c.PriceFor(providerID, model); priceErr == nil {
+					return priced, nil
+				}
+			}
+		}
 		return price, err
 	}
 
@@ -284,6 +291,14 @@ func (s *Store) priceInternal(ctx context.Context, c *Catalog, orgID uint, model
 		singlePID = pid
 	}
 	return c.PriceFor(singlePID, model)
+}
+
+func (s *Store) activeProviderIDFor(ctx context.Context, orgID uint) (string, error) {
+	row, err := s.ActiveProvider(ctx, orgID)
+	if err != nil {
+		return "", err
+	}
+	return ProviderIDFor(*row)
 }
 
 func (s *Store) count(ctx context.Context, orgID uint) (int64, error) {

@@ -144,8 +144,8 @@ type ProviderBody struct {
 	Backend    string `json:"backend" required:"true" maxLength:"32"`
 	APIKey     string `json:"apiKey,omitempty"`
 	BaseURL    string `json:"baseUrl,omitempty" maxLength:"256"`
-	Model      string `json:"model,omitempty" maxLength:"64"`
-	CheapModel string `json:"cheapModel,omitempty" maxLength:"64"`
+	Model      string `json:"model,omitempty" maxLength:"128"`
+	CheapModel string `json:"cheapModel,omitempty" maxLength:"128"`
 }
 
 type CreateProviderInput struct {

@@ -363,8 +363,10 @@ type anthResponse struct {
 }
 
 type anthUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
+	InputTokens              int `json:"input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 }
 
 type oaiResponse struct {
@@ -377,10 +379,7 @@ type oaiResponse struct {
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
-	Usage struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-	} `json:"usage"`
+	Usage *tokenUsage `json:"usage"`
 }
 
 func stopReason(finish string) string {
@@ -399,6 +398,8 @@ func stopReason(finish string) string {
 }
 
 func fromOpenAI(in *oaiResponse) *anthResponse {
+	inTokens, outTokens := responseTokenCounts(in.Usage)
+	normalized, _ := normalizeUsage(in.Usage)
 	out := &anthResponse{
 		ID:         messageID(in.ID),
 		Type:       "message",
@@ -406,7 +407,12 @@ func fromOpenAI(in *oaiResponse) *anthResponse {
 		Model:      in.Model,
 		Content:    []anthBlock{},
 		StopReason: "end_turn",
-		Usage:      anthUsage{InputTokens: in.Usage.PromptTokens, OutputTokens: in.Usage.CompletionTokens},
+		Usage: anthUsage{
+			InputTokens:              inTokens,
+			OutputTokens:             outTokens,
+			CacheReadInputTokens:     normalized.CacheRead,
+			CacheCreationInputTokens: normalized.CacheWrite,
+		},
 	}
 	if len(in.Choices) == 0 {
 		out.Content = append(out.Content, anthBlock{Type: "text", Text: ""})
@@ -479,6 +485,23 @@ func (p *Plugin) handleAgentMessages(w http.ResponseWriter, r *http.Request) {
 	if out.Stream {
 		out.StreamOptions = &oaiStreamOptions{IncludeUsage: true}
 	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil {
+		reqModel := strings.TrimSpace(in.Model)
+		if modelRefused(acct, reqModel) {
+			writeAnthError(w, http.StatusForbidden, "permission_error", "The requested model is not allowed for this spend account.")
+			return
+		}
+		ledger := p.spendLedger()
+		if ledger == nil {
+			writeAnthError(w, http.StatusConflict, "billing_error", "This build has no spend ledger.")
+			return
+		}
+		if err := ledger.AuthorizeTurn(r.Context(), orgID, acct.AccountID, reqModel); err != nil {
+			refusal := billingRefusalFor(err)
+			writeAnthError(w, refusal.status, anthErrorType(refusal.status), refusal.message)
+			return
+		}
+	}
 	if in.Stream {
 		p.streamMessages(w, r, ap, out, in)
 		return
@@ -507,6 +530,11 @@ func (p *Plugin) completeMessages(w http.ResponseWriter, r *http.Request, ap age
 	if err := json.Unmarshal(raw, &oai); err != nil {
 		writeAnthError(w, http.StatusBadGateway, "api_error", "The provider answer is not a completion.")
 		return
+	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil {
+		if usage, ok := normalizeUsage(oai.Usage); ok {
+			p.recordSpend(r.Context(), acct.OrgID, buildTurnSpend(acct, body.Model, oai.ID, usage))
+		}
 	}
 	writeJSON(w, http.StatusOK, fromOpenAI(&oai))
 }
@@ -655,9 +683,12 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 		return
 	}
 	st := newStreamer(w, in.Model)
-	st.start(estimateRequestTokens(&in))
+	estimate := estimateRequestTokens(&in)
+	st.start(estimate)
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64<<10), 8<<20)
+	turnID := ""
+	var capturedUsage *tokenUsage
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if !strings.HasPrefix(line, "data:") {
@@ -668,6 +699,8 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 			continue
 		}
 		var chunk struct {
+			ID      string `json:"id"`
+			Model   string `json:"model"`
 			Choices []struct {
 				Delta struct {
 					Content   string        `json:"content"`
@@ -675,12 +708,13 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 				} `json:"delta"`
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
-			Usage *struct {
-				CompletionTokens int `json:"completion_tokens"`
-			} `json:"usage"`
+			Usage *tokenUsage `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
 			continue
+		}
+		if chunk.ID != "" {
+			turnID = chunk.ID
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != "" {
@@ -696,14 +730,27 @@ func (p *Plugin) streamMessages(w http.ResponseWriter, r *http.Request, ap agent
 				st.stop = stopReason(choice.FinishReason)
 			}
 		}
-		if chunk.Usage != nil && chunk.Usage.CompletionTokens > 0 {
-			st.outTokens = chunk.Usage.CompletionTokens
+		if chunk.Usage != nil {
+			capturedUsage = chunk.Usage
+			if normalized, _ := normalizeUsage(chunk.Usage); normalized.Output > 0 {
+				st.outTokens = normalized.Output
+			}
 		}
 	}
 	if st.stop == "" {
 		st.stop = "end_turn"
 	}
 	st.finish(st.outTokens)
+	if acct := spendAccountFromContext(r.Context()); acct != nil && capturedUsage != nil {
+		normalized, _ := normalizeUsage(capturedUsage)
+		if normalized.Input == 0 {
+			normalized.Input = estimate
+		}
+		if normalized.Output == 0 {
+			normalized.Output = st.outTokens
+		}
+		p.recordSpend(r.Context(), acct.OrgID, buildTurnSpend(acct, in.Model, turnID, normalized))
+	}
 }
 
 func seenTool(s *streamer, call oaiToolCall) bool {
@@ -729,6 +776,10 @@ func (p *Plugin) handleAgentCountTokens(w http.ResponseWriter, r *http.Request) 
 	var in anthRequest
 	if err := json.Unmarshal(raw, &in); err != nil {
 		writeAnthError(w, http.StatusBadRequest, "invalid_request_error", "The request body is not a Messages request.")
+		return
+	}
+	if acct := spendAccountFromContext(r.Context()); acct != nil && modelRefused(acct, in.Model) {
+		writeAnthError(w, http.StatusForbidden, "permission_error", "The requested model is not allowed for this spend account.")
 		return
 	}
 	writeJSON(w, http.StatusOK, countTokensAnswer{InputTokens: estimateRequestTokens(&in)})
@@ -777,6 +828,23 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+func anthErrorType(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "invalid_request_error"
+	case http.StatusUnauthorized:
+		return "authentication_error"
+	case http.StatusForbidden:
+		return "permission_error"
+	case http.StatusNotFound:
+		return "not_found_error"
+	case http.StatusPaymentRequired, http.StatusConflict:
+		return "billing_error"
+	default:
+		return "api_error"
+	}
 }
 
 func writeAnthError(w http.ResponseWriter, status int, kind, message string) {

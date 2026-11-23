@@ -20,6 +20,11 @@ func TestProviderIDFor(t *testing.T) {
 			wantID:   "anthropic",
 		},
 		{
+			name:     "backend claude",
+			provider: Provider{Backend: "claude"},
+			wantID:   "anthropic",
+		},
+		{
 			name:     "backend gemini",
 			provider: Provider{Backend: "gemini"},
 			wantID:   "google",

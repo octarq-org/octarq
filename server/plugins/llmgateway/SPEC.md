@@ -9,8 +9,9 @@ costs. No feature holds a provider key or a price table of its own.
 - **Module identifier**: `llmgateway`
 - **Plugin kind**: Core (always mounted, never gated, not listed as toggleable)
 - **Routes**: `/api/llm-gateway/providers`, `/api/llm-gateway/prices`,
-  plus the OpenAI-compatible agent surface `/v1/models`,
-  `/v1/chat/completions`, `/v1/responses`
+  plus the agent surface `/v1/models`, `/v1/chat/completions`, `/v1/responses`,
+  `/v1/messages`, `/v1/messages/count_tokens`, `/v1/opencode/config`, and the
+  `/v1beta/models` routes
 - **Services provided**: `plugin.ServiceModelPricing` (`llmgateway.pricing`)
 - **Host seam used**: `ctx.SetLLMResolverForOrg`
 
@@ -76,15 +77,18 @@ and parsed into an index keyed by `provider/model`.
    `model` or `cheapModel` equals the requested name. One distinct mapped
    provider answers the lookup; two distinct providers return
    `plugin.ErrModelAmbiguous`.
-2. A row maps to a models.dev provider by backend (`anthropic` → `anthropic`,
-   `gemini` → `google`, `openai` with no base URL → `openai`) or by the base URL
-   host (`api.deepseek.com` → `deepseek`, `openrouter.ai` → `openrouter`, and
-   the table in `providerid.go`). An unmapped host returns
+2. A row maps to a models.dev provider by backend (`claude` and `anthropic` →
+   `anthropic`, `gemini` → `google`, `openai` with no base URL → `openai`) or by
+   the base URL host (`api.deepseek.com` → `deepseek`, `openrouter.ai` →
+   `openrouter`, and the table in `providerid.go`). An unmapped host returns
    `plugin.ErrModelUnpriced`.
 3. With no matching row, a name whose first segment is a known provider is
    looked up as `provider/rest`. Otherwise the bare name resolves only when
    every provider that publishes it agrees on the price. Disagreement returns
-   `plugin.ErrModelAmbiguous`.
+   `plugin.ErrModelAmbiguous`. When the name is ambiguous, the lookup retries
+   with the workspace's default (or sole) provider mapped by `ProviderIDFor`.
+   A price from that retry wins. If the retry yields no price, the original
+   `plugin.ErrModelAmbiguous` stands.
 4. Lookup normalizes case and treats `.` and `-` as equal, then strips one
    trailing `-YYYYMMDD` or `-YYYY-MM-DD` snapshot suffix.
 5. A model absent from the catalog returns `plugin.ErrModelUnpriced`.
@@ -150,12 +154,42 @@ mux, behind the token guard rather than the huma admin routes.
   OpenAI format; discovery reads it anyway, so the operator can choose the
   workspace model with a native Anthropic key instead of typing a model name.
   A base URL on Anthropic's own host is read the same way.
+- A virtual key authenticates every agent route: `/v1/models`,
+  `/v1/chat/completions`, `/v1/responses`, `/v1/messages`,
+  `/v1/messages/count_tokens`, `/v1/opencode/config`, and the `/v1beta/models`
+  routes. The key arrives as `Authorization: Bearer`, `x-api-key`,
+  `x-goog-api-key`, or the `key` query parameter, and only a value with the
+  virtual-key prefix is treated as one. Any other value falls through to
+  `ctx.Guard`. The key is never copied to the provider request; the provider
+  receives only the workspace's own credential.
+- A virtual-key turn is authorized before the provider call.
+  `SpendLedger.AuthorizeTurn` receives the workspace, the spend account, and the
+  resolved model: the body model when present, else the provider default. An
+  unpriced model or an unavailable price list answers 400; a paused account or
+  an exhausted budget answers 402; an unknown account answers 404. The provider
+  is not called on a refusal. When `AllowedModels` is not empty, the resolved
+  model must match it, or the call answers 403. `count_tokens`, model lists, and
+  the opencode config are free: they accept a virtual key, enforce
+  `AllowedModels` where a model is named, and record no spend.
+- After a 2xx answer, the turn is billed through `SpendLedger.RecordSpend` with
+  a context detached from the request and a 10 s timeout. The upstream usage is
+  normalized before billing. An OpenAI `prompt_tokens` count already includes
+  the cached tokens, so the billed input is `prompt_tokens - cached_tokens`, and
+  `cached_tokens` is billed as cache reads. Anthropic `input_tokens` already
+  excludes the cache, so it is billed unchanged. `cache_creation_input_tokens`
+  is billed as cache writes. A missing usage object records no spend.
 - The chat body is forwarded unchanged, so tools, `stream`, and
-  `response_format` need no per-vendor handling here. Streaming answers are
-  flushed as they arrive.
+  `response_format` need no per-vendor handling here. When a virtual key is
+  present and the body sets `"stream": true`, the gateway merges
+  `"stream_options": {"include_usage": true}` into the body before it forwards
+  it. Every other field and every other `stream_options` key is kept. A
+  non-stream body is forwarded byte for byte. Streaming answers are flushed as
+  they arrive, and the gateway keeps a bounded tail of the answer so a usage
+  chunk at the end of a long stream is still billed.
 - Errors use the OpenAI `{"error":{...}}` shape, because the client parses that
   shape and nothing else.
-- The bounds are 16 MiB per chat body and 15 s for the model-list call.
+- The bounds are 16 MiB per chat body, 15 s for the model-list call, and 128
+  characters for a provider `model` or `cheapModel` value.
 - A backend with no OpenAI surface (`claude`, `gemini`, `mistral`, `cohere`) is
   refused by name unless the row sets a base URL that has one.
 - The routes live outside `/api/`, so `internal/server` forwards `/v1/` to the
@@ -201,8 +235,10 @@ Rules:
   `message_delta.usage.output_tokens` is the provider's own count.
   `message_start.usage.input_tokens` is an **estimate** (`estimateTokens`, about
   four characters per token): no provider on this path exposes a tokenizer, and
-  the client uses the figure only for its context meter. Nothing bills on it.
-- `count_tokens` answers with the same estimate.
+  the client uses the figure only for its context meter. A virtual-key turn is
+  billed from the provider usage, not from that estimate.
+- `count_tokens` answers with the same estimate. It is not billed. A virtual key
+  is accepted, and `AllowedModels` is enforced when the body names a model.
 
 ## 5.3 OpenAI Responses API (Codex)
 
@@ -253,7 +289,8 @@ Rules:
   broken turn and retries it.
 - The provider is asked for `stream_options.include_usage`, so the closing
   `usage` is the provider's own count when it reports one. Otherwise
-  `input_tokens` is an estimate, as in 5.2.
+  `input_tokens` is an estimate, as in 5.2. A virtual-key turn is billed from
+  the reporting usage, in both the streaming and the non-streaming path.
 
 ## 5.4 opencode Discovery
 
@@ -281,7 +318,8 @@ fetches `{origin}/.well-known/opencode` before it holds a credential.
 - The document carries no provider, model or key. Discoverability must not
   reveal what a workspace spends, and it is fetched before authentication.
 
-`GET /v1/opencode/config` (workspace token, same guard as `/v1/models`):
+`GET /v1/opencode/config` (workspace token or virtual key, same guard as
+`/v1/models`):
 
 ```json
 {"config": {"provider": {"octarq": {
@@ -350,6 +388,11 @@ Translation, both directions:
   streams as it arrives.
 - `parts` is written as an empty list, never `null`, on every frame: gemini-cli
   reads `parts.length` and throws on null.
+- `usageMetadata` carries the normalized counts, including
+  `cachedContentTokenCount`. A virtual-key `generateContent` or
+  `streamGenerateContent` turn is billed from that usage. `countTokens` and the
+  model list are free, but they accept a virtual key and enforce
+  `AllowedModels` where a model is named.
 
 ## 6. Failure Modes
 
@@ -363,6 +406,10 @@ Translation, both directions:
 | Two providers, no default | `ErrNotConfigured` with "choose a default provider" |
 | Org 0 | Refused by `TenantDB` |
 | Agent token names no workspace | 403 in the OpenAI error shape |
+| Virtual-key model has no price, or the price list is unavailable | 400 in the protocol error shape; the provider is not called |
+| Virtual-key spend account is paused or over budget | 402 in the protocol error shape |
+| Virtual-key spend account does not exist | 404 in the protocol error shape |
+| Virtual-key model is not in `AllowedModels` | 403 in the protocol error shape |
 | Provider lists no models | 502; the console picker and the agent both fail closed |
 | Provider base URL cannot be parsed | 400; nothing is sent |
 | A Messages block has no OpenAI counterpart | 400; the turn is refused |
