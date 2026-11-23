@@ -272,6 +272,18 @@ func TestResponsesVirtualKeyBills(t *testing.T) {
 	if got.InputTokens != 20 || got.CacheReadTokens != 10 || got.OutputTokens != 7 || got.Model != "stub-model" || got.TurnID != "chatcmpl-bill" {
 		t.Fatalf("spend = %+v", got)
 	}
+	var answer map[string]any
+	if err := json.Unmarshal([]byte(out), &answer); err != nil {
+		t.Fatalf("answer is not JSON: %v", err)
+	}
+	usage, _ := answer["usage"].(map[string]any)
+	if usage["input_tokens"] != float64(30) || usage["total_tokens"] != float64(37) {
+		t.Fatalf("usage = %v, want the wire total input", usage)
+	}
+	details, _ := usage["input_tokens_details"].(map[string]any)
+	if details["cached_tokens"] != float64(10) {
+		t.Fatalf("usage = %v, want cached tokens as a subset", usage)
+	}
 	calls := authorizedCalls(ledger)
 	if len(calls) != 1 || calls[0].model != "stub-model" {
 		t.Fatalf("authorized = %+v", calls)
@@ -292,6 +304,9 @@ func TestResponsesVirtualKeyStreamBills(t *testing.T) {
 	got := spends[0]
 	if got.InputTokens != 20 || got.CacheReadTokens != 10 || got.OutputTokens != 7 || got.TurnID != "chatcmpl-rs" {
 		t.Fatalf("spend = %+v", got)
+	}
+	if !strings.Contains(out, `"input_tokens":30`) || !strings.Contains(out, `"cached_tokens":10`) {
+		t.Fatalf("stream wire usage lost the totals:\n%s", out)
 	}
 }
 
@@ -401,6 +416,17 @@ func TestGeminiVirtualKeyBills(t *testing.T) {
 	if got.InputTokens != 20 || got.CacheReadTokens != 10 || got.OutputTokens != 7 || got.Model != "stub-model" || got.TurnID != "chatcmpl-bill" {
 		t.Fatalf("spend = %+v", got)
 	}
+	var answer map[string]any
+	if err := json.Unmarshal([]byte(out), &answer); err != nil {
+		t.Fatalf("answer is not JSON: %v", err)
+	}
+	usage, _ := answer["usageMetadata"].(map[string]any)
+	if usage["promptTokenCount"] != float64(30) || usage["totalTokenCount"] != float64(37) {
+		t.Fatalf("usageMetadata = %v, want the wire total input", usage)
+	}
+	if usage["cachedContentTokenCount"] != float64(10) {
+		t.Fatalf("usageMetadata = %v, want cached tokens as a subset", usage)
+	}
 }
 
 func TestGeminiVirtualKeyStreamBills(t *testing.T) {
@@ -417,6 +443,9 @@ func TestGeminiVirtualKeyStreamBills(t *testing.T) {
 	got := spends[0]
 	if got.InputTokens != 20 || got.CacheReadTokens != 10 || got.OutputTokens != 7 || got.TurnID != "chatcmpl-gs" {
 		t.Fatalf("spend = %+v", got)
+	}
+	if !strings.Contains(out, `"promptTokenCount":30`) || !strings.Contains(out, `"cachedContentTokenCount":10`) {
+		t.Fatalf("stream wire usage lost the totals:\n%s", out)
 	}
 }
 
@@ -507,6 +536,41 @@ func TestVirtualKeyHeaderSourcesFallThrough(t *testing.T) {
 	req.Header.Set("x-goog-api-key", "plain")
 	if _, ok := extractVirtualKey(req); ok {
 		t.Fatal("a non-virtual key was accepted from a header or the query")
+	}
+}
+
+func TestGatewayTurnIDFallsBackForLongUpstreamIDs(t *testing.T) {
+	if got := gatewayTurnID("chatcmpl-1"); got != "chatcmpl-1" {
+		t.Fatalf("short id = %q, want it kept", got)
+	}
+	exact := strings.Repeat("y", maxTurnIDLength)
+	if got := gatewayTurnID(exact); got != exact {
+		t.Fatalf("a %d-character id = %q, want it kept", maxTurnIDLength, got)
+	}
+	long := strings.Repeat("x", maxTurnIDLength+1)
+	if got := gatewayTurnID(long); len(got) > maxTurnIDLength || !strings.HasPrefix(got, "gw-") {
+		t.Fatalf("long id = %q, want a gateway id", got)
+	}
+	if got := gatewayTurnID(""); !strings.HasPrefix(got, "gw-") || len(got) > maxTurnIDLength {
+		t.Fatalf("empty id = %q, want a gateway id", got)
+	}
+}
+
+func TestVirtualKeyChatRecordsALongUpstreamIDAsAGatewayID(t *testing.T) {
+	longID := strings.Repeat("x", maxTurnIDLength+16)
+	body := `{"id":"` + longID + `","choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":5,"completion_tokens":1}}`
+	f, _, ledger := newVirtualKeyFixture(t, body, activeAccount("stub-model"))
+	status, out := vkDo(t, f, http.MethodPost, AgentChatPath, vkBearer(vkToken),
+		`{"model":"stub-model","messages":[{"role":"user","content":"hi"}]}`)
+	if status != http.StatusOK {
+		t.Fatalf("chat = %d %s", status, out)
+	}
+	spends := recordedSpends(ledger)
+	if len(spends) != 1 {
+		t.Fatalf("recorded = %v, want one spend", spends)
+	}
+	if got := spends[0].TurnID; len(got) > maxTurnIDLength || !strings.HasPrefix(got, "gw-") {
+		t.Fatalf("turn id = %q, want a gateway id", got)
 	}
 }
 

@@ -177,7 +177,9 @@ mux, behind the token guard rather than the huma admin routes.
   the cached tokens, so the billed input is `prompt_tokens - cached_tokens`, and
   `cached_tokens` is billed as cache reads. Anthropic `input_tokens` already
   excludes the cache, so it is billed unchanged. `cache_creation_input_tokens`
-  is billed as cache writes. A missing usage object records no spend.
+  is billed as cache writes. A missing usage object records no spend. The
+  upstream response id is the turn id. An id longer than 64 characters is
+  replaced with a gateway `gw-` id, so the ledger never drops the row.
 - The chat body is forwarded unchanged, so tools, `stream`, and
   `response_format` need no per-vendor handling here. When a virtual key is
   present and the body sets `"stream": true`, the gateway merges
@@ -290,7 +292,10 @@ Rules:
 - The provider is asked for `stream_options.include_usage`, so the closing
   `usage` is the provider's own count when it reports one. Otherwise
   `input_tokens` is an estimate, as in 5.2. A virtual-key turn is billed from
-  the reporting usage, in both the streaming and the non-streaming path.
+  the reporting usage, in both the streaming and the non-streaming path. The
+  wire `input_tokens` stays the OpenAI total, cached tokens included;
+  `input_tokens_details.cached_tokens` reports the cached subset. The ledger
+  bills the uncached input.
 
 ## 5.4 opencode Discovery
 
@@ -388,9 +393,11 @@ Translation, both directions:
   streams as it arrives.
 - `parts` is written as an empty list, never `null`, on every frame: gemini-cli
   reads `parts.length` and throws on null.
-- `usageMetadata` carries the normalized counts, including
+- `usageMetadata` carries the provider counts, including
   `cachedContentTokenCount`. A virtual-key `generateContent` or
-  `streamGenerateContent` turn is billed from that usage. `countTokens` and the
+  `streamGenerateContent` turn is billed from that usage. `promptTokenCount` is
+  the total prompt count, cached tokens included; `cachedContentTokenCount` is
+  the cached subset. The ledger bills the uncached input. `countTokens` and the
   model list are free, but they accept a virtual key and enforce
   `AllowedModels` where a model is named.
 

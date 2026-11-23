@@ -324,13 +324,12 @@ func geminiFromOpenAI(in *oaiResponse, model string) (*gemResponse, error) {
 		candidate.Content.Parts = append(candidate.Content.Parts, gemPart{Text: ""})
 	}
 	out.Candidates = []gemCandidate{candidate}
-	inTokens, outTokens := responseTokenCounts(in.Usage)
-	normalized, _ := normalizeUsage(in.Usage)
+	inTokens, outTokens, cachedTokens := wireTokenTotals(in.Usage)
 	out.UsageMetadata = &gemUsage{
 		PromptTokenCount:        inTokens,
 		CandidatesTokenCount:    outTokens,
 		TotalTokenCount:         inTokens + outTokens,
-		CachedContentTokenCount: normalized.CacheRead,
+		CachedContentTokenCount: cachedTokens,
 	}
 	return out, nil
 }
@@ -637,12 +636,12 @@ func (p *Plugin) streamGemini(w http.ResponseWriter, r *http.Request, ap agentPr
 		}
 		if chunk.Usage != nil {
 			capturedUsage = chunk.Usage
-			normalized, _ := normalizeUsage(chunk.Usage)
+			wireInput, wireOutput, wireCached := wireTokenTotals(chunk.Usage)
 			usage = &gemUsage{
-				PromptTokenCount:        normalized.Input,
-				CandidatesTokenCount:    normalized.Output,
-				TotalTokenCount:         normalized.Input + normalized.Output,
-				CachedContentTokenCount: normalized.CacheRead,
+				PromptTokenCount:        wireInput,
+				CandidatesTokenCount:    wireOutput,
+				TotalTokenCount:         wireInput + wireOutput,
+				CachedContentTokenCount: wireCached,
 			}
 		}
 	}

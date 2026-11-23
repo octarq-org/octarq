@@ -26,6 +26,7 @@ const (
 	spendSourceProxy   = "gateway_api"
 	spendWriteTimeout  = 10 * time.Second
 	streamUsageTailCap = 1 << 20
+	maxTurnIDLength    = 64
 )
 
 type spendAuthContextKey struct{}
@@ -477,6 +478,33 @@ func responseTokenCounts(u *tokenUsage) (int, int) {
 	return n.Input, n.Output
 }
 
+func wireTokenTotals(u *tokenUsage) (int, int, int) {
+	if u == nil {
+		return 0, 0, 0
+	}
+	if u.PromptTokens > 0 || u.InputTokens == 0 {
+		cached := 0
+		if u.PromptTokensDetails != nil {
+			cached = u.PromptTokensDetails.CachedTokens
+		}
+		output := u.CompletionTokens
+		if u.CompletionTokens == 0 && u.OutputTokens > 0 {
+			output = u.OutputTokens
+		}
+		return u.PromptTokens, output, cached
+	}
+	cached := u.CacheReadInputTokens
+	if u.PromptTokensDetails != nil && u.PromptTokensDetails.CachedTokens > 0 {
+		cached = u.PromptTokensDetails.CachedTokens
+	}
+	input := u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
+	output := u.OutputTokens
+	if u.CompletionTokens > 0 {
+		output = u.CompletionTokens
+	}
+	return input, output, cached
+}
+
 type chatCompletionUsageEnvelope struct {
 	ID    string      `json:"id"`
 	Model string      `json:"model"`
@@ -540,7 +568,7 @@ func parseRelayedChatUsage(raw []byte, fallbackModel string) (plugin.TurnSpend, 
 }
 
 func gatewayTurnID(upstreamID string) string {
-	if id := strings.TrimSpace(upstreamID); id != "" {
+	if id := strings.TrimSpace(upstreamID); id != "" && len(id) <= maxTurnIDLength {
 		return id
 	}
 	return fmt.Sprintf("gw-%d", time.Now().UnixNano())

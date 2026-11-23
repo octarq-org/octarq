@@ -322,9 +322,14 @@ type respOutPart struct {
 }
 
 type respUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-	TotalTokens  int `json:"total_tokens"`
+	InputTokens        int               `json:"input_tokens"`
+	InputTokensDetails *respInputDetails `json:"input_tokens_details,omitempty"`
+	OutputTokens       int               `json:"output_tokens"`
+	TotalTokens        int               `json:"total_tokens"`
+}
+
+type respInputDetails struct {
+	CachedTokens int `json:"cached_tokens"`
 }
 
 func fromOpenAIResponse(providerID, model string, in *oaiResponse) *respResponse {
@@ -364,11 +369,14 @@ func fromOpenAIResponse(providerID, model string, in *oaiResponse) *respResponse
 			out.Output = append(out.Output, respTextItem(0, ""))
 		}
 	}
-	inTokens, outTokens := responseTokenCounts(in.Usage)
+	inTokens, outTokens, cachedTokens := wireTokenTotals(in.Usage)
 	out.Usage = respUsage{
 		InputTokens:  inTokens,
 		OutputTokens: outTokens,
 		TotalTokens:  inTokens + outTokens,
+	}
+	if cachedTokens > 0 {
+		out.Usage.InputTokensDetails = &respInputDetails{CachedTokens: cachedTokens}
 	}
 	return out
 }
@@ -694,11 +702,14 @@ func (s *respStreamer) closeTools() {
 	s.tools = map[int]*respToolStream{}
 }
 
-func (s *respStreamer) finish(inputTokens, outputTokens int) {
+func (s *respStreamer) finish(inputTokens, outputTokens, cachedTokens int) {
 	s.closeText()
 	s.closeTools()
 	if inputTokens > 0 {
 		s.response.Usage.InputTokens = inputTokens
+	}
+	if cachedTokens > 0 {
+		s.response.Usage.InputTokensDetails = &respInputDetails{CachedTokens: cachedTokens}
 	}
 	s.response.Usage.OutputTokens = outputTokens
 	s.response.Usage.TotalTokens = s.response.Usage.InputTokens + outputTokens
@@ -725,6 +736,7 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 	scanner.Buffer(make([]byte, 64<<10), 8<<20)
 	outputTokens := 0
 	inputTokens := estimateResponsesTokens(body)
+	cachedTokens := 0
 	turnID := ""
 	var capturedUsage *tokenUsage
 	for scanner.Scan() {
@@ -766,16 +778,19 @@ func (p *Plugin) streamResponses(w http.ResponseWriter, r *http.Request, ap agen
 		}
 		if chunk.Usage != nil {
 			capturedUsage = chunk.Usage
-			normalized, _ := normalizeUsage(chunk.Usage)
-			if normalized.Input > 0 {
-				inputTokens = normalized.Input
+			wireInput, wireOutput, wireCached := wireTokenTotals(chunk.Usage)
+			if wireInput > 0 {
+				inputTokens = wireInput
 			}
-			if normalized.Output > 0 {
-				outputTokens = normalized.Output
+			if wireOutput > 0 {
+				outputTokens = wireOutput
+			}
+			if wireCached > 0 {
+				cachedTokens = wireCached
 			}
 		}
 	}
-	st.finish(inputTokens, outputTokens)
+	st.finish(inputTokens, outputTokens, cachedTokens)
 	if acct := spendAccountFromContext(r.Context()); acct != nil && capturedUsage != nil {
 		normalized, _ := normalizeUsage(capturedUsage)
 		if normalized.Input == 0 {
