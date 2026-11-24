@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/octarq-org/octarq/server/agent/lab"
+	"github.com/octarq-org/octarq/tools/agentlab"
 )
 
 type stringSlice []string

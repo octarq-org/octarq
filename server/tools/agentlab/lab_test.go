@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/agent/harness"
-	"github.com/octarq-org/octarq/server/agent/lab"
+	"github.com/octarq-org/octarq/tools/agentlab"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
