@@ -8,10 +8,9 @@ func TestServiceNamesAreStableWireStrings(t *testing.T) {
 		{ServiceMessagingReady, "messaging.ready"},
 		{ServiceMessagingSendSystem, "messaging.send.system"},
 		{ServiceEventsDispatch, "events.dispatch"},
-		{ServiceMailStorageProvider, "mail.storage_provider"},
+		{ServiceStorageProvider, "storage.provider"},
 		{ServiceCloudUsage, "cloud.usage"},
 		{ServiceQuotaChecker, "quota.checker"},
-		{ServiceDNSManager, "dns.manager"},
 	} {
 		if c.got != c.want {
 			t.Errorf("service name = %q, want %q", c.got, c.want)

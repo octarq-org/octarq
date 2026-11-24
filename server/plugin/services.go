@@ -62,13 +62,6 @@ type EventDispatcher func(handler func(topic string, payload json.RawMessage))
 
 type UsageMeter func(orgID uint, metric string, n int64)
 
-const (
-	MetricClicks   = "clicks"
-	MetricMailIn   = "mailIn"
-	MetricMailOut  = "mailOut"
-	MetricRawBytes = "mail.raw_bytes"
-)
-
 type TierResolver func(orgID uint) string
 
 type CleanupFunc func(ctx context.Context, retentionDays int)
@@ -85,9 +78,7 @@ const ServiceExportSignedURL = "export.signed_url"
 
 type ExportSignedURLFunc func(orgID uint) (string, error)
 
-const ServiceDNSManager = "dns.manager"
-
-const ServiceMailStorageProvider = "mail.storage_provider"
+const ServiceStorageProvider = "storage.provider"
 
 var ErrStorageNotFound = errors.New("storage object not found")
 
@@ -108,27 +99,6 @@ var (
 	ErrQuotaExceeded    = errors.New("quota exceeded")
 	ErrQuotaUnavailable = errors.New("capability not included in plan")
 )
-
-type DNSRecord struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Name     string `json:"name"`
-	Content  string `json:"content"`
-	TTL      int    `json:"ttl"`
-	Proxied  bool   `json:"proxied"`
-	Comment  string `json:"comment"`
-	Priority *int   `json:"priority,omitempty"`
-}
-
-type DNSManager interface {
-	List(ctx context.Context, orgID, domainID uint) ([]DNSRecord, error)
-	Set(ctx context.Context, orgID, domainID uint, r DNSRecord) (DNSRecord, error)
-	Delete(ctx context.Context, orgID, domainID uint, recordID string) error
-}
-
-type LinkCreator interface {
-	CreateLink(ctx context.Context, orgID uint, targetURL string) (slug string, err error)
-}
 
 type CredentialResolver interface {
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)

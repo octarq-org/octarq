@@ -280,40 +280,6 @@ func TestAppNotify(t *testing.T) {
 	}
 }
 
-type fakeDNSManager struct{}
-
-func (fakeDNSManager) List(context.Context, uint, uint) ([]plugin.DNSRecord, error) {
-	return nil, nil
-}
-func (fakeDNSManager) Set(context.Context, uint, uint, plugin.DNSRecord) (plugin.DNSRecord, error) {
-	return plugin.DNSRecord{}, nil
-}
-func (fakeDNSManager) Delete(context.Context, uint, uint, string) error { return nil }
-
-func TestLazyDNSResolution(t *testing.T) {
-	ctx := context.Background()
-	missing := &lazyDNSManager{lookup: func(string) (any, bool) { return nil, false }}
-	if _, err := missing.List(ctx, 1, 1); err == nil {
-		t.Error("List on unmounted manager = nil")
-	}
-
-	wrongType := &lazyDNSManager{lookup: func(string) (any, bool) { return "not-a-dns-manager", true }}
-	if _, err := wrongType.List(ctx, 1, 1); err == nil {
-		t.Error("List with a wrongly-typed service = nil")
-	}
-
-	ok := &lazyDNSManager{lookup: func(string) (any, bool) { return fakeDNSManager{}, true }}
-	if _, err := ok.List(ctx, 1, 1); err != nil {
-		t.Errorf("List: %v", err)
-	}
-	if _, err := ok.Set(ctx, 1, 1, plugin.DNSRecord{}); err != nil {
-		t.Errorf("Set: %v", err)
-	}
-	if err := ok.Delete(ctx, 1, 1, "r1"); err != nil {
-		t.Errorf("Delete: %v", err)
-	}
-}
-
 func TestBuiltinDefaultMonitor(t *testing.T) {
 	a := bootApp(t)
 	for _, p := range builtin.Default() {

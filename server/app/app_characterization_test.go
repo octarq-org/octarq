@@ -1,13 +1,10 @@
 package app
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
-
-	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func newCharacterizationApp(t *testing.T) *App {
@@ -45,23 +42,6 @@ func TestCharacterization_AppLifecycleAndPlugins(t *testing.T) {
 	}
 	if a.Plugins()[0].Name() != "test-plugin" {
 		t.Fatalf("expected plugin name 'test-plugin', got %q", a.Plugins()[0].Name())
-	}
-}
-
-func TestCharacterization_LazyDNSFailClosed(t *testing.T) {
-	a := newCharacterizationApp(t)
-	a.services = plugin.NewRegistry()
-	ldns := &lazyDNSManager{lookup: a.services.Lookup}
-	ctx := context.Background()
-
-	if _, err := ldns.List(ctx, 1, 1); err == nil {
-		t.Error("expected fail-closed error from lazyDNS.List when unmounted")
-	}
-	if _, err := ldns.Set(ctx, 1, 1, plugin.DNSRecord{}); err == nil {
-		t.Error("expected fail-closed error from lazyDNS.Set when unmounted")
-	}
-	if err := ldns.Delete(ctx, 1, 1, "rec1"); err == nil {
-		t.Error("expected fail-closed error from lazyDNS.Delete when unmounted")
 	}
 }
 

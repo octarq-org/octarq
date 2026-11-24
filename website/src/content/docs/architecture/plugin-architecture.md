@@ -46,13 +46,17 @@ When a plugin needs another plugin's functionality, the owner registers it durin
 
 ```go
 // Register (dns plugin, during Mount)
-ctx.Provide(plugin.ServiceDNSManager, dnsManager)
+ctx.Provide(contract.ServiceManager, dnsManager)
 
-// Consume (links plugin, or core)
-if dns, ok := plugin.LookupAs[plugin.DNSManager](ctx, plugin.ServiceDNSManager); ok {
+// Consume (Pro module, or another plugin)
+if dns, ok := plugin.LookupAs[contract.Manager](ctx, contract.ServiceManager); ok {
     dns.Set(ctx, orgID, domainID, record)
 }
 ```
+
+The contract package belongs to the plugin that owns the capability
+(`github.com/octarq-org/octarq-plugins/dns/contract`). Core declares only
+generic seams such as messaging, storage and quota.
 
 ### Menu contribution (`MenuProvider`)
 

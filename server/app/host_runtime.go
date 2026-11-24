@@ -285,7 +285,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 			})
 		},
 		Audit:    auditFn,
-		DNS:      &lazyDNSManager{lookup: servicesLookup},
 		SendMail: sendMail,
 		SetLLMResolverForOrg: func(resolver func(orgID uint) (llmprovider.Provider, error)) {
 			if params.apiHandler != nil {
