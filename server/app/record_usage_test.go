@@ -206,11 +206,11 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	var deferredEmail []func(string, json.RawMessage)
 
 	httpCtx := a.BuildPluginContext(app.PluginContextTestParams{
-		Cipher:          c,
-		Services:        plugin.NewRegistry(),
-		OnEventMu:       &emailMu,
+		Cipher:         c,
+		Services:       plugin.NewRegistry(),
+		OnEventMu:      &emailMu,
 		DeferredEvents: &deferredEmail,
-		HttpMode:        true,
+		HttpMode:       true,
 	})
 
 	if httpCtx.Host == nil {
@@ -339,11 +339,11 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	}
 
 	mcpCtx := a.BuildPluginContext(app.PluginContextTestParams{
-		Cipher:          c,
-		Services:        plugin.NewRegistry(),
-		OnEventMu:       &emailMu,
+		Cipher:         c,
+		Services:       plugin.NewRegistry(),
+		OnEventMu:      &emailMu,
 		DeferredEvents: &deferredEmail,
-		HttpMode:        false,
+		HttpMode:       false,
 	})
 
 	if mcpCtx.Host == nil {

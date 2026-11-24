@@ -33,7 +33,7 @@ type PluginContextTestParams struct {
 	LoginByEmail    func(w http.ResponseWriter, r *http.Request, email string) (uint, error)
 	LoginByIdentity func(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error)
 	OnEventMu       *sync.Mutex
-	DeferredEvents *[]func(string, json.RawMessage)
+	DeferredEvents  *[]func(string, json.RawMessage)
 	HandleRoot      func(http.Handler)
 	HandleStatic    func(prefix string, fsys fs.FS)
 	HttpMode        bool
@@ -56,7 +56,7 @@ func (a *App) BuildPluginContext(p PluginContextTestParams) *plugin.Context {
 		loginByEmail:    p.LoginByEmail,
 		loginByIdentity: p.LoginByIdentity,
 		onEventMu:       p.OnEventMu,
-		deferredEvents: p.DeferredEvents,
+		deferredEvents:  p.DeferredEvents,
 		handleRoot:      p.HandleRoot,
 		handleStatic:    p.HandleStatic,
 		httpMode:        p.HttpMode,
