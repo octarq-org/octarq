@@ -38,3 +38,10 @@ Octarq Core is a self-hosted, single-binary operational back office for indie fo
   1. Agent calls `octarq_vault__list_items` or `octarq_vault__get_item_meta` to discover `vault://` references and non-secret metadata.
   2. Admin/Owner agents can call `octarq_vault__set_secret` to provision or rotate workspace secrets.
   3. Agents can verify health via `octarq_vault__test_integration` or obtain a time-bound 6-digit code via `octarq_vault__get_totp` — plaintext secrets are never returned into LLM context.
+
+## Help center
+
+- Admins can open `/admin/help` to browse documentation by category, or use the search box to find a paragraph and jump straight to its anchor.
+- On any page mapped to a doc, the help button or `F1` opens a side drawer without leaving the form; `?help=<slug>` links share that state.
+- Docs show the workspace's real name and domain where configured, and say "(not configured)" when a value is missing.
+- When the workspace has an AI provider configured, "Ask AI" answers questions about the current doc; when it does not, the entry point is hidden.
