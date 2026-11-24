@@ -4,14 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"time"
-
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
-
-const aiTimeout = 60 * time.Second
 
 var errLLMNotConfigured = errors.New("AI is not configured: add an LLM provider in Workspace → LLM Gateway")
 

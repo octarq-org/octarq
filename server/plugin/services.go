@@ -15,7 +15,6 @@ const ServiceMailDispatcher = "mail.dispatcher"
 
 const ServiceCloudUsage = "cloud.usage"
 
-const ServiceMailEmailGet = "mail.email.get"
 
 const ServiceStorage = "storage.service"
 
@@ -80,7 +79,6 @@ type PurgeFunc func(orgID uint) error
 
 type OverviewFunc func(orgID uint) map[string]any
 
-type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)
 
 type MCPExporter func(ctx context.Context, orgID uint) (any, error)
 
