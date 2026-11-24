@@ -219,7 +219,6 @@ func TestTierFor(t *testing.T) {
 	}{
 		{"POST", "/api/auth/login", tierAuth},
 		{"POST", "/api/webhook/x", tierAuth},
-		{"POST", "/abuse", tierAuth},
 		{"GET", "/api/links", tierAPI},
 		{"GET", "/v1/models", tierAPI},
 		{"GET", "/.well-known/opencode", tierAPI},

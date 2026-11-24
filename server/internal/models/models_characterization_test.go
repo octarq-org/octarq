@@ -14,8 +14,8 @@ func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 	t.Parallel()
 
 	models := AllModels()
-	if len(models) != 20 {
-		t.Fatalf("AllModels() must return exactly 20 registered models, got %d", len(models))
+	if len(models) != 19 {
+		t.Fatalf("AllModels() must return exactly 19 registered models, got %d", len(models))
 	}
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{

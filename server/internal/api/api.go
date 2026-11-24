@@ -1,8 +1,6 @@
 package api
 
 import (
-	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"os"
@@ -18,7 +16,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/origin"
@@ -38,7 +35,6 @@ type Handler struct {
 	loginAccountLimiter *rateLimiter
 	recoveryLimiter     *rateLimiter
 	registerLimiter     *rateLimiter
-	abuseLimiter        *rateLimiter
 	sendLimiter         *rateLimiter
 	statusLimiter       *rateLimiter
 	initErr             error
@@ -158,7 +154,6 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 	h.loginAccountLimiter = newLimiter("login-acct", loginAccountMax, loginWindow)
 	h.recoveryLimiter = newLimiter("recovery", 5, 15*time.Minute)
 	h.registerLimiter = newLimiter("register", 5, time.Hour)
-	h.abuseLimiter = newLimiter("abuse", 5, time.Hour)
 	h.sendLimiter = newLimiter("send", 100, time.Hour)
 	h.statusLimiter = newLimiter("status", 60, time.Minute)
 
@@ -178,15 +173,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 	return h
 }
 
-func (h *Handler) registerQueueHandlers(q queue.Queue) {
-	q.Register("abuse.notify", func(ctx context.Context, payload []byte) error {
-		var rep models.AbuseReport
-		if err := json.Unmarshal(payload, &rep); err != nil {
-			return err
-		}
-		h.notifyAbuse(rep)
-		return nil
-	})
+func (h *Handler) registerQueueHandlers(_ queue.Queue) {
 }
 
 func (h *Handler) DataRetentionDays() int {

@@ -11,7 +11,6 @@ func TestServiceNamesAreStableWireStrings(t *testing.T) {
 		{ServiceMailEmailGet, "mail.email.get"},
 		{ServiceMailStorageProvider, "mail.storage_provider"},
 		{ServiceCloudUsage, "cloud.usage"},
-		{ServiceLinkResolve, "links.resolve"},
 		{ServiceQuotaChecker, "quota.checker"},
 		{ServiceDNSManager, "dns.manager"},
 	} {

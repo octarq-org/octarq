@@ -112,8 +112,6 @@ func tierFor(r *http.Request) tier {
 	switch {
 	case strings.HasPrefix(p, "/api/auth/"), strings.HasPrefix(p, "/api/webhook/"):
 		return tierAuth
-	case r.Method == http.MethodPost && p == "/abuse":
-		return tierAuth
 	case strings.HasPrefix(p, "/api/"), strings.HasPrefix(p, "/v1/"), strings.HasPrefix(p, "/v1beta/"),
 		strings.HasPrefix(p, "/.well-known/"):
 		return tierAPI

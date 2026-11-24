@@ -130,20 +130,6 @@ func seedOrgFullData(t *testing.T, h *Handler, orgID, userID uint, webhookSecret
 		t.Fatalf("seed webhook: %v", err)
 	}
 
-	abuseReport := models.AbuseReport{
-		OrgID:       orgID,
-		Slug:        "bad-slug",
-		Target:      "https://phishing.example.com",
-		Reason:      "phishing",
-		Description: "phishing report",
-		ReporterIP:  "10.0.0.1",
-		Status:      "open",
-		CreatedAt:   time.Now(),
-	}
-	if err := db.Create(&abuseReport).Error; err != nil {
-		t.Fatalf("seed abuse report: %v", err)
-	}
-
 	session := models.Session{
 		UserID:     userID,
 		OrgID:      orgID,
@@ -196,7 +182,6 @@ func TestPurgeAccount_DeletesEverythingForOrg(t *testing.T) {
 		pluginCount  int64
 		auditCount   int64
 		webhookCount int64
-		abuseCount   int64
 		sessionCount int64
 		memberCount  int64
 		orgCount     int64
@@ -208,7 +193,6 @@ func TestPurgeAccount_DeletesEverythingForOrg(t *testing.T) {
 	db.Model(&models.PluginSetting{}).Where("org_id = ?", orgA).Count(&pluginCount)
 	db.Model(&models.AuditLog{}).Where("org_id = ?", orgA).Count(&auditCount)
 	db.Model(&models.Webhook{}).Where("owner_id = ?", orgA).Count(&webhookCount)
-	db.Model(&models.AbuseReport{}).Where("owner_id = ?", orgA).Count(&abuseCount)
 	db.Model(&models.Session{}).Where("org_id = ?", orgA).Count(&sessionCount)
 	db.Model(&models.OrgMember{}).Where("org_id = ?", orgA).Count(&memberCount)
 	db.Model(&models.Org{}).Where("id = ?", orgA).Count(&orgCount)
@@ -230,9 +214,6 @@ func TestPurgeAccount_DeletesEverythingForOrg(t *testing.T) {
 	}
 	if webhookCount != 0 {
 		t.Errorf("Webhook count for Org A = %d, want 0", webhookCount)
-	}
-	if abuseCount != 0 {
-		t.Errorf("AbuseReport count for Org A = %d, want 0", abuseCount)
 	}
 	if sessionCount != 0 {
 		t.Errorf("Session count for Org A = %d, want 0", sessionCount)
@@ -283,7 +264,6 @@ func TestPurgeAccount_DoesNotAffectNeighborOrg(t *testing.T) {
 		pluginCount  int64
 		auditCount   int64
 		webhookCount int64
-		abuseCount   int64
 		sessionCount int64
 		memberCount  int64
 		orgCount     int64
@@ -295,7 +275,6 @@ func TestPurgeAccount_DoesNotAffectNeighborOrg(t *testing.T) {
 	db.Model(&models.PluginSetting{}).Where("org_id = ?", orgB).Count(&pluginCount)
 	db.Model(&models.AuditLog{}).Where("org_id = ?", orgB).Count(&auditCount)
 	db.Model(&models.Webhook{}).Where("owner_id = ?", orgB).Count(&webhookCount)
-	db.Model(&models.AbuseReport{}).Where("owner_id = ?", orgB).Count(&abuseCount)
 	db.Model(&models.Session{}).Where("org_id = ?", orgB).Count(&sessionCount)
 	db.Model(&models.OrgMember{}).Where("org_id = ?", orgB).Count(&memberCount)
 	db.Model(&models.Org{}).Where("id = ?", orgB).Count(&orgCount)
@@ -317,9 +296,6 @@ func TestPurgeAccount_DoesNotAffectNeighborOrg(t *testing.T) {
 	}
 	if webhookCount != 1 {
 		t.Errorf("NEIGHBOR LEAK: Webhook count for Org B = %d, want 1", webhookCount)
-	}
-	if abuseCount != 1 {
-		t.Errorf("NEIGHBOR LEAK: AbuseReport count for Org B = %d, want 1", abuseCount)
 	}
 	if sessionCount != 1 {
 		t.Errorf("NEIGHBOR LEAK: Session count for Org B = %d, want 1", sessionCount)

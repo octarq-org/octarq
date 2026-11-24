@@ -165,7 +165,6 @@ export const ja = {
     mail: "メール",
     inbox: "受信トレイ",
     domains: "DNS",
-    abuse: "不正使用レポート",
     "hello-instance": "ハロー（インスタンス）",
     general: "一般",
     gateway: "モデルゲートウェイ",

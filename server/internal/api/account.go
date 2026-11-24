@@ -97,9 +97,6 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		if err := tx.Where("owner_id = ?", org).Delete(&models.Webhook{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("owner_id = ?", org).Delete(&models.AbuseReport{}).Error; err != nil {
-			return err
-		}
 		if err := tx.Where("key LIKE ?", fmt.Sprintf("org_%d.%%", org)).
 			Delete(&models.Setting{}).Error; err != nil {
 			return err

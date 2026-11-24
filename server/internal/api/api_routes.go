@@ -108,7 +108,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /auth/begin/{provider}", h.oauth.Begin)
 	mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/abuse", Summary: "Submit Abuse", Tags: []string{"Public"}, DefaultStatus: 201}, h.submitAbuse)
 	huma.Register(api, huma.Operation{
 		OperationID: "health",
 		Method:      "GET",
@@ -255,9 +254,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notifications/routes", Summary: "Update Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.updateNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notifications/routes/reset", Summary: "Reset Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notifications/routes", Summary: "Delete/Reset Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
-
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/abuse", Summary: "List Abuse Reports", Tags: []string{"Abuse"}}, h.listAbuseReports)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/abuse/{id}", Summary: "Update Abuse Report", Tags: []string{"Abuse"}}, h.updateAbuseReport)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/audit", Summary: "List Audit Logs", Tags: []string{"Audit Logs"}}, h.listAuditLogs)
 
