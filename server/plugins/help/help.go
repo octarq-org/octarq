@@ -2,9 +2,12 @@ package help
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"io/fs"
 	"log"
+	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -24,9 +27,19 @@ var (
 	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
+type renderCacheKey struct {
+	orgID uint
+	lang  string
+	slug  string
+	hash  string
+}
+
 type Plugin struct {
 	pctx *plugin.Context
 	host plugin.Host
+
+	renderCache   *lruCache[renderCacheKey, string]
+	searchIndexes *lruCache[searchCacheKey, *helpSearchIndex]
 }
 
 func (p *Plugin) Host() plugin.Host { return p.host }
@@ -34,7 +47,10 @@ func (p *Plugin) Host() plugin.Host { return p.host }
 func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 func New() *Plugin {
-	return &Plugin{}
+	return &Plugin{
+		renderCache:   newLRU[renderCacheKey, string](128),
+		searchIndexes: newLRU[searchCacheKey, *helpSearchIndex](64),
+	}
 }
 
 func (p *Plugin) Name() string { return "help" }
@@ -82,14 +98,8 @@ func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsO
 		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	var orgID uint
-	if p.host != nil && p.host.Session() != nil {
-		orgID = p.host.Session().OrgID(r)
-	}
-	lang := r.URL.Query().Get("lang")
-	if lang == "" {
-		lang = r.Header.Get("Accept-Language")
-	}
+	orgID := p.requestOrgID(r)
+	lang := helpRequestLang(r)
 
 	allDocs := p.getDocs(orgID, lang)
 	out := make([]DocMeta, 0, len(allDocs))
@@ -134,7 +144,9 @@ func (i *GetDocInput) Resolve(ctx huma.Context) []error {
 }
 
 type GetDocOutput struct {
-	Body struct {
+	ETag   string `header:"ETag"`
+	Status int
+	Body   struct {
 		Title string `json:"title"`
 		HTML  string `json:"html"`
 	}
@@ -145,20 +157,14 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	var orgID uint
-	if p.host != nil && p.host.Session() != nil {
-		orgID = p.host.Session().OrgID(r)
-	}
-	lang := r.URL.Query().Get("lang")
-	if lang == "" {
-		lang = r.Header.Get("Accept-Language")
-	}
+	orgID := p.requestOrgID(r)
+	lang := helpRequestLang(r)
 
 	allDocs := p.getDocs(orgID, lang)
 	var found *plugin.HelpDoc
-	for _, d := range allDocs {
-		if d.Slug == input.Slug {
-			found = &d
+	for i := range allDocs {
+		if allDocs[i].Slug == input.Slug {
+			found = &allDocs[i]
 			break
 		}
 	}
@@ -166,15 +172,52 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 		return nil, huma.Error404NotFound("Documentation article not found")
 	}
 
-	html, err := renderMarkdown(found.Markdown)
+	substituted := substituteHelpPlaceholders(found.Markdown, lang, p.placeholderValues(orgID))
+	hash := helpContentHash(found.Title, substituted)
+	etag := `"` + hash + `"`
+
+	out := &GetDocOutput{ETag: etag, Status: http.StatusOK}
+	out.Body.Title = found.Title
+
+	if r != nil && etagMatches(r.Header.Get("If-None-Match"), etag) {
+		out.Status = http.StatusNotModified
+		return out, nil
+	}
+
+	key := renderCacheKey{orgID: orgID, lang: lang, slug: found.Slug, hash: hash}
+	if rendered, ok := p.renderCache.Get(key); ok {
+		out.Body.HTML = rendered
+		return out, nil
+	}
+
+	rendered, err := renderMarkdown(substituted)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Could not render documentation content. Try again.")
 	}
-
-	out := &GetDocOutput{}
-	out.Body.Title = found.Title
-	out.Body.HTML = html
+	p.renderCache.Put(key, rendered)
+	out.Body.HTML = rendered
 	return out, nil
+}
+
+func helpContentHash(title, source string) string {
+	sum := sha256.Sum256([]byte(title + "\x00" + source))
+	return hex.EncodeToString(sum[:])
+}
+
+func etagMatches(header, etag string) bool {
+	for _, part := range strings.Split(header, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if part == "*" {
+			return true
+		}
+		if strings.TrimPrefix(part, "W/") == etag {
+			return true
+		}
+	}
+	return false
 }
 
 var docsFSCache sync.Map
@@ -197,6 +240,9 @@ func pluginDocs(pl plugin.Plugin) []plugin.HelpDoc {
 }
 
 func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
+	if p == nil || p.pctx == nil || p.pctx.ActivePlugins == nil || p.pctx.PluginActive == nil {
+		return nil
+	}
 	var docs []plugin.HelpDoc
 	slugs := make(map[string]string)
 
@@ -212,7 +258,7 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 			}
 			for _, d := range contributed {
 				d.FillDefaults(pl.Name(), category)
-				if d.Feature != "" && p.pctx.FeatureActive != nil && !p.pctx.FeatureActive(orgID, d.Feature) {
+				if d.Feature != "" && (p.pctx.FeatureActive == nil || !p.pctx.FeatureActive(orgID, d.Feature)) {
 					continue
 				}
 				if owner, exists := slugs[d.Slug]; exists {
@@ -268,10 +314,23 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx != nil && ctx.Host != nil {
 		p.host = ctx.Host
 	}
+	if p.renderCache == nil {
+		p.renderCache = newLRU[renderCacheKey, string](128)
+	}
+	if p.searchIndexes == nil {
+		p.searchIndexes = newLRU[searchCacheKey, *helpSearchIndex](64)
+	}
 	api := ctx.Huma
 	if api == nil {
 		return
 	}
+	huma.Register(api, huma.Operation{
+		OperationID: "searchHelpDocs",
+		Method:      "GET",
+		Path:        "/api/help/search",
+		Summary:     "Search help docs",
+		Tags:        []string{"Help"},
+	}, p.searchDocs)
 	huma.Register(api, huma.Operation{
 		OperationID: "listHelpDocs",
 		Method:      "GET",
