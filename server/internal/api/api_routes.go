@@ -190,8 +190,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/ai/assist/status", Summary: "Get AI Assist Status", Tags: []string{"AI"}}, h.aiStatus)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/summarize-email/{id}", Summary: "Summarize Email via AI", Tags: []string{"AI"}}, h.aiSummarizeEmail)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "listTokens",
