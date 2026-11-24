@@ -611,7 +611,7 @@ h1, h2, h3, h4, h5, h6 {
 .markdown-body hr {
   height: 1px;
   border: 0;
-  background: linear-gradient(90deg, transparent 0%, var(--border) 20%, var(--border) 80%, transparent 100%);
+  background: var(--border);
   margin: 2.25rem 0;
 }
 
@@ -687,11 +687,10 @@ h1, h2, h3, h4, h5, h6 {
 
 .markdown-body .code-block-wrapper {
   margin: 1.5rem 0;
-  border-radius: 0.875rem;
-  border: 1px solid #1e293b;
-  background-color: #090d16;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background-color: var(--well);
   overflow: hidden;
-  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.25);
 }
 
 .markdown-body .code-block-header {
@@ -699,9 +698,9 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background-color: #0f172a;
-  border-bottom: 1px solid #1e293b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background-color: var(--card);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   user-select: none;
 }
@@ -718,28 +717,28 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.375rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--muted-foreground);
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  transition: color 0.15s, background-color 0.15s;
+  border-radius: var(--radius-md);
+  transition: color var(--dur-fast), background-color var(--dur-fast);
 }
 
 .markdown-body .code-block-copy-btn:hover {
-  color: #f8fafc;
-  background-color: #1e293b;
+  color: var(--foreground);
+  background-color: var(--surface-hover);
 }
 
 .markdown-body pre {
   margin: 0;
   padding: 1.25rem 1.25rem;
   overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   line-height: 1.65;
-  color: #e2e8f0;
+  color: var(--foreground);
   background: transparent;
 }
 
@@ -751,10 +750,82 @@ h1, h2, h3, h4, h5, h6 {
   color: inherit;
 }
 
+.markdown-body .chroma {
+  background: transparent;
+}
+
+.markdown-body .chroma .line {
+  display: block;
+}
+
+.markdown-body .chroma .k,
+.markdown-body .chroma .kc,
+.markdown-body .chroma .kd,
+.markdown-body .chroma .kn,
+.markdown-body .chroma .kp,
+.markdown-body .chroma .kr,
+.markdown-body .chroma .kt {
+  color: var(--accent-fg);
+}
+
+.markdown-body .chroma .s,
+.markdown-body .chroma .sa,
+.markdown-body .chroma .sb,
+.markdown-body .chroma .sc,
+.markdown-body .chroma .dl,
+.markdown-body .chroma .sd,
+.markdown-body .chroma .s1,
+.markdown-body .chroma .s2,
+.markdown-body .chroma .se,
+.markdown-body .chroma .sh,
+.markdown-body .chroma .si,
+.markdown-body .chroma .sx,
+.markdown-body .chroma .sr,
+.markdown-body .chroma .ss {
+  color: var(--success-fg);
+}
+
+.markdown-body .chroma .m,
+.markdown-body .chroma .mb,
+.markdown-body .chroma .mf,
+.markdown-body .chroma .mh,
+.markdown-body .chroma .mi,
+.markdown-body .chroma .il,
+.markdown-body .chroma .mo {
+  color: var(--warning-fg);
+}
+
+.markdown-body .chroma .c,
+.markdown-body .chroma .ch,
+.markdown-body .chroma .cm,
+.markdown-body .chroma .c1,
+.markdown-body .chroma .cs {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.markdown-body .chroma .nf,
+.markdown-body .chroma .fm,
+.markdown-body .chroma .na,
+.markdown-body .chroma .nc,
+.markdown-body .chroma .nt {
+  color: var(--foreground);
+}
+
+.markdown-body .chroma .o,
+.markdown-body .chroma .ow,
+.markdown-body .chroma .p {
+  color: var(--muted-foreground);
+}
+
+.markdown-body .chroma .err {
+  color: var(--danger-fg);
+}
+
 .markdown-body .callout {
   margin: 1.5rem 0;
   padding: 1rem 1.25rem;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   border-left-width: 4px;
   border-style: solid;
   font-size: 0.875rem;
@@ -772,48 +843,36 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.04em;
 }
 
-.markdown-body .callout-tip {
-  background-color: rgba(16, 185, 129, 0.08);
-  border-color: #10b981;
-  color: #064e3b;
+.markdown-body .callout-content p {
+  color: inherit;
 }
-.dark .markdown-body .callout-tip {
-  background-color: rgba(16, 185, 129, 0.12);
-  color: #a7f3d0;
+
+.markdown-body .callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body .callout-tip {
+  background-color: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-fg);
 }
 
 .markdown-body .callout-note {
-  /* ui-not-brand: `note` is one of a four-colour semantic callout family
-     (tip green / note blue / warning amber / important red). Tinting it with
-     the brand accent would collide with `tip` on a green brand and destroy the
-     distinction the family exists to draw. */
-  background-color: rgba(59, 130, 246, 0.08); /* ui-not-brand */
-  border-color: #3b82f6; /* ui-not-brand */
-  color: #1e3a8a; /* ui-not-brand */
-}
-.dark .markdown-body .callout-note {
-  background-color: rgba(59, 130, 246, 0.12);
-  color: #bfdbfe;
+  background-color: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-fg);
 }
 
 .markdown-body .callout-warning {
-  background-color: rgba(245, 158, 11, 0.08);
-  border-color: #f59e0b;
-  color: #78350f;
-}
-.dark .markdown-body .callout-warning {
-  background-color: rgba(245, 158, 11, 0.12);
-  color: #fde68a;
+  background-color: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-fg);
 }
 
 .markdown-body .callout-important {
-  background-color: rgba(239, 68, 68, 0.08);
-  border-color: #ef4444;
-  color: #7f1d1d;
-}
-.dark .markdown-body .callout-important {
-  background-color: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  background-color: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-fg);
 }
 
 .markdown-body blockquote:not(.callout) {

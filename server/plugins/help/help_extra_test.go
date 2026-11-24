@@ -70,6 +70,48 @@ func TestListCategoriesEndpoint(t *testing.T) {
 	}
 }
 
+func TestListDocsCarriesActions(t *testing.T) {
+	p := New()
+	p.pctx = &plugin.Context{
+		ActivePlugins: func() []plugin.Plugin {
+			return []plugin.Plugin{&mockPlugin{name: "demo", helpDocs: []plugin.HelpDoc{
+				{Slug: "demo-doc", Title: "Demo", Actions: []string{"demo.create", "demo.verify"}},
+				{Slug: "plain-doc", Title: "Plain"},
+			}}}
+		},
+		PluginActive: func(uint, plugin.Plugin) bool { return true },
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint { return 1 },
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "/api/help/docs", nil)
+	humaCtx := humago.NewContext(nil, req, nil)
+	input := &ListDocsInput{}
+	input.Resolve(humaCtx)
+
+	out, err := p.listDocs(context.Background(), input)
+	if err != nil {
+		t.Fatalf("listDocs error: %v", err)
+	}
+	bySlug := map[string]DocMeta{}
+	for _, d := range out.Body {
+		bySlug[d.Slug] = d
+	}
+	demo, ok := bySlug["demo-doc"]
+	if !ok {
+		t.Fatalf("missing demo-doc in %+v", out.Body)
+	}
+	if len(demo.Actions) != 2 || demo.Actions[0] != "demo.create" || demo.Actions[1] != "demo.verify" {
+		t.Errorf("unexpected actions %#v", demo.Actions)
+	}
+	if plain, ok := bySlug["plain-doc"]; ok && len(plain.Actions) != 0 {
+		t.Errorf("expected no actions for plain-doc, got %#v", plain.Actions)
+	}
+}
+
 func TestNilHumaContextHandling(t *testing.T) {
 	p := New()
 	_, err := p.listDocs(context.Background(), &ListDocsInput{Ctx: nil})
