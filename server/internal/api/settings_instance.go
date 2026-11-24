@@ -44,8 +44,6 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 	}
 	out := &GetInstanceSettingsOutput{
 		Body: map[string]any{
-			"reservedSlugs":            h.getSetting(keyReservedSlugs),
-			"builtinReserved":          []string{"admin", "api", "assets", "portal"},
 			"googleClientId":           h.getSetting(keyGoogleClientID),
 			"googleClientSecretSet":    h.hasInstanceSecret(ctx, vaultKeyGoogleClientSecret, "clientSecret", "value"),
 			"githubClientId":           h.getSetting(keyGitHubClientID),
@@ -59,16 +57,13 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"metricsTokenSet":          h.hasInstanceSecret(ctx, vaultKeyMetricsToken, "token", "value"),
 			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
-			"ratelimitRedirectRpm":     h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
 			"publicCorsOrigins":        h.getSetting(keyPublicCORSOrigins),
-			"systemSenderId":           h.systemSenderID(),
 		},
 	}
 	return out, nil
 }
 
 type UpdateInstanceSettingsInputBody struct {
-	ReservedSlugs            *string `json:"reservedSlugs,omitempty"`
 	GoogleClientID           *string `json:"googleClientId,omitempty"`
 	GoogleClientSecret       *string `json:"googleClientSecret,omitempty"`
 	GitHubClientID           *string `json:"githubClientId,omitempty"`
@@ -82,9 +77,7 @@ type UpdateInstanceSettingsInputBody struct {
 	MetricsToken             *string `json:"metricsToken,omitempty"`
 	RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
 	RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
-	RatelimitRedirectRpm     *int    `json:"ratelimitRedirectRpm,omitempty"`
 	PublicCORSOrigins        *string `json:"publicCorsOrigins,omitempty"`
-	SystemSenderID           *uint   `json:"systemSenderId,omitempty"`
 }
 
 type UpdateInstanceSettingsInput struct {
@@ -114,9 +107,6 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 
-	if input.Body.ReservedSlugs != nil {
-		h.setSetting(keyReservedSlugs, strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
-	}
 	if input.Body.GoogleClientID != nil {
 		h.setSetting(keyGoogleClientID, strings.TrimSpace(*input.Body.GoogleClientID))
 	}
@@ -175,17 +165,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.PublicCORSOrigins != nil {
 		h.setSetting(keyPublicCORSOrigins, strings.Join(splitList(*input.Body.PublicCORSOrigins), "\n"))
 	}
-	if input.Body.SystemSenderID != nil {
-		if *input.Body.SystemSenderID == 0 {
-			h.setSetting(keySystemSenderID, "")
-		} else {
-			h.setSetting(keySystemSenderID, strconv.FormatUint(uint64(*input.Body.SystemSenderID), 10))
-		}
-	}
 	meta := make(map[string]any)
-	if input.Body.ReservedSlugs != nil {
-		meta["reservedSlugs"] = *input.Body.ReservedSlugs
-	}
 	if input.Body.GoogleClientID != nil {
 		meta["googleClientId"] = *input.Body.GoogleClientID
 	}
@@ -222,14 +202,8 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.RatelimitApiRpm != nil {
 		meta["ratelimitApiRpm"] = *input.Body.RatelimitApiRpm
 	}
-	if input.Body.RatelimitRedirectRpm != nil {
-		meta["ratelimitRedirectRpm"] = *input.Body.RatelimitRedirectRpm
-	}
 	if input.Body.PublicCORSOrigins != nil {
 		meta["publicCorsOrigins"] = *input.Body.PublicCORSOrigins
-	}
-	if input.Body.SystemSenderID != nil {
-		meta["systemSenderId"] = *input.Body.SystemSenderID
 	}
 	h.audit(r, "instance_settings.update", "settings", 0, meta)
 
@@ -241,8 +215,6 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	}
 	out := &UpdateInstanceSettingsOutput{
 		Body: map[string]any{
-			"reservedSlugs":         h.getSetting(keyReservedSlugs),
-			"builtinReserved":       []string{"admin", "api", "assets", "portal"},
 			"googleClientId":        h.getSetting(keyGoogleClientID),
 			"googleClientSecretSet": h.hasInstanceSecret(ctx, vaultKeyGoogleClientSecret, "clientSecret", "value"),
 			"githubClientId":        h.getSetting(keyGitHubClientID),
@@ -255,9 +227,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			"metricsTokenSet":       h.hasInstanceSecret(ctx, vaultKeyMetricsToken, "token", "value"),
 			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
-			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
 			"publicCorsOrigins":     h.getSetting(keyPublicCORSOrigins),
-			"systemSenderId":        h.systemSenderID(),
 		},
 	}
 	return out, nil

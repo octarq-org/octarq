@@ -62,7 +62,7 @@ func TestStatusRecorderWriteAndFlush(t *testing.T) {
 
 func TestRateLimiterSetLimitsAndAllow(t *testing.T) {
 	rl := newRateLimiter()
-	rl.setLimits(5, 10, 20)
+	rl.setLimits(5, 10)
 
 	now := time.Now()
 	for i := 0; i < 5; i++ {
@@ -79,7 +79,7 @@ func TestRateLimiterSetLimitsAndAllow(t *testing.T) {
 		t.Errorf("expected positive retryAfter, got %v", retryAfter)
 	}
 
-	rl.setLimits(0, -1, 0)
+	rl.setLimits(0, -1)
 	allowed, _ = rl.allow(tierAuth, "1.2.3.4", now)
 	if !allowed {
 		t.Fatal("expected allowed when limit <= 0")

@@ -37,21 +37,6 @@ describe("overview hook & fetcher", () => {
       });
     });
 
-    it("appends ?includeBot=true query when includeBot is true", async () => {
-      const mockData = { totalClicks: 200, botClicks7d: 50 };
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => mockData,
-      });
-      globalThis.fetch = fetchMock;
-
-      const promise = fetchOverview(true);
-      const data = await promise;
-
-      expect(data).toEqual(mockData);
-      expect(fetchMock).toHaveBeenCalledWith("/api/overview?includeBot=true", expect.any(Object));
-    });
-
     it("deduplicates concurrent in-flight requests within 2 seconds", async () => {
       const mockData = { links: 5 };
       const fetchMock = vi.fn().mockResolvedValue({

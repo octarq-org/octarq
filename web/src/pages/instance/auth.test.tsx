@@ -8,8 +8,6 @@ import { AuthenticationSettings } from "./auth";
 
 function makeSettings(overrides: Partial<InstanceSettings> = {}): InstanceSettings {
   return {
-    reservedSlugs: "",
-    builtinReserved: [],
     googleClientId: "",
     googleClientSecretSet: false,
     githubClientId: "",
@@ -22,7 +20,6 @@ function makeSettings(overrides: Partial<InstanceSettings> = {}): InstanceSettin
     metricsTokenSet: false,
     ratelimitAuthRpm: 60,
     ratelimitApiRpm: 600,
-    ratelimitRedirectRpm: 6000,
     ...overrides,
   };
 }

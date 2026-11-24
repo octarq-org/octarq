@@ -49,10 +49,9 @@ func TestCharacterization_RateLimiterBudgetIsolation(t *testing.T) {
 	h, _, _ := newTestHandlerRaw(t)
 	require.NotNil(t, h, "handler must initialize correctly")
 
-	authRPM, apiRPM, redirectRPM := h.RateLimits()
+	authRPM, apiRPM := h.RateLimits()
 	require.Equal(t, 60, authRPM, "default auth RPM must be 60")
 	require.Equal(t, 600, apiRPM, "default api RPM must be 600")
-	require.Equal(t, 6000, redirectRPM, "default redirect RPM must be 6000")
 }
 
 func TestCharacterization_HumaAPIRegistrationIntegrity(t *testing.T) {

@@ -61,7 +61,7 @@ func TestOverviewPluginAbsent(t *testing.T) {
 		t.Fatalf("invalid json output: %v", err)
 	}
 
-	for _, absentKey := range []string{"mailboxes", "emails", "domains", "links"} {
+	for _, absentKey := range []string{"mailboxes", "emails", "domains", "links", "includeBot"} {
 		if _, exists := res[absentKey]; exists {
 			t.Errorf("expected absent key %q when plugins are not mounted", absentKey)
 		}
@@ -93,7 +93,7 @@ func TestOverviewPluginDisabled(t *testing.T) {
 	lp := linksPlugin{}
 	handler.SetPlugins([]plugin.Plugin{lp})
 	reg := plugin.NewRegistry()
-	reg.Provide("links.overview", func(orgID uint, includeBot bool) map[string]any {
+	reg.Provide("links.overview", func(orgID uint) map[string]any {
 		return map[string]any{
 			"links":       10,
 			"topLinks":    []any{},

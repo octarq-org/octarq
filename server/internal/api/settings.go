@@ -16,15 +16,11 @@ import (
 )
 
 const (
-	keyReservedSlugs            = "reserved_slugs"
-	keyReservedMailboxes        = "reserved_mailboxes"
-	keyCatchAll                 = "catch_all"
 	keyGoogleClientID           = "oauth.google.client_id"
 	vaultKeyGoogleClientSecret  = "instance.oauth.google"
 	keyGitHubClientID           = "oauth.github.client_id"
 	vaultKeyGitHubClientSecret  = "instance.oauth.github"
 	keyDataRetentionDays        = "data_retention_days"
-	keyAutoWrapLinks            = "auto_wrap_links"
 	keyAllowRegistration        = "allow_registration"
 	keyAppName                  = "app_name"
 	keyBrandLogo                = "brand_logo"
@@ -33,18 +29,15 @@ const (
 	vaultKeyMetricsToken        = "instance.metrics_token"
 	keyRatelimitAuthRPM         = "ratelimit_auth_rpm"
 	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
-	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
 	keyRequireEmailVerification = "require_email_verification"
 	keyBaseDomain               = models.BaseDomainSetting
 	keySharedHosts              = models.SharedHostsSetting
 	keyPublicCORSOrigins        = "public_cors_origins"
-	keySystemSenderID           = "mail_system_sender_id"
 )
 
 const (
-	defaultAuthRPM     = 60
-	defaultAPIRPM      = 600
-	defaultRedirectRPM = 6000
+	defaultAuthRPM = 60
+	defaultAPIRPM  = 600
 )
 
 func (h *Handler) brandSetting(orgID uint, key string) string {
@@ -135,7 +128,7 @@ func (h *Handler) setInstanceSecret(ctx context.Context, keyName, displayName, f
 	return err
 }
 
-func (h *Handler) RateLimits() (authRPM, apiRPM, redirectRPM int) {
+func (h *Handler) RateLimits() (authRPM, apiRPM int) {
 	defAuth := defaultAuthRPM
 	if v := os.Getenv("OCTARQ_RATELIMIT_AUTH_RPM"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -148,15 +141,8 @@ func (h *Handler) RateLimits() (authRPM, apiRPM, redirectRPM int) {
 			defAPI = n
 		}
 	}
-	defRedir := defaultRedirectRPM
-	if v := os.Getenv("OCTARQ_RATELIMIT_REDIRECT_RPM"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			defRedir = n
-		}
-	}
 	return h.settingInt(keyRatelimitAuthRPM, defAuth),
-		h.settingInt(keyRatelimitAPIRPM, defAPI),
-		h.settingInt(keyRatelimitRedirRPM, defRedir)
+		h.settingInt(keyRatelimitAPIRPM, defAPI)
 }
 
 func (h *Handler) settingInt(key string, def int) int {
@@ -188,18 +174,6 @@ func (h *Handler) requireEmailVerification() bool {
 
 func (h *Handler) RequireEmailVerification() bool {
 	return h.requireEmailVerification()
-}
-
-func (h *Handler) systemSenderID() uint {
-	v := strings.TrimSpace(h.getSetting(keySystemSenderID))
-	if v == "" {
-		return 0
-	}
-	n, err := strconv.ParseUint(v, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return uint(n)
 }
 
 const DefaultRetentionDays = 90

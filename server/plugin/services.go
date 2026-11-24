@@ -80,7 +80,7 @@ type ExportFunc func(orgID uint) map[string]any
 
 type PurgeFunc func(orgID uint) error
 
-type OverviewFunc func(orgID uint, includeBot bool) map[string]any
+type OverviewFunc func(orgID uint) map[string]any
 
 type LinkResolver func(host, slug string) (target string, orgID uint, ok bool)
 

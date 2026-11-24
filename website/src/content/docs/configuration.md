@@ -41,12 +41,9 @@ Instance administrators can configure deployment-wide settings live via the UI (
 | `shared_hosts` | Shared hosts | Trusted hostnames for public origin derivation. |
 | `data_retention_days` | Keep click history for (days) | Auto-cleanup retention period for short link clicks (0 = keep forever). |
 | `public_cors_origins` | Public CORS Origins | Comma/newline-separated allowlist of exact origins for public GET endpoints. |
-| `mail_system_sender_id` | System SMTP Sender | SMTPSender ID used for system transactional mail (verification, password resets, invites). |
-| `reserved_slugs` | Reserved Short Link Slugs | Slugs users are blocked from registering (built-ins like `admin`, `api`, `assets`, `portal` are always reserved). |
 | `metrics_token` | Metrics token | Bearer token required for `/metrics` endpoint (empty = loopback only). |
 | `ratelimit_auth_rpm` | Auth RPM / IP | Per-IP rate limit for authentication endpoints (default 60). |
 | `ratelimit_api_rpm` | API RPM / IP | Per-IP rate limit for general API endpoints (default 600). |
-| `ratelimit_redirect_rpm` | Redirect RPM / IP | Per-IP rate limit for short link redirects (default 6000). |
 | `allow_registration` | Allow public sign-up | Controls public registration on login page (Settings → Authentication). |
 | `require_email_verification` | Require Email Verification | Blocks login until user verifies email (Settings → Authentication). |
 | `oauth.google.*` / `oauth.github.*` | Google / GitHub OAuth | Third-party social login client IDs and secrets (Settings → Authentication). |

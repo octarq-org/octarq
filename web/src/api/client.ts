@@ -74,17 +74,11 @@ export const api = {
   instanceBuild: () =>
     req<{ version: string; commit: string; builtAt: string }>("GET", "/api/instance/build"),
 
-  overview: (includeBot = false) =>
-    req<Overview>("GET", `/api/overview${includeBot ? "?includeBot=true" : ""}`),
+  overview: () => req<Overview>("GET", "/api/overview"),
 
   settings: () => req<Settings>("GET", "/api/settings"),
   inboundToken: () => req<{ inboundToken: string }>("GET", "/api/settings/inbound-token"),
-  updateSettings: (s: {
-    reservedMailboxes?: string;
-    inboundToken?: string;
-    catchAll?: boolean;
-    autoWrapLinks?: boolean;
-  }) => req<Settings>("PUT", "/api/settings", s),
+  updateSettings: (s: { inboundToken?: string }) => req<Settings>("PUT", "/api/settings", s),
 
   instanceSettings: () => req<InstanceSettings>("GET", "/api/instance-settings"),
   updateInstanceSettings: (s: Partial<InstanceSettings> & {

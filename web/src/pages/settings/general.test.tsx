@@ -27,11 +27,8 @@ describe("GeneralSettings suite", () => {
     ]);
     vi.spyOn(api, "orgSlug").mockResolvedValue({ slug: "acme" });
     vi.spyOn(api, "settings").mockResolvedValue({
-      reservedMailboxes: "",
       orgSlug: "acme",
       tenantSubdomain: "acme.octarq.io",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: false,
     });
 
@@ -49,10 +46,7 @@ describe("GeneralSettings suite", () => {
     ]);
     vi.spyOn(api, "orgSlug").mockResolvedValue({ slug: "acme" });
     vi.spyOn(api, "settings").mockResolvedValue({
-      reservedMailboxes: "",
       orgSlug: "acme",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: false,
     });
     const updateOrgSpy = vi.spyOn(api, "updateOrg").mockResolvedValue({
@@ -87,10 +81,7 @@ describe("GeneralSettings suite", () => {
     ]);
     vi.spyOn(api, "orgSlug").mockResolvedValue({ slug: "acme-old" });
     vi.spyOn(api, "settings").mockResolvedValue({
-      reservedMailboxes: "",
       orgSlug: "acme-old",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: false,
     });
     const updateSlugSpy = vi.spyOn(api, "updateOrgSlug").mockResolvedValue({ slug: "acme-new" });
@@ -122,10 +113,7 @@ describe("GeneralSettings suite", () => {
     ]);
     vi.spyOn(api, "orgSlug").mockResolvedValue({ slug: "acme-old" });
     vi.spyOn(api, "settings").mockResolvedValue({
-      reservedMailboxes: "",
       orgSlug: "acme-old",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: false,
     });
     vi.spyOn(api, "updateOrgSlug").mockRejectedValue(new ApiError(409, "Slug already in use"));
@@ -152,10 +140,7 @@ describe("GeneralSettings suite", () => {
       { id: 1, name: "Acme Corp", slug: "acme", role: "admin" },
     ]);
     vi.spyOn(api, "settings").mockResolvedValue({
-      reservedMailboxes: "",
       orgSlug: "acme",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: false,
     });
     const exportSpy = vi.spyOn(api, "exportWorkspaceData").mockResolvedValue({
@@ -180,10 +165,7 @@ describe("GeneralSettings suite", () => {
     ]);
     vi.spyOn(api, "orgSlug").mockResolvedValue({ slug: "acme" });
     vi.spyOn(api, "settings").mockResolvedValue({
-      reservedMailboxes: "",
       orgSlug: "acme",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: false,
     });
     const purgeSpy = vi.spyOn(api, "purgeWorkspaceData").mockResolvedValue(undefined as any);

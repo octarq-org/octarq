@@ -59,7 +59,7 @@ func TestRoleBaselineEnforcement(t *testing.T) {
 		if code := doReq("GET", "/api/account/export", memberCookies, "").Code; code != 403 {
 			t.Fatalf("expected GET /api/account/export for member to be 403, got %d", code)
 		}
-		if rec := doReq("PUT", "/api/settings", memberCookies, `{"catchAll":false}`); rec.Code != 403 {
+		if rec := doReq("PUT", "/api/settings", memberCookies, `{}`); rec.Code != 403 {
 			t.Fatalf("expected PUT /api/settings for member to be 403, got %d: body=%s", rec.Code, rec.Body.String())
 		}
 

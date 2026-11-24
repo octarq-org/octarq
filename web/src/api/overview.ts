@@ -2,28 +2,26 @@ import { useEffect, useState } from "react";
 import { api } from "./client";
 import type { Overview } from "./types";
 
-const overviewInflight = new Map<boolean, { promise: Promise<Overview>; time: number }>();
+let overviewInflight: { promise: Promise<Overview>; time: number } | null = null;
 
-export function fetchOverview(includeBot = false): Promise<Overview> {
-  const key = !!includeBot;
+export function fetchOverview(): Promise<Overview> {
   const now = Date.now();
-  const cached = overviewInflight.get(key);
-  if (cached && now - cached.time < 2000) {
-    return cached.promise;
+  if (overviewInflight && now - overviewInflight.time < 2000) {
+    return overviewInflight.promise;
   }
-  const promise = api.overview(key).catch((err) => {
-    overviewInflight.delete(key);
+  const promise = api.overview().catch((err) => {
+    overviewInflight = null;
     throw err;
   });
-  overviewInflight.set(key, { promise, time: now });
+  overviewInflight = { promise, time: now };
   return promise;
 }
 
-export function useOverviewData(includeBot = false): Overview | null {
+export function useOverviewData(): Overview | null {
   const [data, setData] = useState<Overview | null>(null);
   useEffect(() => {
     let active = true;
-    fetchOverview(includeBot)
+    fetchOverview()
       .then((res) => {
         if (active) setData(res);
       })
@@ -35,6 +33,6 @@ export function useOverviewData(includeBot = false): Overview | null {
     return () => {
       active = false;
     };
-  }, [includeBot]);
+  }, []);
   return data;
 }
