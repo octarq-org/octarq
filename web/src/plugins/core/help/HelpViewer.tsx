@@ -1,6 +1,5 @@
-import { useEffect, useState, useMemo, useRef } from "react";
-import { useHref, useLocation, useNavigate } from "react-router-dom";
-import DOMPurify from "dompurify";
+import { useEffect, useState, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, HelpCategory, HelpDocMeta } from "../../../api";
 import { useTranslation } from "../../../i18n";
 import {
@@ -11,8 +10,8 @@ import {
   Clock,
   Share2,
 } from "lucide-react";
-import { useDocDomEnhancer } from "./useDocDomEnhancer";
-import { HelpDocToc, type TocItem } from "./HelpDocToc";
+import { HelpArticle } from "./HelpArticle";
+import { HelpDocToc, HelpDocTocMobile, type TocItem } from "./HelpDocToc";
 import { HelpDocPagination } from "./HelpDocPagination";
 
 interface DocContent {
@@ -24,8 +23,6 @@ export default function HelpViewer() {
   const { t, lang } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const routerBase = useHref("/").replace(/\/$/, "");
 
   const currentSlug = useMemo(() => {
     const parts = location.pathname.split("/").filter(Boolean);
@@ -45,8 +42,6 @@ export default function HelpViewer() {
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [notFound, setNotFound] = useState(false);
-
-  const contentRef = useRef<HTMLDivElement>(null);
 
   const getDocUrl = (d: HelpDocMeta) => {
     const category = (d.category || "services").toLowerCase();
@@ -92,16 +87,6 @@ export default function HelpViewer() {
       })
       .finally(() => setLoadingContent(false));
   }, [currentSlug, lang, retryNonce]);
-
-  useDocDomEnhancer({
-    contentRef,
-    html: content?.html,
-    docs,
-    routerBase,
-    navigate,
-    getDocUrl,
-    t,
-  });
 
   const toc = useMemo<TocItem[]>(() => {
     if (!content?.html) return [];
@@ -155,9 +140,14 @@ export default function HelpViewer() {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const resolveDocPath = (slug: string) => {
+    const doc = docs.find((d) => d.slug === slug);
+    return doc ? getDocUrl(doc) : null;
+  };
+
   return (
     <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <BookOpen className="w-4 h-4 text-accent-fg" />
@@ -187,7 +177,7 @@ export default function HelpViewer() {
           <button
             onClick={handleCopyLink}
             title={t("help.copy_page_link", "Copy Page Link")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             {copiedLink ? (
               <Check className="w-3.5 h-3.5 text-success-fg" />
@@ -201,11 +191,13 @@ export default function HelpViewer() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto bg-surface-hover/20 scrollbar-thin p-4 sm:p-8 lg:p-12">
-          <div className="space-y-8">
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="mx-auto w-full max-w-[72ch] px-4 py-8 sm:px-6 lg:px-8">
+            <HelpDocTocMobile items={toc} />
+
             {notFound ? (
-              <div className="bg-card rounded-2xl border border-border p-8 shadow-xs space-y-4">
+              <div className="space-y-4 rounded-lg border border-border p-6 sm:p-8">
                 <div className="flex items-center gap-3 text-foreground">
                   <AlertTriangle className="w-5 h-5 text-warning-fg shrink-0" />
                   <h1 className="text-lg font-bold">{t("help.not_found_title", "That page isn't in this build")}</h1>
@@ -249,54 +241,54 @@ export default function HelpViewer() {
                 </div>
                 <button
                   onClick={() => setRetryNonce((n) => n + 1)}
-                  className="shrink-0 px-3 py-1.5 rounded-lg border border-danger-border text-xs font-semibold hover:bg-danger-bg transition-colors"
+                  className="shrink-0 px-3 py-1.5 rounded-md border border-danger-border text-xs font-semibold hover:bg-danger-bg transition-colors"
                 >
                   {t("help.error_retry", "Retry")}
                 </button>
               </div>
             ) : content ? (
-              <div className="space-y-8">
-                <div className="bg-card rounded-2xl border border-border p-6 sm:p-10 md:p-12 shadow-xs transition-all">
-                  <div className="space-y-4 border-b border-border pb-6 mb-8">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      {categoryObj && (
-                        <span className="text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 bg-accent-soft text-accent-fg border-primary/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
-                          {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
-                        </span>
-                      )}
+              <div>
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                  {categoryObj ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-2.5 py-0.5 text-[11px] font-semibold text-accent-fg">
+                      <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
+                      {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
 
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground/80 font-medium">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-accent-fg" />
-                          <span>
-                            {readTimeMinutes} {t("help.read_time", "min read")}
-                          </span>
-                        </div>
-                        <span>•</span>
-                        <span>
-                          {currentIndex} / {totalDocs}
-                        </span>
-                      </div>
+                  <div className="flex items-center gap-3 font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-accent-fg" />
+                      <span>
+                        {readTimeMinutes} {t("help.read_time", "min read")}
+                      </span>
                     </div>
-
-                    <h1 className="font-display text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.03em] text-foreground sm:text-[2rem]">
-                      {content.title}
-                    </h1>
+                    <span>•</span>
+                    <span>
+                      {currentIndex} / {totalDocs}
+                    </span>
                   </div>
-
-                  <div
-                    ref={contentRef}
-                    className="markdown-body"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.html) }}
-                  />
                 </div>
 
-                <HelpDocPagination
-                  prevDoc={prevDoc}
-                  nextDoc={nextDoc}
-                  onNavigateDoc={(doc) => navigate(getDocUrl(doc))}
+                <HelpArticle
+                  title={content.title}
+                  html={content.html}
+                  slug={currentSlug}
+                  lang={lang}
+                  actions={currentDocMeta?.actions}
+                  onNavigate={(path) => navigate(path)}
+                  resolveDocPath={resolveDocPath}
                 />
+
+                <div className="mt-10">
+                  <HelpDocPagination
+                    prevDoc={prevDoc}
+                    nextDoc={nextDoc}
+                    onNavigateDoc={(doc) => navigate(getDocUrl(doc))}
+                  />
+                </div>
               </div>
             ) : null}
           </div>

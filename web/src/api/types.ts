@@ -166,13 +166,38 @@ export interface HelpCategory {
 export interface HelpDocMeta {
   slug: string;
   title: string;
+  description?: string;
   category: string;
   order: number;
+  routes?: string[];
+  actions?: string[];
 }
 
 export interface HelpDocContent {
   title: string;
   html: string;
+}
+
+export interface HelpSearchSnippet {
+  text: string;
+  offsets: [number, number][];
+}
+
+export interface HelpSearchHit {
+  slug: string;
+  title: string;
+  category: string;
+  anchor: string;
+  anchorTitle: string;
+  snippet: HelpSearchSnippet;
+  score: number;
+  url: string;
+}
+
+export interface HelpSearchResponse {
+  query: string;
+  lang: string;
+  results: HelpSearchHit[];
 }
 
 export interface Token {
@@ -294,6 +319,7 @@ export interface MenuItem {
 export interface Action {
   id: string;
   label: string;
+  description?: string;
   path: string;
   icon: string;
   category: string;

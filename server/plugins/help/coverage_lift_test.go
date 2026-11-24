@@ -87,8 +87,8 @@ func TestCoverageLift_GetDocsBranches(t *testing.T) {
 	if docs[0].Title != "中文标题" {
 		t.Fatalf("expected title 中文标题, got %q", docs[0].Title)
 	}
-	if docs[0].Category != "services" {
-		t.Fatalf("expected category services from Describer, got %q", docs[0].Category)
+	if docs[0].Category != "infrastructure" {
+		t.Fatalf("expected category infrastructure from Describer, got %q", docs[0].Category)
 	}
 
 	mux := http.NewServeMux()

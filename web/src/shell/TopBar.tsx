@@ -2,7 +2,7 @@ import { ExtensionSlot, cn } from "@octarq/plugin-sdk";
 import { Fragment, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu } from "@base-ui/react/menu";
-import { Search, PanelLeft, Sun, Moon, Plus, ChevronRight } from "lucide-react";
+import { Search, PanelLeft, Sun, Moon, Plus, ChevronRight, BookOpen } from "lucide-react";
 import { Action } from "../api";
 import { useTranslation } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
@@ -12,6 +12,7 @@ import { translateGroupLabel, translateNavItemLabel } from "./navI18n";
 import { MENU_ITEM, MENU_POPUP } from "./menuStyles";
 import { NotificationBell, InboxDrawer } from "../pages/notifications";
 import { AICopilotButton, AICopilotDrawer } from "./AICopilotDrawer";
+import { useHelpDrawer } from "./useHelpDrawer";
 
 const ACTION_BUTTON =
   "rounded-md border border-border bg-card text-muted-foreground " +
@@ -28,6 +29,7 @@ export function TopBar({
   onTogglePanel,
   onOpenCommand,
   actions = [],
+  activeOrgId,
 }: {
   areas: Area[];
   activeArea?: AreaId;
@@ -42,11 +44,13 @@ export function TopBar({
   onOpenCommand: () => void;
   onLogout?: () => void;
   actions?: Action[];
+  activeOrgId?: number;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const help = useHelpDrawer(activeOrgId);
 
   const crumbs = useMemo(
     () =>
@@ -184,6 +188,20 @@ export function TopBar({
       )}
 
       <NotificationBell />
+
+      {help.match && (
+        <button
+          type="button"
+          onClick={() => (help.isOpen ? help.close() : help.openForCurrentPage())}
+          aria-label={t("help.open", "Open help")}
+          title={t("help.open_hint", "Open help for this page (F1)")}
+          aria-pressed={help.isOpen}
+          data-testid="help-drawer-trigger"
+          className={cn(ACTION_BUTTON, "tap-expand flex h-8 w-8 items-center justify-center")}
+        >
+          <BookOpen className="h-4 w-4" strokeWidth={1.75} />
+        </button>
+      )}
 
       <AICopilotButton />
 
