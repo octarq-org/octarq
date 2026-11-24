@@ -78,6 +78,7 @@ type DocMeta struct {
 	Category    string   `json:"category"`
 	Order       int      `json:"order"`
 	Routes      []string `json:"routes,omitempty"`
+	Actions     []string `json:"actions,omitempty"`
 }
 
 type ListDocsInput struct {
@@ -111,6 +112,7 @@ func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsO
 			Category:    d.Category,
 			Order:       d.Order,
 			Routes:      d.Routes,
+			Actions:     d.Actions,
 		})
 	}
 	return &ListDocsOutput{Body: out}, nil

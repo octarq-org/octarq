@@ -170,6 +170,7 @@ export interface HelpDocMeta {
   category: string;
   order: number;
   routes?: string[];
+  actions?: string[];
 }
 
 export interface HelpDocContent {
@@ -318,6 +319,7 @@ export interface MenuItem {
 export interface Action {
   id: string;
   label: string;
+  description?: string;
   path: string;
   icon: string;
   category: string;

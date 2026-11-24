@@ -9,6 +9,13 @@ import { HelpArticle } from "./HelpArticle";
 // @ts-ignore
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+vi.mock("../../../api", () => ({
+  api: {
+    aiAssistStatus: () => new Promise(() => {}),
+    actions: async () => [],
+  },
+}));
+
 const HTML = `
 <h2 id="install">Install</h2>
 <p>Run this:</p>

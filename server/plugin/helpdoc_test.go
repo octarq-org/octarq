@@ -127,6 +127,17 @@ func TestParseHelpDocDescriptionAndRoutes(t *testing.T) {
 	}
 }
 
+func TestParseHelpDocActions(t *testing.T) {
+	raw := "---\ntitle: Domains\nactions:\n  - domains.create\n  - domains.verify\n---\n\nBody"
+	doc, err := ParseHelpDoc(raw)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(doc.Actions) != 2 || doc.Actions[0] != "domains.create" || doc.Actions[1] != "domains.verify" {
+		t.Errorf("unexpected actions %#v", doc.Actions)
+	}
+}
+
 func TestHelpPlaceholdersAreClosedSet(t *testing.T) {
 	for _, key := range []string{"app_name", "domain", "org_slug"} {
 		if !IsHelpPlaceholder(key) {

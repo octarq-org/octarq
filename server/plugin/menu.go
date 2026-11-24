@@ -24,6 +24,7 @@ type InstanceMenuProvider interface {
 type Action struct {
 	ID           string `json:"id"`
 	Label        string `json:"label"`
+	Description  string `json:"description,omitempty"`
 	Path         string `json:"path"`
 	Icon         string `json:"icon"`
 	Category     string `json:"category"`
