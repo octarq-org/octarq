@@ -69,7 +69,6 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("Audit", ctx.Audit != nil)
 	p.present("Notify", ctx.Notify != nil)
 	p.present("RegisterNotifier", ctx.RegisterNotifier != nil)
-	p.present("SendMail", ctx.SendMail != nil)
 	p.present("RecordUsage", ctx.RecordUsage != nil)
 	p.present("SetLLMResolverForOrg", ctx.SetLLMResolverForOrg != nil)
 	p.present("LLMProviderForOrg", ctx.LLMProviderForOrg != nil)
@@ -291,8 +290,12 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("usage meter got %q/%d, want clicks/5", p.cap.usageMetric, p.cap.usageN)
 	}
 
-	if err := ctx.SendMail(o.ID, "to@cov.example", "sub", "<p>h</p>", "h"); err != nil {
-		t.Fatalf("SendMail: %v", err)
+	send, ok := plugin.LookupAs[plugin.MessagingSender](ctx, plugin.ServiceMessagingSend)
+	if !ok {
+		t.Fatal("messaging.send is not resolvable from the plugin context")
+	}
+	if err := send(o.ID, "to@cov.example", "sub", "<p>h</p>", "h"); err != nil {
+		t.Fatalf("messaging.send: %v", err)
 	}
 	if p.cap.mailTo != "to@cov.example" {
 		t.Errorf("mail service got to=%q, want to@cov.example", p.cap.mailTo)
