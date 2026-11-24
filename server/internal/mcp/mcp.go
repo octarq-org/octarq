@@ -28,11 +28,10 @@ const version = "0.1.0"
 const stdioOrgID uint = 1
 
 type server struct {
-	gdb    *gorm.DB
-	orgID  uint
-	lookup func(name string) (any, bool)
-	srv    *mcp.Server
-	subs   *subscriptionTracker
+	orgID   uint
+	lookup  func(name string) (any, bool)
+	subs    *subscriptionTracker
+	plugins []plugin.Plugin
 }
 
 func Run(ctx context.Context) error {
@@ -92,21 +91,17 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 		}
 	}
 
-	s := &server{gdb: gdb, orgID: orgID, lookup: lookupFn, subs: &subscriptionTracker{}}
+	s := &server{orgID: orgID, lookup: lookupFn, subs: &subscriptionTracker{}, plugins: plugins}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
 	opts := &mcp.ServerOptions{
-		Instructions: "octarq is a self-hosted one-person-company backend. These tools " +
-			"read/write short links, email, and domains. Everything is scoped to the " +
-			"caller's own workspace.",
+		Instructions: "octarq is a self-hosted workspace backend. Every call is scoped " +
+			"to the caller's own workspace. Installed plugins add their own tools and resources.",
 		SubscribeHandler:   s.handleSubscribe,
 		UnsubscribeHandler: s.handleUnsubscribe,
 	}
 	srv := mcp.NewServer(impl, opts)
-	s.srv = srv
 	s.registerTools(srv)
-	s.registerResources(srv)
-	s.registerExtraResources(srv)
 	if err := endpointEngine.MountMCP(srv, gate); err != nil {
 		slog.Warn("mcp: failed to mount endpoint engine tools", "err", err)
 	}
@@ -163,7 +158,7 @@ func (openWriter) Close() error { return nil }
 func (s *server) registerTools(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "core_mcp", &mcp.Tool{
 		Name:        "octarq_infra__export_data",
-		Description: "Export the operator's data for one resource type (links, emails, domains, mailboxes) as JSON or 'all'/'zip_url' for a full ZIP summary with signed download URL.",
+		Description: "Export one plugin resource as JSON. Use 'all' or 'zip_url' for a ZIP summary and a signed download URL.",
 	}, s.exportData)
 }
 

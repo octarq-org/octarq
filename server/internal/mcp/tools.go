@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -11,7 +12,7 @@ import (
 )
 
 type exportInput struct {
-	Resource string `json:"resource" jsonschema:"Resource type to export: links, emails, domains, mailboxes, all, or zip_url"`
+	Resource string `json:"resource" jsonschema:"Resource to export: a plugin-declared resource name, all, or zip_url"`
 }
 
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
@@ -32,13 +33,17 @@ func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in expo
 		return nil, nil, errNoOrgInContext
 	}
 	if in.Resource == "all" || in.Resource == "zip_url" {
-		var linksCount, domainsCount, mailboxesCount, emailsCount int64
-		if s.gdb != nil {
-			s.gdb.Table("links").Where("owner_id = ?", orgID).Count(&linksCount)
-			s.gdb.Table("domains").Where("owner_id = ?", orgID).Count(&domainsCount)
-			s.gdb.Table("mailboxes").Where("owner_id = ?", orgID).Count(&mailboxesCount)
-			mailboxIDs := s.gdb.Table("mailboxes").Where("owner_id = ?", orgID).Select("id")
-			s.gdb.Table("emails").Where("mailbox_id IN (?)", mailboxIDs).Count(&emailsCount)
+		summary := map[string]int64{}
+		for _, p := range s.plugins {
+			fn, ok := plugin.LookupServiceAs[plugin.ExportFunc](s.lookup, plugin.ExportServiceName(p.Name()))
+			if !ok {
+				continue
+			}
+			for key, v := range fn(orgID) {
+				if n, ok := exportItemCount(v); ok {
+					summary[key] = n
+				}
+			}
 		}
 		var downloadURL string
 		if s.lookup != nil {
@@ -50,12 +55,7 @@ func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in expo
 			downloadURL = fmt.Sprintf("/api/account/export?org=%d", orgID)
 		}
 		res := map[string]any{
-			"summary": map[string]int64{
-				"links":     linksCount,
-				"domains":   domainsCount,
-				"mailboxes": mailboxesCount,
-				"emails":    emailsCount,
-			},
+			"summary":     summary,
 			"downloadUrl": downloadURL,
 			"expiresIn":   "15m",
 			"resource":    in.Resource,
@@ -73,8 +73,27 @@ func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in expo
 	}
 	return &mcp.CallToolResult{
 		IsError: true,
-		Content: []mcp.Content{&mcp.TextContent{Text: "unknown resource; use one of: links, emails, domains, mailboxes, all, zip_url"}},
+		Content: []mcp.Content{&mcp.TextContent{Text: "unknown resource; use a plugin-declared resource name, all, or zip_url"}},
 	}, nil, nil
+}
+
+func exportItemCount(v any) (int64, bool) {
+	if v == nil {
+		return 0, false
+	}
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Pointer || rv.Kind() == reflect.Interface {
+		if rv.IsNil() {
+			return 0, false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array, reflect.Map:
+		return int64(rv.Len()), true
+	default:
+		return 0, false
+	}
 }
 
 func jsonResultAny(v any) (*mcp.CallToolResult, any, error) {

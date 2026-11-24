@@ -11,7 +11,7 @@ The `internal/mcp` package implements Octarq's Model Context Protocol (MCP) prov
 - **Networked Mount Isolation**: Plugins are mounted once at bootstrap. Networked MCP instances **never re-mount plugins**; re-mounting per connection would overwrite process-wide resolvers and leak cross-tenant context.
 - **Tier-Gated Tools**: A plugin declares the license tier its MCP tools require with `MCPTier()`; an `EndpointSpec` declares it with `Tier`. The composition consults the injected `plugin.TierGate` and never registers a tool whose tier the instance does not cover. An empty tier is free and always registered. HTTP applies the same declaration: `RegisterHTTP` publishes it as `plugin.MetadataTier`, which the platform gate reads.
 - **Stdio Mount Contract**: `NewServerInstance` mounts plugins with no HTTP surface: `ctx.Huma` is nil, the mux is nil, and `ctx.Guard` is nil, because this transport serves no HTTP. Plugins **must skip HTTP registration** when that surface is absent, and keep their MCP tool registration (`RegisterMCP`) unconditional. A plugin that registers routes unconditionally panics the stdio server at startup.
-- **Resource Subscriptions & Live Updates**: Supports MCP push notifications (`notifications/resources/updated`) for streaming trending links and new incoming mailbox arrivals.
+- **Resource Ownership**: Core registers no business resources. Each plugin publishes its own resources through `RegisterMCP`; resource URIs, payload shapes, and subscriptions belong to that plugin.
 - **Binary Embedding Guarantee**: Co-located at `server/internal/mcp/SPEC.md`. Strictly excluded from binary embedding.
 
 ---
@@ -42,14 +42,15 @@ type MCPProvider interface {
 
 ---
 
-## 3. Canonical MCP Resources
+## 3. Resource Ownership
 
-| URI Template | Title | Description |
-|---|---|---|
-| `octarq://metrics/traffic` | Traffic Metrics | Read-only shortlink traffic and redirection statistics for the workspace |
-| `octarq://domains/health` | Domains Health | Read-only DNS routing status and domain health overview |
-| `octarq://links/trending` | Trending Links | Workspace links ranked by click velocity |
-| `octarq://mailboxes/{id}/latest` | Mailbox Latest | Newest MIME message arrival notification resource |
+Core advertises no business resources and runs no SQL against business tables. Plugins own their resources:
+
+- A plugin registers resources and templates inside `RegisterMCP(srv)`.
+- A plugin declares exportable data with `plugin.MCPExporter` under `plugin.MCPExportServiceName(resource)`.
+- `octarq_infra__export_data` resolves one resource by that service name. For `all` and `zip_url` it builds the summary from `plugin.ExportFunc` registrations (`plugin.ExportServiceName(pluginName)`) without naming any business table.
+
+Absence of plugins is not an error for `all`; the summary stays empty and no counts are invented.
 
 ---
 
