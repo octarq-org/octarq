@@ -5,8 +5,12 @@ import (
 	"strings"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 var asideTag = map[string]string{
@@ -92,16 +96,26 @@ func parseAsideOpener(trimmed string) (kind, title string, ok bool) {
 	return tag, title, true
 }
 
+var helpMarkdown = goldmark.New(
+	goldmark.WithExtensions(extension.GFM),
+	goldmark.WithParserOptions(
+		parser.WithAutoHeadingID(),
+	),
+	goldmark.WithRendererOptions(
+		renderer.WithNodeRenderers(util.Prioritized(&helpCodeRenderer{}, 100)),
+	),
+)
+
 func renderMarkdown(src string) (string, error) {
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM),
-		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
-		),
-	)
 	var buf bytes.Buffer
-	if err := md.Convert([]byte(convertAsides(src)), &buf); err != nil {
+	if err := helpMarkdown.Convert([]byte(convertAsides(src)), &buf); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func parseMarkdown(src string) (ast.Node, []byte) {
+	source := []byte(convertAsides(src))
+	doc := helpMarkdown.Parser().Parse(text.NewReader(source))
+	return doc, source
 }
