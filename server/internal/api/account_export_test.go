@@ -4,21 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
-
-	"github.com/octarq-org/octarq/server/plugin"
 )
-
-type stubExportPlugin struct {
-	name string
-	fn   plugin.ExportFunc
-}
-
-func (p stubExportPlugin) Name() string          { return p.name }
-func (p stubExportPlugin) Describe() plugin.Info { return plugin.Info{Title: p.name} }
-func (p stubExportPlugin) Models() []any         { return nil }
-func (p stubExportPlugin) Mount(m plugin.Mux, ctx *plugin.Context) {
-	ctx.Provide(plugin.ExportServiceName(p.name), p.fn)
-}
 
 func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
@@ -47,11 +33,14 @@ func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 		}
 	}
 
-	for _, key := range []string{
-		"metadata.json", "links.csv", "domains.json", "mailboxes.json", "audit_logs.json",
-	} {
+	for _, key := range []string{"metadata.json", "audit_logs.json"} {
 		if _, ok := files[key]; !ok {
 			t.Errorf("missing file %q in export zip", key)
+		}
+	}
+	for _, forbidden := range []string{"links.csv", "domains.json", "mailboxes.json"} {
+		if _, ok := files[forbidden]; ok {
+			t.Errorf("core export must not contain business file %q", forbidden)
 		}
 	}
 
@@ -66,54 +55,6 @@ func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || (len(substr) > 0 && searchSubstr(s, substr)))
-}
-
-func TestExportAccount_IncludesPluginData(t *testing.T) {
-	h, srv, db := newTestHandlerRaw(t)
-
-	const orgA uint = 401
-	const userA uint = 4001
-
-	seedOrgFullData(t, h, orgA, userA, "SECRET-ORG-A")
-	if err := db.Create(&testLink{OrgID: orgA, Slug: "guard-export", Target: "https://example.com/guard"}).Error; err != nil {
-		t.Fatalf("seed link: %v", err)
-	}
-	reg := plugin.NewRegistry()
-	h.SetServiceLookup(reg.Lookup)
-	p := stubExportPlugin{
-		name: "links",
-		fn: func(orgID uint) map[string]any {
-			return map[string]any{"links": []any{"guard-export"}}
-		},
-	}
-	h.SetPlugins([]plugin.Plugin{p})
-	pctx := &plugin.Context{Provide: reg.Provide}
-	p.Mount(nil, pctx)
-	cookies := sessionCookies(t, userA, orgA)
-
-	rec := do(srv, http.MethodGet, "/api/account/export", cookies, "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("export request failed: got status %d, body %s", rec.Code, rec.Body.String())
-	}
-
-	files := unzipTestArchive(t, rec.Body.Bytes())
-	linksPluginData, ok := files["plugins/links.json"]
-	if !ok {
-		t.Fatalf("export missing plugins/links.json: got files %+v", files)
-	}
-
-	var res map[string]any
-	if err := json.Unmarshal(linksPluginData, &res); err != nil {
-		t.Fatalf("unmarshal plugins/links.json: %v", err)
-	}
-	linksArr, ok := res["links"].([]any)
-	if !ok || len(linksArr) == 0 {
-		t.Errorf("export missing the links plugin's data (plugin.ExportFunc guard broken?): %+v", res)
-	}
-	linksCSV := string(files["links.csv"])
-	if !contains(linksCSV, "guard-export") {
-		t.Errorf("links.csv missing guard-export link: %s", linksCSV)
-	}
 }
 
 func searchSubstr(s, substr string) bool {

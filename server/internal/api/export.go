@@ -6,14 +6,13 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
-	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -70,78 +69,6 @@ type ExportAccountInput struct {
 func (i *ExportAccountInput) Resolve(ctx huma.Context) []error {
 	i.Ctx = ctx
 	return nil
-}
-
-var secretTokenRegex = regexp.MustCompile(`(?i)(sk-[a-zA-Z0-9_\-]{6,}|ghp_[a-zA-Z0-9]{10,}|bearer\s+[a-zA-Z0-9_\-\.]{10,})`)
-
-func sanitizeSecret(s string) string {
-	return secretTokenRegex.ReplaceAllStringFunc(s, func(m string) string {
-		if len(m) >= 3 && strings.EqualFold(m[:3], "sk-") {
-			return "sk-****"
-		}
-		return "[redacted]"
-	})
-}
-
-type exportLinkRow struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID     uint      `gorm:"column:owner_id" json:"-"`
-	Host      string    `json:"host"`
-	Slug      string    `json:"slug"`
-	Target    string    `json:"target"`
-	Title     string    `json:"title"`
-	Clicks    int64     `json:"clicks"`
-	Tags      string    `json:"tags"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-func (exportLinkRow) TableName() string    { return "links" }
-func (exportLinkRow) TenantColumn() string { return "owner_id" }
-
-type exportDomainRow struct {
-	ID                uint      `gorm:"primaryKey" json:"id"`
-	OrgID             uint      `gorm:"column:owner_id" json:"-"`
-	Name              string    `json:"name"`
-	ProviderAccountID uint      `json:"providerAccountId"`
-	ZoneID            string    `json:"zoneId"`
-	Note              string    `json:"note"`
-	ForMail           bool      `json:"forMail"`
-	ForLink           bool      `json:"forLink"`
-	LinkHosts         string    `json:"linkHosts"`
-	MailHosts         string    `json:"mailHosts"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
-}
-
-func (exportDomainRow) TableName() string    { return "domains" }
-func (exportDomainRow) TenantColumn() string { return "owner_id" }
-
-type exportDomainItem struct {
-	exportDomainRow
-	Records []plugin.DNSRecord `json:"records"`
-}
-
-type exportMailboxRow struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID     uint      `gorm:"column:owner_id" json:"-"`
-	Address   string    `json:"address"`
-	Note      string    `json:"note"`
-	Enabled   bool      `json:"enabled"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-func (exportMailboxRow) TableName() string    { return "mailboxes" }
-func (exportMailboxRow) TenantColumn() string { return "owner_id" }
-
-type mailboxStats struct {
-	TotalReceived int64 `json:"totalReceived"`
-	Unread        int64 `json:"unread"`
-}
-
-type exportMailboxItem struct {
-	exportMailboxRow
-	Stats mailboxStats `json:"stats"`
 }
 
 func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) (*huma.StreamResponse, error) {
@@ -223,75 +150,42 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	var orgRow models.Org
 	h.db.Where("id = ?", org).First(&orgRow)
 
-	var linkRows []exportLinkRow
-	tdb.Table("links").Order("id ASC").Find(&linkRows)
-
-	var domRows []exportDomainRow
-	tdb.Table("domains").Order("id ASC").Find(&domRows)
-
-	var dnsMgr plugin.DNSManager
-	if h.lookupService != nil {
-		if mgr, ok := plugin.LookupServiceAs[plugin.DNSManager](h.LookupService, plugin.ServiceDNSManager); ok {
-			dnsMgr = mgr
+	pluginData := make(map[string]map[string]any)
+	pluginNames := make([]string, 0, len(h.plugins))
+	for _, p := range h.plugins {
+		fn, ok := plugin.LookupServiceAs[plugin.ExportFunc](h.LookupService, plugin.ExportServiceName(p.Name()))
+		if !ok {
+			continue
 		}
+		data := fn(org)
+		if len(data) == 0 {
+			continue
+		}
+		name := p.Name()
+		pluginData[name] = data
+		pluginNames = append(pluginNames, name)
 	}
-
-	domainItems := make([]exportDomainItem, len(domRows))
-	for i, d := range domRows {
-		domainItems[i] = exportDomainItem{
-			exportDomainRow: d,
-			Records:         []plugin.DNSRecord{},
-		}
-		if dnsMgr != nil {
-			if recs, err := dnsMgr.List(ctx, org, d.ID); err == nil && recs != nil {
-				sanitized := make([]plugin.DNSRecord, len(recs))
-				for j, rec := range recs {
-					rec.Content = sanitizeSecret(rec.Content)
-					rec.Comment = sanitizeSecret(rec.Comment)
-					sanitized[j] = rec
-				}
-				domainItems[i].Records = sanitized
-			}
-		}
-	}
-
-	var mbRows []exportMailboxRow
-	tdb.Table("mailboxes").Order("id ASC").Find(&mbRows)
-
-	mailboxItems := make([]exportMailboxItem, len(mbRows))
-	for i, m := range mbRows {
-		var total, unread int64
-		h.db.Table("emails").Where("mailbox_id = ?", m.ID).Count(&total)
-		h.db.Table("emails").Where("mailbox_id = ? AND read = ?", m.ID, false).Count(&unread)
-		mailboxItems[i] = exportMailboxItem{
-			exportMailboxRow: m,
-			Stats: mailboxStats{
-				TotalReceived: total,
-				Unread:        unread,
-			},
-		}
-	}
+	sort.Strings(pluginNames)
 
 	ninetyDaysAgo := time.Now().UTC().Add(-90 * 24 * time.Hour)
 	var auditLogs []models.AuditLog
 	tdb.Scoped(&models.AuditLog{}).Where("created_at >= ?", ninetyDaysAgo).Order("created_at DESC").Find(&auditLogs)
+
+	files := make([]string, 0, len(pluginNames)+2)
+	files = append(files, "metadata.json")
+	for _, name := range pluginNames {
+		files = append(files, fmt.Sprintf("plugins/%s.json", name))
+	}
+	files = append(files, "audit_logs.json")
 
 	metadata := map[string]any{
 		"exportedAt":    time.Now().UTC().Format(time.RFC3339),
 		"orgId":         org,
 		"workspaceName": orgRow.Name,
 		"version":       "1.0.0",
-		"files": []string{
-			"metadata.json",
-			"links.csv",
-			"domains.json",
-			"mailboxes.json",
-			"audit_logs.json",
-		},
+		"files":         files,
 		"counts": map[string]int64{
-			"links":     int64(len(linkRows)),
-			"domains":   int64(len(domainItems)),
-			"mailboxes": int64(len(mailboxItems)),
+			"plugins":   int64(len(pluginNames)),
 			"auditLogs": int64(len(auditLogs)),
 		},
 		"note": "Secret material (token hashes, encrypted credentials, external SMTP passwords, webhook secrets) is intentionally excluded or redacted.",
@@ -322,47 +216,14 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 				slog.Warn("export: failed writing metadata.json", "err", err)
 			}
 
-			if zf, err := zw.Create("links.csv"); err == nil {
-				cw := csv.NewWriter(zf)
-				if err := cw.Write([]string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "Tags", "CreatedAt"}); err != nil {
-					slog.Warn("export: failed writing links.csv header", "err", err)
+			for _, name := range pluginNames {
+				if err := addJSON(fmt.Sprintf("plugins/%s.json", name), pluginData[name]); err != nil {
+					slog.Warn("export: failed writing plugin data", "plugin", name, "err", err)
 				}
-				for _, l := range linkRows {
-					_ = cw.Write([]string{
-						strconv.FormatUint(uint64(l.ID), 10),
-						l.Host,
-						l.Slug,
-						l.Target,
-						l.Title,
-						strconv.FormatInt(l.Clicks, 10),
-						l.Tags,
-						l.CreatedAt.UTC().Format(time.RFC3339),
-					})
-				}
-				cw.Flush()
-			} else {
-				slog.Warn("export: failed creating links.csv", "err", err)
-			}
-
-			if err := addJSON("domains.json", domainItems); err != nil {
-				slog.Warn("export: failed writing domains.json", "err", err)
-			}
-
-			if err := addJSON("mailboxes.json", mailboxItems); err != nil {
-				slog.Warn("export: failed writing mailboxes.json", "err", err)
 			}
 
 			if err := addJSON("audit_logs.json", auditLogs); err != nil {
 				slog.Warn("export: failed writing audit_logs.json", "err", err)
-			}
-
-			for _, p := range h.plugins {
-				if fn, ok := plugin.LookupServiceAs[plugin.ExportFunc](h.LookupService, plugin.ExportServiceName(p.Name())); ok {
-					pluginData := fn(org)
-					if len(pluginData) > 0 {
-						_ = addJSON(fmt.Sprintf("plugins/%s.json", p.Name()), pluginData)
-					}
-				}
 			}
 
 			if err := zw.Close(); err != nil {
