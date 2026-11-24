@@ -163,7 +163,6 @@ type Context struct {
 	RegisterAuthMethod          func(m AuthMethod)
 	Audit                       func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
 	AuthenticateRequest         func(r *http.Request) (*http.Request, bool)
-	DNS                         DNSManager
 	SendMail                    func(orgID uint, to, subject, htmlBody, textBody string) error
 	SetLLMResolverForOrg        func(resolver func(orgID uint) (llmprovider.Provider, error))
 	LLMProviderForOrg           func(orgID uint) (llmprovider.Provider, error)

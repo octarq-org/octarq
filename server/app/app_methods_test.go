@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -9,7 +8,7 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
-func TestAppMethodsAndLazyDNS(t *testing.T) {
+func TestAppMethods(t *testing.T) {
 
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "app_methods.db")
@@ -46,17 +45,5 @@ func TestAppMethodsAndLazyDNS(t *testing.T) {
 	}))
 	if err := a.sendMail(1, "to@example.com", "sub", "<p>hi</p>", "hi"); err != nil {
 		t.Errorf("sendMail error: %v", err)
-	}
-
-	ldns := &lazyDNSManager{lookup: a.services.Lookup}
-	ctx := context.Background()
-	if _, err := ldns.List(ctx, 1, 1); err == nil {
-		t.Error("expected error when dns plugin not mounted")
-	}
-	if _, err := ldns.Set(ctx, 1, 1, plugin.DNSRecord{}); err == nil {
-		t.Error("expected error when dns plugin not mounted")
-	}
-	if err := ldns.Delete(ctx, 1, 1, "rec1"); err == nil {
-		t.Error("expected error when dns plugin not mounted")
 	}
 }

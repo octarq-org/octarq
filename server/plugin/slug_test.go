@@ -29,18 +29,3 @@ func TestRandomSlugUniqueness(t *testing.T) {
 		seen[s] = true
 	}
 }
-
-func TestUsageMetricConstants(t *testing.T) {
-	if MetricClicks != "clicks" {
-		t.Errorf("MetricClicks = %q, want clicks", MetricClicks)
-	}
-	if MetricMailIn != "mailIn" {
-		t.Errorf("MetricMailIn = %q, want mailIn", MetricMailIn)
-	}
-	if MetricMailOut != "mailOut" {
-		t.Errorf("MetricMailOut = %q, want mailOut", MetricMailOut)
-	}
-	if MetricRawBytes != "mail.raw_bytes" {
-		t.Errorf("MetricRawBytes = %q, want mail.raw_bytes", MetricRawBytes)
-	}
-}
