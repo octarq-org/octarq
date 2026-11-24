@@ -180,6 +180,48 @@ func (r *routeRegistry) Err() error {
 	return fmt.Errorf("preflight: %d route collisions, first: %w", len(r.errs), r.errs[0])
 }
 
+func (r *routeRegistry) snapshot() map[string]string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make(map[string]string, len(r.owner))
+	for pattern, owner := range r.owner {
+		out[pattern] = owner
+	}
+	return out
+}
+
+func preflightUnscopedClaims(plugins []plugin.Plugin, routes *routeRegistry) error {
+	if routes == nil {
+		return nil
+	}
+	claims := routes.snapshot()
+	for _, p := range plugins {
+		name := p.Name()
+		for _, decl := range plugin.UnscopedPrefixes(p) {
+			matched := 0
+			for pattern, owner := range claims {
+				if !unscopedDeclarationMatches(decl, patternPath(pattern)) {
+					continue
+				}
+				if owner != name {
+					return fmt.Errorf(
+						"preflight: plugin %q declares unscoped route %q, but it also covers a route owned by plugin %q (%s)",
+						name, decl, owner, pattern,
+					)
+				}
+				matched++
+			}
+			if matched == 0 {
+				return fmt.Errorf(
+					"preflight: plugin %q declares unscoped route %q, but owns no route that matches it",
+					name, decl,
+				)
+			}
+		}
+	}
+	return nil
+}
+
 type recordingMux struct {
 	real       muxSink
 	routes     *routeRegistry

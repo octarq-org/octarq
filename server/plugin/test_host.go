@@ -13,6 +13,7 @@ type TestHost struct {
 	SettingsMock         SettingsStore
 	EventsMock           EventSpine
 	TenantDBMock         func(orgID uint) *TenantDB
+	HostsMock            HostRegistry
 	HarnessSpecFn        func(ctx context.Context, orgID uint) (json.RawMessage, error)
 	LookupCredentialMock func(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 	SpendLedgerMock      SpendLedger
@@ -44,6 +45,13 @@ func (h *TestHost) Events() EventSpine {
 		return h.EventsMock
 	}
 	return noopEvents{}
+}
+
+func (h *TestHost) Hosts() HostRegistry {
+	if h != nil && h.HostsMock != nil {
+		return h.HostsMock
+	}
+	return NoopHostRegistry()
 }
 
 func (h *TestHost) HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error) {

@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func originTestServer(t *testing.T, domains ...testDomain) (http.Handler, *gorm.DB, *[]string) {
+func originTestServer(t *testing.T, hosts ...models.OrgHost) (http.Handler, *gorm.DB, *[]string) {
 	t.Helper()
 	h, srv, db := newTestHandlerRaw(t)
 
@@ -28,9 +28,9 @@ func originTestServer(t *testing.T, domains ...testDomain) (http.Handler, *gorm.
 		return nil, false
 	})
 
-	for i := range domains {
-		if err := db.Create(&domains[i]).Error; err != nil {
-			t.Fatalf("seed domain: %v", err)
+	for i := range hosts {
+		if err := db.Create(&hosts[i]).Error; err != nil {
+			t.Fatalf("seed host: %v", err)
 		}
 	}
 	if err := db.Create(&models.User{Email: "victim@example.com", PasswordHash: "x"}).Error; err != nil {
@@ -62,15 +62,13 @@ func forgot(t *testing.T, srv http.Handler, sent *[]string, host string) string 
 }
 
 func TestForgotPasswordRejectsForgedHost(t *testing.T) {
-	acme := testDomain{
-		OrgID:     1,
-		Name:      "acme.example",
-		ForLink:   true,
-		LinkHosts: `[{"host":"go.acme.example","enabled":true}]`,
+	acme := []models.OrgHost{
+		{OrgID: 1, Host: "acme.example", Source: "test"},
+		{OrgID: 1, Host: "go.acme.example", Traffic: true, Source: "test"},
 	}
 
 	t.Run("forged host is never used", func(t *testing.T) {
-		srv, _, sent := originTestServer(t, acme)
+		srv, _, sent := originTestServer(t, acme...)
 
 		link := forgot(t, srv, sent, "evil.com")
 
@@ -84,7 +82,7 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	})
 
 	t.Run("registered host is honoured", func(t *testing.T) {
-		srv, _, sent := originTestServer(t, acme)
+		srv, _, sent := originTestServer(t, acme...)
 
 		link := forgot(t, srv, sent, "app.acme.example")
 
@@ -94,7 +92,7 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	})
 
 	t.Run("registered link host is honoured", func(t *testing.T) {
-		srv, _, sent := originTestServer(t, acme)
+		srv, _, sent := originTestServer(t, acme...)
 
 		link := forgot(t, srv, sent, "go.acme.example")
 
@@ -104,7 +102,7 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 	})
 
 	t.Run("a near-miss of a registered host is still forged", func(t *testing.T) {
-		srv, _, sent := originTestServer(t, acme)
+		srv, _, sent := originTestServer(t, acme...)
 
 		link := forgot(t, srv, sent, "acme.example.evil.com")
 

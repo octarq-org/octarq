@@ -52,10 +52,6 @@ Octarq 是**一个由你自行组装的自托管后台**，面向独立开发者
 
 > 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 管理后台 (`go:embed`)。无需 Fork 自由扩展。
 
-<p align="center">
-  <img src="assets/screenshot-overview.png" alt="Octarq 管理后台 —— 点击分析、Top 短链、地域与设备分布、最近邮件" width="900">
-</p>
-
 ---
 
 ## 快速开始

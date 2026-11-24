@@ -34,27 +34,3 @@ func TestExportSignedTokenAndURL(t *testing.T) {
 		t.Fatalf("url = %q, want the export path with a token", link)
 	}
 }
-
-func TestSanitizeSecretMasksCredentials(t *testing.T) {
-	openAIStyle := "sk-" + strings.Repeat("a", 24)
-	githubStyle := "ghp_" + strings.Repeat("b", 20)
-	bearerStyle := "Bearer " + strings.Repeat("c", 24)
-
-	cases := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{"provider key", "key " + openAIStyle + " here", "key sk-**** here"},
-		{"github token", "token " + githubStyle + " ok", "token [redacted] ok"},
-		{"bearer header", "Authorization: " + bearerStyle, "Authorization: [redacted]"},
-		{"plain text", "nothing to hide", "nothing to hide"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := sanitizeSecret(tc.in); got != tc.want {
-				t.Fatalf("sanitizeSecret(%q) = %q, want %q", tc.in, got, tc.want)
-			}
-		})
-	}
-}

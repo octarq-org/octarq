@@ -1,8 +1,8 @@
-# Offline Agent Harness Lab (`server/agent/lab`)
+# Offline Agent Harness Lab (`server/tools/agentlab`)
 
 ## 1. 概述与设计理念
 
-`server/agent/lab` 是 Octarq 智能体运行时（Agent Harness）的**离线实验台**。
+`server/tools/agentlab` 是 Octarq 智能体运行时（Agent Harness）的**离线实验台**。
 它借鉴了 [google-research/harness2](https://github.com/google-research/harness2) 的 **Propose–Probe–Compose** 三段式结构，通过回放式测试与确定性打分，产出供人工审阅采纳的评估报告：
 
 ```
@@ -160,10 +160,10 @@ agent-lab -tasks <task-set.json> -candidates <dir-or-file>... -out <report-dir> 
 ### 示例
 
 ```bash
-cd /Volumes/PHD/code/.worktrees/harness-lab/server
+cd server/tools/agentlab
 go run ./cmd/agent-lab \
-  -tasks ./agent/lab/testdata/tasks.example.json \
-  -candidates ./agent/lab/testdata/candidates \
+  -tasks ./testdata/tasks.example.json \
+  -candidates ./testdata/candidates \
   -out /tmp/agent-lab-report \
   -propose /tmp/proposal.json
 ```

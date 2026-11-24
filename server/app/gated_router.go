@@ -8,13 +8,25 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
-func isNonWorkspaceRoute(path string) bool {
-	if path == "/api/instance-settings" {
+func isPlatformReservedPath(path string) bool {
+	switch path {
+	case "/api/instance-settings", "/api/health", "/api/status", "/api/mcp", "/mcp":
 		return true
 	}
-	if strings.Contains(path, "/instance/") || strings.Contains(path, "/storage-instance/") || strings.HasPrefix(path, "/api/instance/") || strings.HasPrefix(path, "/instance/") {
+	if strings.Contains(path, "/instance/") || strings.Contains(path, "/storage-instance/") ||
+		strings.HasPrefix(path, "/api/instance/") || strings.HasPrefix(path, "/instance/") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/mcp/") || strings.HasPrefix(path, "/mcp/") {
+		return true
+	}
+	if path == "/api/auth/login" {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/auth/") && (strings.HasSuffix(path, "/login") || strings.HasSuffix(path, "/callback")) {
 		return true
 	}
 	if strings.HasPrefix(path, "/api/sso/") {
@@ -22,25 +34,64 @@ func isNonWorkspaceRoute(path string) bool {
 			return true
 		}
 	}
-	if strings.HasPrefix(path, "/api/customer/") ||
-		strings.HasPrefix(path, "/api/portal/") ||
-		strings.HasPrefix(path, "/api/storefront") ||
-		strings.HasPrefix(path, "/api/delivery/") ||
-		strings.HasPrefix(path, "/api/updates/") ||
-		strings.HasPrefix(path, "/api/webhook/") ||
-		strings.HasPrefix(path, "/api/license") ||
-		strings.HasPrefix(path, "/api/update/") {
+	if strings.HasPrefix(path, "/auth/begin/") || strings.HasPrefix(path, "/auth/callback/") {
 		return true
 	}
 	return false
 }
 
-func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool }) func(*http.Request, string) (allowed, scoped bool) {
+type unscopedMatcher struct {
+	exact    map[string]bool
+	prefixes []string
+}
+
+func newUnscopedMatcher(plugins []plugin.Plugin) (*unscopedMatcher, error) {
+	decls, err := plugin.CollectUnscopedDeclarations(plugins)
+	if err != nil {
+		return nil, err
+	}
+	m := &unscopedMatcher{exact: make(map[string]bool)}
+	for _, d := range decls {
+		if strings.HasSuffix(d.Path, "/") {
+			m.prefixes = append(m.prefixes, d.Path)
+			continue
+		}
+		m.exact[d.Path] = true
+	}
+	return m, nil
+}
+
+func (m *unscopedMatcher) Matches(path string) bool {
+	if m == nil {
+		return false
+	}
+	if m.exact[path] {
+		return true
+	}
+	for _, prefix := range m.prefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func unscopedDeclarationMatches(decl, path string) bool {
+	if strings.HasSuffix(decl, "/") {
+		return strings.HasPrefix(path, decl)
+	}
+	return path == decl
+}
+
+func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool }, unscoped *unscopedMatcher) func(*http.Request, string) (allowed, scoped bool) {
 	return func(r *http.Request, featureKey string) (allowed, scoped bool) {
 		if r == nil {
 			return false, false
 		}
-		if isNonWorkspaceRoute(r.URL.Path) {
+		if isPlatformReservedPath(r.URL.Path) {
+			return false, false
+		}
+		if unscoped.Matches(r.URL.Path) {
 			return false, false
 		}
 		oid := a.auth.OrgID(r)

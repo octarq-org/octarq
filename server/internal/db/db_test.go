@@ -133,35 +133,24 @@ func TestDBOpenAndMigrate(t *testing.T) {
 	}
 }
 
-func assertDomainRow(t *testing.T, gdb *gorm.DB, name string, wantForLink bool, wantHost string) {
+func findOrgHost(t *testing.T, gdb *gorm.DB, host, source string) *models.OrgHost {
 	t.Helper()
-	var row tenantDomainRow
-	if err := gdb.Where("name = ?", name).First(&row).Error; err != nil {
-		t.Fatalf("read %s: %v", name, err)
+	var row models.OrgHost
+	if err := gdb.Where("host = ? AND source = ?", host, source).First(&row).Error; err != nil {
+		t.Fatalf("read org host %s from %s: %v", host, source, err)
 	}
-	if row.ForLink != wantForLink {
-		t.Fatalf("%s for_link = %v, want %v", name, row.ForLink, wantForLink)
-	}
-	if wantHost == "" {
-		if len(row.LinkHosts) != 0 {
-			t.Fatalf("%s LinkHosts = %+v, want none", name, row.LinkHosts)
-		}
-		return
-	}
-	if len(row.LinkHosts) != 1 || row.LinkHosts[0].Host != wantHost || !row.LinkHosts[0].Enabled {
-		t.Fatalf("%s LinkHosts = %+v, want [{%s true}]", name, row.LinkHosts, wantHost)
-	}
+	return &row
 }
 
-func TestBackfillTenantSubdomainLinkHosts(t *testing.T) {
+func TestBackfillOrgHosts(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := gdb.AutoMigrate(&models.Setting{}, &models.Org{}); err != nil {
+	if err := gdb.AutoMigrate(&models.Setting{}, &models.Org{}, &models.OrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if err := gdb.Migrator().CreateTable(&tenantDomainRow{}); err != nil {
+	if err := gdb.Migrator().CreateTable(&legacyDomainRow{}); err != nil {
 		t.Fatalf("create domains: %v", err)
 	}
 
@@ -169,39 +158,107 @@ func TestBackfillTenantSubdomainLinkHosts(t *testing.T) {
 	gdb.Create(&models.Org{ID: 1, Name: "Acme", Slug: "acme9x"})
 	gdb.Create(&models.Org{ID: 2, Name: "Globex", Slug: "globex"})
 
-	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "acme9x.app.example.com"})
-	gdb.Create(&tenantDomainRow{OrgID: 2, Name: "globex.app.example.com"})
-	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "mail.example.com"})
+	gdb.Create(&legacyDomainRow{OrgID: 1, Name: "acme9x.app.example.com"})
+	gdb.Create(&legacyDomainRow{
+		OrgID:     1,
+		Name:      "links.example.com",
+		ForLink:   true,
+		LinkHosts: models.HostList{{Host: "go.links.example.com", Enabled: true}, {Host: "off.links.example.com", Enabled: false}},
+	})
+	gdb.Create(&legacyDomainRow{OrgID: 2, Name: "mail.example.com", ForMail: true})
+	gdb.Create(&legacyDomainRow{OrgID: 1, Name: "app.example.com", ForLink: true})
+	gdb.Create(&legacyDomainRow{OrgID: 1, Name: "shared.example.com"})
+	gdb.Create(&legacyDomainRow{OrgID: 2, Name: "shared.example.com"})
 
-	backfillTenantSubdomainLinkHosts(gdb)
+	if err := backfillOrgHosts(gdb); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
 
-	assertDomainRow(t, gdb, "acme9x.app.example.com", true, "acme9x.app.example.com")
-	assertDomainRow(t, gdb, "globex.app.example.com", true, "globex.app.example.com")
-	assertDomainRow(t, gdb, "mail.example.com", false, "")
+	tenant := findOrgHost(t, gdb, "acme9x.app.example.com", "core:tenancy")
+	if tenant.OrgID != 1 || !tenant.Traffic {
+		t.Errorf("tenant host = %+v, want org 1 and traffic true", tenant)
+	}
+	tenantLegacy := findOrgHost(t, gdb, "acme9x.app.example.com", "core:legacy-domains")
+	if tenantLegacy.OrgID != 1 || tenantLegacy.Traffic {
+		t.Errorf("legacy tenant row = %+v, want org 1 and traffic false", tenantLegacy)
+	}
+	globex := findOrgHost(t, gdb, "globex.app.example.com", "core:tenancy")
+	if globex.OrgID != 2 || !globex.Traffic {
+		t.Errorf("globex host = %+v, want org 2 and traffic true", globex)
+	}
 
-	backfillTenantSubdomainLinkHosts(gdb)
-	assertDomainRow(t, gdb, "acme9x.app.example.com", true, "acme9x.app.example.com")
-	assertDomainRow(t, gdb, "mail.example.com", false, "")
+	apex := findOrgHost(t, gdb, "links.example.com", "core:legacy-domains")
+	if apex.OrgID != 1 || apex.Traffic {
+		t.Errorf("link apex = %+v, want org 1 and traffic false because the host list is explicit", apex)
+	}
+	link := findOrgHost(t, gdb, "go.links.example.com", "core:legacy-domains")
+	if link.OrgID != 1 || !link.Traffic {
+		t.Errorf("link host = %+v, want org 1 and traffic true", link)
+	}
+	var linkRows int64
+	gdb.Model(&models.OrgHost{}).Where("host = ? AND owner_id = ? AND source = ?", "go.links.example.com", 1, "core:legacy-domains").Count(&linkRows)
+	if linkRows != 1 {
+		t.Errorf("duplicate legacy rows created %d bindings, want 1 per (host, org, source)", linkRows)
+	}
+	var disabled int64
+	gdb.Model(&models.OrgHost{}).Where("host = ?", "off.links.example.com").Count(&disabled)
+	if disabled != 0 {
+		t.Error("a disabled legacy host must not be bound")
+	}
+
+	mailApex := findOrgHost(t, gdb, "mail.example.com", "core:legacy-domains")
+	if mailApex.OrgID != 2 || !mailApex.Traffic {
+		t.Errorf("mail apex = %+v, want org 2 and traffic true when the list is empty", mailApex)
+	}
+
+	var baseRows int64
+	gdb.Model(&models.OrgHost{}).Where("host = ?", "app.example.com").Count(&baseRows)
+	if baseRows != 0 {
+		t.Error("the configured base domain apex must never be bound")
+	}
+
+	shared := findOrgHost(t, gdb, "shared.example.com", "core:legacy-domains")
+	if shared.OrgID != 1 {
+		t.Errorf("conflicting claim resolved to org %d, want the first claim (org 1)", shared.OrgID)
+	}
+
+	if err := backfillOrgHosts(gdb); err != nil {
+		t.Fatalf("second backfill: %v", err)
+	}
+	var count int64
+	gdb.Model(&models.OrgHost{}).Where("host = ? AND source = ?", "acme9x.app.example.com", "core:tenancy").Count(&count)
+	if count != 1 {
+		t.Errorf("backfill is not idempotent: %d rows for the tenant host", count)
+	}
 }
 
-func TestBackfillSkipsWithoutBase(t *testing.T) {
+func TestBackfillOrgHostsSkipsOrgSlugsWithoutBase(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := gdb.AutoMigrate(&models.Setting{}, &models.Org{}); err != nil {
+	if err := gdb.AutoMigrate(&models.Setting{}, &models.Org{}, &models.OrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if err := gdb.Migrator().CreateTable(&tenantDomainRow{}); err != nil {
+	if err := gdb.Migrator().CreateTable(&legacyDomainRow{}); err != nil {
 		t.Fatalf("create domains: %v", err)
 	}
 
 	gdb.Create(&models.Org{ID: 1, Name: "Acme", Slug: "acme9x"})
-	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "acme9x.app.example.com"})
+	gdb.Create(&legacyDomainRow{OrgID: 1, Name: "links.example.com", ForLink: true})
 
-	backfillTenantSubdomainLinkHosts(gdb)
+	if err := backfillOrgHosts(gdb); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
 
-	assertDomainRow(t, gdb, "acme9x.app.example.com", false, "")
+	var slugRows int64
+	gdb.Model(&models.OrgHost{}).Where("host = ?", "acme9x.").Count(&slugRows)
+	if slugRows != 0 {
+		t.Error("org slugs must not be bound without a base domain")
+	}
+	if row := findOrgHost(t, gdb, "links.example.com", "core:legacy-domains"); row.OrgID != 1 || !row.Traffic {
+		t.Errorf("legacy domain host = %+v, want org 1 and traffic true", row)
+	}
 }
 
 func TestBackupAndRestoreEdgeCases(t *testing.T) {

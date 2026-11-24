@@ -15,8 +15,8 @@ import (
 func TestCLI_Success(t *testing.T) {
 	t.Parallel()
 
-	tsPath := filepath.Join("..", "..", "agent", "lab", "testdata", "tasks.example.json")
-	candDir := filepath.Join("..", "..", "agent", "lab", "testdata", "candidates")
+	tsPath := filepath.Join("..", "..", "testdata", "tasks.example.json")
+	candDir := filepath.Join("..", "..", "testdata", "candidates")
 	outDir := t.TempDir()
 
 	var stdout, stderr bytes.Buffer
@@ -59,7 +59,7 @@ func TestCLI_InvalidTaskSetFile(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := run([]string{
 		"-tasks", "/non/existent/tasks.json",
-		"-candidates", filepath.Join("..", "..", "agent", "lab", "testdata", "candidates"),
+		"-candidates", filepath.Join("..", "..", "testdata", "candidates"),
 		"-out", t.TempDir(),
 	}, &stdout, &stderr)
 
@@ -74,7 +74,7 @@ func TestCLI_InvalidCandidateFile(t *testing.T) {
 	badCand := filepath.Join(tmpDir, "bad-cand.json")
 	require.NoError(t, os.WriteFile(badCand, []byte(`{"version": 99, "name": "bad"}`), 0644))
 
-	tsPath := filepath.Join("..", "..", "agent", "lab", "testdata", "tasks.example.json")
+	tsPath := filepath.Join("..", "..", "testdata", "tasks.example.json")
 
 	var stdout, stderr bytes.Buffer
 	code := run([]string{
@@ -91,8 +91,8 @@ func TestCLI_InvalidCandidateFile(t *testing.T) {
 func TestCLI_Propose_Success(t *testing.T) {
 	t.Parallel()
 
-	tsPath := filepath.Join("..", "..", "agent", "lab", "testdata", "tasks.example.json")
-	candDir := filepath.Join("..", "..", "agent", "lab", "testdata", "candidates")
+	tsPath := filepath.Join("..", "..", "testdata", "tasks.example.json")
+	candDir := filepath.Join("..", "..", "testdata", "candidates")
 	outDir := t.TempDir()
 	propPath := filepath.Join(t.TempDir(), "proposal.json")
 
@@ -132,8 +132,8 @@ func TestCLI_Propose_Success(t *testing.T) {
 func TestCLI_Propose_DoesNotAffectReport(t *testing.T) {
 	t.Parallel()
 
-	tsPath := filepath.Join("..", "..", "agent", "lab", "testdata", "tasks.example.json")
-	candDir := filepath.Join("..", "..", "agent", "lab", "testdata", "candidates")
+	tsPath := filepath.Join("..", "..", "testdata", "tasks.example.json")
+	candDir := filepath.Join("..", "..", "testdata", "candidates")
 	outDirWithoutProp := t.TempDir()
 	outDirWithProp := t.TempDir()
 	propPath := filepath.Join(t.TempDir(), "proposal.json")
@@ -177,7 +177,7 @@ func TestCLI_Propose_NoRecommendedCandidate_FailsClosed(t *testing.T) {
 	badCand := filepath.Join(tmpDir, "bad-cand.json")
 	require.NoError(t, os.WriteFile(badCand, []byte(`{"version": 99, "name": "bad"}`), 0644))
 
-	tsPath := filepath.Join("..", "..", "agent", "lab", "testdata", "tasks.example.json")
+	tsPath := filepath.Join("..", "..", "testdata", "tasks.example.json")
 	propPath := filepath.Join(tmpDir, "should-not-exist.json")
 
 	var stdout, stderr bytes.Buffer

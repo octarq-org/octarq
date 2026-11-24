@@ -19,7 +19,7 @@ func TestDevWebProxy(t *testing.T) {
 	cfg := &config.Config{
 		DevWebProxy: frontend.URL,
 	}
-	db := domainsDB(t)
+	db := hostsDB(t)
 	srv, err := New(cfg, db, mockAPI{}, nil, nil, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server with dev proxy: %v", err)

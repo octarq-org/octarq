@@ -36,7 +36,7 @@ func namespace(db *gorm.DB) string {
 	return fmt.Sprintf("%p|", sqlDB)
 }
 
-func ClearDomainCache(domain string) {
+func ClearHostCache(domain string) {
 	domain = NormalizeHost(domain)
 	if domain == "" {
 		return

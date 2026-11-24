@@ -15,10 +15,6 @@ const ServiceMailDispatcher = "mail.dispatcher"
 
 const ServiceCloudUsage = "cloud.usage"
 
-const ServiceCloudTier = "cloud.tier"
-
-const ServiceCloudQuota = "cloud.quota"
-
 const ServiceLinkResolve = "links.resolve"
 
 const ServiceMailEmailGet = "mail.email.get"

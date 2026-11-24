@@ -28,11 +28,6 @@ type Metrics struct {
 
 	WebhookDeliveriesTotal  metric.Int64Counter
 	WebhookDeliveryDuration metric.Float64Histogram
-
-	LinksClicksTotal    metric.Int64Counter
-	LinksCreatedTotal   metric.Int64Counter
-	EmailsReceivedTotal metric.Int64Counter
-	EmailsSentTotal     metric.Int64Counter
 }
 
 func NewMetrics(meter metric.Meter) (*Metrics, error) {
@@ -131,34 +126,6 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		metric.WithDescription("Outbound webhook delivery latency in seconds"),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10),
-	); err != nil {
-		return nil, err
-	}
-
-	if m.LinksClicksTotal, err = meter.Int64Counter("links_clicks_total",
-		metric.WithDescription("Total short-link redirection clicks handled"),
-		metric.WithUnit("{click}"),
-	); err != nil {
-		return nil, err
-	}
-
-	if m.LinksCreatedTotal, err = meter.Int64Counter("links_created_total",
-		metric.WithDescription("Total short links created"),
-		metric.WithUnit("{link}"),
-	); err != nil {
-		return nil, err
-	}
-
-	if m.EmailsReceivedTotal, err = meter.Int64Counter("emails_received_total",
-		metric.WithDescription("Total inbound emails processed"),
-		metric.WithUnit("{email}"),
-	); err != nil {
-		return nil, err
-	}
-
-	if m.EmailsSentTotal, err = meter.Int64Counter("emails_sent_total",
-		metric.WithDescription("Total outbound emails dispatched"),
-		metric.WithUnit("{email}"),
 	); err != nil {
 		return nil, err
 	}

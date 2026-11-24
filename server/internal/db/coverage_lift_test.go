@@ -182,7 +182,7 @@ func TestCoverageLiftMigrateAndBackfill(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 
-	if err := gdb.AutoMigrate(&models.Setting{}, &models.WorkspaceSetting{}, &tenantDomainRow{}, &models.Org{}); err != nil {
+	if err := gdb.AutoMigrate(&models.Setting{}, &models.WorkspaceSetting{}, &legacyDomainRow{}, &models.Org{}); err != nil {
 		t.Fatalf("auto-migrate: %v", err)
 	}
 
@@ -193,14 +193,14 @@ func TestCoverageLiftMigrateAndBackfill(t *testing.T) {
 	gdb.Create(&models.WorkspaceSetting{OrgID: 1, Key: "catch_all", Value: "existing_val"})
 
 	gdb.Create(&models.Org{Slug: "myorg"})
-	gdb.Create(&tenantDomainRow{
+	gdb.Create(&legacyDomainRow{
 		ID:        101,
 		OrgID:     1,
 		Name:      "sub1.example.com",
 		ForLink:   false,
 		LinkHosts: models.HostList{{Host: "sub1.example.com", Enabled: true}},
 	})
-	gdb.Create(&tenantDomainRow{
+	gdb.Create(&legacyDomainRow{
 		ID:        102,
 		OrgID:     9999,
 		Name:      "sub2.example.com",

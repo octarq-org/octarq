@@ -34,7 +34,7 @@ func (h *Handler) instanceReadiness(ctx context.Context, input *InstanceReadines
 	if !h.isInstanceAdmin(r) {
 		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
-	checks := readiness.Evaluate(h.cfg, h.mailReady(), origin.AnyRegistered(h.db) || origin.HasSharedHosts(h.db), h.requireEmailVerification())
+	checks := readiness.Evaluate(h.cfg, h.mailReady(), h.anyRegisteredHost() || origin.HasSharedHosts(h.db), h.requireEmailVerification())
 	for i := range checks {
 		if checks[i].Status == readiness.StatusDev {
 			checks[i].Status = readiness.StatusOK

@@ -31,7 +31,7 @@ func TestCreateOrgWithNoBaseProvisionsNothing(t *testing.T) {
 		t.Fatalf("decode org: %v", err)
 	}
 	var n int64
-	db.Model(&testDomain{}).Where("owner_id = ?", org.ID).Count(&n)
+	db.Model(&models.OrgHost{}).Where("owner_id = ?", org.ID).Count(&n)
 	if n != 0 {
 		t.Fatalf("creating an org with no base domain wrote %d domains row(s)", n)
 	}
@@ -101,12 +101,15 @@ func TestCreateOrgProvisionsTenantSubdomain(t *testing.T) {
 	}
 
 	want := org.Slug + ".app.octarq.org"
-	var dom testDomain
-	if err := db.Where("name = ?", want).First(&dom).Error; err != nil {
-		t.Fatalf("no domain row %q after org creation: %v", want, err)
+	var host models.OrgHost
+	if err := db.Where("host = ?", want).First(&host).Error; err != nil {
+		t.Fatalf("no host row %q after org creation: %v", want, err)
 	}
-	if dom.OrgID != org.ID {
-		t.Errorf("domain row owner = %d, want %d", dom.OrgID, org.ID)
+	if host.OrgID != org.ID {
+		t.Errorf("host row owner = %d, want %d", host.OrgID, org.ID)
+	}
+	if !host.Traffic {
+		t.Error("tenant subdomain must serve traffic")
 	}
 	if owner, ok := origin.OwnerOf(db, want); !ok || owner != org.ID {
 		t.Errorf("OwnerOf(%q) = (%d, %v), want (%d, true)", want, owner, ok, org.ID)
@@ -129,12 +132,12 @@ func TestRegisterProvisionsTenantSubdomain(t *testing.T) {
 		t.Fatalf("registered org not found: %v", err)
 	}
 	want := org.Slug + ".app.octarq.org"
-	var dom2 testDomain
-	if err := db.Where("name = ?", want).First(&dom2).Error; err != nil {
-		t.Fatalf("no domain row %q after register: %v", want, err)
+	var host models.OrgHost
+	if err := db.Where("host = ?", want).First(&host).Error; err != nil {
+		t.Fatalf("no host row %q after register: %v", want, err)
 	}
-	if dom2.OrgID != org.ID {
-		t.Errorf("domain row owner = %d, want %d", dom2.OrgID, org.ID)
+	if host.OrgID != org.ID {
+		t.Errorf("host row owner = %d, want %d", host.OrgID, org.ID)
 	}
 }
 
@@ -151,7 +154,7 @@ func TestRenameMovesTenantSubdomain(t *testing.T) {
 	}
 
 	var n int64
-	db.Model(&testDomain{}).Where("name = ?", "owner-example-com.app.example.com").Count(&n)
+	db.Model(&models.OrgHost{}).Where("host = ?", "owner-example-com.app.example.com").Count(&n)
 	if n != 0 {
 		t.Errorf("the old subdomain row survived the rename")
 	}
@@ -169,7 +172,7 @@ func TestRenameCollisionOnSubdomainRollsBack(t *testing.T) {
 	if _, _, err := tenancy.Provision(db, 1, "owner-example-com"); err != nil {
 		t.Fatalf("provision org 1: %v", err)
 	}
-	if err := db.Create(&testDomain{OrgID: 2, Name: "ghost.app.example.com"}).Error; err != nil {
+	if err := db.Create(&models.OrgHost{OrgID: 2, Host: "ghost.app.example.com", Source: "dns"}).Error; err != nil {
 		t.Fatalf("seed stale subdomain: %v", err)
 	}
 
