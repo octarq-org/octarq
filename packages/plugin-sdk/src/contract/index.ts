@@ -7,6 +7,14 @@ export type {
   PluginI18n,
   LazyPage,
   LockedFallback as LockedFallbackType,
+  ToolCardAction,
+  ToolCardActionHandler,
+  ToolCardProps,
+  ToolCardComponent,
+  ToolCardRegistration,
+  ArtifactEditorProps,
+  ArtifactEditorComponent,
+  ArtifactEditorRegistration,
 } from "./types";
 
 export {
@@ -17,6 +25,10 @@ export {
   uiWidgets,
   uiAreas,
   uiOnboarding,
+  uiToolCards,
+  uiArtifactEditors,
+  resolveToolCard,
+  resolveArtifactEditor,
   uiPluginI18n,
   uiPluginSharedI18n,
   resetRegistry,
