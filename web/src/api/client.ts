@@ -313,12 +313,12 @@ export const api = {
   helpCategories: () => req<HelpCategory[]>("GET", "/api/help/categories"),
   helpIndex: (lang?: string) => req<HelpDocMeta[]>("GET", lang ? `/api/help/docs?lang=${encodeURIComponent(lang)}` : "/api/help/docs", undefined, lang),
   helpPage: (slug: string, lang?: string) => req<HelpDocContent>("GET", lang ? `/api/help/docs/${encodeURIComponent(slug)}?lang=${encodeURIComponent(lang)}` : `/api/help/docs/${encodeURIComponent(slug)}`, undefined, lang),
-  helpSearch: (q: string, lang?: string, limit = 20, category?: string) => {
+  helpSearch: (q: string, lang?: string, limit = 20, category?: string, signal?: AbortSignal) => {
     const params = new URLSearchParams({ q });
     if (lang) params.set("lang", lang);
     if (limit) params.set("limit", String(limit));
     if (category) params.set("category", category);
-    return req<HelpSearchResponse>("GET", `/api/help/search?${params.toString()}`, undefined, lang);
+    return req<HelpSearchResponse>("GET", `/api/help/search?${params.toString()}`, undefined, lang, signal);
   },
 
   llmBackends: async (): Promise<string[]> => {
