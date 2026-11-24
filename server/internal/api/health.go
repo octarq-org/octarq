@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 type HealthInput struct {
@@ -83,9 +84,9 @@ func (h *Handler) subsystemStatus(ctx context.Context, input *StatusStatusInput)
 	}
 
 	mailStatus := "na"
-	if h.db != nil && h.db.Migrator().HasTable("smtp_senders") {
-		var count int64
-		if err := h.db.Table("smtp_senders").Count(&count).Error; err == nil && count > 0 {
+	if _, ok := plugin.LookupServiceAs[plugin.MessagingReady](h.LookupService, plugin.ServiceMessagingReady); ok {
+		mailStatus = "degraded"
+		if h.mailReady() {
 			mailStatus = "ok"
 		}
 	}

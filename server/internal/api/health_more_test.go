@@ -2,10 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 func TestHealthAndSubsystems(t *testing.T) {
@@ -54,5 +57,39 @@ func TestHealthAndSubsystems(t *testing.T) {
 		t.Errorf("health with nil Ctx = %v, want no error", err)
 	} else if out == nil {
 		t.Error("health with nil Ctx returned no output")
+	}
+}
+
+func TestStatusReportsMessagingReadiness(t *testing.T) {
+	h, _, db := newTestHandlerRaw(t)
+
+	readMail := func(h *Handler) string {
+		t.Helper()
+		out, err := h.subsystemStatus(context.Background(), &StatusStatusInput{})
+		if err != nil {
+			t.Fatalf("subsystemStatus: %v", err)
+		}
+		for _, s := range out.Body.Subsystems {
+			if s.Name == "mail" {
+				return s.Status
+			}
+		}
+		t.Fatalf("subsystems = %+v, want a mail entry", out.Body.Subsystems)
+		return ""
+	}
+
+	if got := readMail(h); got != "degraded" {
+		t.Errorf("mail = %q with a message plugin and no sender, want degraded", got)
+	}
+
+	sender := testSMTPSender{Host: "smtp.example.com", Port: 587, OrgID: 1}
+	db.Create(&sender)
+	db.Create(&models.Setting{Key: "mail_system_sender_id", Value: fmt.Sprint(sender.ID)})
+	if got := readMail(h); got != "ok" {
+		t.Errorf("mail = %q with a ready sender, want ok", got)
+	}
+
+	if got := readMail(&Handler{db: db}); got != "na" {
+		t.Errorf("mail = %q without the messaging service, want na", got)
 	}
 }
