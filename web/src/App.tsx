@@ -11,6 +11,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
+import { HelpDrawer } from "./shell/HelpDrawer";
 import { AreaPanel } from "./shell/AreaPanel";
 import { ShellFooter } from "./shell/ShellFooter";
 import { Login } from "./shell/Login";
@@ -441,6 +442,7 @@ function Shell({
             onOpenCommand={() => setCmdOpen(true)}
             onLogout={onLogout}
             actions={filteredActions}
+            activeOrgId={activeOrgId}
           />
 
           <EmailVerifyBanner
@@ -477,6 +479,8 @@ function Shell({
           }}
           actions={filteredActions}
         />
+
+        <HelpDrawer activeOrgId={activeOrgId} />
 
         <CreateOrgModal
           open={creatingOrg}
