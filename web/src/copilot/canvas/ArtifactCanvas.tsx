@@ -1,16 +1,9 @@
 import React from "react";
 import { Maximize2, Minimize2, X, Sparkles } from "lucide-react";
+import { resolveArtifactEditor } from "@octarq/plugin-sdk";
 import { useTranslation } from "../../i18n";
 import { useCopilotStore } from "../store";
 import type { CardActionHandler } from "../cards/registry";
-import { ResumeRankCanvas } from "./editors/ResumeRankCanvas";
-import { InvoiceAuditCanvas } from "./editors/InvoiceAuditCanvas";
-import { QuotationCanvas } from "./editors/QuotationCanvas";
-import { WeeklyReportCanvas } from "./editors/WeeklyReportCanvas";
-import { StoryboardCanvas } from "./editors/StoryboardCanvas";
-import { EmailDraftCanvas } from "./editors/EmailDraftCanvas";
-import { SupportEscalationCanvas } from "./editors/SupportEscalationCanvas";
-import { FinancialDeckCanvas } from "./editors/FinancialDeckCanvas";
 
 export interface ArtifactCanvasProps {
   onAction?: CardActionHandler;
@@ -28,88 +21,14 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
         className="flex h-full flex-col items-center justify-center p-6 text-center text-xs text-muted-foreground"
       >
         <Sparkles className="h-6 w-6 text-muted-foreground/60 mb-2" />
-        <p className="font-semibold text-foreground">{t("copilot.canvasEmptyTitle", "No active artifact selected.")}</p>
-        <p className="mt-1">{t("copilot.canvasEmptyDesc", "Open a visual action card from the chat stream to edit here.")}</p>
+        <p className="font-semibold text-foreground">{t("copilot.canvasEmptyTitle")}</p>
+        <p className="mt-1">{t("copilot.canvasEmptyDesc")}</p>
       </div>
     );
   }
 
   const artifact = artifacts[activeArtifactId];
-
-  const renderEditor = () => {
-    switch (artifact.type) {
-      case "resume_rank":
-        return (
-          <ResumeRankCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "invoice_audit":
-        return (
-          <InvoiceAuditCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "quotation":
-        return (
-          <QuotationCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "weekly_report":
-        return (
-          <WeeklyReportCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "storyboard":
-        return (
-          <StoryboardCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "email_draft":
-        return (
-          <EmailDraftCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "support_escalation":
-        return (
-          <SupportEscalationCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      case "financial_deck":
-        return (
-          <FinancialDeckCanvas
-            artifactId={artifact.id}
-            content={artifact.content as any}
-            onAction={onAction}
-          />
-        );
-      default:
-        return (
-          <div className="p-4 text-xs text-muted-foreground">
-            {t("copilot.canvasUnknownType", "Unknown artifact type:")} {artifact.type}
-          </div>
-        );
-    }
-  };
+  const Editor = resolveArtifactEditor(artifact.type);
 
   return (
     <div
@@ -134,8 +53,8 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
             <button
               type="button"
               onClick={() => setCanvasLayout("maximized")}
-              aria-label={t("copilot.canvasMaximize", "Maximize Canvas")}
-              title={t("copilot.canvasMaximize", "Maximize Canvas")}
+              aria-label={t("copilot.canvasMaximize")}
+              title={t("copilot.canvasMaximize")}
               data-testid="maximize-canvas-btn"
               className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
             >
@@ -145,8 +64,8 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
             <button
               type="button"
               onClick={() => setCanvasLayout("split")}
-              aria-label={t("copilot.canvasRestore", "Restore Split View")}
-              title={t("copilot.canvasRestore", "Restore Split View")}
+              aria-label={t("copilot.canvasRestore")}
+              title={t("copilot.canvasRestore")}
               data-testid="restore-split-btn"
               className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
             >
@@ -157,8 +76,8 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
           <button
             type="button"
             onClick={closeCanvas}
-            aria-label={t("copilot.canvasClose", "Close Canvas")}
-            title={t("copilot.canvasClose", "Close Canvas")}
+            aria-label={t("copilot.canvasClose")}
+            title={t("copilot.canvasClose")}
             data-testid="close-canvas-btn"
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
           >
@@ -168,7 +87,25 @@ export function ArtifactCanvas({ onAction = () => {} }: ArtifactCanvasProps) {
       </div>
 
       <div className="flex-1 overflow-hidden" data-testid="canvas-editor-body">
-        {renderEditor()}
+        {Editor ? (
+          <Editor
+            artifactId={artifact.id}
+            content={artifact.content}
+            onAction={onAction}
+          />
+        ) : (
+          <div
+            data-testid="artifact-editor-unavailable"
+            className="flex h-full flex-col items-center justify-center p-6 text-center"
+          >
+            <p className="text-xs font-semibold text-foreground">
+              {t("copilot.canvasEditorUnavailableTitle")}
+            </p>
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+              {t("copilot.canvasEditorUnavailableDesc")}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
