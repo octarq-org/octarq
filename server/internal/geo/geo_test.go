@@ -1,6 +1,10 @@
 package geo
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"runtime"
+	"sync/atomic"
 	"testing"
 )
 
@@ -65,5 +69,49 @@ func TestGeo(t *testing.T) {
 		if info.OS != c.os {
 			t.Errorf("ParseUA(%q) os = %q, want %q", c.ua, info.OS, c.os)
 		}
+	}
+}
+
+func TestOpenDisabledDoesNoNetworkOrGoroutine(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	resp, err := srv.Client().Get(srv.URL)
+	if err != nil {
+		t.Fatalf("warm up test server: %v", err)
+	}
+	resp.Body.Close()
+	hits.Store(0)
+
+	t.Setenv("OCTARQ_GEOIP_DB", "")
+
+	before := runtime.NumGoroutine()
+	r, err := Open("")
+	if err != nil {
+		t.Fatalf("Open(\"\"): %v", err)
+	}
+	defer r.Close()
+
+	if r.db != nil {
+		t.Fatal("disabled resolver must not hold a database")
+	}
+	if country, region, city := r.Locate("203.0.113.9"); country != "" || region != "" || city != "" {
+		t.Fatalf("disabled Locate = (%q,%q,%q), want empty", country, region, city)
+	}
+	if got := runtime.NumGoroutine(); got > before {
+		t.Fatalf("Open(\"\") started goroutines: before=%d after=%d", before, got)
+	}
+	if hits.Load() != 0 {
+		t.Fatalf("disabled resolver made %d network calls", hits.Load())
+	}
+}
+
+func TestOpenBadExplicitPathFails(t *testing.T) {
+	if _, err := Open(t.TempDir() + "/missing.mmdb"); err == nil {
+		t.Fatal("Open of a missing explicit path must fail")
 	}
 }

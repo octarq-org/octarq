@@ -6,10 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
-
-var oldTime = time.Now().Add(-(maxCacheAge + time.Hour))
 
 func buildMMDB(noCityNames bool) []byte {
 	country := []byte{0xE2}
@@ -144,9 +141,6 @@ func TestLoadAndLocate(t *testing.T) {
 	if c, _, _ := r.Locate("203.0.113.7"); c != "" {
 		t.Errorf("Locate after Close+Load = %q, want empty", c)
 	}
-
-	downloading := &Resolver{cancel: func() {}}
-	downloading.Close()
 }
 
 func TestLoadErrors(t *testing.T) {
@@ -186,49 +180,10 @@ func TestOpenManualPath(t *testing.T) {
 	}
 }
 
-func TestOpenAutoCached(t *testing.T) {
-	dir := t.TempDir()
-	writeMMDB(t, dir, false)
-
-	r, err := openAuto(dir, "")
-	if err != nil {
-		t.Fatalf("openAuto cached: %v", err)
-	}
-	defer r.Close()
-	if country, _, _ := r.Locate("203.0.113.9"); country != "US" {
-		t.Errorf("cached openAuto locate = %q, want US", country)
-	}
-
-	older := filepath.Join(dir, "GeoLite2-City.mmdb")
-	if err := os.Chtimes(older, oldTime, oldTime); err != nil {
-		t.Fatalf("Chtimes: %v", err)
-	}
-	r2, err := openAuto(dir, "")
-	if err != nil {
-		t.Fatalf("openAuto stale cached: %v", err)
-	}
-	r2.Close()
-}
-
-func TestOpenAutoCorruptCachedFallsThroughToDisabled(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "GeoLite2-City.mmdb"), []byte("corrupt"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	r, err := openAuto(dir, "")
-	if err != nil {
-		t.Fatalf("openAuto corrupt/no-key: %v", err)
-	}
-	defer r.Close()
-	if c, _, _ := r.Locate("203.0.113.1"); c != "" {
-		t.Errorf("disabled resolver must return empty, got %q", c)
-	}
-}
-
 func TestOpenDisabledAndLocateNilSafety(t *testing.T) {
-	r, err := openAuto(t.TempDir(), "")
+	r, err := Open("")
 	if err != nil {
-		t.Fatalf("openAuto disabled: %v", err)
+		t.Fatalf("Open disabled: %v", err)
 	}
 	defer r.Close()
 	if c, _, _ := r.Locate("1.2.3.4"); c != "" {

@@ -197,7 +197,7 @@ export const helloPlugin: UIPlugin = {
 ## Setup guides
 
 - **Email via Cloudflare Worker** — install the mail plugin, deploy [`deploy/cloudflare-email-worker.js`](deploy/cloudflare-email-worker.js), set a catch-all route, enable *Accept email*.
-- **GeoIP analytics** — install the links plugin, set `OCTARQ_MAXMIND_LICENSE_KEY` (free) and Octarq auto-downloads + hot-loads GeoLite2. See [`deploy/GEOIP.md`](deploy/GEOIP.md).
+- **GeoIP analytics** — install the links plugin and set `OCTARQ_GEOIP_DB` to a GeoLite2-City `.mmdb` path. Behind a trusted proxy, Octarq also reads the `CF-IPCountry` header. See [`deploy/GEOIP.md`](deploy/GEOIP.md).
 - **MCP in Claude Desktop** — point `claude_desktop_config.json` at `octarq mcp` (config above).
 - **Backup & restore** — `octarq backup` / `octarq restore` back up the database. Back up the whole `/data` directory (database **plus** the generated `octarq.secret` / `octarq-admin-password.txt` key files), and note Postgres backup needs host-side `pg_dump`. See [Backup & restore](https://docs.octarq.org/backup-restore/).
 

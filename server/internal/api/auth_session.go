@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -97,13 +98,7 @@ func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*
 		ipClean := strings.Trim(s.IP, "[]")
 		maskedIP := maskIPServer(ipClean)
 
-		var location string
-		if ipClean == "::1" || ipClean == "127.0.0.1" {
-			location = "Localhost"
-		} else if h.geo != nil {
-			country, _, city := h.geo.Locate(ipClean)
-			location = locationFromGeo(country, city)
-		}
+		location := h.sessionLocation(r, ipClean)
 		out[i] = SessionRow{
 			ID:         s.ID,
 			IP:         maskedIP,
@@ -115,6 +110,46 @@ func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*
 		}
 	}
 	return &ListSessionsOutput{Body: out}, nil
+}
+
+func (h *Handler) sessionLocation(r *http.Request, ip string) string {
+	if ip == "::1" || ip == "127.0.0.1" {
+		return "Localhost"
+	}
+	country, city := h.sessionGeo(r, ip)
+	return locationFromGeo(country, city)
+}
+
+func (h *Handler) sessionGeo(r *http.Request, ip string) (country, city string) {
+	if h == nil {
+		return "", ""
+	}
+	if h.cfg != nil && h.cfg.TrustProxy {
+		if c := trustedCountry(r); c != "" {
+			return c, ""
+		}
+	}
+	if h.geo == nil {
+		return "", ""
+	}
+	country, _, city = h.geo.Locate(ip)
+	return country, city
+}
+
+func trustedCountry(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	c := strings.ToUpper(strings.TrimSpace(r.Header.Get("CF-IPCountry")))
+	if len(c) != 2 || c == "XX" {
+		return ""
+	}
+	for i := 0; i < len(c); i++ {
+		if c[i] < 'A' || c[i] > 'Z' {
+			return ""
+		}
+	}
+	return c
 }
 
 func locationFromGeo(country, city string) string {
