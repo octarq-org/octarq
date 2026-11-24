@@ -17,6 +17,8 @@ import type { Lang } from "../../../i18n";
 import { Table } from "@octarq/plugin-sdk";
 import { Callout, type CalloutType } from "./Callout";
 import { CodeBlock } from "./CodeBlock";
+import { AskHelp } from "./AskHelp";
+import { HelpActions } from "./HelpActions";
 
 const ALERT_MARKER = /^\s*\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]\s*/i;
 const ALERT_MARKER_GLOBAL = /^(\s*)\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]\s*/i;
@@ -27,6 +29,7 @@ export interface HelpArticleProps {
   html: string;
   slug: string;
   lang: Lang;
+  actions?: string[];
   onNavigate?: (path: string) => void;
   resolveDocPath?: (slug: string) => string | null;
 }
@@ -89,6 +92,7 @@ export function HelpArticle({
   html,
   slug,
   lang,
+  actions,
   onNavigate,
   resolveDocPath,
 }: HelpArticleProps) {
@@ -184,10 +188,12 @@ export function HelpArticle({
         <h1 className="font-display text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.03em] text-foreground sm:text-[2rem]">
           {title}
         </h1>
+        <AskHelp slug={slug} lang={lang} html={html} />
       </header>
       <div className="markdown-body">
         {parse(DOMPurify.sanitize(html), options)}
       </div>
+      <HelpActions ids={actions} onNavigate={go} />
     </article>
   );
 }

@@ -86,6 +86,7 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 type Action struct {
 	ID           string `json:"id"`
 	Label        string `json:"label"`
+	Description  string `json:"description,omitempty"`
 	Path         string `json:"path"`
 	Icon         string `json:"icon"`
 	Category     string `json:"category"`
@@ -131,6 +132,7 @@ func (h *Handler) listActions(ctx context.Context, input *ListActionsInput) (*Li
 				actions = append(actions, Action{
 					ID:           a.ID,
 					Label:        a.Label,
+					Description:  a.Description,
 					Path:         a.Path,
 					Icon:         a.Icon,
 					Category:     a.Category,

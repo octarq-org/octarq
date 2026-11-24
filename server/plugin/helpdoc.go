@@ -148,6 +148,7 @@ type HelpDoc struct {
 	Order        int                           `yaml:"order" json:"order"`
 	Feature      string                        `yaml:"feature" json:"feature,omitempty"`
 	Routes       []string                      `yaml:"routes" json:"routes,omitempty"`
+	Actions      []string                      `yaml:"actions" json:"actions,omitempty"`
 	Markdown     string                        `yaml:"-" json:"markdown"`
 	Translations map[string]HelpDocTranslation `yaml:"translations" json:"translations,omitempty"`
 }

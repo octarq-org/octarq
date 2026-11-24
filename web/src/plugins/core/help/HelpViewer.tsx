@@ -277,6 +277,7 @@ export default function HelpViewer() {
                   html={content.html}
                   slug={currentSlug}
                   lang={lang}
+                  actions={currentDocMeta?.actions}
                   onNavigate={(path) => navigate(path)}
                   resolveDocPath={resolveDocPath}
                 />
