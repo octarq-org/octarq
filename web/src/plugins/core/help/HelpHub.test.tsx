@@ -108,3 +108,20 @@ describe("HelpHub", () => {
     });
   });
 });
+
+describe("HelpHub quickstart dedupe", () => {
+  it("does not repeat the start category when Quickstart already shows every doc", async () => {
+    vi.mocked(api.helpIndex).mockResolvedValue([
+      { slug: "intro", title: "Introduction", description: "First steps.", category: "start", order: 1 },
+      { slug: "advanced", title: "Advanced setup", description: "Tune it.", category: "start", order: 2 },
+      { slug: "backups", title: "Backups", description: "Protect data.", category: "infrastructure", order: 1 },
+    ]);
+    renderHub();
+
+    await screen.findByTestId("help-quickstart");
+    expect(screen.getByTestId("help-quickstart").textContent).toContain("Introduction");
+    expect(screen.getByTestId("help-quickstart").textContent).toContain("Advanced setup");
+    expect(screen.queryByTestId("help-category-start")).toBeNull();
+    expect(screen.getByTestId("help-category-infrastructure")).toBeTruthy();
+  });
+});

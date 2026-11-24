@@ -74,7 +74,8 @@ export default function HelpHub() {
         category,
         docs: docs.filter((doc) => doc.category === category.key).sort(byOrder),
       }))
-      .filter((group) => group.docs.length > 0);
+      .filter((group) => group.docs.length > 0)
+      .filter((group) => !(group.category.key === "start" && group.docs.length <= 3));
   }, [categories, docs]);
 
   const quickstart = useMemo(
