@@ -117,6 +117,7 @@ func (m *mockHost) LookupCredential(context.Context, uint, plugin.CredentialQuer
 	return nil, plugin.ErrCredentialNotFound
 }
 func (m *mockHost) SpendLedger() plugin.SpendLedger { return (&plugin.TestHost{}).SpendLedger() }
+func (m *mockHost) TrustProxy() bool                { return false }
 
 var _ plugin.Host = (*mockHost)(nil)
 

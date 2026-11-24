@@ -33,19 +33,22 @@ import (
 )
 
 type hostRuntime struct {
-	session  plugin.HostSession
-	crypto   plugin.CryptoVault
-	settings plugin.SettingsStore
-	events   plugin.EventSpine
-	hosts    plugin.HostRegistry
-	db       *gorm.DB
-	services *plugin.Registry
+	session    plugin.HostSession
+	crypto     plugin.CryptoVault
+	settings   plugin.SettingsStore
+	events     plugin.EventSpine
+	hosts      plugin.HostRegistry
+	db         *gorm.DB
+	services   *plugin.Registry
+	trustProxy bool
 }
 
 func (h *hostRuntime) Session() plugin.HostSession    { return h.session }
 func (h *hostRuntime) Crypto() plugin.CryptoVault     { return h.crypto }
 func (h *hostRuntime) Settings() plugin.SettingsStore { return h.settings }
 func (h *hostRuntime) Events() plugin.EventSpine      { return h.events }
+func (h *hostRuntime) TrustProxy() bool               { return h != nil && h.trustProxy }
+
 func (h *hostRuntime) Hosts() plugin.HostRegistry {
 	if h == nil || h.hosts == nil {
 		return plugin.NoopHostRegistry()
@@ -106,6 +109,7 @@ type pluginContextParams struct {
 	notifRouter     *notification.Router
 	services        *plugin.Registry
 	hosts           plugin.HostRegistry
+	trustProxy      bool
 	geo             *geo.Resolver
 	endpointEngine  *endpoint.Engine
 	taskQueue       queue.Queue
@@ -177,13 +181,14 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	}
 
 	host := &hostRuntime{
-		session:  session,
-		crypto:   vault,
-		settings: settings,
-		events:   events,
-		hosts:    hosts,
-		db:       db,
-		services: params.services,
+		session:    session,
+		crypto:     vault,
+		settings:   settings,
+		events:     events,
+		hosts:      hosts,
+		db:         db,
+		services:   params.services,
+		trustProxy: params.trustProxy,
 	}
 	if db != nil {
 		_ = db

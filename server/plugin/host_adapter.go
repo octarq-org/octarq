@@ -31,6 +31,8 @@ func (noopHost) LookupCredential(context.Context, uint, CredentialQuery) (*Crede
 
 func (noopHost) SpendLedger() SpendLedger { return unavailableSpendLedger{} }
 
+func (noopHost) TrustProxy() bool { return false }
+
 type unavailableSpendLedger struct{}
 
 func (unavailableSpendLedger) AuthorizeTurn(context.Context, uint, string, string) error {

@@ -8,6 +8,7 @@ import (
 )
 
 type TestHost struct {
+	TrustProxyVal        bool
 	SessionMock          HostSession
 	CryptoMock           CryptoVault
 	SettingsMock         SettingsStore
@@ -73,6 +74,10 @@ func (h *TestHost) LookupCredential(ctx context.Context, orgID uint, query Crede
 		return h.LookupCredentialMock(ctx, orgID, query)
 	}
 	return nil, ErrCredentialResolverUnavailable
+}
+
+func (h *TestHost) TrustProxy() bool {
+	return h != nil && h.TrustProxyVal
 }
 
 func (h *TestHost) SpendLedger() SpendLedger {

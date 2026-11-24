@@ -53,6 +53,7 @@ type Host interface {
 	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 	SpendLedger() SpendLedger
+	TrustProxy() bool
 }
 
 type Credential struct {
