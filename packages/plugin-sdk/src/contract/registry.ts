@@ -1,8 +1,19 @@
-import type { PluginI18n, PluginMenuItem, UIArea, UIPlugin, UIRoute, UIWidget } from "./types";
+import type {
+  ArtifactEditorRegistration,
+  PluginI18n,
+  PluginMenuItem,
+  ToolCardRegistration,
+  UIArea,
+  UIPlugin,
+  UIRoute,
+  UIWidget,
+} from "./types";
 
 const REGISTRY: UIPlugin[] = [];
 
 let derivedPlugins: UIPlugin[] | null = null;
+let derivedCards: ToolCardRegistration[] | null = null;
+let derivedArtifacts: ArtifactEditorRegistration[] | null = null;
 
 function reportCompositionError(message: string): void {
   if (import.meta.env.DEV) {
@@ -88,6 +99,8 @@ export function registerUIPlugin(plugin: UIPlugin): void {
   }
   REGISTRY.push(plugin);
   derivedPlugins = null;
+  derivedCards = null;
+  derivedArtifacts = null;
 }
 
 export function uiPlugins(): UIPlugin[] {
@@ -113,6 +126,114 @@ export function uiWidgets(slot: string): UIWidget[] {
 
 export function uiOnboarding(): UIPlugin["onboarding"] | null {
   return effectivePlugins().find((p) => p.onboarding)?.onboarding ?? null;
+}
+
+function validateCardMatch(match: string, pluginName: string): void {
+  const stars = match.split("*").length - 1;
+  if (stars > 0 && (stars > 1 || !match.endsWith("*"))) {
+    reportCompositionError(
+      `Tool card match "${match}" from plugin "${pluginName}" is invalid: ` +
+        `use an exact tool name or one trailing "*" wildcard.`,
+    );
+  }
+}
+
+function cardEntries(): ToolCardRegistration[] {
+  if (derivedCards !== null) return derivedCards;
+
+  const out: ToolCardRegistration[] = [];
+  const owners = new Map<string, string>();
+
+  for (const p of effectivePlugins()) {
+    for (const card of p.cards ?? []) {
+      validateCardMatch(card.match, p.name);
+      const owner = owners.get(card.match);
+      if (owner !== undefined) {
+        reportCompositionError(
+          `Tool card match collision: "${card.match}" is registered by "${owner}" and ` +
+            `"${p.name}". A tool card match must be unique across composed plugins.`,
+        );
+        continue;
+      }
+      owners.set(card.match, p.name);
+      out.push(card);
+    }
+  }
+
+  derivedCards = out;
+  return out;
+}
+
+function artifactEntries(): ArtifactEditorRegistration[] {
+  if (derivedArtifacts !== null) return derivedArtifacts;
+
+  const out: ArtifactEditorRegistration[] = [];
+  const owners = new Map<string, string>();
+
+  for (const p of effectivePlugins()) {
+    for (const artifact of p.artifacts ?? []) {
+      if (!artifact.type.startsWith(`${p.name}.`)) {
+        reportCompositionError(
+          `Artifact editor type "${artifact.type}" from plugin "${p.name}" must start ` +
+            `with "${p.name}.". An artifact type is namespaced by its owning plugin.`,
+        );
+        continue;
+      }
+      const owner = owners.get(artifact.type);
+      if (owner !== undefined) {
+        reportCompositionError(
+          `Artifact editor type collision: "${artifact.type}" is registered by "${owner}" ` +
+            `and "${p.name}".`,
+        );
+        continue;
+      }
+      owners.set(artifact.type, p.name);
+      out.push(artifact);
+    }
+  }
+
+  derivedArtifacts = out;
+  return out;
+}
+
+export function uiToolCards(): ToolCardRegistration[] {
+  return cardEntries();
+}
+
+export function uiArtifactEditors(): ArtifactEditorRegistration[] {
+  return artifactEntries();
+}
+
+export function resolveToolCard(
+  toolName: string,
+): ToolCardRegistration["Component"] | null {
+  const cards = cardEntries();
+
+  for (const card of cards) {
+    if (!card.match.includes("*") && card.match === toolName) {
+      return card.Component;
+    }
+  }
+
+  let best: ToolCardRegistration | null = null;
+  let bestPrefix = -1;
+  for (const card of cards) {
+    if (!card.match.endsWith("*")) continue;
+    const prefix = card.match.slice(0, -1);
+    if (!toolName.startsWith(prefix)) continue;
+    if (prefix.length > bestPrefix) {
+      best = card;
+      bestPrefix = prefix.length;
+    }
+  }
+
+  return best?.Component ?? null;
+}
+
+export function resolveArtifactEditor(
+  type: string,
+): ArtifactEditorRegistration["Component"] | null {
+  return artifactEntries().find((a) => a.type === type)?.Component ?? null;
 }
 
 export function uiAreas(): UIArea[] {
@@ -166,4 +287,6 @@ export function uiPluginSharedI18n(): PluginI18n {
 export function resetRegistry(): void {
   REGISTRY.length = 0;
   derivedPlugins = null;
+  derivedCards = null;
+  derivedArtifacts = null;
 }

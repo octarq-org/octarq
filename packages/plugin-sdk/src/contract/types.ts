@@ -18,6 +18,47 @@ export interface UIWidget {
   requires?: string[];
 }
 
+export interface ToolCardAction {
+  type: "approve" | "reject" | "custom" | "open_canvas" | "edit_artifact" | "refresh";
+  approvalId?: string;
+  approvalToken?: string;
+  toolName?: string;
+  artifactId?: string;
+  payload?: unknown;
+}
+
+export type ToolCardActionHandler = (
+  action: ToolCardAction,
+) => void | Promise<{ status: number }>;
+
+export interface ToolCardProps {
+  args: unknown;
+  callId?: string;
+  toolName: string;
+  onAction: ToolCardActionHandler;
+}
+
+export type ToolCardComponent = LazyExoticComponent<ComponentType<ToolCardProps>>;
+
+export interface ToolCardRegistration {
+  match: string;
+  Component: ToolCardComponent;
+  schema?: unknown;
+}
+
+export interface ArtifactEditorProps {
+  artifactId: string;
+  content: unknown;
+  onAction: ToolCardActionHandler;
+}
+
+export type ArtifactEditorComponent = LazyExoticComponent<ComponentType<ArtifactEditorProps>>;
+
+export interface ArtifactEditorRegistration {
+  type: string;
+  Component: ArtifactEditorComponent;
+}
+
 export interface UIArea {
   id: string;
   title: string;
@@ -52,5 +93,7 @@ export interface UIPlugin {
   i18n?: PluginI18n;
   lockedFallback?: LockedFallback;
   onboarding?: { Component: LazyExoticComponent<ComponentType<{ onComplete?: () => void }>> };
+  cards?: ToolCardRegistration[];
+  artifacts?: ArtifactEditorRegistration[];
   replaces?: string[];
 }
