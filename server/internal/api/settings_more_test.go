@@ -317,6 +317,38 @@ func TestSettingsResponsesExposeNoBusinessKeys(t *testing.T) {
 	}
 }
 
+func TestMetricsTokenConfigAndEnvFallback(t *testing.T) {
+	h, _, _ := newTestHandlerRaw(t)
+
+	h.cfg.MetricsToken = "  cfg-token  "
+	if tok := h.MetricsToken(); tok != "cfg-token" {
+		t.Errorf("MetricsToken() = %q, want cfg-token", tok)
+	}
+
+	h.cfg.MetricsToken = ""
+	t.Setenv("OCTARQ_METRICS_TOKEN", "  env-token  ")
+	if tok := h.MetricsToken(); tok != "env-token" {
+		t.Errorf("MetricsToken() = %q, want env-token", tok)
+	}
+}
+
+func TestSettingsRequestsGenerateInboundToken(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	admin := loginCookies(t, srv)
+
+	rec := do(srv, "GET", "/api/settings", admin, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/settings: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var res map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if res["inboundTokenSet"] != true {
+		t.Errorf("inboundTokenSet = %v, want true", res["inboundTokenSet"])
+	}
+}
+
 func TestSettingsNilCtx(t *testing.T) {
 	h, _, _ := newTestHandlerRaw(t)
 	ctx := context.Background()
