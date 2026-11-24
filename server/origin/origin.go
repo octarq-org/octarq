@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -88,16 +87,39 @@ func isNumericHost(host string) bool {
 	return true
 }
 
-type domainRow struct {
-	OrgID     uint            `gorm:"column:owner_id"`
-	Name      string          `gorm:"column:name"`
-	ForLink   bool            `gorm:"column:for_link"`
-	ForMail   bool            `gorm:"column:for_mail"`
-	LinkHosts models.HostList `gorm:"column:link_hosts"`
-	MailHosts models.HostList `gorm:"column:mail_hosts"`
+type hostRow struct {
+	OrgID   uint   `gorm:"column:owner_id"`
+	Host    string `gorm:"column:host"`
+	Traffic bool   `gorm:"column:traffic"`
 }
 
-func (domainRow) TableName() string { return "domains" }
+func (hostRow) TableName() string { return "org_hosts" }
+
+func hostRows(db *gorm.DB) ([]hostRow, bool) {
+	if db == nil || !db.Migrator().HasTable("org_hosts") {
+		return nil, false
+	}
+	var rows []hostRow
+	if err := db.Model(&hostRow{}).Find(&rows).Error; err != nil {
+		return nil, false
+	}
+	return rows, true
+}
+
+func hostRowsForOrg(db *gorm.DB, orgID uint) ([]hostRow, bool) {
+	if db == nil || !db.Migrator().HasTable("org_hosts") {
+		return nil, false
+	}
+	q := db.Model(&hostRow{})
+	if orgID != 0 {
+		q = q.Where("owner_id = ?", orgID)
+	}
+	var rows []hostRow
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, false
+	}
+	return rows, true
+}
 
 func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 	if db == nil || r == nil {
@@ -112,12 +134,19 @@ func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 	if len(candidates) == 0 {
 		return "", false
 	}
-	rows, ok := domains(db, orgID)
+	rows, ok := hostRowsForOrg(db, orgID)
 	if !ok {
 		return "", false
 	}
-	for _, d := range rows {
-		if matchRow(d, host, candidates, base) {
+	bound := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		bound[NormalizeHost(row.Host)] = true
+	}
+	for i, c := range candidates {
+		if underBase(host, base) && i > 0 {
+			break
+		}
+		if bound[c] {
 			return host, true
 		}
 	}
@@ -157,59 +186,40 @@ func OwnerOf(db *gorm.DB, host string) (uint, bool) {
 	if len(candidates) == 0 {
 		return 0, false
 	}
-	rows, ok := domains(db, 0)
+	rows, ok := hostRows(db)
 	if !ok || len(rows) == 0 {
 		return 0, false
+	}
+
+	byHost := make(map[string]uint, len(rows))
+	ambiguous := make(map[string]bool)
+	for _, row := range rows {
+		if row.OrgID == 0 {
+			continue
+		}
+		h := NormalizeHost(row.Host)
+		if prev, ok := byHost[h]; ok {
+			if prev != row.OrgID {
+				ambiguous[h] = true
+			}
+			continue
+		}
+		byHost[h] = row.OrgID
 	}
 
 	for i, c := range candidates {
 		if underBase(host, base) && i > 0 {
 			continue
 		}
-		isLevelZero := (i == 0)
-		var matchedOrg uint
-		var found bool
-		for _, d := range rows {
-			if matchRowAt(d, host, c, isLevelZero, base) {
-				if !found {
-					matchedOrg = d.OrgID
-					found = true
-				} else if matchedOrg != d.OrgID {
-					return 0, false
-				}
-			}
+		if ambiguous[c] {
+			return 0, false
 		}
-		if found {
-			return matchedOrg, true
+		if orgID, ok := byHost[c]; ok {
+			return orgID, true
 		}
 	}
 
 	return 0, false
-}
-
-func matchRow(d domainRow, host string, candidates []string, base string) bool {
-	for i, c := range candidates {
-		if underBase(host, base) && i > 0 {
-			break
-		}
-		if matchRowAt(d, host, c, i == 0, base) {
-			return true
-		}
-	}
-	return false
-}
-
-func matchRowAt(d domainRow, host string, candidate string, isLevelZero bool, base string) bool {
-	if candidate == NormalizeHost(d.Name) {
-		return true
-	}
-	if underBase(host, base) {
-		return false
-	}
-	if isLevelZero && (hostListHas(d.LinkHosts, host) || hostListHas(d.MailHosts, host)) {
-		return true
-	}
-	return false
 }
 
 func ServesTraffic(db *gorm.DB, host string) bool {
@@ -220,58 +230,21 @@ func ServesTraffic(db *gorm.DB, host string) bool {
 	if host == "" {
 		return false
 	}
-	rows, ok := domains(db, 0)
+	rows, ok := hostRows(db)
 	if !ok {
 		return false
 	}
-	for _, d := range rows {
-		if d.ForLink {
-			if len(d.LinkHosts.Enabled()) == 0 && NormalizeHost(d.Name) == host {
-				return true
-			}
-			if hostListHas(d.LinkHosts, host) {
-				return true
-			}
-		}
-		if d.ForMail {
-			if len(d.MailHosts.Enabled()) == 0 && NormalizeHost(d.Name) == host {
-				return true
-			}
-			if hostListHas(d.MailHosts, host) {
-				return true
-			}
+	for _, row := range rows {
+		if row.Traffic && NormalizeHost(row.Host) == host {
+			return true
 		}
 	}
 	return false
 }
 
 func AnyRegistered(db *gorm.DB) bool {
-	rows, ok := domains(db, 0)
+	rows, ok := hostRows(db)
 	return ok && len(rows) > 0
-}
-
-func domains(db *gorm.DB, orgID uint) ([]domainRow, bool) {
-	if db == nil || !db.Migrator().HasTable("domains") {
-		return nil, false
-	}
-	q := db.Model(&domainRow{})
-	if orgID != 0 {
-		q = q.Where("owner_id = ?", orgID)
-	}
-	var rows []domainRow
-	if err := q.Find(&rows).Error; err != nil {
-		return nil, false
-	}
-	return rows, true
-}
-
-func hostListHas(list models.HostList, host string) bool {
-	for _, h := range list.Enabled() {
-		if NormalizeHost(h) == host {
-			return true
-		}
-	}
-	return false
 }
 
 const unsafeHostChars = " \t\r\n/\\?#@\"'<>%"

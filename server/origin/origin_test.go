@@ -6,22 +6,19 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-type testDomain struct {
-	ID        uint `gorm:"primaryKey"`
-	OrgID     uint `gorm:"column:owner_id"`
-	Name      string
-	ForLink   bool
-	ForMail   bool
-	LinkHosts models.HostList
-	MailHosts models.HostList
+type testOrgHost struct {
+	ID      uint `gorm:"primaryKey"`
+	OrgID   uint `gorm:"column:owner_id"`
+	Host    string
+	Traffic bool
+	Source  string
 }
 
-func (testDomain) TableName() string { return "domains" }
+func (testOrgHost) TableName() string { return "org_hosts" }
 
 func openDB(t *testing.T, suffix string) *gorm.DB {
 	t.Helper()
@@ -32,14 +29,14 @@ func openDB(t *testing.T, suffix string) *gorm.DB {
 	return db
 }
 
-func testDB(t *testing.T, rows ...testDomain) *gorm.DB {
+func testDB(t *testing.T, rows ...testOrgHost) *gorm.DB {
 	t.Helper()
 	clearAllCache()
 	db := openDB(t, "")
 	if len(rows) == 0 {
 		return db
 	}
-	if err := db.AutoMigrate(&testDomain{}); err != nil {
+	if err := db.AutoMigrate(&testOrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	for i := range rows {
@@ -56,20 +53,12 @@ func req(host string) *http.Request {
 	return r
 }
 
-func acme() testDomain {
-	return testDomain{
-		OrgID:   1,
-		Name:    "acme.example",
-		ForLink: true,
-		ForMail: true,
-		LinkHosts: models.HostList{
-			{Host: "go.acme.example", Enabled: true},
-			{Host: "go.partner.example", Enabled: true},
-			{Host: "off.partner.example", Enabled: false},
-		},
-		MailHosts: models.HostList{
-			{Host: "mail.acme.example", Enabled: true},
-		},
+func acme() []testOrgHost {
+	return []testOrgHost{
+		{OrgID: 1, Host: "acme.example", Traffic: false, Source: "test"},
+		{OrgID: 1, Host: "go.acme.example", Traffic: true, Source: "test"},
+		{OrgID: 1, Host: "go.partner.example", Traffic: true, Source: "test"},
+		{OrgID: 1, Host: "mail.acme.example", Traffic: true, Source: "test"},
 	}
 }
 
@@ -85,7 +74,7 @@ func TestOwnedHost(t *testing.T) {
 		{name: "registered link host", host: "go.acme.example", want: true},
 		{name: "registered mail host", host: "mail.acme.example", want: true},
 		{name: "case and port are normalised away", host: "APP.Acme.Example:8443", want: true},
-		{name: "host-list entry outside the apex", host: "go.partner.example", want: true},
+		{name: "host outside the apex", host: "go.partner.example", want: true},
 		{name: "disabled host-list entry", host: "off.partner.example", want: false},
 		{name: "unrelated host", host: "evil.example", want: false},
 		{name: "registered name as a prefix of the attacker's", host: "acme.example.evil.com", want: false},
@@ -100,7 +89,7 @@ func TestOwnedHost(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			db := testDB(t, acme())
+			db := testDB(t, acme()...)
 			r := req(tc.host)
 			if gotHost, gotOK := OwnedHost(db, tc.orgID, r); gotOK != tc.want {
 				t.Errorf("OwnedHost(org %d, Host: %q) = (%q, %v), want (_, %v)", tc.orgID, tc.host, gotHost, gotOK, tc.want)
@@ -120,9 +109,9 @@ func TestOwnedHost(t *testing.T) {
 		}
 	})
 
-	t.Run("no domains table at all", func(t *testing.T) {
+	t.Run("no org_hosts table at all", func(t *testing.T) {
 		if _, ok := OwnedHost(testDB(t), 0, req("acme.example")); ok {
-			t.Error("a build without the dns plugin has no owned hosts")
+			t.Error("a build without org hosts has no owned hosts")
 		}
 	})
 }
@@ -150,7 +139,7 @@ func TestOwnerOf(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			db := testDB(t, acme())
+			db := testDB(t, acme()...)
 			gotOrg, gotOK := OwnerOf(db, tc.host)
 			if gotOK != tc.wantOK || gotOrg != tc.wantOrg {
 				t.Errorf("OwnerOf(%q) = (%d, %v), want (%d, %v)", tc.host, gotOrg, gotOK, tc.wantOrg, tc.wantOK)
@@ -160,8 +149,8 @@ func TestOwnerOf(t *testing.T) {
 
 	t.Run("specificity: subdomain row beats parent row owned by another org", func(t *testing.T) {
 		db := testDB(t,
-			testDomain{OrgID: 1, Name: "acme.example"},
-			testDomain{OrgID: 2, Name: "sub.acme.example"},
+			testOrgHost{OrgID: 1, Host: "acme.example", Source: "test"},
+			testOrgHost{OrgID: 2, Host: "sub.acme.example", Source: "test"},
 		)
 		if org, ok := OwnerOf(db, "sub.acme.example"); !ok || org != 2 {
 			t.Errorf("OwnerOf(sub.acme.example) = (%d, %v), want (2, true) — exact match must win", org, ok)
@@ -176,8 +165,8 @@ func TestOwnerOf(t *testing.T) {
 
 	t.Run("conflict: two distinct orgs match at the same specificity level", func(t *testing.T) {
 		db := testDB(t,
-			testDomain{OrgID: 1, Name: "apex.example", LinkHosts: models.HostList{{Host: "shared.partner.example", Enabled: true}}},
-			testDomain{OrgID: 2, Name: "other.example", LinkHosts: models.HostList{{Host: "shared.partner.example", Enabled: true}}},
+			testOrgHost{OrgID: 1, Host: "shared.partner.example", Traffic: true, Source: "test"},
+			testOrgHost{OrgID: 2, Host: "shared.partner.example", Traffic: true, Source: "test"},
 		)
 		if org, ok := OwnerOf(db, "shared.partner.example"); ok || org != 0 {
 			t.Errorf("OwnerOf(shared.partner.example) = (%d, %v), want (0, false) on ambiguity", org, ok)
@@ -190,9 +179,9 @@ func TestOwnerOf(t *testing.T) {
 		}
 	})
 
-	t.Run("no domains table at all", func(t *testing.T) {
+	t.Run("no org_hosts table at all", func(t *testing.T) {
 		if _, ok := OwnerOf(testDB(t), "acme.example"); ok {
-			t.Error("a build without the dns plugin has no owners")
+			t.Error("a build without org hosts has no owners")
 		}
 	})
 }
@@ -206,7 +195,7 @@ func TestServesTraffic(t *testing.T) {
 		{name: "registered link host serves traffic", host: "go.acme.example", want: true},
 		{name: "registered mail host serves traffic", host: "mail.acme.example", want: true},
 		{name: "subdomain of an apex does NOT serve unless listed", host: "app.acme.example", want: false},
-		{name: "apex itself does NOT serve when it has an explicit host list", host: "acme.example", want: false},
+		{name: "apex itself does NOT serve when it is ownership only", host: "acme.example", want: false},
 		{name: "disabled host does not serve", host: "off.partner.example", want: false},
 		{name: "unrelated host does not serve", host: "evil.example", want: false},
 		{name: "case and port normalised away", host: "GO.Acme.Example:8443", want: true},
@@ -214,37 +203,37 @@ func TestServesTraffic(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			db := testDB(t, acme())
+			db := testDB(t, acme()...)
 			if got := ServesTraffic(db, tc.host); got != tc.want {
 				t.Errorf("ServesTraffic(%q) = %v, want %v", tc.host, got, tc.want)
 			}
 		})
 	}
 
-	t.Run("apex with empty host list serves when toggled on", func(t *testing.T) {
-		db := testDB(t, testDomain{
-			OrgID:     1,
-			Name:      "barelink.example",
-			ForLink:   true,
-			LinkHosts: nil,
+	t.Run("apex with traffic enabled serves", func(t *testing.T) {
+		db := testDB(t, testOrgHost{
+			OrgID:   1,
+			Host:    "barelink.example",
+			Traffic: true,
+			Source:  "test",
 		})
 		if !ServesTraffic(db, "barelink.example") {
-			t.Error("an apex with for_link set and no host list serves links there, so it must not serve the dashboard")
+			t.Error("a host marked as serving traffic must serve it")
 		}
 	})
 
-	t.Run("no domains table at all", func(t *testing.T) {
+	t.Run("no org_hosts table at all", func(t *testing.T) {
 		if ServesTraffic(testDB(t), "anything.example") {
-			t.Error("a build without the dns plugin has no serving hosts")
+			t.Error("a build without org hosts has no serving hosts")
 		}
 	})
 }
 
 func TestAnyRegistered(t *testing.T) {
 	if AnyRegistered(testDB(t)) {
-		t.Error("an instance with no domains table has no whitelist")
+		t.Error("an instance with no org_hosts table has no whitelist")
 	}
-	if !AnyRegistered(testDB(t, acme())) {
-		t.Error("a registered domain is a whitelist")
+	if !AnyRegistered(testDB(t, acme()...)) {
+		t.Error("a registered host is a whitelist")
 	}
 }

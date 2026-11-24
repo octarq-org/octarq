@@ -30,8 +30,8 @@ func oauthTestEnv(t *testing.T, h *Handler, db *gorm.DB, email string) []*http.C
 	if err := h.setInstanceSecret(context.Background(), vaultKeyGoogleClientSecret, "Google OAuth", "clientSecret", "google-secret", 1); err != nil {
 		t.Fatalf("set google secret: %v", err)
 	}
-	if err := db.Create(&testDomain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
-		t.Fatalf("seed domain: %v", err)
+	if err := db.Create(&models.OrgHost{OrgID: 1, Host: "acme.example", Source: "test"}).Error; err != nil {
+		t.Fatalf("seed host: %v", err)
 	}
 
 	origTransport := http.DefaultTransport

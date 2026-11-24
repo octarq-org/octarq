@@ -9,12 +9,12 @@ import (
 	"github.com/octarq-org/octarq/server/origin"
 )
 
-type domainRow struct {
+type orgHostRow struct {
 	OrgID uint   `gorm:"column:owner_id"`
-	Name  string `gorm:"column:name"`
+	Host  string `gorm:"column:host"`
 }
 
-func (domainRow) TableName() string { return "domains" }
+func (orgHostRow) TableName() string { return "org_hosts" }
 
 const hostOrgTTL = 5 * time.Minute
 
@@ -71,23 +71,32 @@ func (h *Handler) lookupOrgByHost(host string) uint {
 	if len(candidates) == 0 {
 		return 0
 	}
-	if !h.db.Migrator().HasTable("domains") {
-		return 0
-	}
-	var rows []domainRow
-	if err := h.db.Model(&domainRow{}).
-		Where("name IN ?", candidates).
+	var rows []orgHostRow
+	if err := h.db.Model(&orgHostRow{}).
+		Where("host IN ?", candidates).
 		Find(&rows).Error; err != nil {
 		return 0
 	}
-	byName := make(map[string]uint, len(rows))
+	byHost := make(map[string]uint, len(rows))
+	ambiguous := make(map[string]bool)
 	for _, r := range rows {
-		if r.OrgID != 0 {
-			byName[strings.ToLower(r.Name)] = r.OrgID
+		if r.OrgID == 0 {
+			continue
 		}
+		key := strings.ToLower(r.Host)
+		if prev, ok := byHost[key]; ok {
+			if prev != r.OrgID {
+				ambiguous[key] = true
+			}
+			continue
+		}
+		byHost[key] = r.OrgID
 	}
 	for _, c := range candidates {
-		if orgID, ok := byName[c]; ok {
+		if ambiguous[c] {
+			return 0
+		}
+		if orgID, ok := byHost[c]; ok {
 			return orgID
 		}
 	}
@@ -99,4 +108,11 @@ func (h *Handler) brandingOrg(r *http.Request) uint {
 		return orgID
 	}
 	return h.orgIDForHost(r.Host)
+}
+
+func (h *Handler) anyRegisteredHost() bool {
+	if h == nil || h.host == nil {
+		return false
+	}
+	return h.host.Hosts().Any()
 }

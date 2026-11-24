@@ -63,23 +63,24 @@ func TestCoverageLift_NilAndEmptyInputs(t *testing.T) {
 }
 
 func TestCoverageLift_ServesTraffic_MailApex(t *testing.T) {
-	dbMail := testDB(t, testDomain{
+	dbMail := testDB(t, testOrgHost{
 		OrgID:   1,
-		Name:    "mailapex.example",
-		ForMail: true,
+		Host:    "mailapex.example",
+		Traffic: true,
+		Source:  "test",
 	})
 	if !ServesTraffic(dbMail, "mailapex.example") {
 		t.Fatal("expected ServesTraffic true for mail apex when host list is empty")
 	}
 }
 
-func TestCoverageLift_ClearDomainCache_AnySuffix(t *testing.T) {
+func TestCoverageLift_ClearHostCache_AnySuffix(t *testing.T) {
 	clearAllCache()
 	globalCacheMu.Lock()
 	globalCache["some-ns|any"] = entry{ok: true}
 	globalCacheMu.Unlock()
 
-	ClearDomainCache("example.com")
+	ClearHostCache("example.com")
 
 	globalCacheMu.RLock()
 	_, exists := globalCache["some-ns|any"]

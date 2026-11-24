@@ -19,11 +19,8 @@ func openDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.Setting{}, &orgRow{}); err != nil {
+	if err := db.AutoMigrate(&models.Setting{}, &orgRow{}, &models.OrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
-	}
-	if err := db.Migrator().CreateTable(&domainRow{}); err != nil {
-		t.Fatalf("create domains: %v", err)
 	}
 	return db
 }
@@ -49,11 +46,11 @@ func setBase(t *testing.T, db *gorm.DB, base string) {
 	}
 }
 
-func hasDomainRow(t *testing.T, db *gorm.DB, name string) bool {
+func hasHostRow(t *testing.T, db *gorm.DB, host string) bool {
 	t.Helper()
 	var n int64
-	if err := db.Model(&domainRow{}).Where("name = ?", name).Count(&n).Error; err != nil {
-		t.Fatalf("count domains: %v", err)
+	if err := db.Model(&models.OrgHost{}).Where("host = ?", host).Count(&n).Error; err != nil {
+		t.Fatalf("count hosts: %v", err)
 	}
 	return n > 0
 }
@@ -88,8 +85,8 @@ func TestProvisionDisabledWithoutBase(t *testing.T) {
 	if name != "" {
 		t.Fatalf("Provision returned a name %q with no base configured", name)
 	}
-	if hasDomainRow(t, db, "acme7x.app.example.com") {
-		t.Fatal("Provision wrote a domains row with no base configured")
+	if hasHostRow(t, db, "acme7x.app.example.com") {
+		t.Fatal("Provision wrote a host row with no base configured")
 	}
 }
 
@@ -108,8 +105,8 @@ func TestProvisionWritesResolvableRow(t *testing.T) {
 	if name != "acme7x.app.example.com" {
 		t.Fatalf("Provision returned %q, want acme7x.app.example.com", name)
 	}
-	if !hasDomainRow(t, db, "acme7x.app.example.com") {
-		t.Fatal("Provision did not write the domains row")
+	if !hasHostRow(t, db, "acme7x.app.example.com") {
+		t.Fatal("Provision did not write the host row")
 	}
 	org, ok := origin.OwnerOf(db, "acme7x.app.example.com")
 	if !ok || org != 7 {
@@ -117,7 +114,7 @@ func TestProvisionWritesResolvableRow(t *testing.T) {
 	}
 }
 
-func TestProvisionWritesLinkHostRow(t *testing.T) {
+func TestProvisionWritesTrafficHostRow(t *testing.T) {
 	db := openDB(t)
 	setBase(t, db, "app.example.com")
 	seedOrg(t, db, 7, "acme7x")
@@ -125,18 +122,15 @@ func TestProvisionWritesLinkHostRow(t *testing.T) {
 	if _, ok, err := Provision(db, 7, "acme7x"); err != nil || !ok {
 		t.Fatalf("Provision = (ok=%v, err=%v), want provisioned", ok, err)
 	}
-	var row domainRow
-	if err := db.Where("name = ?", "acme7x.app.example.com").First(&row).Error; err != nil {
-		t.Fatalf("read domain row: %v", err)
+	var row models.OrgHost
+	if err := db.Where("host = ?", "acme7x.app.example.com").First(&row).Error; err != nil {
+		t.Fatalf("read host row: %v", err)
 	}
-	if !row.ForLink {
-		t.Fatal("tenant subdomain row has for_link = false, want true")
+	if !row.Traffic {
+		t.Fatal("tenant subdomain row has traffic = false, want true")
 	}
-	if len(row.LinkHosts) != 1 || row.LinkHosts[0].Host != "acme7x.app.example.com" || !row.LinkHosts[0].Enabled {
-		t.Fatalf("LinkHosts = %+v, want one enabled host acme7x.app.example.com", row.LinkHosts)
-	}
-	if row.ForMail || len(row.MailHosts) != 0 {
-		t.Fatalf("ForMail=%v MailHosts=%+v, want mail untouched (false, empty)", row.ForMail, row.MailHosts)
+	if row.Source != "core:tenancy" {
+		t.Fatalf("Source = %q, want core:tenancy", row.Source)
 	}
 }
 
@@ -173,7 +167,7 @@ func TestRetireRemovesSubdomain(t *testing.T) {
 	if err := Retire(db, 3, "oldslug"); err != nil {
 		t.Fatalf("Retire: %v", err)
 	}
-	if hasDomainRow(t, db, "oldslug.app.example.com") {
+	if hasHostRow(t, db, "oldslug.app.example.com") {
 		t.Fatal("Retire left the subdomain row behind")
 	}
 	if org, ok := origin.OwnerOf(db, "oldslug.app.example.com"); ok || org != 0 {

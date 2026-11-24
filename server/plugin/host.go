@@ -49,6 +49,7 @@ type Host interface {
 	Settings() SettingsStore
 	Events() EventSpine
 	TenantDB(orgID uint) *TenantDB
+	Hosts() HostRegistry
 	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
 	LookupCredential(ctx context.Context, orgID uint, query CredentialQuery) (*Credential, error)
 	SpendLedger() SpendLedger

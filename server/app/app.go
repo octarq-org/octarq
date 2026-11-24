@@ -109,7 +109,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 		return a.auth.OrgID(r)
 	}))
 	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
-	enabled := a.pluginGate(apiHandler)
+	unscoped, err := newUnscopedMatcher(a.plugins)
+	if err != nil {
+		return err
+	}
+	enabled := a.pluginGate(apiHandler, unscoped)
 	routes := newRouteRegistry()
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
@@ -155,6 +159,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 			p.Mount(&gatedMux{real: recorder, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
 	}
+	if err := preflightUnscopedClaims(a.plugins, routes); err != nil {
+		return err
+	}
 	if err := routes.Err(); err != nil {
 		return err
 	}
@@ -170,7 +177,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		return err
 	}
 	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-	err := plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
+	err = plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
 	valCancel()
 	if err != nil {
 		return err
@@ -271,7 +278,11 @@ func (a *App) Run(ctx context.Context) error {
 	}))
 	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
 
-	enabled := a.pluginGate(apiHandler)
+	unscoped, err := newUnscopedMatcher(a.plugins)
+	if err != nil {
+		return err
+	}
+	enabled := a.pluginGate(apiHandler, unscoped)
 	routes := newRouteRegistry()
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
@@ -319,6 +330,9 @@ func (a *App) Run(ctx context.Context) error {
 		slog.Info("plugin mounted", "name", p.Name())
 	}
 	mountEndpointHTTP(apiHandler, endpointEngine)
+	if err := preflightUnscopedClaims(a.plugins, routes); err != nil {
+		return err
+	}
 	if err := routes.Err(); err != nil {
 		return err
 	}
@@ -350,7 +364,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	valCtx, valCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-	err := plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
+	err = plugin.ValidateAll(valCtx, a.plugins, mcp.NewStdioPluginHost(nil, pctx.Host))
 	valCancel()
 	if err != nil {
 		return err
@@ -374,7 +388,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
-	domainsRegistered := origin.AnyRegistered(a.gdb) || origin.HasSharedHosts(a.gdb)
+	domainsRegistered := pctx.Host.Hosts().Any() || origin.HasSharedHosts(a.gdb)
 	mailReady := false
 	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
 		mailReady = fn()

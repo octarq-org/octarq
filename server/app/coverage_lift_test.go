@@ -172,7 +172,7 @@ func TestCoverageLift_BuiltinCron_Handlers(t *testing.T) {
 
 func TestCoverageLift_PluginGate_NilRequest(t *testing.T) {
 	a := bootApp(t)
-	gate := a.pluginGate(nil)
+	gate := a.pluginGate(nil, nil)
 	allowed, scoped := gate(nil, "some-feature")
 	if allowed || scoped {
 		t.Fatal("expected false, false when request is nil")

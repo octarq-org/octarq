@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/origin"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"go.opentelemetry.io/otel"
 	"gorm.io/driver/mysql"
@@ -278,7 +280,7 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	m := gdb.Migrator()
 	if tables, err := m.GetTables(); err == nil {
 		gdb.Transaction(func(tx *gorm.DB) error {
-			for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
+			for _, table := range []string{"tokens", "user_tokens", "webhooks", "notification_channels"} {
 				if slices.Contains(tables, table) && tx.Migrator().HasColumn(table, "owner_id") {
 					tx.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
 				}
@@ -287,56 +289,138 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		})
 	}
 
-	backfillTenantSubdomainLinkHosts(gdb)
+	if err := backfillOrgHosts(gdb); err != nil {
+		return fmt.Errorf("backfill org hosts: %w", err)
+	}
 
 	return nil
 }
 
-type tenantDomainRow struct {
-	ID        uint   `gorm:"primaryKey"`
-	OrgID     uint   `gorm:"column:owner_id"`
-	Name      string `gorm:"size:255"`
-	ForLink   bool
-	LinkHosts models.HostList `gorm:"type:text"`
+type legacyDomainRow struct {
+	ID        uint            `gorm:"primaryKey"`
+	OrgID     uint            `gorm:"column:owner_id"`
+	Name      string          `gorm:"column:name"`
+	ForLink   bool            `gorm:"column:for_link"`
+	ForMail   bool            `gorm:"column:for_mail"`
+	LinkHosts models.HostList `gorm:"column:link_hosts;type:text"`
+	MailHosts models.HostList `gorm:"column:mail_hosts;type:text"`
 }
 
-func (tenantDomainRow) TableName() string { return "domains" }
+func (legacyDomainRow) TableName() string { return "domains" }
 
-func backfillTenantSubdomainLinkHosts(gdb *gorm.DB) {
-	gdb.Transaction(func(tx *gorm.DB) error {
+func backfillOrgHosts(gdb *gorm.DB) error {
+	if gdb == nil || !gdb.Migrator().HasTable("org_hosts") {
+		return nil
+	}
+	return gdb.Transaction(func(tx *gorm.DB) error {
 		base := models.BaseDomain(tx)
-		if base == "" || !tx.Migrator().HasTable("domains") || !tx.Migrator().HasTable("orgs") {
+		if base != "" && tx.Migrator().HasTable("orgs") {
+			var orgs []models.Org
+			if err := tx.Find(&orgs).Error; err != nil {
+				return err
+			}
+			for _, o := range orgs {
+				if o.Slug == "" {
+					continue
+				}
+				host := origin.NormalizeHost(strings.ToLower(o.Slug) + "." + base)
+				if err := bindOrgHost(tx, o.ID, host, true, "core:tenancy"); err != nil {
+					return err
+				}
+			}
+		}
+
+		if !tx.Migrator().HasTable("domains") {
 			return nil
 		}
-		var orgs []models.Org
-		if err := tx.Find(&orgs).Error; err != nil {
+		var domains []legacyDomainRow
+		if err := tx.Find(&domains).Error; err != nil {
 			return err
 		}
-		slugByOrg := make(map[uint]string, len(orgs))
-		for _, o := range orgs {
-			slugByOrg[o.ID] = o.Slug
-		}
-		var doms []tenantDomainRow
-		if err := tx.Where("for_link = ?", false).Find(&doms).Error; err != nil {
-			return err
-		}
-
-		for _, d := range doms {
-			if len(d.LinkHosts) > 0 {
+		for _, d := range domains {
+			if d.OrgID == 0 {
 				continue
 			}
-			slug, ok := slugByOrg[d.OrgID]
-			if !ok {
+			name := origin.NormalizeHost(d.Name)
+			if name == "" {
 				continue
 			}
-			if d.Name != strings.ToLower(slug)+"."+base {
-				continue
+			linkHosts := d.LinkHosts.Enabled()
+			mailHosts := d.MailHosts.Enabled()
+			apexTraffic := (d.ForLink && len(linkHosts) == 0) || (d.ForMail && len(mailHosts) == 0)
+			if err := bindOrgHost(tx, d.OrgID, name, apexTraffic, "core:legacy-domains"); err != nil {
+				return err
 			}
-			tx.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
-				"for_link":   true,
-				"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
-			})
+			if d.ForLink {
+				for _, h := range linkHosts {
+					if err := bindOrgHost(tx, d.OrgID, h, true, "core:legacy-domains"); err != nil {
+						return err
+					}
+				}
+			}
+			if d.ForMail {
+				for _, h := range mailHosts {
+					if err := bindOrgHost(tx, d.OrgID, h, true, "core:legacy-domains"); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		return nil
 	})
+}
+
+func bindOrgHost(tx *gorm.DB, orgID uint, rawHost string, traffic bool, source string) error {
+	host := origin.NormalizeHost(rawHost)
+	if host == "" || orgID == 0 {
+		return nil
+	}
+	if base := models.BaseDomain(tx); base != "" && host == base {
+		slog.Warn("org_hosts backfill: skipping base domain apex", "host", host, "org", orgID)
+		return nil
+	}
+	var conflicts int64
+	if err := tx.Model(&models.OrgHost{}).Where("host = ? AND owner_id <> ?", host, orgID).Count(&conflicts).Error; err != nil {
+		return err
+	}
+	if conflicts > 0 {
+		slog.Warn("org_hosts backfill: host is claimed by another workspace, skipping",
+			"host", host, "org", orgID)
+		return nil
+	}
+	var existing models.OrgHost
+	err := tx.Where("host = ? AND owner_id = ? AND source = ?", host, orgID, source).First(&existing).Error
+	switch {
+	case err == nil:
+		if traffic && !existing.Traffic {
+			if err := tx.Model(&existing).Update("traffic", true).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	case !errors.Is(err, gorm.ErrRecordNotFound):
+		return err
+	}
+	row := models.OrgHost{OrgID: orgID, Host: host, Traffic: traffic, Source: source}
+	if err := tx.Create(&row).Error; err != nil {
+		if isUniqueViolation(err) {
+			slog.Warn("org_hosts backfill: host was claimed concurrently, skipping", "host", host, "org", orgID)
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return true
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "unique constraint failed") ||
+		strings.Contains(lower, "duplicate key value violates unique constraint") ||
+		strings.Contains(lower, "unique violation")
 }

@@ -29,8 +29,8 @@ func TestProvision_NilAndEmptyInputs(t *testing.T) {
 	}
 }
 
-func TestProvision_NoDomainsTable(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "nodomains.db")
+func TestProvision_MissingHostTableIsFailure(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "nohosts.db")
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		t.Fatal(err)
@@ -41,8 +41,8 @@ func TestProvision_NoDomainsTable(t *testing.T) {
 	setBase(t, db, "app.example.com")
 
 	name, ok, err := Provision(db, 1, "acme")
-	if name != "" || ok || err != nil {
-		t.Errorf("expected false/nil when domains table missing, got (%q, %v, %v)", name, ok, err)
+	if name != "" || ok || err == nil {
+		t.Errorf("expected a failure when the host table is missing, got (%q, %v, %v)", name, ok, err)
 	}
 }
 
@@ -66,8 +66,8 @@ func TestRetire_NilAndEmptyAndNoTable(t *testing.T) {
 	dbNoDomains, _ := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: logger.Discard})
 	_ = dbNoDomains.AutoMigrate(&models.Setting{})
 	setBase(t, dbNoDomains, "app.example.com")
-	if err := Retire(dbNoDomains, 1, "test"); err != nil {
-		t.Errorf("expected nil when domains table missing, got %v", err)
+	if err := Retire(dbNoDomains, 1, "test"); err == nil {
+		t.Error("expected a failure when the host table is missing")
 	}
 }
 
@@ -78,7 +78,7 @@ func TestIsDuplicateKeyVariants(t *testing.T) {
 	if !isDuplicateKey(errors.New("ERROR: duplicate key value violates unique constraint \"idx_name\"")) {
 		t.Error("expected true for postgres duplicate key error string")
 	}
-	if !isDuplicateKey(errors.New("UNIQUE constraint failed: domains.name")) {
+	if !isDuplicateKey(errors.New("UNIQUE constraint failed: org_hosts.host")) {
 		t.Error("expected true for sqlite unique constraint error string")
 	}
 	if isDuplicateKey(errors.New("connection reset by peer")) {

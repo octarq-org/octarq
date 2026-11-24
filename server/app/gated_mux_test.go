@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestGatedMux(t *testing.T) {
@@ -165,17 +166,56 @@ func TestRecordingAPI_And_Collisions(t *testing.T) {
 	}
 }
 
-func TestIsNonWorkspaceRoute(t *testing.T) {
-	if !isNonWorkspaceRoute("/api/instance-settings") {
-		t.Errorf("expected /api/instance-settings to be non-workspace route")
+func TestIsPlatformReservedPath(t *testing.T) {
+	for _, path := range []string{
+		"/api/instance-settings",
+		"/api/instance/menus",
+		"/api/sso/login",
+		"/api/sso/acme/callback",
+		"/api/auth/login",
+		"/api/mcp/sse",
+		"/api/health",
+		"/api/status",
+	} {
+		if !isPlatformReservedPath(path) {
+			t.Errorf("expected %s to be a platform-reserved route", path)
+		}
 	}
-	if !isNonWorkspaceRoute("/api/sso/login") {
-		t.Errorf("expected /api/sso/login to be non-workspace route")
+	for _, path := range []string{"/api/customer/info", "/api/links", "/api/billing/config"} {
+		if isPlatformReservedPath(path) {
+			t.Errorf("expected %s NOT to be a platform-reserved route", path)
+		}
 	}
-	if !isNonWorkspaceRoute("/api/customer/info") {
-		t.Errorf("expected /api/customer/info to be non-workspace route")
+}
+
+func TestUnscopedMatcherExactAndPrefix(t *testing.T) {
+	matcher, err := newUnscopedMatcher([]plugin.Plugin{
+		unscopedStubPlugin{name: "commerce", prefixes: []string{"/api/license", "/api/storefront/"}},
+	})
+	if err != nil {
+		t.Fatalf("build matcher: %v", err)
 	}
-	if isNonWorkspaceRoute("/api/links") {
-		t.Errorf("expected /api/links to NOT be non-workspace route")
+	for _, path := range []string{"/api/license", "/api/storefront/checkout"} {
+		if !matcher.Matches(path) {
+			t.Errorf("expected %s to match a declaration", path)
+		}
+	}
+	for _, path := range []string{"/api/license/verify", "/api/storefront", "/api/links"} {
+		if matcher.Matches(path) {
+			t.Errorf("expected %s NOT to match a declaration", path)
+		}
+	}
+
+	if _, err := newUnscopedMatcher([]plugin.Plugin{
+		unscopedStubPlugin{name: "a", prefixes: []string{"/api/license"}},
+		unscopedStubPlugin{name: "b", prefixes: []string{"/api/license"}},
+	}); err == nil {
+		t.Error("duplicate declarations across plugins must fail startup")
+	}
+
+	if _, err := newUnscopedMatcher([]plugin.Plugin{
+		unscopedStubPlugin{name: "a", prefixes: []string{"/api"}},
+	}); err == nil {
+		t.Error("a too-broad declaration must fail startup")
 	}
 }

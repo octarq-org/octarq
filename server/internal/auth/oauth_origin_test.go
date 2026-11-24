@@ -14,14 +14,6 @@ import (
 	"github.com/octarq-org/octarq/server/origin"
 )
 
-type testDomain struct {
-	ID    uint   `gorm:"primarykey"`
-	OrgID uint   `gorm:"index"`
-	Name  string `gorm:"uniqueIndex"`
-}
-
-func (testDomain) TableName() string { return "domains" }
-
 func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
@@ -35,12 +27,11 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	db.Where("key LIKE ?", "oauth.%").Delete(&models.Setting{})
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
 
-	db.AutoMigrate(&testDomain{})
-	db.Where("1 = 1").Delete(&testDomain{})
-	if err := db.Create(&testDomain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
-		t.Fatalf("seed domain: %v", err)
+	db.Where("1 = 1").Delete(&models.OrgHost{})
+	if err := db.Create(&models.OrgHost{OrgID: 1, Host: "acme.example", Source: "test"}).Error; err != nil {
+		t.Fatalf("seed host: %v", err)
 	}
-	origin.ClearDomainCache("acme.example")
+	origin.ClearHostCache("acme.example")
 
 	h := NewOAuthHandler(db, m, &testAuthVault{secrets: map[string]string{"instance.oauth.google": "google-secret"}})
 
