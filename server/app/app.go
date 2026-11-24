@@ -91,6 +91,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		auth:            a.auth,
 		notifRouter:     notifRouter,
 		services:        services,
+		trustProxy:      a.cfg.TrustProxy,
 		geo:             a.geo,
 		endpointEngine:  endpointEngine,
 		taskQueue:       taskQueue,
@@ -245,6 +246,7 @@ func (a *App) Run(ctx context.Context) error {
 		auth:            a.auth,
 		notifRouter:     notifRouter,
 		services:        services,
+		trustProxy:      a.cfg.TrustProxy,
 		geo:             a.geo,
 		endpointEngine:  endpointEngine,
 		taskQueue:       taskQueue,
@@ -347,9 +349,6 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
-	}
-	if fn, ok := plugin.LookupServiceAs[plugin.TrustProxyProvider](services.Lookup, plugin.ServiceTrustProxy); ok {
-		fn(a.cfg.TrustProxy)
 	}
 	if eventsService, ok := plugin.LookupServiceAs[plugin.EventDispatcher](services.Lookup, plugin.ServiceEventsDispatch); ok {
 		runEventMu.Lock()

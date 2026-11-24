@@ -22,8 +22,6 @@ const ServiceCredentialResolver = "credential.resolver"
 
 const ServiceNotificationRouter = "notification.router"
 
-const ServiceTrustProxy = "net.trust_proxy"
-
 const ServiceCron = "cron.service"
 
 const ServiceHealthProvider = "health.provider"
@@ -63,8 +61,6 @@ type MessagingReady func() bool
 type EventDispatcher func(handler func(topic string, payload json.RawMessage))
 
 type UsageMeter func(orgID uint, metric string, n int64)
-
-type TrustProxyProvider func(bool)
 
 const (
 	MetricClicks   = "clicks"
