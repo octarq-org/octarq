@@ -9,13 +9,7 @@ Octarq 出站 Webhook 在当前工作区发生业务事件时，主动向外部�
 
 ## 订阅事件主题
 
-创建 Webhook 时，可以选择订阅特定事件主题，或使用通配符 `*` 接收当前工作区的全部事件：
-
-- `email.receive`：收到入站邮件并成功入库时触发。
-- `email.send_failed`：出站邮件投递失败或遭遇退信时触发。
-- `domain.verify_failed`：DNS 自动检测发现 SPF、DMARC 或 DKIM 记录异常时触发。
-- `link.click_limit`：短链访问达到设定点击上限时触发。
-- `abuse.report`：收到针对短链或邮箱的滥用举报时触发。
+创建 Webhook 时，选择要接收的事件，或使用通配符 `*` 接收当前工作区的全部事件。已安装的插件发布本实例能发送的事件。打开 Webhook 表单中的事件列表可查看当前主题。
 
 ## 验证 Webhook 签名
 
