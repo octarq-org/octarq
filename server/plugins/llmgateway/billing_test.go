@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	vkToken   = virtualKeyPrefix + "valid"
+	vkToken   = "sk-octarq-valid"
 	usageJSON = `{"id":"chatcmpl-bill","model":"stub-model","choices":[{"message":{"content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":30,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":10}}}`
 )
 
@@ -523,19 +523,20 @@ func TestVirtualKeyFromAnthropicAndGeminiHeaders(t *testing.T) {
 
 	t.Run("key query parameter", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/v1/models?key="+neturl.QueryEscape(vkToken), nil)
-		token, ok := extractVirtualKey(req)
+		token, ok := extractAgentToken(req)
 		if !ok || token != vkToken {
-			t.Fatalf("extractVirtualKey = %q %v, want the query key", token, ok)
+			t.Fatalf("extractAgentToken = %q %v, want the query key", token, ok)
 		}
 	})
 }
 
-func TestVirtualKeyHeaderSourcesFallThrough(t *testing.T) {
+func TestAgentTokenHeaderSources(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v1/models?key=plain", nil)
 	req.Header.Set("x-api-key", "plain")
 	req.Header.Set("x-goog-api-key", "plain")
-	if _, ok := extractVirtualKey(req); ok {
-		t.Fatal("a non-virtual key was accepted from a header or the query")
+	token, ok := extractAgentToken(req)
+	if !ok || token != "plain" {
+		t.Fatalf("extractAgentToken = %q %v, want the non-prefixed token for the ledger to reject", token, ok)
 	}
 }
 

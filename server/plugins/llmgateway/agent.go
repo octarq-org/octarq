@@ -22,7 +22,6 @@ const (
 	AgentChatPath      = "/v1/chat/completions"
 	agentMaxBody       = 16 << 20
 	agentListTimeout   = 15 * time.Second
-	virtualKeyPrefix   = "sk-octarq-"
 	spendSourceProxy   = "gateway_api"
 	spendWriteTimeout  = 10 * time.Second
 	streamUsageTailCap = 1 << 20
@@ -41,19 +40,19 @@ func spendAccountFromContext(ctx context.Context) *plugin.SpendAccountAuth {
 	return acct
 }
 
-func extractVirtualKey(r *http.Request) (string, bool) {
+func extractAgentToken(r *http.Request) (string, bool) {
 	auth := strings.TrimSpace(r.Header.Get("Authorization"))
 	if len(auth) >= 7 && strings.EqualFold(auth[:7], "bearer ") {
-		if token := strings.TrimSpace(auth[7:]); strings.HasPrefix(token, virtualKeyPrefix) {
+		if token := strings.TrimSpace(auth[7:]); token != "" {
 			return token, true
 		}
 	}
 	for _, name := range []string{"x-api-key", "x-goog-api-key"} {
-		if token := strings.TrimSpace(r.Header.Get(name)); strings.HasPrefix(token, virtualKeyPrefix) {
+		if token := strings.TrimSpace(r.Header.Get(name)); token != "" {
 			return token, true
 		}
 	}
-	if token := strings.TrimSpace(r.URL.Query().Get("key")); strings.HasPrefix(token, virtualKeyPrefix) {
+	if token := strings.TrimSpace(r.URL.Query().Get("key")); token != "" {
 		return token, true
 	}
 	return "", false
@@ -62,12 +61,17 @@ func extractVirtualKey(r *http.Request) (string, bool) {
 func (p *Plugin) virtualKeyMiddleware(guard func(http.Handler) http.Handler, next http.Handler) http.Handler {
 	guarded := guard(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, ok := extractVirtualKey(r)
+		token, ok := extractAgentToken(r)
 		if !ok || p.pctx == nil || p.pctx.Host == nil || p.pctx.Host.SpendLedger() == nil {
 			guarded.ServeHTTP(w, r)
 			return
 		}
-		acct, err := p.pctx.Host.SpendLedger().ResolveVirtualKey(r.Context(), token)
+		ledger := p.pctx.Host.SpendLedger()
+		if !ledger.IsVirtualKey(token) {
+			guarded.ServeHTTP(w, r)
+			return
+		}
+		acct, err := ledger.ResolveVirtualKey(r.Context(), token)
 		if errors.Is(err, plugin.ErrSpendAccountPaused) || errors.Is(err, plugin.ErrSpendBudgetExhausted) {
 			writeAgentError(w, http.StatusPaymentRequired, "billing_error", "The spend account is paused or has exhausted its budget.")
 			return

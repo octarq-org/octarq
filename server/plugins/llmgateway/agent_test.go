@@ -661,6 +661,10 @@ func (m *mockGatewaySpendLedger) RecordSpend(_ context.Context, _ uint, spend pl
 	return &plugin.SpendRecord{CostUSD: 0.01, BudgetUsed: 1.01, BudgetLimit: 50}, nil
 }
 
+func (m *mockGatewaySpendLedger) IsVirtualKey(rawToken string) bool {
+	return strings.HasPrefix(rawToken, "sk-octarq-")
+}
+
 func (m *mockGatewaySpendLedger) ResolveVirtualKey(_ context.Context, rawToken string) (*plugin.SpendAccountAuth, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -786,13 +790,13 @@ func TestVirtualKeyHelperEdges(t *testing.T) {
 	}
 	reqNoBearer, _ := http.NewRequest(http.MethodGet, "/v1/models", nil)
 	reqNoBearer.Header.Set("Authorization", "Basic abc")
-	if _, ok := extractVirtualKey(reqNoBearer); ok {
+	if _, ok := extractAgentToken(reqNoBearer); ok {
 		t.Fatal("non-bearer header should not match")
 	}
-	reqNonVK, _ := http.NewRequest(http.MethodGet, "/v1/models", nil)
-	reqNonVK.Header.Set("Authorization", "Bearer regular-token")
-	if _, ok := extractVirtualKey(reqNonVK); ok {
-		t.Fatal("non-virtual-key bearer should not match")
+	reqBearer, _ := http.NewRequest(http.MethodGet, "/v1/models", nil)
+	reqBearer.Header.Set("Authorization", "Bearer regular-token")
+	if token, ok := extractAgentToken(reqBearer); !ok || token != "regular-token" {
+		t.Fatalf("bearer token = %q, %v", token, ok)
 	}
 	if isModelAllowed("", []string{"gpt-4o"}) {
 		t.Fatal("empty model should not be allowed")
