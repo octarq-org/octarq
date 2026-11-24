@@ -93,9 +93,9 @@ describe("AICopilotDrawer", () => {
 
     expect(screen.getByTestId("copilot-empty-state")).not.toBeNull();
 
-    expect(screen.getByText(/Analyze past 7 days link traffic trends/)).not.toBeNull();
-    expect(screen.getByText(/Check current DNS records/)).not.toBeNull();
-    expect(screen.getByText(/Summarize recent unread emails/)).not.toBeNull();
+    expect(screen.getByText(/Review pending approvals/)).not.toBeNull();
+    expect(screen.getByText(/Summarize recent activity/)).not.toBeNull();
+    expect(screen.getByText(/Check workspace health/)).not.toBeNull();
   });
 
   it("3. clicking a prompt card immediately sends the message and streams response", async () => {
@@ -120,7 +120,7 @@ describe("AICopilotDrawer", () => {
       </I18nProvider>,
     );
 
-    const dnsPill = screen.getByText(/Check current DNS records/);
+    const dnsPill = screen.getByText(/Check workspace health/);
     fireEvent.click(dnsPill);
 
     await waitFor(() => {

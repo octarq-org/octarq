@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { create } from "zustand";
-import { AlertCircle, Mail, Search, Send, Sparkles, Square, Sunrise, TrendingUp, Trash2, X } from "lucide-react";
+import { Activity, AlertCircle, CheckCircle2, ScrollText, Send, Server, Sparkles, Square, Trash2, X } from "lucide-react";
 import { cn } from "@octarq/plugin-sdk";
 import { useTranslation } from "../i18n";
 import { ThinkingCollapsible } from "./command/ThinkingCollapsible";
@@ -357,23 +357,23 @@ export function AICopilotDrawer() {
                 {[
                   {
                     id: "p0",
-                    icon: <Sunrise className="h-3.5 w-3.5" />,
-                    text: t("copilot.quickPrompt0", "生成 6 维晨间工作简报 (Briefing v2) 与多维异动播报"),
+                    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                    text: t("copilot.quickPrompt0", "Review pending approvals"),
                   },
                   {
                     id: "p1",
-                    icon: <TrendingUp className="h-3.5 w-3.5" />,
-                    text: t("copilot.quickPrompt1", "分析过去 7 天短链点击趋势与异常来源"),
+                    icon: <Activity className="h-3.5 w-3.5" />,
+                    text: t("copilot.quickPrompt1", "Summarize recent activity"),
                   },
                   {
                     id: "p2",
-                    icon: <Search className="h-3.5 w-3.5" />,
-                    text: t("copilot.quickPrompt2", "检查当前 DNS 记录与域名健康状态"),
+                    icon: <Server className="h-3.5 w-3.5" />,
+                    text: t("copilot.quickPrompt2", "Check workspace health"),
                   },
                   {
                     id: "p3",
-                    icon: <Mail className="h-3.5 w-3.5" />,
-                    text: t("copilot.quickPrompt3", "汇总最新未读邮件并生成摘要"),
+                    icon: <ScrollText className="h-3.5 w-3.5" />,
+                    text: t("copilot.quickPrompt3", "Show recent audit events"),
                   },
                 ].map((item) => (
                   <button
