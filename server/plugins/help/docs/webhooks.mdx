@@ -11,13 +11,7 @@ Octarq Outbound Webhooks stream real-time JSON event payloads to your external a
 
 ## Subscribe to Events
 
-When creating a webhook, choose specific events or subscribe to `*` for all workspace events:
-
-- `email.receive`: Dispatched when an inbound email is received and stored.
-- `email.send_failed`: Dispatched when an outbound email fails or bounces.
-- `domain.verify_failed`: Dispatched when DNS verification detects a problem with SPF, DMARC, or DKIM records.
-- `link.click_limit`: Dispatched when a short link reaches its click limit.
-- `abuse.report`: Dispatched when an abuse report is submitted.
+When you create a webhook, choose the events to receive, or use `*` for all workspace events. Installed plugins publish the events that this instance can send. Open the event list in the webhook form to see the current topics.
 
 ## Verify Webhook Signatures
 

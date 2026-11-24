@@ -27,9 +27,9 @@ func TestIsSubscribed(t *testing.T) {
 	}{
 		{"*", "link.click", true},
 		{"link.click", "link.click", true},
-		{"link.click,email.receive", "email.receive", true},
-		{"link.click, email.receive ", "email.receive", true},
-		{"link.click", "email.receive", false},
+		{"alpha.event,beta.event", "beta.event", true},
+		{"alpha.event, beta.event ", "beta.event", true},
+		{"alpha.event", "beta.event", false},
 		{"", "link.click", false},
 	}
 

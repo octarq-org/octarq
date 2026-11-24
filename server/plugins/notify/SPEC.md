@@ -65,4 +65,4 @@ configuration surface.
 - Not a channel *configurator* — configuration lives in Settings → Alerts
   (`/api/notification-channels`). This plugin only *sends*.
 - No per-user preference routing (that is `notification.Emit`, used by event
-  producers such as `mail.inbound`); `notify` targets every enabled channel.
+  producers such as an inbound-mail event published by a message plugin); `notify` targets every enabled channel.
