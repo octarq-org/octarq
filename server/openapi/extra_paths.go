@@ -55,7 +55,7 @@ func extraPaths() map[string]any {
 			"get": map[string]any{
 				"tags":        []any{"MCP"},
 				"summary":     "Model Context Protocol (SSE transport)",
-				"description": "Server-Sent Events transport for the MCP server, exposing read-only short-link, email and domain tools to AI clients. Authenticate with a bearer API token. Not a JSON endpoint: the response is an open event stream.",
+				"description": "Server-Sent Events transport for the MCP server, exposing read-only workspace tools to AI clients. Authenticate with a bearer API token. Not a JSON endpoint: the response is an open event stream.",
 				"responses": map[string]any{
 					"200":     map[string]any{"description": "SSE stream"},
 					"default": errorResponse,

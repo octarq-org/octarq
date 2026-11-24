@@ -41,10 +41,9 @@ func NewRootCmd(d Deps) *cobra.Command {
 		name = "octarq"
 	}
 	root := &cobra.Command{
-		Use:   name,
-		Short: "Single-binary ops platform (links · email · domains)",
-		Long: `Octarq is a single-binary ops platform serving an embedded dashboard,` +
-			` a JSON API, and a short-link redirector from one process.`,
+		Use:           name,
+		Short:         "Single-binary ops platform",
+		Long:          `Octarq is a single-binary ops platform serving an embedded dashboard and a JSON API from one process.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {

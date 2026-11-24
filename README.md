@@ -52,10 +52,6 @@ Three ways to use it:
 
 > One binary. No CGO. SQLite by default. `go:embed`'d dashboard. Extend without forking.
 
-<p align="center">
-  <img src="assets/screenshot-overview.png" alt="Octarq dashboard — click analytics, top links, geo and device breakdown, recent mail" width="900">
-</p>
-
 ---
 
 ## Quick start
