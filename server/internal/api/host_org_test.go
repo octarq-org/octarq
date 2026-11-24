@@ -45,10 +45,10 @@ func TestOrgIDForHostPrefersMostSpecificDomain(t *testing.T) {
 	h, _, db := newTestHandlerRaw(t)
 	const apexOrg, subOrg = uint(5101), uint(5102)
 
-	if err := db.Create(&domainRow{OrgID: apexOrg, Name: "acme.com"}).Error; err != nil {
+	if err := db.Create(&models.OrgHost{OrgID: apexOrg, Host: "acme.com", Source: "test"}).Error; err != nil {
 		t.Fatalf("seed apex: %v", err)
 	}
-	if err := db.Create(&domainRow{OrgID: subOrg, Name: "app.acme.com"}).Error; err != nil {
+	if err := db.Create(&models.OrgHost{OrgID: subOrg, Host: "app.acme.com", Source: "test"}).Error; err != nil {
 		t.Fatalf("seed sub: %v", err)
 	}
 
@@ -66,6 +66,35 @@ func TestOrgIDForHostPrefersMostSpecificDomain(t *testing.T) {
 		if got := h.orgIDForHost(host); got != want {
 			t.Errorf("orgIDForHost(%q) = %d, want %d", host, got, want)
 		}
+	}
+}
+
+func TestOrgIDForHostRejectsAmbiguousOwners(t *testing.T) {
+	h, _, db := newTestHandlerRaw(t)
+
+	var indexes []string
+	if err := db.Raw("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'org_hosts' AND sql IS NOT NULL").Scan(&indexes).Error; err != nil {
+		t.Fatalf("list indexes: %v", err)
+	}
+	for _, name := range indexes {
+		if err := db.Exec("DROP INDEX IF EXISTS " + name).Error; err != nil {
+			t.Fatalf("drop index %s: %v", name, err)
+		}
+	}
+	for _, row := range []models.OrgHost{
+		{OrgID: 1, Host: "shared.example", Source: "test"},
+		{OrgID: 2, Host: "shared.example", Source: "test"},
+	} {
+		if err := db.Create(&row).Error; err != nil {
+			t.Fatalf("seed ambiguous host: %v", err)
+		}
+	}
+
+	if got := h.orgIDForHost("shared.example"); got != 0 {
+		t.Errorf("orgIDForHost(ambiguous) = %d, want 0", got)
+	}
+	if got := h.orgIDForHost("app.shared.example"); got != 0 {
+		t.Errorf("orgIDForHost(ambiguous parent) = %d, want 0", got)
 	}
 }
 
@@ -110,8 +139,8 @@ func TestAuthConfigBrandsByHost(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const org = uint(5301)
 
-	if err := db.Create(&domainRow{OrgID: org, Name: "acme.com"}).Error; err != nil {
-		t.Fatalf("seed domain: %v", err)
+	if err := db.Create(&models.OrgHost{OrgID: org, Host: "acme.com", Source: "test"}).Error; err != nil {
+		t.Fatalf("seed host: %v", err)
 	}
 	if err := db.Save(&models.Setting{Key: keyAppName, Value: "Octarq Cloud"}).Error; err != nil {
 		t.Fatalf("seed instance name: %v", err)

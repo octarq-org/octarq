@@ -12,7 +12,7 @@ import (
 )
 
 func TestCoverageLiftNewDevWebProxyErrors(t *testing.T) {
-	db := domainsDB(t)
+	db := hostsDB(t)
 
 	badCfg := &config.Config{DevWebProxy: "://invalid-url"}
 	_, err := New(badCfg, db, mockAPI{}, nil, nil, nil, RuntimeSettings{})
@@ -46,7 +46,7 @@ func TestCoverageLiftNewDevWebProxyErrors(t *testing.T) {
 }
 
 func TestCoverageLiftSpecPathsAndInstance(t *testing.T) {
-	db := domainsDB(t, testDomain{Name: "short.ly", ForLink: true})
+	db := hostsDB(t, testOrgHost{Host: "short.ly", Traffic: true, Source: "test"})
 	webFS := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("<html>dashboard</html>")},
 	}
@@ -83,7 +83,7 @@ func TestCoverageLiftSpecPathsAndInstance(t *testing.T) {
 }
 
 func TestCoverageLiftRootFallbackAndAssets(t *testing.T) {
-	db := domainsDB(t)
+	db := hostsDB(t)
 	webFS := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("<html>dashboard</html>")},
 	}

@@ -37,7 +37,7 @@ func TestPluginGate(t *testing.T) {
 	cfg := &config.Config{SecretKey: "secret", AdminUser: "admin", AdminPassword: "pw"}
 	a := &App{auth: auth.New(cfg, crypto.New("secret")).WithDB(db)}
 
-	gate := a.pluginGate(pluginEnabledStub{enabled: func(orgID uint, key string) bool { return true }})
+	gate := a.pluginGate(pluginEnabledStub{enabled: func(orgID uint, key string) bool { return true }}, nil)
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	if allowed, scoped := gate(r, "x"); allowed || scoped {
@@ -49,7 +49,7 @@ func TestPluginGate(t *testing.T) {
 		t.Errorf("org-7 gate = (%v, %v), want (true, true)", allowed, scoped)
 	}
 
-	gateOff := a.pluginGate(pluginEnabledStub{enabled: func(orgID uint, key string) bool { return false }})
+	gateOff := a.pluginGate(pluginEnabledStub{enabled: func(orgID uint, key string) bool { return false }}, nil)
 	r = r.WithContext(plugin.WithOrgID(r.Context(), 9))
 	if allowed, scoped := gateOff(r, "x"); allowed || !scoped {
 		t.Errorf("org-9 disabled gate = (%v, %v), want (false, true)", allowed, scoped)

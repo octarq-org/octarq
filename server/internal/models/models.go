@@ -315,7 +315,7 @@ func AllModels() []any {
 		&Org{}, &User{}, &OrgMember{}, &UserIdentity{}, &UserSetting{}, &PluginSetting{},
 		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{}, &OrgSlugHistory{},
-		&Notification{}, &NotificationPreference{}, &File{},
+		&Notification{}, &NotificationPreference{}, &File{}, &OrgHost{},
 		&SchemaMigration{},
 	}
 }

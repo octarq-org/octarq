@@ -3,7 +3,6 @@ package tenancy
 import (
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/origin"
@@ -12,19 +11,7 @@ import (
 
 var ErrNameTaken = errors.New("tenant subdomain already taken")
 
-type domainRow struct {
-	ID        uint   `gorm:"primaryKey"`
-	OrgID     uint   `gorm:"column:owner_id"`
-	Name      string `gorm:"uniqueIndex;size:255"`
-	ForLink   bool
-	ForMail   bool
-	LinkHosts models.HostList `gorm:"type:text"`
-	MailHosts models.HostList `gorm:"type:text"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-func (domainRow) TableName() string { return "domains" }
+const hostSource = "core:tenancy"
 
 func Subdomain(db *gorm.DB, slug string) (string, bool) {
 	base := models.BaseDomain(db)
@@ -39,15 +26,22 @@ func Provision(db *gorm.DB, orgID uint, slug string) (name string, provisioned b
 		return "", false, nil
 	}
 	base := models.BaseDomain(db)
-	if base == "" || !db.Migrator().HasTable("domains") {
+	if base == "" {
 		return "", false, nil
 	}
 	name = strings.ToLower(slug) + "." + base
-	row := domainRow{
-		OrgID:     orgID,
-		Name:      name,
-		ForLink:   true,
-		LinkHosts: models.HostList{{Host: name, Enabled: true}},
+	var conflicts int64
+	if err := db.Model(&models.OrgHost{}).Where("host = ? AND owner_id <> ?", name, orgID).Count(&conflicts).Error; err != nil {
+		return "", false, err
+	}
+	if conflicts > 0 {
+		return "", false, ErrNameTaken
+	}
+	row := models.OrgHost{
+		OrgID:   orgID,
+		Host:    name,
+		Traffic: true,
+		Source:  hostSource,
 	}
 	if err := db.Create(&row).Error; err != nil {
 		if isDuplicateKey(err) {
@@ -55,7 +49,7 @@ func Provision(db *gorm.DB, orgID uint, slug string) (name string, provisioned b
 		}
 		return "", false, err
 	}
-	origin.ClearDomainCache(name)
+	origin.ClearHostCache(name)
 	return name, true, nil
 }
 
@@ -75,16 +69,16 @@ func Retire(db *gorm.DB, orgID uint, slug string) error {
 		return nil
 	}
 	base := models.BaseDomain(db)
-	if base == "" || !db.Migrator().HasTable("domains") {
+	if base == "" {
 		return nil
 	}
 	name := strings.ToLower(slug) + "." + base
-	res := db.Where("name = ? AND owner_id = ?", name, orgID).Delete(&domainRow{})
+	res := db.Where("host = ? AND owner_id = ? AND source = ?", name, orgID, hostSource).Delete(&models.OrgHost{})
 	if res.Error != nil {
 		return res.Error
 	}
 	if res.RowsAffected > 0 {
-		origin.ClearDomainCache(name)
+		origin.ClearHostCache(name)
 	}
 	return nil
 }

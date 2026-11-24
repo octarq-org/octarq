@@ -125,12 +125,13 @@ func TestCharacterization_RegisteredDomainLocksOutLoopback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&domainRow{}); err != nil {
+	if err := db.AutoMigrate(&testOrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if err := db.Create(&domainRow{
-		OrgID: 1,
-		Name:  "prod.example.com",
+	if err := db.Create(&testOrgHost{
+		OrgID:  1,
+		Host:   "prod.example.com",
+		Source: "test",
 	}).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -158,12 +159,12 @@ func TestCharacterization_OwnerResolutionSpecificity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&domainRow{}); err != nil {
+	if err := db.AutoMigrate(&testOrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	_ = db.Create(&domainRow{OrgID: 1, Name: "example.com"})
-	_ = db.Create(&domainRow{OrgID: 2, Name: "sub.example.com"})
+	_ = db.Create(&testOrgHost{OrgID: 1, Host: "example.com", Source: "test"})
+	_ = db.Create(&testOrgHost{OrgID: 2, Host: "sub.example.com", Source: "test"})
 
 	rv := NewResolver(db)
 

@@ -290,15 +290,10 @@ func TestRunSecretKeyFloor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed open: %v", err)
 	}
-	type testDomainRow struct {
-		ID      uint `gorm:"primaryKey"`
-		Name    string
-		ForLink bool
-	}
-	if err := seed.Table("domains").AutoMigrate(&testDomainRow{}); err != nil {
+	if err := seed.AutoMigrate(&models.OrgHost{}); err != nil {
 		t.Fatalf("seed migrate: %v", err)
 	}
-	seed.Table("domains").Create(&testDomainRow{Name: "example.com", ForLink: true})
+	seed.Create(&models.OrgHost{Host: "example.com", Traffic: true, Source: "test"})
 	sqlDB, _ := seed.DB()
 	sqlDB.Close()
 

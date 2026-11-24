@@ -23,7 +23,7 @@ func TestSecure(t *testing.T) {
 
 func TestResolverOwnerOfCaches(t *testing.T) {
 	clearAllCache()
-	db := testDB(t, acme())
+	db := testDB(t, acme()...)
 	var queries int
 	if err := db.Callback().Query().After("gorm:query").Register("test:count", func(tx *gorm.DB) {
 		queries++
@@ -56,7 +56,7 @@ func TestResolverOwnerOfCaches(t *testing.T) {
 }
 
 func TestResolverCaches(t *testing.T) {
-	db := testDB(t, acme())
+	db := testDB(t, acme()...)
 	var queries int
 	if err := db.Callback().Query().After("gorm:query").Register("test:count", func(tx *gorm.DB) {
 		queries++
@@ -102,32 +102,28 @@ func seedSetting(t *testing.T, db *gorm.DB, key, value string) {
 	}
 }
 
-func TestReservedZoneHostListsNeverMatch(t *testing.T) {
+func TestReservedZoneRowsDoNotBubbleIntoTheBase(t *testing.T) {
 	db := testDB(t,
-		testDomain{OrgID: 7, Name: "evil.com", LinkHosts: models.HostList{{Host: "victim7x.app.octarq.org", Enabled: true}}},
-		testDomain{OrgID: 8, Name: "spam.com", MailHosts: models.HostList{{Host: "victim8y.app.octarq.org", Enabled: true}}},
-		testDomain{OrgID: 9, Name: "quiet.com", LinkHosts: models.HostList{{Host: "off.app.octarq.org", Enabled: false}}},
-		testDomain{OrgID: 1, Name: "app.octarq.org"},
+		testOrgHost{OrgID: 7, Host: "evil.com", Source: "test"},
+		testOrgHost{OrgID: 8, Host: "spam.com", Source: "test"},
+		testOrgHost{OrgID: 1, Host: "app.octarq.org", Source: "test"},
 	)
 	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
 
-	for _, host := range []string{"victim7x.app.octarq.org", "victim8y.app.octarq.org"} {
+	for _, host := range []string{"victim7x.app.octarq.org", "victim8y.app.octarq.org", "off.app.octarq.org"} {
 		if org, ok := OwnerOf(db, host); ok || org != 0 {
 			t.Errorf("OwnerOf(%q) = (%d, %v), want (0, false)", host, org, ok)
 		}
 		if owned, ok := OwnedHost(db, 7, req(host)); ok {
-			t.Errorf("OwnedHost(org 7, %q) claimed it via a host list — want unowned", owned)
+			t.Errorf("OwnedHost(org 7, %q) claimed it via an out-of-zone row — want unowned", owned)
 		}
 	}
 
 	if host, ok := OwnedHost(db, 7, req("go.evil.com")); !ok || host != "go.evil.com" {
-		t.Errorf("OwnedHost(org 7, go.evil.com) = (%q, %v), want owned via the link host list", host, ok)
+		t.Errorf("OwnedHost(org 7, go.evil.com) = (%q, %v), want owned via the parent row", host, ok)
 	}
 	if org, ok := OwnerOf(db, "go.evil.com"); !ok || org != 7 {
 		t.Errorf("OwnerOf(go.evil.com) = (%d, %v), want (7, true)", org, ok)
-	}
-	if org, ok := OwnerOf(db, "off.app.octarq.org"); ok || org != 0 {
-		t.Errorf("OwnerOf(off.app.octarq.org) = (%d, %v), want (0, false)", org, ok)
 	}
 }
 
@@ -162,8 +158,8 @@ func TestBaseDomainCacheInvalidation(t *testing.T) {
 
 func TestReservedZoneStopsApexBubbling(t *testing.T) {
 	db := testDB(t,
-		testDomain{OrgID: 1, Name: "octarq.org"},
-		testDomain{OrgID: 7, Name: "acme7x.app.octarq.org"},
+		testOrgHost{OrgID: 1, Host: "octarq.org", Source: "test"},
+		testOrgHost{OrgID: 7, Host: "acme7x.app.octarq.org", Source: "test"},
 	)
 	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
 
@@ -177,8 +173,8 @@ func TestReservedZoneStopsApexBubbling(t *testing.T) {
 
 func TestReservedZoneDoesNotLeakThroughBaseRow(t *testing.T) {
 	db := testDB(t,
-		testDomain{OrgID: 1, Name: "octarq.org"},
-		testDomain{OrgID: 1, Name: "app.octarq.org"},
+		testOrgHost{OrgID: 1, Host: "octarq.org", Source: "test"},
+		testOrgHost{OrgID: 1, Host: "app.octarq.org", Source: "test"},
 	)
 	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
 
@@ -192,8 +188,8 @@ func TestReservedZoneDoesNotLeakThroughBaseRow(t *testing.T) {
 
 func TestOwnedHostReservedZoneIsolation(t *testing.T) {
 	db := testDB(t,
-		testDomain{OrgID: 1, Name: "app.octarq.org"},
-		testDomain{OrgID: 7, Name: "acme7x.app.octarq.org"},
+		testOrgHost{OrgID: 1, Host: "app.octarq.org", Source: "test"},
+		testOrgHost{OrgID: 7, Host: "acme7x.app.octarq.org", Source: "test"},
 	)
 	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
 
@@ -206,7 +202,7 @@ func TestOwnedHostReservedZoneIsolation(t *testing.T) {
 }
 
 func TestNoBaseDomainKeepsTodayBehaviour(t *testing.T) {
-	db := testDB(t, acme())
+	db := testDB(t, acme()...)
 	if org, ok := OwnerOf(db, "sub.app.acme.example"); !ok || org != 1 {
 		t.Errorf("OwnerOf(sub.app.acme.example) = (%d, %v), want (1, true)", org, ok)
 	}
@@ -216,7 +212,7 @@ func TestNoBaseDomainKeepsTodayBehaviour(t *testing.T) {
 }
 
 func TestAbsoluteAfterProvisioningUsesSharedHost(t *testing.T) {
-	db := testDB(t, testDomain{OrgID: 7, Name: "acme7x.app.octarq.org"})
+	db := testDB(t, testOrgHost{OrgID: 7, Host: "acme7x.app.octarq.org", Source: "test"})
 	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
 	t.Setenv("OCTARQ_SHARED_HOSTS", "app.octarq.org")
 	rv := NewResolver(db)
@@ -240,16 +236,17 @@ func TestCacheIsNamespacedPerDatabase(t *testing.T) {
 		t.Fatalf("Absolute on a whitelist-free instance with loopback host = %q, want \"http://localhost:8080\"", got)
 	}
 	if bare.AnyRegistered() {
-		t.Fatal("AnyRegistered on a database with no domains table")
+		t.Fatal("AnyRegistered on a database with no org_hosts table")
 	}
 
 	guardedDB := openDB(t, "guarded")
-	if err := guardedDB.AutoMigrate(&testDomain{}); err != nil {
+	if err := guardedDB.AutoMigrate(&testOrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	row := acme()
-	if err := guardedDB.Create(&row).Error; err != nil {
-		t.Fatalf("seed: %v", err)
+	for _, row := range acme() {
+		if err := guardedDB.Create(&row).Error; err != nil {
+			t.Fatalf("seed: %v", err)
+		}
 	}
 	guarded := NewResolver(guardedDB)
 	if !guarded.AnyRegistered() {

@@ -60,16 +60,8 @@ func TestCandidatesEdgeCases(t *testing.T) {
 
 func TestOwnerOfAmbiguityRejection(t *testing.T) {
 	db := testDB(t,
-		testDomain{
-			OrgID:   1,
-			Name:    "ambiguous.example.com",
-			ForLink: true,
-		},
-		testDomain{
-			OrgID:   2,
-			Name:    "ambiguous.example.com",
-			ForLink: true,
-		},
+		testOrgHost{OrgID: 1, Host: "ambiguous.example.com", Traffic: true, Source: "test"},
+		testOrgHost{OrgID: 2, Host: "ambiguous.example.com", Traffic: true, Source: "test"},
 	)
 
 	rv := NewResolver(db)
@@ -113,11 +105,12 @@ func TestSharedHost(t *testing.T) {
 	}
 }
 
-func TestClearDomainCache(t *testing.T) {
-	db := testDB(t, testDomain{
+func TestClearHostCache(t *testing.T) {
+	db := testDB(t, testOrgHost{
 		OrgID:   1,
-		Name:    "cached.example.com",
-		ForLink: true,
+		Host:    "cached.example.com",
+		Traffic: true,
+		Source:  "test",
 	})
 
 	rv := NewResolver(db)
@@ -125,10 +118,10 @@ func TestClearDomainCache(t *testing.T) {
 		t.Fatal("expected ServesTraffic to be true")
 	}
 
-	ClearDomainCache("")
+	ClearHostCache("")
 
-	ClearDomainCache("cached.example.com")
-	ClearDomainCache("sub.cached.example.com")
+	ClearHostCache("cached.example.com")
+	ClearHostCache("sub.cached.example.com")
 
 	if !rv.ServesTraffic("cached.example.com") {
 		t.Fatal("expected ServesTraffic to still work after cache clear and re-query")

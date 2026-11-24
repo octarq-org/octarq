@@ -21,6 +21,7 @@ func (noopHost) Crypto() CryptoVault     { return nil }
 func (noopHost) Settings() SettingsStore { return noopSettings{} }
 func (noopHost) Events() EventSpine      { return noopEvents{} }
 func (noopHost) TenantDB(uint) *TenantDB { return nil }
+func (noopHost) Hosts() HostRegistry     { return NoopHostRegistry() }
 
 func (noopHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) { return nil, nil }
 

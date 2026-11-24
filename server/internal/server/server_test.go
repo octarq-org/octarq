@@ -13,19 +13,17 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-type testDomain struct {
-	ID        uint `gorm:"primaryKey"`
-	OrgID     uint `gorm:"column:owner_id"`
-	Name      string
-	ForLink   bool
-	ForMail   bool
-	LinkHosts string
-	MailHosts string
+type testOrgHost struct {
+	ID      uint `gorm:"primaryKey"`
+	OrgID   uint `gorm:"column:owner_id"`
+	Host    string
+	Traffic bool
+	Source  string
 }
 
-func (testDomain) TableName() string { return "domains" }
+func (testOrgHost) TableName() string { return "org_hosts" }
 
-func domainsDB(t *testing.T, rows ...testDomain) *gorm.DB {
+func hostsDB(t *testing.T, rows ...testOrgHost) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
 	if err != nil {
@@ -34,7 +32,7 @@ func domainsDB(t *testing.T, rows ...testDomain) *gorm.DB {
 	if len(rows) == 0 {
 		return db
 	}
-	if err := db.AutoMigrate(&testDomain{}); err != nil {
+	if err := db.AutoMigrate(&testOrgHost{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	for i := range rows {
@@ -58,12 +56,10 @@ func TestServer(t *testing.T) {
 		"asset.css":  &fstest.MapFile{Data: []byte("css style")},
 	}
 
-	db := domainsDB(t, testDomain{
-		OrgID:     1,
-		Name:      "example.com",
-		ForLink:   true,
-		LinkHosts: `[{"host":"links.example.com","enabled":true}]`,
-	})
+	db := hostsDB(t,
+		testOrgHost{OrgID: 1, Host: "example.com", Source: "test"},
+		testOrgHost{OrgID: 1, Host: "links.example.com", Traffic: true, Source: "test"},
+	)
 
 	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
@@ -178,7 +174,7 @@ func TestServer(t *testing.T) {
 
 func TestMarketingEntryForwardsQueryString(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
-	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	srv, err := New(&config.Config{}, hostsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
 	}
@@ -206,7 +202,7 @@ func TestStaticMounts(t *testing.T) {
 		"index.html":    &fstest.MapFile{Data: []byte("portal index")},
 		"assets/app.js": &fstest.MapFile{Data: []byte("portal js")},
 	}
-	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS,
+	srv, err := New(&config.Config{}, hostsDB(t), mockAPI{}, nil, webFS,
 		[]StaticMount{{Prefix: "/portal", FS: portalFS}}, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
@@ -236,20 +232,12 @@ func TestStaticMounts(t *testing.T) {
 func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
 
-	db := domainsDB(t,
-		testDomain{
-			OrgID:     1,
-			Name:      "acme.example",
-			ForLink:   true,
-			LinkHosts: `[{"host":"go.acme.example","enabled":true},{"host":"old.acme.example","enabled":false}]`,
-		},
-		testDomain{
-			OrgID:     2,
-			Name:      "mail.example",
-			ForMail:   true,
-			MailHosts: `[{"host":"mx.mail.example","enabled":true}]`,
-		},
-		testDomain{OrgID: 3, Name: "short.example", ForLink: true},
+	db := hostsDB(t,
+		testOrgHost{OrgID: 1, Host: "acme.example", Source: "test"},
+		testOrgHost{OrgID: 1, Host: "go.acme.example", Traffic: true, Source: "test"},
+		testOrgHost{OrgID: 2, Host: "mail.example", Source: "test"},
+		testOrgHost{OrgID: 2, Host: "mx.mail.example", Traffic: true, Source: "test"},
+		testOrgHost{OrgID: 3, Host: "short.example", Traffic: true, Source: "test"},
 	)
 	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
@@ -286,7 +274,7 @@ func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 func TestStatusPageServesIndex(t *testing.T) {
 	const indexBody = "index html"
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(indexBody)}}
-	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	srv, err := New(&config.Config{}, hostsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
 	}
@@ -307,7 +295,7 @@ func TestStatusPageServesIndex(t *testing.T) {
 func TestInstanceConsoleServesIndex(t *testing.T) {
 	const indexBody = "index html"
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(indexBody)}}
-	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	srv, err := New(&config.Config{}, hostsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
 	}
@@ -327,12 +315,10 @@ func TestInstanceConsoleServesIndex(t *testing.T) {
 
 func TestStatusPageDisallowedHost(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
-	db := domainsDB(t, testDomain{
-		OrgID:     1,
-		Name:      "example.com",
-		ForLink:   true,
-		LinkHosts: `[{"host":"links.example.com","enabled":true}]`,
-	})
+	db := hostsDB(t,
+		testOrgHost{OrgID: 1, Host: "example.com", Source: "test"},
+		testOrgHost{OrgID: 1, Host: "links.example.com", Traffic: true, Source: "test"},
+	)
 	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
@@ -358,7 +344,7 @@ func TestStatusTierFor(t *testing.T) {
 
 func TestAgentAPIPathReachesTheAPIMux(t *testing.T) {
 	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
-	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	srv, err := New(&config.Config{}, hostsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
 	}

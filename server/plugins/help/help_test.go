@@ -59,6 +59,7 @@ func (h *stubHelpHost) Crypto() plugin.CryptoVault           { return nil }
 func (h *stubHelpHost) Settings() plugin.SettingsStore       { return nil }
 func (h *stubHelpHost) Events() plugin.EventSpine            { return nil }
 func (h *stubHelpHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
+func (h *stubHelpHost) Hosts() plugin.HostRegistry           { return plugin.NoopHostRegistry() }
 func (h *stubHelpHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) {
 	return nil, nil
 }
