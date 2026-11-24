@@ -50,6 +50,8 @@ func (s *stubSpendLedger) TurnCost(context.Context, uint, string) (func(input, o
 func (s *stubSpendLedger) RecordSpend(context.Context, uint, plugin.TurnSpend) (*plugin.SpendRecord, error) {
 	return &plugin.SpendRecord{}, nil
 }
+func (*stubSpendLedger) IsVirtualKey(string) bool { return true }
+
 func (s *stubSpendLedger) ResolveVirtualKey(context.Context, string) (*plugin.SpendAccountAuth, error) {
 	return &plugin.SpendAccountAuth{OrgID: 1, AccountID: "acc", Status: "active"}, nil
 }

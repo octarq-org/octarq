@@ -347,10 +347,7 @@ func (a *App) Run(ctx context.Context) error {
 	if err := a.verifyNoOrphanedPluginData(); err != nil {
 		return err
 	}
-	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "links.trust_proxy"); ok {
-		fn(a.cfg.TrustProxy)
-	}
-	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "dns.trust_proxy"); ok {
+	if fn, ok := plugin.LookupServiceAs[plugin.TrustProxyProvider](services.Lookup, plugin.ServiceTrustProxy); ok {
 		fn(a.cfg.TrustProxy)
 	}
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {

@@ -19,6 +19,7 @@ type SpendLedger interface {
 	AuthorizeTurn(ctx context.Context, orgID uint, accountID, model string) error
 	TurnCost(ctx context.Context, orgID uint, model string) (func(input, output, cacheRead, cacheWrite int) float64, error)
 	RecordSpend(ctx context.Context, orgID uint, spend TurnSpend) (*SpendRecord, error)
+	IsVirtualKey(rawToken string) bool
 	ResolveVirtualKey(ctx context.Context, rawToken string) (*SpendAccountAuth, error)
 }
 

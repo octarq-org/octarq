@@ -45,6 +45,8 @@ func (unavailableSpendLedger) RecordSpend(context.Context, uint, TurnSpend) (*Sp
 	return nil, ErrSpendUnavailable
 }
 
+func (unavailableSpendLedger) IsVirtualKey(string) bool { return false }
+
 func (unavailableSpendLedger) ResolveVirtualKey(context.Context, string) (*SpendAccountAuth, error) {
 	return nil, ErrSpendUnavailable
 }

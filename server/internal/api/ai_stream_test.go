@@ -516,6 +516,8 @@ func (f *fakeSpendLedger) TurnCost(context.Context, uint, string) (func(int, int
 	return func(int, int, int, int) float64 { return 0.001 }, nil
 }
 
+func (*fakeSpendLedger) IsVirtualKey(string) bool { return true }
+
 func (f *fakeSpendLedger) RecordSpend(_ context.Context, _ uint, in plugin.TurnSpend) (*plugin.SpendRecord, error) {
 	f.recorded = append(f.recorded, in)
 	if f.recordErr != nil {

@@ -21,6 +21,8 @@ const ServiceCredentialResolver = "credential.resolver"
 
 const ServiceNotificationRouter = "notification.router"
 
+const ServiceTrustProxy = "net.trust_proxy"
+
 const ServiceCron = "cron.service"
 
 const ServiceHealthProvider = "health.provider"
@@ -60,6 +62,8 @@ type MailReady func() bool
 type EmailDispatcher func(handler func(EmailEvent))
 
 type UsageMeter func(orgID uint, metric string, n int64)
+
+type TrustProxyProvider func(bool)
 
 const (
 	MetricClicks   = "clicks"
