@@ -35,7 +35,7 @@ type MCPProvider interface { Tools() []mcp.Tool }
 ```
 
 - **Auto-gating**: The host registers each plugin through `app.Use(p)`. Plugin routes are automatically gated by `gatedMux` (`server/app/app.go`): if a feature is toggled off for a workspace, the server immediately returns **404** before the handler executes.
-- **Strict isolation**: Plugins never import `internal/*`. All necessary capabilities are provided through `plugin.Context` (`DB`, `Guard`, `Encrypt`/`Decrypt`, `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `GetWorkspaceSetting`/`SetWorkspaceSetting`).
+- **Strict isolation**: Plugins never import `internal/*`. All necessary capabilities are provided through `plugin.Context` (`DB`, `Guard`, `Encrypt`/`Decrypt`, `Audit`, `Notify`, `GetWorkspaceSetting`/`SetWorkspaceSetting`), and cross-plugin capabilities come from services registered on the same context (`messaging.send`, `dns.manager`, `links.create`).
 - **Inter-plugin services**: A provider registers a service via `ctx.Provide("<plugin>.<service>", svc)` during `Mount`; consumers resolve dependencies lazily using `plugin.LookupAs[T]`.
 - **Preflight migration**: All plugin database models are inspected and migrated on startup (`server/app/preflight.go`), preventing conflicting table definitions across plugins.
 

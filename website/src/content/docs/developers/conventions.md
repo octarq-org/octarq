@@ -110,8 +110,8 @@ func (p *Plugin) Start(ctx context.Context) { /* ... */ }
   - `ctx.Encrypt` / `ctx.Decrypt`: AES-256-GCM authenticated encryption for sensitive settings.
   - `ctx.Audit`: Structured audit logging.
   - `ctx.Notify`: Notification dispatching to tenant users and instance admins.
-  - `ctx.SendMail` / `ctx.OnEmail`: Inbound and outbound email hooks.
-  - `ctx.DNS`: Programmatic DNS zone and record management.
+  - `messaging.send` / the event spine (`Host.Events().OnEvent`): outbound messages and inbound event topics, provided by plugins.
+  - `dns.manager` (`github.com/octarq-org/octarq-plugins/dns/contract`): programmatic DNS zone and record management.
   - `ctx.UserID(r)` / `ctx.OrgID(r)`: Request-scoped user and organization identifiers.
   - `ctx.GetWorkspaceSetting` / `ctx.SetWorkspaceSetting`: Workspace-scoped key-value configuration.
 

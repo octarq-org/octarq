@@ -15,8 +15,11 @@ import (
 func TestRecoveryMore(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
+	if (&Handler{}).mailReady() {
+		t.Error("mailReady() = true, want false when ServiceMessagingReady is not provided")
+	}
 	if h.mailReady() {
-		t.Error("mailReady() = true, want false when ServiceMessagingReady not provided")
+		t.Error("mailReady() = true, want false when no system sender is configured")
 	}
 
 	reg := plugin.NewRegistry()

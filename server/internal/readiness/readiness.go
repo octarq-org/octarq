@@ -34,14 +34,14 @@ func Evaluate(cfg *config.Config, mailReady, domainsRegistered, requireEmailVeri
 				"no domain is registered, so links are built from the request host as sent, with nothing to validate it against. Add the domain this instance is served on (Domains → Add domain) to have octarq reject hostnames it does not own"),
 		},
 		{
-			ID: "outbound-mail", Title: "outbound mail", FixPath: "/settings",
+			ID: "outbound-mail", Title: "outbound mail", FixPath: "/settings/plugins",
 			Status: boolStatus(mailReady),
 			Detail: boolDetail(mailReady,
 				"the system sender is available; password reset, email verification and invites can be delivered",
-				"no SMTP sender is configured, so the system sender is unavailable. Password-reset, verification and invite messages will not be delivered, and a locked-out user cannot recover their account. Configure an SMTP sender in Settings, or install a plugin that provides messaging.send"),
+				"no SMTP sender is configured, so the system sender is unavailable. Password-reset, verification and invite messages will not be delivered, and a locked-out user cannot recover their account. Configure a sender in the installed message plugin, or install one that provides messaging.send (Features)"),
 		},
 		{
-			ID: "registration", Title: "registration", FixPath: "/settings",
+			ID: "registration", Title: "registration", FixPath: "/settings/plugins",
 			Status: registrationStatus(requireEmailVerification, mailReady),
 			Detail: registrationDetail(requireEmailVerification, mailReady),
 		},
@@ -88,7 +88,7 @@ func registrationStatus(requireEmailVerification, mailReady bool) Status {
 
 func registrationDetail(requireEmailVerification, mailReady bool) string {
 	if requireEmailVerification && !mailReady {
-		return "registration is currently broken: new users will be stuck at the verification-email step, because the instance requires a verified email but no SMTP sender is configured. Configure a system sender (Mail → SMTP senders), or disable email verification (Instance settings)"
+		return "registration is currently broken: new users will be stuck at the verification-email step, because the instance requires a verified email but no SMTP sender is configured. Configure a system sender in the installed message plugin, or disable email verification (Instance settings)"
 	}
 	if !requireEmailVerification {
 		return "email verification is disabled, so sign-up does not depend on the system sender"

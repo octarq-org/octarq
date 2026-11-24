@@ -42,7 +42,7 @@ Explore official and reference plugins available for Octarq from the [octarq-plu
 
 ### 5. Mail Links (`octarq-plugin-maillink`)
 - **Category**: Agent-Native / Automation
-- **Description**: Reference plugin that intercepts incoming OTP and magic link emails via `OnEmail` hooks, creates short links, and exposes them as tools over MCP for Claude Code and Cursor.
+- **Description**: Reference plugin that intercepts incoming OTP and magic link emails via the `mail.inbound` event topic, creates short links, and exposes them as tools over MCP for Claude Code and Cursor.
 - **Repository**: [octarq-org/octarq-plugins/tree/main/maillink](https://github.com/octarq-org/octarq-plugins/tree/main/maillink)
 
 ---
