@@ -149,6 +149,29 @@ jobs:
             exit 1
           fi
 
+  agentlab:
+    name: Agent Lab
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/tools/agentlab
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/tools/agentlab/go.mod
+          cache: true
+          cache-dependency-path: server/tools/agentlab/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -race
+
   helpdocs:
     name: Help docs
     needs: changes
@@ -458,12 +481,12 @@ jobs:
   CI:
     name: CI
     if: always()
-    needs: [changes, lint, go, helpdocs, web, e2e, dist]
+    needs: [changes, lint, go, agentlab, helpdocs, web, e2e, dist]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs
         run: |
-          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.helpdocs.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}" "${{ needs.dist.result }}"; do
+          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.agentlab.result }}" "${{ needs.helpdocs.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}" "${{ needs.dist.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "Required job failed: $result"
               exit 1
