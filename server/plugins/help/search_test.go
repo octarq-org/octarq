@@ -558,3 +558,32 @@ func TestGetDocsWithoutContextFailsClosed(t *testing.T) {
 		t.Errorf("getDocs without plugin callbacks returned %d docs", len(docs))
 	}
 }
+
+func TestHelpSnippetWindowSnapsToWordBoundaries(t *testing.T) {
+	plain := "The quick brown fox " + strings.Repeat("lorem ipsum ", 20) + "webhook signature"
+	start := len([]rune(plain[:strings.Index(plain, "webhook")]))
+	section := helpSearchSection{
+		plain:  plain,
+		tokens: []helpSearchToken{{norm: "webhook", start: start, end: start + len([]rune("webhook"))}},
+	}
+
+	text, offsets := buildHelpSnippet(section, []string{"webhook"})
+	if len(offsets) != 1 {
+		t.Fatalf("expected one highlight, got %+v", offsets)
+	}
+	if !strings.Contains(text, "webhook") {
+		t.Fatalf("snippet lost the match: %q", text)
+	}
+	textStart := strings.Index(plain, text)
+	before := []rune(plain[:textStart])
+	after := []rune(plain[textStart+len(text):])
+	if len(before) > 0 && isSnippetWordRune(before[len(before)-1]) {
+		t.Errorf("snippet starts mid-word: %q", text)
+	}
+	if len(after) > 0 && isSnippetWordRune(after[0]) {
+		t.Errorf("snippet ends mid-word: %q", text)
+	}
+	if strings.HasPrefix(text, "orem") || strings.HasPrefix(text, "sum") {
+		t.Errorf("snippet starts mid-word: %q", text)
+	}
+}
