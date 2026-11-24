@@ -563,11 +563,12 @@ func buildHelpSnippet(section helpSearchSection, tokens []string) (string, [][2]
 			matches = append(matches, token)
 		}
 	}
-	start, end := helpSnippetWindow(len(runes), matches)
+	start, end := helpSnippetWindow(runes, matches)
 	return string(runes[start:end]), helpSnippetOffsets(matches, start, end)
 }
 
-func helpSnippetWindow(length int, matches []helpSearchToken) (int, int) {
+func helpSnippetWindow(runes []rune, matches []helpSearchToken) (int, int) {
+	length := len(runes)
 	if length <= helpSnippetRunes {
 		return 0, length
 	}
@@ -591,11 +592,21 @@ func helpSnippetWindow(length int, matches []helpSearchToken) (int, int) {
 	if start < 0 {
 		start = 0
 	}
+	for start > 0 && isSnippetWordRune(runes[start-1]) {
+		start--
+	}
 	end := start + helpSnippetRunes
 	if end > length {
 		end = length
 	}
+	for end < length && isSnippetWordRune(runes[end]) {
+		end++
+	}
 	return start, end
+}
+
+func isSnippetWordRune(r rune) bool {
+	return r < 128 && (r == '_' || r == '-' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'))
 }
 
 func helpSnippetOffsets(matches []helpSearchToken, start, end int) [][2]int {
