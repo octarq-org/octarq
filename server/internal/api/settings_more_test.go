@@ -79,6 +79,20 @@ func TestMetricsTokenAndRateLimits(t *testing.T) {
 		t.Errorf("RateLimits() = (%d, %d)", authRPM, apiRPM)
 	}
 
+	t.Setenv("OCTARQ_RATELIMIT_AUTH_RPM", "not-a-number")
+	t.Setenv("OCTARQ_RATELIMIT_API_RPM", "not-a-number")
+	authRPM, apiRPM = h.RateLimits()
+	if authRPM != defaultAuthRPM || apiRPM != defaultAPIRPM {
+		t.Errorf("invalid env RateLimits() = (%d, %d)", authRPM, apiRPM)
+	}
+
+	t.Setenv("OCTARQ_RATELIMIT_AUTH_RPM", "77")
+	t.Setenv("OCTARQ_RATELIMIT_API_RPM", "88")
+	authRPM, apiRPM = h.RateLimits()
+	if authRPM != 77 || apiRPM != 88 {
+		t.Errorf("env RateLimits() = (%d, %d), want (77, 88)", authRPM, apiRPM)
+	}
+
 	db.Save(&models.Setting{Key: keyRatelimitAuthRPM, Value: "120"})
 	db.Save(&models.Setting{Key: keyRatelimitAPIRPM, Value: "600"})
 	authRPM, apiRPM = h.RateLimits()
