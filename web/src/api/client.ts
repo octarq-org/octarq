@@ -134,9 +134,6 @@ export const api = {
     req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
   aiAssistStatus: () => req<{ configured: boolean; provider: string }>("GET", "/api/ai/assist/status"),
-  aiSuggestSlug: (target: string, title?: string) =>
-    req<{ slugs: string[] }>("POST", "/api/ai/assist/suggest-slug", { target, title }),
-  aiSummarizeEmail: (id: number) => req<{ summary: string }>("POST", `/api/ai/assist/summarize-email/${id}`),
 
   dnsProviders: () => req<string[]>("GET", "/api/dns/providers"),
   providerAccounts: () => req<ProviderAccount[]>("GET", "/api/provider-accounts"),

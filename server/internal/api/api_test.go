@@ -185,13 +185,6 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 		addr := net.JoinHostPort(sender.Host, strconv.Itoa(sender.Port))
 		return smtp.SendMail(addr, smtp.PlainAuth("", sender.User, string(pass), sender.Host), sender.FromEmail, []string{to}, []byte(msg.String()))
 	}))
-	reg.Provide(plugin.ServiceMailEmailGet, plugin.EmailGetter(func(orgID uint, id uint) (string, string, string, bool) {
-		var em testEmail
-		if err := db.Where("id = ?", id).First(&em).Error; err != nil {
-			return "", "", "", false
-		}
-		return em.FromAddr, em.Subject, em.Text, true
-	}))
 
 	srv := h.Routes()
 

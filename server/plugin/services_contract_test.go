@@ -8,7 +8,6 @@ func TestServiceNamesAreStableWireStrings(t *testing.T) {
 		{ServiceMailReady, "mail.ready"},
 		{ServiceMailSendSystem, "mail.send.system"},
 		{ServiceMailDispatcher, "mail.dispatcher"},
-		{ServiceMailEmailGet, "mail.email.get"},
 		{ServiceMailStorageProvider, "mail.storage_provider"},
 		{ServiceCloudUsage, "cloud.usage"},
 		{ServiceQuotaChecker, "quota.checker"},
