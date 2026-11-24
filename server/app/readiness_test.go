@@ -86,7 +86,7 @@ func TestReadinessReportFlagsSilentFailures(t *testing.T) {
 		if !ok {
 			t.Fatalf("%q reported as %q, want degraded — this is the case that boots silently broken", subject, statuses[subject])
 		}
-		if !strings.Contains(l.Detail, "domain") && !strings.Contains(l.Detail, "mail.send") {
+		if !strings.Contains(l.Detail, "domain") && !strings.Contains(l.Detail, "messaging.send") {
 			t.Errorf("%q degraded line gives no actionable next step: %s", subject, l.Detail)
 		}
 	}

@@ -231,33 +231,6 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
-	targetKeys := []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"}
-	var settings []models.Setting
-	if err := gdb.Where("key IN ?", targetKeys).Find(&settings).Error; err == nil && len(settings) > 0 {
-		var existingKeys []string
-		gdb.Model(&models.WorkspaceSetting{}).Where("org_id = ? AND key IN ?", 1, targetKeys).Pluck("key", &existingKeys)
-
-		existingMap := make(map[string]bool)
-		for _, k := range existingKeys {
-			existingMap[k] = true
-		}
-
-		var newWS []models.WorkspaceSetting
-
-		for _, s := range settings {
-			if !existingMap[s.Key] {
-				newWS = append(newWS, models.WorkspaceSetting{OrgID: 1, Key: s.Key, Value: s.Value})
-			}
-		}
-
-		if len(newWS) > 0 {
-			gdb.Create(&newWS)
-		}
-		if len(settings) > 0 {
-			gdb.Delete(&settings)
-		}
-	}
-
 	{
 		var flagged int64
 		gdb.Model(&models.User{}).Where("is_instance_admin = ?", true).Count(&flagged)
@@ -296,18 +269,6 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	return nil
 }
 
-type legacyDomainRow struct {
-	ID        uint            `gorm:"primaryKey"`
-	OrgID     uint            `gorm:"column:owner_id"`
-	Name      string          `gorm:"column:name"`
-	ForLink   bool            `gorm:"column:for_link"`
-	ForMail   bool            `gorm:"column:for_mail"`
-	LinkHosts models.HostList `gorm:"column:link_hosts;type:text"`
-	MailHosts models.HostList `gorm:"column:mail_hosts;type:text"`
-}
-
-func (legacyDomainRow) TableName() string { return "domains" }
-
 func backfillOrgHosts(gdb *gorm.DB) error {
 	if gdb == nil || !gdb.Migrator().HasTable("org_hosts") {
 		return nil
@@ -326,43 +287,6 @@ func backfillOrgHosts(gdb *gorm.DB) error {
 				host := origin.NormalizeHost(strings.ToLower(o.Slug) + "." + base)
 				if err := bindOrgHost(tx, o.ID, host, true, "core:tenancy"); err != nil {
 					return err
-				}
-			}
-		}
-
-		if !tx.Migrator().HasTable("domains") {
-			return nil
-		}
-		var domains []legacyDomainRow
-		if err := tx.Find(&domains).Error; err != nil {
-			return err
-		}
-		for _, d := range domains {
-			if d.OrgID == 0 {
-				continue
-			}
-			name := origin.NormalizeHost(d.Name)
-			if name == "" {
-				continue
-			}
-			linkHosts := d.LinkHosts.Enabled()
-			mailHosts := d.MailHosts.Enabled()
-			apexTraffic := (d.ForLink && len(linkHosts) == 0) || (d.ForMail && len(mailHosts) == 0)
-			if err := bindOrgHost(tx, d.OrgID, name, apexTraffic, "core:legacy-domains"); err != nil {
-				return err
-			}
-			if d.ForLink {
-				for _, h := range linkHosts {
-					if err := bindOrgHost(tx, d.OrgID, h, true, "core:legacy-domains"); err != nil {
-						return err
-					}
-				}
-			}
-			if d.ForMail {
-				for _, h := range mailHosts {
-					if err := bindOrgHost(tx, d.OrgID, h, true, "core:legacy-domains"); err != nil {
-						return err
-					}
 				}
 			}
 		}

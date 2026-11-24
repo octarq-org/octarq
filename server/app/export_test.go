@@ -29,7 +29,6 @@ type PluginContextTestParams struct {
 	EndpointEngine  *endpoint.Engine
 	TaskQueue       queue.Queue
 	CronEngine      *cron.Engine
-	SendMail        func(orgID uint, to, subject, htmlBody, textBody string) error
 	LoginByEmail    func(w http.ResponseWriter, r *http.Request, email string) (uint, error)
 	LoginByIdentity func(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error)
 	OnEventMu       *sync.Mutex
@@ -52,7 +51,6 @@ func (a *App) BuildPluginContext(p PluginContextTestParams) *plugin.Context {
 		endpointEngine:  p.EndpointEngine,
 		taskQueue:       p.TaskQueue,
 		cronEngine:      p.CronEngine,
-		sendMail:        p.SendMail,
 		loginByEmail:    p.LoginByEmail,
 		loginByIdentity: p.LoginByIdentity,
 		onEventMu:       p.OnEventMu,

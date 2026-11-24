@@ -34,14 +34,14 @@ func Evaluate(cfg *config.Config, mailReady, domainsRegistered, requireEmailVeri
 				"no domain is registered, so links are built from the request host as sent, with nothing to validate it against. Add the domain this instance is served on (Domains → Add domain) to have octarq reject hostnames it does not own"),
 		},
 		{
-			ID: "outbound-mail", Title: "outbound mail", FixPath: "/mail?tab=settings",
+			ID: "outbound-mail", Title: "outbound mail", FixPath: "/settings",
 			Status: boolStatus(mailReady),
 			Detail: boolDetail(mailReady,
 				"the system sender is available; password reset, email verification and invites can be delivered",
-				"no SMTP sender is configured, so the system sender is unavailable. Password-reset, verification and invite messages will not be delivered, and a locked-out user cannot recover their account. Configure an SMTP sender (Mail → SMTP senders) or mount a plugin providing mail.send"),
+				"no SMTP sender is configured, so the system sender is unavailable. Password-reset, verification and invite messages will not be delivered, and a locked-out user cannot recover their account. Configure an SMTP sender in Settings, or install a plugin that provides messaging.send"),
 		},
 		{
-			ID: "registration", Title: "registration", FixPath: "/mail?tab=settings",
+			ID: "registration", Title: "registration", FixPath: "/settings",
 			Status: registrationStatus(requireEmailVerification, mailReady),
 			Detail: registrationDetail(requireEmailVerification, mailReady),
 		},

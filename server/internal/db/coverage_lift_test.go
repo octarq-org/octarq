@@ -182,38 +182,22 @@ func TestCoverageLiftMigrateAndBackfill(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 
-	if err := gdb.AutoMigrate(&models.Setting{}, &models.WorkspaceSetting{}, &legacyDomainRow{}, &models.Org{}); err != nil {
+	if err := gdb.AutoMigrate(&models.Setting{}, &models.WorkspaceSetting{}, &models.Org{}); err != nil {
 		t.Fatalf("auto-migrate: %v", err)
 	}
 
 	gdb.Create(&models.Setting{Key: models.BaseDomainSetting, Value: "example.com"})
-
-	gdb.Create(&models.Setting{Key: "catch_all", Value: "val1"})
-	gdb.Create(&models.Setting{Key: "auto_wrap_links", Value: "val2"})
-	gdb.Create(&models.WorkspaceSetting{OrgID: 1, Key: "catch_all", Value: "existing_val"})
-
 	gdb.Create(&models.Org{Slug: "myorg"})
-	gdb.Create(&legacyDomainRow{
-		ID:        101,
-		OrgID:     1,
-		Name:      "sub1.example.com",
-		ForLink:   false,
-		LinkHosts: models.HostList{{Host: "sub1.example.com", Enabled: true}},
-	})
-	gdb.Create(&legacyDomainRow{
-		ID:        102,
-		OrgID:     9999,
-		Name:      "sub2.example.com",
-		ForLink:   false,
-		LinkHosts: models.HostList{},
-	})
 
 	if err := Migrate(gdb); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
-	var ws models.WorkspaceSetting
-	if err := gdb.Where("org_id = 1 AND key = ?", "auto_wrap_links").First(&ws).Error; err != nil {
-		t.Fatalf("expected migrated auto_wrap_links setting, got: %v", err)
+	var host models.OrgHost
+	if err := gdb.Where("host = ?", "myorg.example.com").First(&host).Error; err != nil {
+		t.Fatalf("expected the tenant host bound during migration, got: %v", err)
+	}
+	if !host.Traffic {
+		t.Error("the tenant host must serve traffic")
 	}
 }

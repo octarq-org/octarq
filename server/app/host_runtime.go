@@ -114,7 +114,6 @@ type pluginContextParams struct {
 	endpointEngine  *endpoint.Engine
 	taskQueue       queue.Queue
 	cronEngine      *cron.Engine
-	sendMail        func(orgID uint, to, subject, htmlBody, textBody string) error
 	loginByEmail    func(w http.ResponseWriter, r *http.Request, email string) (uint, error)
 	loginByIdentity func(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error)
 	onEventMu       *sync.Mutex
@@ -145,10 +144,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	pluginsList := params.plugins
 	if pluginsList == nil && a != nil {
 		pluginsList = a.plugins
-	}
-	sendMail := params.sendMail
-	if sendMail == nil && a != nil {
-		sendMail = a.sendMail
 	}
 	loginByEmail := params.loginByEmail
 	if loginByEmail == nil && a != nil {
@@ -284,8 +279,7 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				Available: m.Available,
 			})
 		},
-		Audit:    auditFn,
-		SendMail: sendMail,
+		Audit: auditFn,
 		SetLLMResolverForOrg: func(resolver func(orgID uint) (llmprovider.Provider, error)) {
 			if params.apiHandler != nil {
 				params.apiHandler.SetLLMResolverForOrg(resolver)

@@ -108,7 +108,7 @@ func TestMCPRemountUsesMinimalContext(t *testing.T) {
 	for _, name := range []string{
 		"Guard", "Notify", "RegisterNotifier",
 		"CacheSet", "CacheGet", "DeleteCache", "LoginByEmail", "LoginByIdentity", "BindIdentity",
-		"SendMail", "RecordUsage", "PluginActive", "FeatureActive", "ActivePlugins",
+		"RecordUsage", "PluginActive", "FeatureActive", "ActivePlugins",
 		"RegisterAuthMethod", "Audit", "ParseUA",
 	} {
 		if !isNilFunc(ctxField(minimal, name)) {
