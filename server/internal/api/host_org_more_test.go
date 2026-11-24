@@ -11,9 +11,9 @@ func TestOverviewMore(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
 	cookies := loginCookies(t, srv)
 
-	rec := do(srv, "GET", "/api/overview?includeBot=true", cookies, "")
+	rec := do(srv, "GET", "/api/overview", cookies, "")
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /api/overview?includeBot=true: got %d", rec.Code)
+		t.Fatalf("GET /api/overview: got %d", rec.Code)
 	}
 
 	rec = do(srv, "GET", "/api/overview", nil, "")

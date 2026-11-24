@@ -57,7 +57,7 @@ const settingsRefreshInterval = 30 * time.Second
 
 type RuntimeSettings struct {
 	MetricsToken func() string
-	RateLimits   func() (authRPM, apiRPM, redirectRPM int)
+	RateLimits   func() (authRPM, apiRPM int)
 	CORSOrigins  func() []string
 	PublicGET    func(path string) bool
 }
@@ -102,7 +102,8 @@ func (mw *middleware) refreshConfig(now time.Time) {
 		mw.metricsToken = strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
 	}
 	if mw.settings.RateLimits != nil {
-		mw.limiter.setLimits(mw.settings.RateLimits())
+		authRPM, apiRPM := mw.settings.RateLimits()
+		mw.limiter.setLimits(authRPM, apiRPM)
 	}
 	if mw.settings.CORSOrigins != nil {
 		mw.corsOrigins = mw.settings.CORSOrigins()

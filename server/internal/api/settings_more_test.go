@@ -74,17 +74,16 @@ func TestMetricsTokenAndRateLimits(t *testing.T) {
 		t.Errorf("MetricsToken() = %q, want my-secret-metrics-token", tok)
 	}
 
-	authRPM, apiRPM, redirRPM := h.RateLimits()
-	if authRPM != defaultAuthRPM || apiRPM != defaultAPIRPM || redirRPM != defaultRedirectRPM {
-		t.Errorf("RateLimits() = (%d, %d, %d)", authRPM, apiRPM, redirRPM)
+	authRPM, apiRPM := h.RateLimits()
+	if authRPM != defaultAuthRPM || apiRPM != defaultAPIRPM {
+		t.Errorf("RateLimits() = (%d, %d)", authRPM, apiRPM)
 	}
 
 	db.Save(&models.Setting{Key: keyRatelimitAuthRPM, Value: "120"})
 	db.Save(&models.Setting{Key: keyRatelimitAPIRPM, Value: "600"})
-	db.Save(&models.Setting{Key: keyRatelimitRedirRPM, Value: "1200"})
-	authRPM, apiRPM, redirRPM = h.RateLimits()
-	if authRPM != 120 || apiRPM != 600 || redirRPM != 1200 {
-		t.Errorf("custom RateLimits() = (%d, %d, %d)", authRPM, apiRPM, redirRPM)
+	authRPM, apiRPM = h.RateLimits()
+	if authRPM != 120 || apiRPM != 600 {
+		t.Errorf("custom RateLimits() = (%d, %d)", authRPM, apiRPM)
 	}
 
 	db.Save(&models.Setting{Key: keyRatelimitAuthRPM, Value: "not-a-number"})
@@ -127,16 +126,13 @@ func TestUpdateSettingsAndInboundToken(t *testing.T) {
 		t.Fatalf("member GET inbound-token: got %d, want 403", rec.Code)
 	}
 
-	rec = do(srv, "PUT", "/api/settings", memberCookies, `{"reservedMailboxes":"admin,support"}`)
+	rec = do(srv, "PUT", "/api/settings", memberCookies, `{"inboundToken":"denied"}`)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("member PUT /api/settings: got %d, want 403", rec.Code)
 	}
 
 	rec = do(srv, "PUT", "/api/settings", adminCookies, `{
-		"reservedMailboxes": "admin, billing, support",
-		"inboundToken": "custom-inbound-secret",
-		"catchAll": true,
-		"autoWrapLinks": true
+		"inboundToken": "custom-inbound-secret"
 	}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("admin PUT /api/settings: got %d (%s)", rec.Code, rec.Body.String())
@@ -164,9 +160,9 @@ func TestUpdateSettingsAndInboundToken(t *testing.T) {
 		t.Errorf("expected rotated uuid token, got %q", inbOut.InboundToken)
 	}
 
-	rec = do(srv, "PUT", "/api/settings", adminCookies, `{"catchAll":false,"autoWrapLinks":false}`)
+	rec = do(srv, "PUT", "/api/settings", adminCookies, `{}`)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("turn off catchAll: got %d", rec.Code)
+		t.Fatalf("empty settings update: got %d", rec.Code)
 	}
 	rec = do(srv, "GET", "/api/settings", adminCookies, "")
 	if rec.Code != http.StatusOK {
@@ -179,7 +175,6 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 	adminCookies := loginCookies(t, srv)
 
 	body := `{
-		"reservedSlugs": "billing, support, status",
 		"googleClientId": "google-client-id-123",
 		"googleClientSecret": "google-secret-456",
 		"githubClientId": "gh-client-id-123",
@@ -193,9 +188,7 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 		"metricsToken": "metrics-bearer-secret",
 		"ratelimitAuthRpm": 80,
 		"ratelimitApiRpm": 500,
-		"ratelimitRedirectRpm": 2000,
-		"publicCorsOrigins": "https://dashboard.octarq.io",
-		"systemSenderId": 1
+		"publicCorsOrigins": "https://dashboard.octarq.io"
 	}`
 	rec := do(srv, "PUT", "/api/instance-settings", adminCookies, body)
 	if rec.Code != http.StatusOK {
@@ -230,7 +223,6 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 		"googleClientSecret": "",
 		"githubClientSecret": "",
 		"metricsToken": "",
-		"systemSenderId": 0,
 		"allowRegistration": true,
 		"requireEmailVerification": false
 	}`
@@ -269,6 +261,45 @@ func TestDownloadBackup(t *testing.T) {
 	}
 	if disp := rec2.Header().Get("Content-Disposition"); disp == "" {
 		t.Errorf("missing Content-Disposition header in backup response")
+	}
+}
+
+func TestSettingsResponsesExposeNoBusinessKeys(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	admin := loginCookies(t, srv)
+
+	workspaceKeys := []string{"reservedMailboxes", "catchAll", "autoWrapLinks"}
+	instanceKeys := []string{"reservedSlugs", "builtinReserved", "ratelimitRedirectRpm", "systemSenderId"}
+
+	assertAbsent := func(label string, body []byte, keys []string) {
+		t.Helper()
+		var res map[string]any
+		if err := json.Unmarshal(body, &res); err != nil {
+			t.Fatalf("%s: decode response: %v", label, err)
+		}
+		for _, key := range keys {
+			if _, ok := res[key]; ok {
+				t.Errorf("%s response exposes removed key %q", label, key)
+			}
+		}
+	}
+
+	for _, method := range []string{"GET", "PUT"} {
+		payload := ""
+		if method == "PUT" {
+			payload = "{}"
+		}
+		rec := do(srv, method, "/api/settings", admin, payload)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s /api/settings: got %d (%s)", method, rec.Code, rec.Body.String())
+		}
+		assertAbsent(method+" /api/settings", rec.Body.Bytes(), workspaceKeys)
+
+		rec = do(srv, method, "/api/instance-settings", admin, payload)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s /api/instance-settings: got %d (%s)", method, rec.Code, rec.Body.String())
+		}
+		assertAbsent(method+" /api/instance-settings", rec.Body.Bytes(), instanceKeys)
 	}
 }
 

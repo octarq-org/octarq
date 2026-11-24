@@ -53,8 +53,7 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 	if !ok {
 		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
-	orgID, err := h.requireOrg(r)
-	if err != nil {
+	if _, err := h.requireOrg(r); err != nil {
 		return nil, err
 	}
 	org, err := h.currentOrg(r)
@@ -62,12 +61,9 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 		return nil, err
 	}
 	body := map[string]any{
-		"reservedMailboxes": h.GetWorkspaceSetting(orgID, keyReservedMailboxes),
-		"orgSlug":           org.Slug,
-		"tenantSubdomain":   h.tenantSubdomain(org.Slug),
-		"catchAll":          h.GetWorkspaceSetting(orgID, keyCatchAll) == "true",
-		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
-		"isInstanceAdmin":   h.isInstanceAdmin(r),
+		"orgSlug":         org.Slug,
+		"tenantSubdomain": h.tenantSubdomain(org.Slug),
+		"isInstanceAdmin": h.isInstanceAdmin(r),
 	}
 	if h.callerHoldsRole(r, authz.RoleAdmin) {
 		body["inboundTokenSet"] = org.InboundToken != ""
@@ -120,10 +116,7 @@ func (h *Handler) getInboundToken(ctx context.Context, input *GetInboundTokenInp
 }
 
 type UpdateSettingsInputBody struct {
-	ReservedMailboxes *string `json:"reservedMailboxes,omitempty"`
-	InboundToken      *string `json:"inboundToken,omitempty"`
-	CatchAll          *bool   `json:"catchAll,omitempty"`
-	AutoWrapLinks     *bool   `json:"autoWrapLinks,omitempty"`
+	InboundToken *string `json:"inboundToken,omitempty"`
 }
 
 type UpdateSettingsInput struct {
@@ -157,9 +150,6 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		return nil, err
 	}
 
-	if input.Body.ReservedMailboxes != nil {
-		h.SetWorkspaceSetting(orgID, keyReservedMailboxes, strings.Join(splitList(*input.Body.ReservedMailboxes), "\n"))
-	}
 	if input.Body.InboundToken != nil {
 		tok := strings.TrimSpace(*input.Body.InboundToken)
 		if tok == "" {
@@ -167,34 +157,10 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		}
 		h.db.Model(&models.Org{}).Where("id = ?", orgID).Update("inbound_token", tok)
 	}
-	if input.Body.CatchAll != nil {
-		val := "false"
-		if *input.Body.CatchAll {
-			val = "true"
-		}
-		h.SetWorkspaceSetting(orgID, keyCatchAll, val)
-	}
-
-	if input.Body.AutoWrapLinks != nil {
-		val := "false"
-		if *input.Body.AutoWrapLinks {
-			val = "true"
-		}
-		h.SetWorkspaceSetting(orgID, keyAutoWrapLinks, val)
-	}
 
 	meta := make(map[string]any)
-	if input.Body.ReservedMailboxes != nil {
-		meta["reservedMailboxes"] = *input.Body.ReservedMailboxes
-	}
 	if input.Body.InboundToken != nil {
 		meta["inboundToken"] = "[REDACTED]"
-	}
-	if input.Body.CatchAll != nil {
-		meta["catchAll"] = *input.Body.CatchAll
-	}
-	if input.Body.AutoWrapLinks != nil {
-		meta["autoWrapLinks"] = *input.Body.AutoWrapLinks
 	}
 	h.audit(r, "settings.update", "settings", 0, meta)
 
@@ -204,13 +170,10 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 	}
 	out := &UpdateSettingsOutput{
 		Body: map[string]any{
-			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
-			"orgSlug":           org.Slug,
-			"tenantSubdomain":   h.tenantSubdomain(org.Slug),
-			"inboundTokenSet":   org.InboundToken != "",
-			"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
-			"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
-			"isInstanceAdmin":   h.isInstanceAdmin(r),
+			"orgSlug":         org.Slug,
+			"tenantSubdomain": h.tenantSubdomain(org.Slug),
+			"inboundTokenSet": org.InboundToken != "",
+			"isInstanceAdmin": h.isInstanceAdmin(r),
 		},
 	}
 	return out, nil

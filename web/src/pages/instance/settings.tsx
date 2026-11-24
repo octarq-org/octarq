@@ -1,7 +1,7 @@
-import { Field, PageShell, PageSection, PageCard, Button, Select, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
+import { Field, PageShell, PageSection, PageCard, Button, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
-import { api, type SMTPSender } from "../../api";
-import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
+import { api } from "../../api";
+import { Send } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { InstanceVaultSection } from "./InstanceVaultSection";
 import { useInstanceSettings } from "./shared";
@@ -15,12 +15,8 @@ export function InstanceSettings() {
   const [sharedHosts, setSharedHosts] = useState("");
   const [retention, setRetention] = useState(90);
   const [publicCorsOrigins, setPublicCorsOrigins] = useState("");
-  const [reservedSlugs, setReservedSlugs] = useState("");
-  const [systemSenderId, setSystemSenderId] = useState<number>(0);
-  const [senders, setSenders] = useState<SMTPSender[]>([]);
   const [rlAuth, setRlAuth] = useState(60);
   const [rlApi, setRlApi] = useState(600);
-  const [rlRedirect, setRlRedirect] = useState(6000);
   const [metricsToken, setMetricsToken] = useState("");
   const [metricsTokenSet, setMetricsTokenSet] = useState(false);
 
@@ -31,7 +27,6 @@ export function InstanceSettings() {
 
   useEffect(() => {
     api.instanceBuild?.().then(setBuild).catch(() => {});
-    api.smtpSenders?.().then(setSenders).catch(() => setSenders([]));
   }, []);
 
   useEffect(() => {
@@ -41,11 +36,8 @@ export function InstanceSettings() {
       setSharedHosts(settings.sharedHosts ?? "");
       setRetention(settings.dataRetentionDays ?? 90);
       setPublicCorsOrigins(settings.publicCorsOrigins ?? "");
-      setReservedSlugs(settings.reservedSlugs ?? "");
-      setSystemSenderId(settings.systemSenderId ?? 0);
       setRlAuth(settings.ratelimitAuthRpm ?? 60);
       setRlApi(settings.ratelimitApiRpm ?? 600);
-      setRlRedirect(settings.ratelimitRedirectRpm ?? 6000);
       setMetricsTokenSet(settings.metricsTokenSet ?? false);
     }
   }, [settings]);
@@ -59,11 +51,8 @@ export function InstanceSettings() {
         sharedHosts,
         dataRetentionDays: retention,
         publicCorsOrigins,
-        reservedSlugs,
-        systemSenderId,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
-        ratelimitRedirectRpm: rlRedirect,
         ...(metricsToken ? { metricsToken } : {}),
       };
       const v = await api.updateInstanceSettings(payload);
@@ -154,44 +143,17 @@ export function InstanceSettings() {
                 placeholder={t("settings.instancePublicCorsOriginsPlaceholder")}
               />
             </Field>
-            <Field label={t("settings.instanceSystemSender")} hint={t("settings.instanceSystemSenderHint")}>
-              <div className="flex gap-2">
-                <Select
-                  className="text-sm"
-                  value={String(systemSenderId)}
-                  onValueChange={(v) => setSystemSenderId(Number(v))}
-                  options={[
-                    { value: "0", label: t("settings.instanceSystemSenderDefault") },
-                    ...senders.map((s) => ({
-                      value: String(s.id),
-                      label: `${s.name} (${s.fromEmail || s.user || s.host})`,
-                    })),
-                  ]}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0 text-xs gap-1.5"
-                  onClick={() => setTestingMail(true)}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  {t("settings.instanceTestMailBtn")}
-                </Button>
-              </div>
-            </Field>
-            <div className="md:col-span-2">
-              <Field
-                label={t("settings.reservedSlugsLabel")}
-                hint={t("settings.reservedSlugsHint", { list: (settings.builtinReserved || []).join(", ") })}
+            <Field label={t("settings.instanceTestMailLabel")} hint={t("settings.instanceTestMailDesc")}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-fit text-xs gap-1.5"
+                onClick={() => setTestingMail(true)}
               >
-                <Input
-                  className="font-mono text-sm"
-                  value={reservedSlugs}
-                  onChange={(e) => setReservedSlugs(e.target.value)}
-                  placeholder={t("settings.instanceReservedSlugsPlaceholder")}
-                />
-              </Field>
-            </div>
+                <Send className="h-3.5 w-3.5" />
+                {t("settings.instanceTestMailBtn")}
+              </Button>
+            </Field>
           </div>
 
           <Field
@@ -242,7 +204,7 @@ export function InstanceSettings() {
         description={t("settings.instanceRlHint")}
       >
         <PageCard className="mt-0 space-y-6 p-5">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <Field label={t("settings.instanceRlAuth")}>
               <Input
                 type="number"
@@ -259,15 +221,6 @@ export function InstanceSettings() {
                 className="font-mono text-sm"
                 value={rlApi}
                 onChange={(e) => setRlApi(Number(e.target.value))}
-              />
-            </Field>
-            <Field label={t("settings.instanceRlRedirect")}>
-              <Input
-                type="number"
-                min={0}
-                className="font-mono text-sm"
-                value={rlRedirect}
-                onChange={(e) => setRlRedirect(Number(e.target.value))}
               />
             </Field>
           </div>

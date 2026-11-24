@@ -34,7 +34,7 @@ func comprehensiveTestSettings(t *testing.T, srv http.Handler, cookies []*http.C
 		t.Errorf("get settings failed: got %d", rec.Code)
 	}
 
-	body := `{"catchAll":true}`
+	body := `{}`
 	reqPut := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 	for _, c := range cookies {
 		reqPut.AddCookie(c)

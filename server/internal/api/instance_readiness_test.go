@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/config"
-	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 type readinessCheckWire struct {
@@ -163,64 +162,5 @@ func TestMeReportsIsInstanceAdmin(t *testing.T) {
 	}
 	if memberMe.IsInstanceAdmin {
 		t.Fatal("me as member: isInstanceAdmin = true, want false")
-	}
-}
-
-func TestInstanceSettingsSystemSenderIDRoundTrip(t *testing.T) {
-	srv, db := newTestHandler(t)
-	admin := loginCookies(t, srv)
-
-	rec := do(srv, "GET", "/api/instance-settings", admin, "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("get instance settings: got %d (%s)", rec.Code, rec.Body.String())
-	}
-	var body map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if v, _ := body["systemSenderId"].(float64); v != 0 {
-		t.Fatalf("fresh instance systemSenderId = %v, want 0", v)
-	}
-
-	rec = do(srv, "PUT", "/api/instance-settings", admin, `{"systemSenderId":7}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("put instance settings: got %d (%s)", rec.Code, rec.Body.String())
-	}
-	var setting models.Setting
-	if err := db.First(&setting, "key = ?", keySystemSenderID).Error; err != nil {
-		t.Fatalf("setting row missing: %v", err)
-	}
-	if setting.Value != "7" {
-		t.Fatalf("stored value = %q, want 7", setting.Value)
-	}
-
-	rec = do(srv, "GET", "/api/instance-settings", admin, "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("get instance settings: got %d", rec.Code)
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if v, _ := body["systemSenderId"].(float64); v != 7 {
-		t.Fatalf("systemSenderId after set = %v, want 7", v)
-	}
-
-	const org = uint(101)
-	memberUID := seedOrgMember(t, db, org, "member@x.com", "member")
-	rec = do(srv, "PUT", "/api/instance-settings", sessionCookies(t, memberUID, org), `{"systemSenderId":7}`)
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("member put instance settings: got %d, want 403", rec.Code)
-	}
-
-	rec = do(srv, "PUT", "/api/instance-settings", admin, `{"systemSenderId":0}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("clear instance settings: got %d (%s)", rec.Code, rec.Body.String())
-	}
-	rec = do(srv, "GET", "/api/instance-settings", admin, "")
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if v, _ := body["systemSenderId"].(float64); v != 0 {
-		t.Fatalf("systemSenderId after clear = %v, want 0", v)
 	}
 }

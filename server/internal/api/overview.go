@@ -11,8 +11,7 @@ import (
 )
 
 type OverviewInput struct {
-	Ctx        huma.Context `hidden:"true"`
-	IncludeBot bool         `query:"includeBot"`
+	Ctx huma.Context `hidden:"true"`
 }
 
 func (i *OverviewInput) Resolve(ctx huma.Context) []error {
@@ -39,7 +38,6 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	if err != nil {
 		return nil, err
 	}
-	includeBot := input.IncludeBot
 
 	count := func(model any, conds ...any) int64 {
 		var n int64
@@ -52,8 +50,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	}
 
 	outMap := map[string]any{
-		"tokens":     count(&models.Token{}),
-		"includeBot": includeBot,
+		"tokens": count(&models.Token{}),
 	}
 
 	for _, p := range h.plugins {
@@ -61,7 +58,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 			continue
 		}
 		if fn, ok := plugin.LookupServiceAs[plugin.OverviewFunc](h.LookupService, plugin.OverviewServiceName(p.Name())); ok {
-			for k, val := range fn(org, includeBot) {
+			for k, val := range fn(org) {
 				if _, exists := outMap[k]; exists {
 					log.Printf("[overview] warning: plugin %s overwrites existing overview key %q", p.Name(), k)
 				}

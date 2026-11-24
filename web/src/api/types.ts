@@ -228,7 +228,6 @@ export interface SubsystemStatusResponse {
 
 export interface Overview extends Record<string, unknown> {
   tokens?: number;
-  includeBot?: boolean;
   links?: number;
   activeLinks?: number;
   domains?: number;
@@ -243,20 +242,12 @@ export interface Overview extends Record<string, unknown> {
   botClicks7d?: number;
   botClicks30d?: number;
   series?: StatKV[] | null;
-  topLinks?: { id: number; slug: string; host: string; title: string; tags: string; clicks: number }[] | null;
-  devices?: StatKV[] | null;
-  countries?: StatKV[] | null;
-  cities?: StatKV[] | null;
-  recentEmails?: { id: number; from: string; subject: string; read: boolean; receivedAt: string }[] | null;
 }
 
 export interface Settings {
-  reservedMailboxes: string;
   orgSlug: string;
   tenantSubdomain?: string;
   inboundTokenSet?: boolean;
-  catchAll: boolean;
-  autoWrapLinks: boolean;
   isInstanceAdmin: boolean;
 }
 
@@ -269,8 +260,6 @@ export interface ReadinessCheck {
 }
 
 export interface InstanceSettings {
-  reservedSlugs: string;
-  builtinReserved: string[];
   googleClientId: string;
   googleClientSecretSet: boolean;
   githubClientId: string;
@@ -284,9 +273,7 @@ export interface InstanceSettings {
   metricsTokenSet: boolean;
   ratelimitAuthRpm: number;
   ratelimitApiRpm: number;
-  ratelimitRedirectRpm: number;
   publicCorsOrigins?: string;
-  systemSenderId?: number;
 }
 
 export interface Org {

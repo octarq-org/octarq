@@ -8,16 +8,11 @@ import { InstanceSettings } from "../instance/settings";
 vi.mock("../../api", () => {
   const api = {
     settings: vi.fn(async () => ({
-      reservedMailboxes: "",
       orgSlug: "acme",
       tenantSubdomain: "acme.app.example.com",
-      catchAll: false,
-      autoWrapLinks: false,
       isInstanceAdmin: true,
     })),
     instanceSettings: vi.fn(async () => ({
-      reservedSlugs: "",
-      builtinReserved: [],
       googleClientId: "",
       googleClientSecretSet: false,
       githubClientId: "",
@@ -30,7 +25,6 @@ vi.mock("../../api", () => {
       metricsTokenSet: false,
       ratelimitAuthRpm: 60,
       ratelimitApiRpm: 600,
-      ratelimitRedirectRpm: 6000,
     })),
     updateInstanceSettings: vi.fn(async (s: any) => s),
     downloadBackup: vi.fn(async () => ({ blob: new Blob(), filename: "backup" })),

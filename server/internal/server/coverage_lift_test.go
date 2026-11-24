@@ -135,8 +135,8 @@ func TestCoverageLiftMiddlewareBranches(t *testing.T) {
 	}
 
 	mw := newMiddleware(RuntimeSettings{
-		RateLimits: func() (authRPM, apiRPM, redirectRPM int) {
-			return 10, 20, 30
+		RateLimits: func() (authRPM, apiRPM int) {
+			return 10, 20
 		},
 		CORSOrigins: func() []string {
 			return []string{"https://cors.example.com"}

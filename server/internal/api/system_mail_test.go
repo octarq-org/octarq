@@ -114,7 +114,7 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	if err := db.Create(&sender).Error; err != nil {
 		t.Fatalf("seed sender: %v", err)
 	}
-	if err := h.setSetting(keySystemSenderID, strconv.FormatUint(uint64(sender.ID), 10)); err != nil {
+	if err := h.setSetting("mail_system_sender_id", strconv.FormatUint(uint64(sender.ID), 10)); err != nil {
 		t.Fatalf("set system sender: %v", err)
 	}
 

@@ -45,9 +45,10 @@ func newRateLimiter() *rateLimiter {
 	}
 }
 
-func (rl *rateLimiter) setLimits(authRPM, apiRPM, redirectRPM int) {
+func (rl *rateLimiter) setLimits(authRPM, apiRPM int) {
 	rl.mu.Lock()
-	rl.limits = map[tier]int{tierAuth: authRPM, tierAPI: apiRPM, tierRedirect: redirectRPM}
+	rl.limits[tierAuth] = authRPM
+	rl.limits[tierAPI] = apiRPM
 	rl.mu.Unlock()
 }
 
