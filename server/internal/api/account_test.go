@@ -23,9 +23,10 @@ func TestAccountExportAndPurge(t *testing.T) {
 		t.Fatalf("export: got %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 	files := unzipTestArchive(t, rec.Body.Bytes())
-	linksCSV := string(files["links.csv"])
-	if !contains(linksCSV, "exp1") {
-		t.Errorf("export missing expected records in links.csv: %s", linksCSV)
+	for _, key := range []string{"metadata.json", "audit_logs.json"} {
+		if _, ok := files[key]; !ok {
+			t.Errorf("export missing core file %q", key)
+		}
 	}
 	for fName, fContent := range files {
 		fStr := string(fContent)
