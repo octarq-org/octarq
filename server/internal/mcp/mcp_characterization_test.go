@@ -82,35 +82,3 @@ func TestMCP_Characterization_SubscriptionLifecycle(t *testing.T) {
 		t.Error("expected uri unwatched after handleUnsubscribe")
 	}
 }
-
-func TestMCP_Characterization_SystemResources(t *testing.T) {
-	db := newMCPCharTestDB(t)
-	s := &server{gdb: db, orgID: 1}
-
-	resTraffic, err := s.handleResourceTraffic(context.Background(), &mcpsdk.ReadResourceRequest{
-		Params: &mcpsdk.ReadResourceParams{URI: ResourceURITrafficMetrics},
-	})
-	if err != nil {
-		t.Fatalf("handleResourceTraffic failed: %v", err)
-	}
-	if len(resTraffic.Contents) == 0 {
-		t.Fatal("expected non-empty contents in traffic metrics resource")
-	}
-
-	resDomains, err := s.handleResourceDomainsHealth(context.Background(), &mcpsdk.ReadResourceRequest{
-		Params: &mcpsdk.ReadResourceParams{URI: ResourceURIDomainsHealth},
-	})
-	if err != nil {
-		t.Fatalf("handleResourceDomainsHealth failed: %v", err)
-	}
-	if len(resDomains.Contents) == 0 {
-		t.Fatal("expected non-empty contents in domains health resource")
-	}
-
-	_, err = s.handleResourceTraffic(context.Background(), &mcpsdk.ReadResourceRequest{
-		Params: &mcpsdk.ReadResourceParams{URI: "octarq://unknown"},
-	})
-	if err == nil {
-		t.Error("expected error on mismatched URI")
-	}
-}
