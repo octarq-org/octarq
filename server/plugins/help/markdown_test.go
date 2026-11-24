@@ -130,3 +130,13 @@ func TestRenderMarkdownConcurrentFences(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestHighlightedCodeKeepsLanguageClass(t *testing.T) {
+	out, err := renderMarkdown("```bash\ncurl -s https://example.test\n```\n")
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(out, `class="language-bash"`) {
+		t.Fatalf("highlighted code lost its language class: %s", out)
+	}
+}

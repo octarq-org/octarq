@@ -87,6 +87,11 @@ func writeHelpHighlightedCode(w util.BufWriter, language, code string) {
 		w.WriteString("</code></pre>\n")
 		return
 	}
-	w.Write(buf.Bytes())
+	out := buf.String()
+	if language != "" {
+		tag := `<code class="language-` + html.EscapeString(strings.ToLower(strings.TrimSpace(language))) + `">`
+		out = strings.Replace(out, "<code>", tag, 1)
+	}
+	w.WriteString(out)
 	w.WriteByte('\n')
 }

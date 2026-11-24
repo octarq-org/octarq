@@ -750,6 +750,78 @@ h1, h2, h3, h4, h5, h6 {
   color: inherit;
 }
 
+.markdown-body .chroma {
+  background: transparent;
+}
+
+.markdown-body .chroma .line {
+  display: block;
+}
+
+.markdown-body .chroma .k,
+.markdown-body .chroma .kc,
+.markdown-body .chroma .kd,
+.markdown-body .chroma .kn,
+.markdown-body .chroma .kp,
+.markdown-body .chroma .kr,
+.markdown-body .chroma .kt {
+  color: var(--accent-fg);
+}
+
+.markdown-body .chroma .s,
+.markdown-body .chroma .sa,
+.markdown-body .chroma .sb,
+.markdown-body .chroma .sc,
+.markdown-body .chroma .dl,
+.markdown-body .chroma .sd,
+.markdown-body .chroma .s1,
+.markdown-body .chroma .s2,
+.markdown-body .chroma .se,
+.markdown-body .chroma .sh,
+.markdown-body .chroma .si,
+.markdown-body .chroma .sx,
+.markdown-body .chroma .sr,
+.markdown-body .chroma .ss {
+  color: var(--success-fg);
+}
+
+.markdown-body .chroma .m,
+.markdown-body .chroma .mb,
+.markdown-body .chroma .mf,
+.markdown-body .chroma .mh,
+.markdown-body .chroma .mi,
+.markdown-body .chroma .il,
+.markdown-body .chroma .mo {
+  color: var(--warning-fg);
+}
+
+.markdown-body .chroma .c,
+.markdown-body .chroma .ch,
+.markdown-body .chroma .cm,
+.markdown-body .chroma .c1,
+.markdown-body .chroma .cs {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.markdown-body .chroma .nf,
+.markdown-body .chroma .fm,
+.markdown-body .chroma .na,
+.markdown-body .chroma .nc,
+.markdown-body .chroma .nt {
+  color: var(--foreground);
+}
+
+.markdown-body .chroma .o,
+.markdown-body .chroma .ow,
+.markdown-body .chroma .p {
+  color: var(--muted-foreground);
+}
+
+.markdown-body .chroma .err {
+  color: var(--danger-fg);
+}
+
 .markdown-body .callout {
   margin: 1.5rem 0;
   padding: 1rem 1.25rem;

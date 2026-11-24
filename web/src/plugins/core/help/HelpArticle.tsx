@@ -124,7 +124,11 @@ export function HelpArticle({
           <CodeBlock
             code={codeElement ? nodeText(codeElement) : nodeText(node)}
             language={language}
-          />
+          >
+            {codeElement
+              ? domToReact(codeElement.children as DOMNode[], options)
+              : domToReact(node.children as DOMNode[], options)}
+          </CodeBlock>
         );
       }
 
