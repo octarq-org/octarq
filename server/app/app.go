@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -73,8 +74,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 	cronEngine := cron.New(a.cfg.RedisURL)
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
-	var emailMu sync.Mutex
-	var deferredOnEmail []func(plugin.EmailEvent)
+	var eventMu sync.Mutex
+	var deferredEvents []func(string, json.RawMessage)
 	endpointEngine := endpoint.NewEngine()
 	notifRouter := notification.NewRouter(a.gdb)
 	if err := notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
@@ -97,8 +98,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 		sendMail:        a.sendMail,
 		loginByEmail:    a.loginByEmail,
 		loginByIdentity: a.loginByIdentity,
-		onEmailMu:       &emailMu,
-		deferredOnEmail: &deferredOnEmail,
+		onEventMu:       &eventMu,
+		deferredEvents:  &deferredEvents,
 		handleRoot:      func(h http.Handler) {},
 		handleStatic:    func(prefix string, fsys fs.FS) {},
 		httpMode:        false,
@@ -182,13 +183,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
-		emailMu.Lock()
-		handlers := deferredOnEmail
-		deferredOnEmail = nil
-		emailMu.Unlock()
+	if eventsService, ok := plugin.LookupServiceAs[plugin.EventDispatcher](services.Lookup, plugin.ServiceEventsDispatch); ok {
+		eventMu.Lock()
+		handlers := deferredEvents
+		deferredEvents = nil
+		eventMu.Unlock()
 		for _, handler := range handlers {
-			onEmailService(handler)
+			eventsService(handler)
 		}
 	}
 
@@ -227,8 +228,8 @@ func (a *App) Run(ctx context.Context) error {
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
 	var rootHandler http.Handler
 	var staticMounts []server.StaticMount
-	var runEmailMu sync.Mutex
-	var runDeferredOnEmail []func(plugin.EmailEvent)
+	var runEventMu sync.Mutex
+	var runDeferredEvents []func(string, json.RawMessage)
 	endpointEngine := endpoint.NewEngine()
 	notifRouter := notification.NewRouter(a.gdb)
 	if err := notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
@@ -251,8 +252,8 @@ func (a *App) Run(ctx context.Context) error {
 		sendMail:        a.sendMail,
 		loginByEmail:    a.loginByEmail,
 		loginByIdentity: a.loginByIdentity,
-		onEmailMu:       &runEmailMu,
-		deferredOnEmail: &runDeferredOnEmail,
+		onEventMu:       &runEventMu,
+		deferredEvents:  &runDeferredEvents,
 		handleRoot:      func(h http.Handler) { rootHandler = h },
 		handleStatic: func(prefix string, fsys fs.FS) {
 			staticMounts = append(staticMounts, server.StaticMount{Prefix: prefix, FS: fsys})
@@ -350,13 +351,13 @@ func (a *App) Run(ctx context.Context) error {
 	if fn, ok := plugin.LookupServiceAs[plugin.TrustProxyProvider](services.Lookup, plugin.ServiceTrustProxy); ok {
 		fn(a.cfg.TrustProxy)
 	}
-	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
-		runEmailMu.Lock()
-		handlers := runDeferredOnEmail
-		runDeferredOnEmail = nil
-		runEmailMu.Unlock()
+	if eventsService, ok := plugin.LookupServiceAs[plugin.EventDispatcher](services.Lookup, plugin.ServiceEventsDispatch); ok {
+		runEventMu.Lock()
+		handlers := runDeferredEvents
+		runDeferredEvents = nil
+		runEventMu.Unlock()
 		for _, handler := range handlers {
-			onEmailService(handler)
+			eventsService(handler)
 		}
 	}
 
@@ -387,7 +388,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	domainsRegistered := pctx.Host.Hosts().Any() || origin.HasSharedHosts(a.gdb)
 	mailReady := false
-	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
+	if fn, ok := plugin.LookupServiceAs[plugin.MessagingReady](services.Lookup, plugin.ServiceMessagingReady); ok {
 		mailReady = fn()
 	}
 	for _, line := range readinessReport(a.cfg, mailReady, domainsRegistered, apiHandler.RequireEmailVerification()) {

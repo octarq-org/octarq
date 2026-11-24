@@ -37,7 +37,7 @@ func hashToken(token string) string {
 }
 
 func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
-	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMessagingSender](h.LookupService, plugin.ServiceMessagingSendSystem); ok {
 		text := fmt.Sprintf("A password reset was requested for your Octarq account.\n\nSet a new password:\n%s\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.", resetURL)
 		if err := fn(to, "Reset your Octarq password", "", text); err != nil {
 			log.Printf("password reset email to %s failed: %v", to, err)
@@ -48,7 +48,7 @@ func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
 }
 
 func (h *Handler) sendAccountExistsEmail(to, signInURL string) {
-	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMessagingSender](h.LookupService, plugin.ServiceMessagingSendSystem); ok {
 		text := fmt.Sprintf("An Octarq account already uses this address.\n\nSign in instead:\n%s\n\nIf you did not try to create an account, you can ignore this email.", signInURL)
 		if err := fn(to, "Your Octarq account already exists", "", text); err != nil {
 			log.Printf("account-exists email to %s failed: %v", to, err)
@@ -59,7 +59,7 @@ func (h *Handler) sendAccountExistsEmail(to, signInURL string) {
 }
 
 func (h *Handler) mailReady() bool {
-	fn, ok := plugin.LookupServiceAs[plugin.MailReady](h.LookupService, plugin.ServiceMailReady)
+	fn, ok := plugin.LookupServiceAs[plugin.MessagingReady](h.LookupService, plugin.ServiceMessagingReady)
 	if !ok {
 		return false
 	}
@@ -67,7 +67,7 @@ func (h *Handler) mailReady() bool {
 }
 
 func (h *Handler) sendVerificationEmail(to, verifyURL string) {
-	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMessagingSender](h.LookupService, plugin.ServiceMessagingSendSystem); ok {
 		text := fmt.Sprintf("Confirm your email address for Octarq:\n\n%s\n\nThis link expires in 24 hours. If you didn't create this account, you can ignore this email.", verifyURL)
 		if err := fn(to, "Verify your Octarq email", "", text); err != nil {
 			log.Printf("verification email to %s failed: %v", to, err)

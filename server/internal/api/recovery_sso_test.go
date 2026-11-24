@@ -19,8 +19,8 @@ func TestForgotPasswordRefusesSSOOnlyAccount(t *testing.T) {
 
 	var sent []string
 	h.SetServiceLookup(func(name string) (any, bool) {
-		if name == plugin.ServiceMailSendSystem {
-			return plugin.SystemMailSender(func(to, subject, htmlBody, textBody string) error {
+		if name == plugin.ServiceMessagingSendSystem {
+			return plugin.SystemMessagingSender(func(to, subject, htmlBody, textBody string) error {
 				sent = append(sent, to)
 				return nil
 			}), true

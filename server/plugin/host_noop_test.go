@@ -1,6 +1,7 @@
 package plugin_test
 
 import (
+	"encoding/json"
 	"context"
 	"errors"
 	"testing"
@@ -22,7 +23,7 @@ func TestEnsureHostCredentialLookupFailsClosed(t *testing.T) {
 
 	h.Events().PublishEvent(1, "test.event", nil)
 	h.Events().RegisterWebhookEvent(plugin.WebhookEventDef{})
-	h.Events().OnEmail(func(plugin.EmailEvent) {})
+	h.Events().OnEvent(func(string, json.RawMessage) {})
 }
 
 func TestTestHostDefaultsAreFailClosed(t *testing.T) {

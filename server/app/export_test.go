@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"sync"
@@ -31,8 +32,8 @@ type PluginContextTestParams struct {
 	SendMail        func(orgID uint, to, subject, htmlBody, textBody string) error
 	LoginByEmail    func(w http.ResponseWriter, r *http.Request, email string) (uint, error)
 	LoginByIdentity func(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error)
-	OnEmailMu       *sync.Mutex
-	DeferredOnEmail *[]func(plugin.EmailEvent)
+	OnEventMu       *sync.Mutex
+	DeferredEvents *[]func(string, json.RawMessage)
 	HandleRoot      func(http.Handler)
 	HandleStatic    func(prefix string, fsys fs.FS)
 	HttpMode        bool
@@ -54,8 +55,8 @@ func (a *App) BuildPluginContext(p PluginContextTestParams) *plugin.Context {
 		sendMail:        p.SendMail,
 		loginByEmail:    p.LoginByEmail,
 		loginByIdentity: p.LoginByIdentity,
-		onEmailMu:       p.OnEmailMu,
-		deferredOnEmail: p.DeferredOnEmail,
+		onEventMu:       p.OnEventMu,
+		deferredEvents: p.DeferredEvents,
 		handleRoot:      p.HandleRoot,
 		handleStatic:    p.HandleStatic,
 		httpMode:        p.HttpMode,

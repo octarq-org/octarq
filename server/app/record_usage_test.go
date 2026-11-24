@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -202,13 +203,13 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	}
 
 	var emailMu sync.Mutex
-	var deferredEmail []func(plugin.EmailEvent)
+	var deferredEmail []func(string, json.RawMessage)
 
 	httpCtx := a.BuildPluginContext(app.PluginContextTestParams{
 		Cipher:          c,
 		Services:        plugin.NewRegistry(),
-		OnEmailMu:       &emailMu,
-		DeferredOnEmail: &deferredEmail,
+		OnEventMu:       &emailMu,
+		DeferredEvents: &deferredEmail,
 		HttpMode:        true,
 	})
 
@@ -302,31 +303,31 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 		Title:       "User Created",
 		Description: "Triggered on user creation",
 	})
-	httpCtx.Host.Events().OnEmail(nil)
+	httpCtx.Host.Events().OnEvent(nil)
 	var receivedEmail bool
-	httpCtx.Host.Events().OnEmail(func(e plugin.EmailEvent) {
+	httpCtx.Host.Events().OnEvent(func(topic string, payload json.RawMessage) {
 		receivedEmail = true
 	})
 	if len(deferredEmail) == 0 {
 		t.Fatal("expected deferred email handler to be registered")
 	}
-	deferredEmail[0](plugin.EmailEvent{})
+	deferredEmail[0]("test.topic", nil)
 	if !receivedEmail {
 		t.Fatal("expected deferred email handler invocation")
 	}
 
 	servicesWithMail := plugin.NewRegistry()
 	var dispatchedEmail bool
-	servicesWithMail.Provide(plugin.ServiceMailDispatcher, plugin.EmailDispatcher(func(handler func(plugin.EmailEvent)) {
+	servicesWithMail.Provide(plugin.ServiceEventsDispatch, plugin.EventDispatcher(func(handler func(string, json.RawMessage)) {
 		dispatchedEmail = true
 	}))
 	ctxWithMail := a.BuildPluginContext(app.PluginContextTestParams{
 		Cipher:   c,
 		Services: servicesWithMail,
 	})
-	ctxWithMail.Host.Events().OnEmail(func(e plugin.EmailEvent) {})
+	ctxWithMail.Host.Events().OnEvent(func(topic string, payload json.RawMessage) {})
 	if !dispatchedEmail {
-		t.Fatal("expected OnEmail to dispatch via ServiceMailDispatcher")
+		t.Fatal("expected OnEmail to dispatch via ServiceEventsDispatch")
 	}
 
 	ctxNoCipher := a.BuildPluginContext(app.PluginContextTestParams{})
@@ -340,8 +341,8 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	mcpCtx := a.BuildPluginContext(app.PluginContextTestParams{
 		Cipher:          c,
 		Services:        plugin.NewRegistry(),
-		OnEmailMu:       &emailMu,
-		DeferredOnEmail: &deferredEmail,
+		OnEventMu:       &emailMu,
+		DeferredEvents: &deferredEmail,
 		HttpMode:        false,
 	})
 

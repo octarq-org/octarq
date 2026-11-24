@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"context"
 	"sync"
 	"testing"
@@ -125,10 +126,10 @@ func (p servicePlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 func appBootComposition(t *testing.T, cap *wiringCapture, httpMode bool) []plugin.Plugin {
 	plugins := []plugin.Plugin{
 		servicePlugin{name: "usage-meter", svc: plugin.ServiceCloudUsage, val: plugin.UsageMeter(func(_ uint, metric string, n int64) { cap.addUsage(metric, n) })},
-		servicePlugin{name: "mail-send", svc: plugin.ServiceMailSend, val: plugin.MailSender(func(_ uint, to, _, _, _ string) error { cap.addMail(to); return nil })},
+		servicePlugin{name: "mail-send", svc: plugin.ServiceMessagingSend, val: plugin.MessagingSender(func(_ uint, to, _, _, _ string) error { cap.addMail(to); return nil })},
 		ctxAssertPlugin{t: t, name: "probe-a", cap: cap, httpMode: httpMode},
-		servicePlugin{name: "mail-ready", svc: plugin.ServiceMailReady, val: plugin.MailReady(func() bool { return true })},
-		servicePlugin{name: "dispatcher", svc: plugin.ServiceMailDispatcher, val: plugin.EmailDispatcher(func(func(plugin.EmailEvent)) { cap.addEmailHandler() })},
+		servicePlugin{name: "mail-ready", svc: plugin.ServiceMessagingReady, val: plugin.MessagingReady(func() bool { return true })},
+		servicePlugin{name: "dispatcher", svc: plugin.ServiceEventsDispatch, val: plugin.EventDispatcher(func(func(string, json.RawMessage)) { cap.addEmailHandler() })},
 		ctxAssertPlugin{t: t, name: "probe-b", cap: cap, httpMode: httpMode},
 	}
 	if httpMode {

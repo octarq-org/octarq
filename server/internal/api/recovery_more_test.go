@@ -16,14 +16,14 @@ func TestRecoveryMore(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
 	if h.mailReady() {
-		t.Error("mailReady() = true, want false when ServiceMailReady not provided")
+		t.Error("mailReady() = true, want false when ServiceMessagingReady not provided")
 	}
 
 	reg := plugin.NewRegistry()
-	reg.Provide(plugin.ServiceMailReady, plugin.MailReady(func() bool { return true }))
+	reg.Provide(plugin.ServiceMessagingReady, plugin.MessagingReady(func() bool { return true }))
 	h.SetServiceLookup(reg.Lookup)
 	if !h.mailReady() {
-		t.Error("mailReady() = false, want true when ServiceMailReady provided")
+		t.Error("mailReady() = false, want true when ServiceMessagingReady provided")
 	}
 
 	h.sendPasswordResetEmail("user@example.com", "https://example.com/reset")

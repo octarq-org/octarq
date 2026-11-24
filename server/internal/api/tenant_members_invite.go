@@ -16,7 +16,7 @@ import (
 )
 
 func (h *Handler) sendInviteEmail(to, acceptURL string) bool {
-	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMessagingSender](h.LookupService, plugin.ServiceMessagingSendSystem); ok {
 		text := fmt.Sprintf("You've been invited to join a workspace on Octarq.\n\n"+
 			"Accept the invite and set a password:\n%s\n\n"+
 			"This link expires in 24 hours.", acceptURL)

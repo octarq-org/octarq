@@ -158,7 +158,7 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	reg := plugin.NewRegistry()
 	h.SetServiceLookup(reg.Lookup)
 
-	reg.Provide(plugin.ServiceMailReady, plugin.MailReady(func() bool {
+	reg.Provide(plugin.ServiceMessagingReady, plugin.MessagingReady(func() bool {
 		var setting models.Setting
 		if err := db.First(&setting, "key = ?", "mail_system_sender_id").Error; err != nil || setting.Value == "" {
 			return false
@@ -166,7 +166,7 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 		var sender testSMTPSender
 		return db.First(&sender, "id = ?", setting.Value).Error == nil
 	}))
-	reg.Provide(plugin.ServiceMailSendSystem, plugin.SystemMailSender(func(to, subject, html, text string) error {
+	reg.Provide(plugin.ServiceMessagingSendSystem, plugin.SystemMessagingSender(func(to, subject, html, text string) error {
 		var setting models.Setting
 		if err := db.First(&setting, "key = ?", "mail_system_sender_id").Error; err != nil || setting.Value == "" {
 			return errors.New("no system sender configured")

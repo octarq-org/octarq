@@ -4,10 +4,10 @@ import "testing"
 
 func TestServiceNamesAreStableWireStrings(t *testing.T) {
 	for _, c := range []struct{ got, want string }{
-		{ServiceMailSend, "mail.send"},
-		{ServiceMailReady, "mail.ready"},
-		{ServiceMailSendSystem, "mail.send.system"},
-		{ServiceMailDispatcher, "mail.dispatcher"},
+		{ServiceMessagingSend, "messaging.send"},
+		{ServiceMessagingReady, "messaging.ready"},
+		{ServiceMessagingSendSystem, "messaging.send.system"},
+		{ServiceEventsDispatch, "events.dispatch"},
 		{ServiceMailStorageProvider, "mail.storage_provider"},
 		{ServiceCloudUsage, "cloud.usage"},
 		{ServiceQuotaChecker, "quota.checker"},

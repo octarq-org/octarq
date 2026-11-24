@@ -75,9 +75,9 @@ func (noopSettings) SetGlobalSetting(string, string) error {
 
 type noopEvents struct{}
 
-func (noopEvents) PublishEvent(uint, string, any)       {}
-func (noopEvents) RegisterWebhookEvent(WebhookEventDef) {}
-func (noopEvents) OnEmail(func(EmailEvent))             {}
+func (noopEvents) PublishEvent(uint, string, any)        {}
+func (noopEvents) RegisterWebhookEvent(WebhookEventDef)  {}
+func (noopEvents) OnEvent(func(string, json.RawMessage)) {}
 
 var (
 	_ Host          = (*noopHost)(nil)

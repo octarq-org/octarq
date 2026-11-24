@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"sync"
@@ -213,9 +214,9 @@ func (s *hostSettingsStore) SetGlobalSetting(key, value string) error {
 var _ plugin.SettingsStore = (*hostSettingsStore)(nil)
 
 type hostEventSpine struct {
-	services        *plugin.Registry
-	emailMu         *sync.Mutex
-	deferredOnEmail *[]func(plugin.EmailEvent)
+	services       *plugin.Registry
+	eventMu        *sync.Mutex
+	deferredEvents *[]func(string, json.RawMessage)
 }
 
 func (e *hostEventSpine) PublishEvent(orgID uint, event string, data any) {
@@ -231,20 +232,20 @@ func (e *hostEventSpine) RegisterWebhookEvent(def plugin.WebhookEventDef) {
 	})
 }
 
-func (e *hostEventSpine) OnEmail(handler func(plugin.EmailEvent)) {
+func (e *hostEventSpine) OnEvent(handler func(string, json.RawMessage)) {
 	if handler == nil {
 		return
 	}
 	if e.services != nil {
-		if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](e.services.Lookup, plugin.ServiceMailDispatcher); ok {
-			onEmailService(handler)
+		if eventsService, ok := plugin.LookupServiceAs[plugin.EventDispatcher](e.services.Lookup, plugin.ServiceEventsDispatch); ok {
+			eventsService(handler)
 			return
 		}
 	}
-	if e.emailMu != nil && e.deferredOnEmail != nil {
-		e.emailMu.Lock()
-		*e.deferredOnEmail = append(*e.deferredOnEmail, handler)
-		e.emailMu.Unlock()
+	if e.eventMu != nil && e.deferredEvents != nil {
+		e.eventMu.Lock()
+		*e.deferredEvents = append(*e.deferredEvents, handler)
+		e.eventMu.Unlock()
 	}
 }
 

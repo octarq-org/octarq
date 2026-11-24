@@ -254,7 +254,7 @@ var _ SettingsStore = (*TestSettings)(nil)
 type TestEvents struct {
 	PublishEventFn         func(orgID uint, event string, data any)
 	RegisterWebhookEventFn func(WebhookEventDef)
-	OnEmailFn              func(func(EmailEvent))
+	OnEventFn              func(func(string, json.RawMessage))
 }
 
 func (e *TestEvents) PublishEvent(orgID uint, event string, data any) {
@@ -269,9 +269,9 @@ func (e *TestEvents) RegisterWebhookEvent(def WebhookEventDef) {
 	}
 }
 
-func (e *TestEvents) OnEmail(handler func(EmailEvent)) {
-	if e != nil && e.OnEmailFn != nil {
-		e.OnEmailFn(handler)
+func (e *TestEvents) OnEvent(handler func(string, json.RawMessage)) {
+	if e != nil && e.OnEventFn != nil {
+		e.OnEventFn(handler)
 	}
 }
 

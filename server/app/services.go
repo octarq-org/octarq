@@ -44,7 +44,7 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
 	if a.services != nil {
-		if fn, ok := plugin.LookupServiceAs[plugin.MailSender](a.services.Lookup, plugin.ServiceMailSend); ok {
+		if fn, ok := plugin.LookupServiceAs[plugin.MessagingSender](a.services.Lookup, plugin.ServiceMessagingSend); ok {
 			return fn(orgID, to, subject, htmlBody, textBody)
 		}
 	}
