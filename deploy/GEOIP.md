@@ -5,33 +5,20 @@ breakdowns. This is **optional** — without a database, geo columns are simply
 empty and everything else works. The lookup uses MaxMind's free **GeoLite2-City**
 database (an `.mmdb` file).
 
-octarq doesn't ship the database (licensing terms + ~60 MB), but it can fetch it
-for you. Two ways to enable geo:
+octarq does not ship or download the database. Point **`OCTARQ_GEOIP_DB`** at an
+`.mmdb` you obtained yourself. With it unset, geo lookups are disabled.
 
-- **Auto-download (recommended)**: set **`OCTARQ_MAXMIND_LICENSE_KEY`** to a free
-  MaxMind license key (see Option B below for getting one) and leave
-  `OCTARQ_GEOIP_DB` unset. At startup octarq downloads GeoLite2-City from MaxMind
-  in the background (sha256-verified), stores the `.mmdb` in the data directory
-  next to the sqlite database (`/data` in the Docker image), and hot-loads it —
-  geo columns stay blank only until the download finishes (~a minute). On later
-  starts the existing file is reused, no re-download; when it's older than ~60
-  days octarq logs a hint — delete the file and restart to fetch a fresh copy.
-  Download failures (bad key, no network) log a warning and leave geo disabled.
-- **Bring your own**: point **`OCTARQ_GEOIP_DB`** at an `.mmdb` you obtained
-  yourself (steps below). This always takes precedence over auto-download.
+Behind a trusted proxy, octarq can also take the client country from the
+`CF-IPCountry` header instead of the database. See
+[Country from a trusted proxy](#country-from-a-trusted-proxy).
 
-With neither set, geo lookups are disabled.
+## 1. Get GeoLite2-City.mmdb
 
-## 1. Get GeoLite2-City.mmdb (manual route)
-
-You have two ways to obtain the file. The community mirrors need **no account and
-no license key** and are the easiest; MaxMind's official download is the freshest
-and most license-clean but requires a free key.
-
-### Option A — community GitHub mirror (no key, easiest)
+The community mirrors need **no account and no license key** and are the easiest
+way to obtain the file.
 
 Several projects republish the free GeoLite2 databases, auto-updated by GitHub
-Actions on MaxMind's own Tuesday/Friday schedule. No signup:
+Actions on MaxMind's own Tuesday/Friday schedule:
 
 ```bash
 # jsDelivr CDN (gzipped — gunzip after download):
@@ -44,27 +31,8 @@ curl -Lo GeoLite2-City.mmdb \
 ```
 
 These mirrors redistribute MaxMind's data under its license (GeoLite2 is offered
-under CC BY-SA 4.0); using them is fine — that restriction is just why **octarq**
-itself doesn't bundle the file. If you'd rather not depend on a third party, or
-want guaranteed freshness, use Option B.
-
-### Option B — official MaxMind download (free key)
-
-1. Create a free account at <https://www.maxmind.com/en/geolite2/signup>.
-2. In **Account → Manage License Keys**, generate a license key.
-3. Download and extract the City database:
-
-   ```bash
-   KEY=your_license_key
-   curl -L "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${KEY}&suffix=tar.gz" \
-     -o GeoLite2-City.tar.gz
-   tar -xzf GeoLite2-City.tar.gz --strip-components=1 --wildcards '*/GeoLite2-City.mmdb'
-   # → GeoLite2-City.mmdb in the current directory
-   ```
-
-   The official [`geoipupdate`](https://github.com/maxmind/geoipupdate) tool
-   automates weekly refreshes (it's also the basis of the k8s initContainer
-   option below).
+under CC BY-SA 4.0); that restriction is why **octarq** itself does not bundle the
+file.
 
 ## 2. Wire it into your deployment
 
@@ -104,39 +72,20 @@ extra env. GeoLite2 is CC BY-SA 4.0, so redistributing the baked image is allowe
 **with attribution**; the simplest path is to **keep it in your private registry**
 and skip that burden.
 
-### Kubernetes — initContainer download (alternative)
+## 3. Country from a trusted proxy
 
-If you'd rather not rebuild the image on each GeoLite2 refresh, download it at pod
-start into a shared `emptyDir`, keeping only your MaxMind license key in a Secret:
+When octarq runs behind Cloudflare or another proxy that sets `CF-IPCountry`, you
+can use that header instead of the mmdb for session locations:
 
-```yaml
-spec:
-  volumes:
-    - name: geoip
-      emptyDir: {}
-  initContainers:
-    - name: fetch-geoip
-      image: ghcr.io/maxmind/geoipupdate:latest
-      env:
-        - name: GEOIPUPDATE_ACCOUNT_ID
-          valueFrom: { secretKeyRef: { name: maxmind, key: accountId } }
-        - name: GEOIPUPDATE_LICENSE_KEY
-          valueFrom: { secretKeyRef: { name: maxmind, key: licenseKey } }
-        - name: GEOIPUPDATE_EDITION_IDS
-          value: GeoLite2-City
-        - name: GEOIPUPDATE_DB_DIR
-          value: /geoip
-      volumeMounts:
-        - { name: geoip, mountPath: /geoip }
-  containers:
-    - name: octarq
-      image: registry.example.com/octarq:base
-      env:
-        - name: OCTARQ_GEOIP_DB
-          value: /geoip/GeoLite2-City.mmdb
-      volumeMounts:
-        - { name: geoip, mountPath: /geoip, readOnly: true }
+```bash
+OCTARQ_GEOIP_DB=            # optional; leave empty to disable the mmdb
+OCTARQ_TRUST_PROXY=true
 ```
+
+The header is spoofable. octarq reads it **only** when `OCTARQ_TRUST_PROXY` is
+true, the value is a two-letter ISO code, and the value is not `XX`. Values that
+fail these checks are ignored and the mmdb resolver is used. Never enable
+`OCTARQ_TRUST_PROXY` when clients can reach octarq directly.
 
 ## Notes
 
@@ -145,3 +94,5 @@ spec:
   up on the next restart.
 - Only **GeoLite2-City** is needed. The Country edition also works but yields no
   region/city.
+- A missing or invalid `OCTARQ_GEOIP_DB` file stops startup with an error. Remove
+  the variable to run without geo data.

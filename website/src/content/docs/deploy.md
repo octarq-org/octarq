@@ -178,7 +178,8 @@ server {
 | `OCTARQ_DB_DRIVER` | No | `sqlite` (default), `postgres`, or `mysql` |
 | `OCTARQ_DB_DSN` | No | DSN when using PostgreSQL (e.g. `postgres://user:pass@host:5432/db`) or MySQL 8 (e.g. `user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=True&loc=Local`) |
 | `OCTARQ_REDIS_URL` | No | Redis connection URL for distributed rate limiting & caching |
-| `OCTARQ_MAXMIND_LICENSE_KEY` | No | MaxMind GeoIP license key for auto-downloading GeoIP DB |
+| `OCTARQ_GEOIP_DB` | No | Explicit path to a GeoLite2-City `.mmdb` file. Unset = geo disabled |
+| `OCTARQ_TRUST_PROXY` | No | Set to `true` behind a trusted proxy to accept `CF-IPCountry` |
 
 ---
 

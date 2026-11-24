@@ -105,14 +105,14 @@ It needs one variable — set on the **Worker**, not on octarq:
 
 ## GeoIP (optional)
 
-Geo data for click analytics. Easiest path: set a free MaxMind license key and
-octarq auto-downloads GeoLite2-City into its data dir, reusing the cached file on
-later starts.
+Geo data for click analytics. Octarq does not download the database. Set
+`OCTARQ_GEOIP_DB` to a GeoLite2-City `.mmdb` file you obtained yourself. Behind
+a trusted proxy, Octarq can also read the client country from `CF-IPCountry`.
 
 | Variable | Purpose |
 | --- | --- |
-| `OCTARQ_MAXMIND_LICENSE_KEY` | Free MaxMind key — enables auto-download of GeoLite2-City. |
-| `OCTARQ_GEOIP_DB` | Explicit path to an `.mmdb` file — takes precedence over the cached/downloaded one. Unset both = geo disabled. |
+| `OCTARQ_GEOIP_DB` | Explicit path to an `.mmdb` file. Unset = geo disabled. A missing or invalid file stops startup. |
+| `OCTARQ_TRUST_PROXY` | Set to `true` behind a trusted proxy to accept `CF-IPCountry`. Never enable when clients can reach Octarq directly. |
 
 ## LLM (AI features)
 
