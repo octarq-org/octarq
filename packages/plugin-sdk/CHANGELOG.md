@@ -1,5 +1,12 @@
 # @octarq-org/plugin-sdk
 
+## 0.26.0
+
+### Minor Changes
+
+- 57d792f: Remove the business `includeBot` argument from `fetchOverview`/`useOverviewData`, and drop the business fields from `OverviewData`. The overview endpoint is now a generic workspace aggregate.
+- 26b5af0: Add copilot extension points to `UIPlugin`: `cards` for tool cards and `artifacts` for artifact editors. The registry exposes `uiToolCards()`, `uiArtifactEditors()`, `resolveToolCard(toolName)`, and `resolveArtifactEditor(type)`. Tool card matches accept an exact name or one trailing `*` wildcard. Duplicate matches, duplicate artifact types, and artifact types outside the owning plugin namespace are rejected.
+
 ## 0.25.0
 
 ### Minor Changes
