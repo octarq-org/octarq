@@ -1,15 +1,7 @@
 import { create } from "zustand";
 import type { ActionDiff, ApprovalStatus, ChatMessage } from "./types";
 
-export type ArtifactType =
-  | "resume_rank"
-  | "invoice_audit"
-  | "quotation"
-  | "weekly_report"
-  | "storyboard"
-  | "email_draft"
-  | "support_escalation"
-  | "financial_deck";
+export type ArtifactType = string;
 
 export type CanvasLayout = "drawer" | "split" | "maximized";
 

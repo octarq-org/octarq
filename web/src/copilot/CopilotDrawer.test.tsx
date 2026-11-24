@@ -77,9 +77,9 @@ describe("CopilotDrawer", () => {
     expect(screen.getByText("AI Copilot")).toBeDefined();
     expect(screen.getByText("Agent Chat")).toBeDefined();
     expect(screen.getByText("Pending Approvals")).toBeDefined();
-    expect(screen.getByText("Summarize this week's top links")).toBeDefined();
-    expect(screen.getByText("Check latest payment status")).toBeDefined();
-    expect(screen.getByText("Diagnose DNS anomalies for api.octarq.com")).toBeDefined();
+    expect(screen.getByText("Review pending approvals")).toBeDefined();
+    expect(screen.getByText("Summarize recent activity")).toBeDefined();
+    expect(screen.getByText("Check workspace health")).toBeDefined();
   });
 
   it("shows the unconfigured guide card instead of fake replies when LLM is missing", async () => {
@@ -166,13 +166,13 @@ describe("CopilotDrawer", () => {
   it("clicking preset prompt triggers automated message submission", async () => {
     renderDrawer();
 
-    const presetCard = screen.getByText("Summarize this week's top links");
+    const presetCard = screen.getByText("Summarize recent activity");
     fireEvent.click(presetCard);
 
-    expect(screen.getByText("Summarize this week's top links")).toBeDefined();
+    expect(screen.getByText("Summarize recent activity")).toBeDefined();
   });
 
-  it("switches to briefing tab and renders Morning Briefing v2 and anomaly broadcasts", () => {
+  it("switches to briefing tab and shows the empty state", () => {
     renderDrawer();
 
     const briefingTab = screen.getByTestId("copilot-tab-briefing");
@@ -180,21 +180,7 @@ describe("CopilotDrawer", () => {
 
     expect(useCopilotStore.getState().activeTab).toBe("briefing");
     expect(screen.getByTestId("copilot-briefing-tab")).toBeDefined();
-    expect(screen.getByText("Chief-of-Staff Morning Briefing")).toBeDefined();
-    expect(screen.getByText(/Schedule & Agenda/)).toBeDefined();
-    expect(screen.getByText(/Tasks & Commitments/)).toBeDefined();
-    expect(screen.getByText(/Priority Communications/)).toBeDefined();
-    expect(screen.getByText(/Autonomous Actions/)).toBeDefined();
-    expect(screen.getByText(/Multi-Dimensional Anomaly Broadcasts/)).toBeDefined();
-  });
-
-  it("handles Undo action on autonomous commit in Briefing tab", () => {
-    renderDrawer();
-
-    fireEvent.click(screen.getByTestId("copilot-tab-briefing"));
-    const undoButton = screen.getByRole("button", { name: "↩️ Undo" });
-    fireEvent.click(undoButton);
-
-    expect(screen.getByRole("button", { name: "Undone" })).toBeDefined();
+    expect(screen.getByText("No data source is connected.")).toBeDefined();
+    expect(screen.queryByText(/Chief-of-Staff/)).toBeNull();
   });
 });

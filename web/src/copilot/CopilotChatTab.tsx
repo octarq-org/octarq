@@ -7,10 +7,11 @@ import {
   ChevronDown,
   ChevronRight,
   Bot,
-  Flame,
-  CreditCard,
-  Globe2,
+  Activity,
+  CheckCircle2,
   FileCheck,
+  ScrollText,
+  Server,
   Sunrise,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
@@ -104,33 +105,33 @@ export function CopilotChatTab({
               <div className="grid grid-cols-1 gap-2">
                 <PresetPromptCard
                   icon={<Sunrise className="h-4 w-4 text-accent-fg" />}
-                  title={t("copilot.promptBriefing", "查看晨间简报与异动 (Briefing v2)")}
-                  desc={t("copilot.promptBriefingDesc", "查看 6 维晨间工作简报、待办事项与实时多维异动播报")}
+                  title={t("copilot.promptBriefing", "Open briefing")}
+                  desc={t("copilot.promptBriefingDesc", "See workspace status and items that need review")}
                   onClick={() => setActiveTab("briefing")}
                 />
                 <PresetPromptCard
-                  icon={<Flame className="h-4 w-4 text-warning-fg" />}
-                  title={t("copilot.promptLinks", "汇总本周点击最高的短链")}
-                  desc={t("copilot.promptLinksDesc", "统计近 7 天访问趋势与热门重定向排行")}
-                  onClick={() => onSendMessage(t("copilot.promptLinks", "汇总本周点击最高的短链"))}
-                />
-                <PresetPromptCard
-                  icon={<CreditCard className="h-4 w-4 text-success-fg" />}
-                  title={t("copilot.promptPayment", "查询最近一笔支付状态")}
-                  desc={t("copilot.promptPaymentDesc", "核对 Stripe Webhook 履约与证书签发记录")}
-                  onClick={() => onSendMessage(t("copilot.promptPayment", "查询最近一笔支付状态"))}
-                />
-                <PresetPromptCard
-                  icon={<Globe2 className="h-4 w-4 text-accent-fg" />}
-                  title={t("copilot.promptDns", "排查 api.octarq.com 的 DNS 异常")}
-                  desc={t("copilot.promptDnsDesc", "检查权威解析节点延迟与 A/CNAME 配置一致性")}
-                  onClick={() => onSendMessage(t("copilot.promptDns", "排查 api.octarq.com 的 DNS 异常"))}
-                />
-                <PresetPromptCard
                   icon={<FileCheck className="h-4 w-4 text-accent-fg" />}
-                  title={t("copilot.promptApprovals", "检查待处理的审批操作")}
-                  desc={t("copilot.promptApprovalsDesc", "打开待审队列，核对智能体发起的高危变更")}
+                  title={t("copilot.promptApprovals", "Review pending approvals")}
+                  desc={t("copilot.promptApprovalsDesc", "Open the queue of agent actions waiting for a decision")}
                   onClick={() => setActiveTab("approvals")}
+                />
+                <PresetPromptCard
+                  icon={<Activity className="h-4 w-4 text-success-fg" />}
+                  title={t("copilot.promptActivity", "Summarize recent activity")}
+                  desc={t("copilot.promptActivityDesc", "Show audit and notification highlights")}
+                  onClick={() => onSendMessage(t("copilot.promptActivity", "Summarize recent activity"))}
+                />
+                <PresetPromptCard
+                  icon={<Server className="h-4 w-4 text-accent-fg" />}
+                  title={t("copilot.promptHealth", "Check workspace health")}
+                  desc={t("copilot.promptHealthDesc", "Report readiness and provider status")}
+                  onClick={() => onSendMessage(t("copilot.promptHealth", "Check workspace health"))}
+                />
+                <PresetPromptCard
+                  icon={<ScrollText className="h-4 w-4 text-accent-fg" />}
+                  title={t("copilot.promptAudit", "Show recent audit events")}
+                  desc={t("copilot.promptAuditDesc", "List the latest security and change events")}
+                  onClick={() => onSendMessage(t("copilot.promptAudit", "Show recent audit events"))}
                 />
               </div>
             </div>
@@ -225,26 +226,7 @@ export function CopilotChatTab({
                         return { status: res.outcome === "rejected" ? 200 : 409 };
                       }
                       if (action.type === "custom") {
-                        const payload = action.payload as
-                          | { action?: string; slug?: string; target?: string; host?: string; enabled?: boolean }
-                          | undefined;
-                        if (payload?.action === "links.create" || payload?.action === "links.update") {
-                          try {
-                            const res = await fetch("/api/links", {
-                              method: payload.action === "links.create" ? "POST" : "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                slug: payload.slug,
-                                target: payload.target,
-                                host: payload.host,
-                                enabled: payload.enabled,
-                              }),
-                            });
-                            return { status: res.status };
-                          } catch {
-                            return { status: 500 };
-                          }
-                        }
+                        return { status: 501 };
                       }
                       return { status: 200 };
                     },
