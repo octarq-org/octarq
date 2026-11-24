@@ -267,3 +267,29 @@ The `help` module anchors and coordinates core developer extension surfaces:
 4. **Tenant Isolation**: Only documents associated with active features for the querying organization are returned.
 5. **Zero Binary Bloat**: `SPEC.md` resides in the plugin root and is strictly omitted from binary compilation (`//go:embed docs`), preserving security boundaries.
 6. **Deterministic Translation Binding**: Primary filesystem walking filters out files matching `helpDocLangs` (`zh`, `es`, `pt`, `ja`), guaranteeing that localized files attach strictly as sibling translations (`Translations[lang]`) to canonical documents rather than registering as duplicate top-level navigation pages.
+
+---
+
+## 8. Help Center Runtime Contracts
+
+### 8.1 Search (`search.go`)
+- `GET /api/help/search?q=&lang=&limit=&category=` returns `{query, lang, results:[{slug,title,category,anchor,anchorTitle,snippet:{text,offsets},score,url}]}`.
+- The index is built from the same `getDocs(orgID, lang)` call the viewer uses, so plugin enablement and per-doc `feature` gates apply identically.
+- Cache: bounded LRU (64) keyed by org, resolved language, and a content/gating fingerprint recomputed per request; a mismatch rebuilds. No TTL.
+- Tokenizer: NFKC + lowercase; Latin word tokens; Han/Kana unigrams and bigrams. Field weights: title 5, headings 3, body 1; exact title phrase boost.
+- Snippets are plain text with rune offsets; the API never returns HTML. Windows snap outward to ASCII word boundaries.
+- Invalid input fails closed: empty or >200-rune `q` and unknown `category` return 400; `limit` clamps to 1–50; no matches return `[]`.
+
+### 8.2 Living Values (`workspace.go`)
+- Allowed placeholders are `{{app_name}}`, `{{domain}}`, `{{org_slug}}`, sourced from `Host.Settings()` (workspace value first, global fallback) and the org slug.
+- Substitution runs after translation selection and before markdown rendering; values are markdown/HTML escaped.
+- Keys matching secret-like patterns (`secret|token|password|key|webhook|vault|credential`) are rejected at startup. A known placeholder without a value renders a localized "(not configured)" marker; demo values are never substituted.
+
+### 8.3 Render Cache & ETag (`help.go`)
+- Rendered HTML is cached per org, language, slug, and content hash (includes substituted values), bounded at 128 entries.
+- `GET /api/help/docs/{slug}` returns an `ETag`; a matching `If-None-Match` yields 304 with no body.
+
+### 8.4 Drawer Metadata (`plugin/helpdoc.go`, `help.go`)
+- Each doc may declare `routes:` (SPA paths) and `actions:` (ids from `/api/actions`), exposed on `GET /api/help/docs`.
+- The shell derives page→doc matching from routes with longest-prefix wins; unknown action ids are ignored client-side.
+- `Action` gains an optional `description` used by doc action cards.

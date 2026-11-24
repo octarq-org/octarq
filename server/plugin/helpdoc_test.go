@@ -82,7 +82,7 @@ title: 中文标题
 	}
 }
 
-func TestFillDefaultsFallbackToServices(t *testing.T) {
+func TestFillDefaultsFallsBackToClosedSet(t *testing.T) {
 	doc := HelpDoc{
 		Slug:     "custom-doc",
 		Title:    "Custom Doc",
@@ -91,7 +91,63 @@ func TestFillDefaultsFallbackToServices(t *testing.T) {
 
 	doc.FillDefaults("custom-plugin", "")
 
-	if doc.Category != "services" {
-		t.Errorf("expected category fallback to 'services', got %q", doc.Category)
+	if _, ok := helpCategoryMap[doc.Category]; !ok {
+		t.Fatalf("expected category inside the closed set, got %q", doc.Category)
+	}
+}
+
+func TestFillDefaultsMapsLegacyCategories(t *testing.T) {
+	cases := map[string]string{
+		"services":        "infrastructure",
+		"security":        "settings",
+		"api":             "operations",
+		"billing":         "commerce",
+		"getting-started": "start",
+	}
+	for in, want := range cases {
+		doc := HelpDoc{Slug: "doc", Category: in}
+		doc.FillDefaults("plugin", "")
+		if doc.Category != want {
+			t.Errorf("category %q: expected %q, got %q", in, want, doc.Category)
+		}
+	}
+}
+
+func TestParseHelpDocDescriptionAndRoutes(t *testing.T) {
+	raw := "---\ntitle: Domains\ndescription: Bind a custom domain.\ncategory: infrastructure\norder: 10\nroutes:\n  - /domains\n  - /domains/new\n---\n\nBody"
+	doc, err := ParseHelpDoc(raw)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if doc.Description != "Bind a custom domain." {
+		t.Errorf("unexpected description %q", doc.Description)
+	}
+	if len(doc.Routes) != 2 || doc.Routes[0] != "/domains" || doc.Routes[1] != "/domains/new" {
+		t.Errorf("unexpected routes %#v", doc.Routes)
+	}
+}
+
+func TestParseHelpDocActions(t *testing.T) {
+	raw := "---\ntitle: Domains\nactions:\n  - domains.create\n  - domains.verify\n---\n\nBody"
+	doc, err := ParseHelpDoc(raw)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(doc.Actions) != 2 || doc.Actions[0] != "domains.create" || doc.Actions[1] != "domains.verify" {
+		t.Errorf("unexpected actions %#v", doc.Actions)
+	}
+}
+
+func TestHelpPlaceholdersAreClosedSet(t *testing.T) {
+	for _, key := range []string{"app_name", "domain", "org_slug"} {
+		if !IsHelpPlaceholder(key) {
+			t.Errorf("expected %q to be a known placeholder", key)
+		}
+	}
+	if IsHelpPlaceholder("token") || IsHelpPlaceholder("secret") {
+		t.Error("secret-like keys must not be placeholders")
+	}
+	if len(HelpPlaceholders()) != 3 {
+		t.Errorf("expected 3 placeholders, got %d", len(HelpPlaceholders()))
 	}
 }
