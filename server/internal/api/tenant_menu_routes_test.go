@@ -21,7 +21,7 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 
 	var sentTo, sentSubj string
 	reg := plugin.NewRegistry()
-	reg.Provide(plugin.ServiceMailSendSystem, plugin.SystemMailSender(func(to, subject, html, text string) error {
+	reg.Provide(plugin.ServiceMessagingSendSystem, plugin.SystemMessagingSender(func(to, subject, html, text string) error {
 		sentTo = to
 		sentSubj = subject
 		return nil

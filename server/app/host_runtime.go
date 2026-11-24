@@ -113,8 +113,8 @@ type pluginContextParams struct {
 	sendMail        func(orgID uint, to, subject, htmlBody, textBody string) error
 	loginByEmail    func(w http.ResponseWriter, r *http.Request, email string) (uint, error)
 	loginByIdentity func(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error)
-	onEmailMu       *sync.Mutex
-	deferredOnEmail *[]func(plugin.EmailEvent)
+	onEventMu       *sync.Mutex
+	deferredEvents  *[]func(string, json.RawMessage)
 	handleRoot      func(http.Handler)
 	handleStatic    func(prefix string, fsys fs.FS)
 	httpMode        bool
@@ -166,9 +166,9 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		apiHandler: params.apiHandler,
 	}
 	events := &hostEventSpine{
-		services:        params.services,
-		emailMu:         params.onEmailMu,
-		deferredOnEmail: params.deferredOnEmail,
+		services:       params.services,
+		eventMu:        params.onEventMu,
+		deferredEvents: params.deferredEvents,
 	}
 
 	hosts := params.hosts

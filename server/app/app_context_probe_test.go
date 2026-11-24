@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -297,7 +298,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		t.Errorf("mail service got to=%q, want to@cov.example", p.cap.mailTo)
 	}
 
-	ctx.Host.Events().OnEmail(func(plugin.EmailEvent) {})
+	ctx.Host.Events().OnEvent(func(string, json.RawMessage) {})
 
 	svc := "cov.svc." + p.name
 	ctx.Provide(svc, "svcval")

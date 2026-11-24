@@ -97,39 +97,39 @@ func TestDuplicateProvideFailsLoudly(t *testing.T) {
 
 func TestLookupServiceAsAbsentMismatchAndSuccess(t *testing.T) {
 	reg := NewRegistry()
-	reg.Provide(ServiceMailSend, MailSender(func(orgID uint, to, subject, htmlBody, textBody string) error {
+	reg.Provide(ServiceMessagingSend, MessagingSender(func(orgID uint, to, subject, htmlBody, textBody string) error {
 		return nil
 	}))
 
-	if fn, ok := LookupServiceAs[MailSender](reg.Lookup, ServiceMailDispatcher); ok || fn != nil {
+	if fn, ok := LookupServiceAs[MessagingSender](reg.Lookup, ServiceEventsDispatch); ok || fn != nil {
 		t.Fatalf("LookupServiceAs for absent service = (%v, %v), want (nil, false)", fn, ok)
 	}
-	if fn, ok := LookupServiceAs[UsageMeter](reg.Lookup, ServiceMailSend); ok || fn != nil {
+	if fn, ok := LookupServiceAs[UsageMeter](reg.Lookup, ServiceMessagingSend); ok || fn != nil {
 		t.Fatalf("LookupServiceAs with mismatched type = (%v, %v), want (nil, false)", fn, ok)
 	}
-	fn, ok := LookupServiceAs[MailSender](reg.Lookup, ServiceMailSend)
+	fn, ok := LookupServiceAs[MessagingSender](reg.Lookup, ServiceMessagingSend)
 	if !ok || fn == nil {
-		t.Fatal("LookupServiceAs[MailSender] returned false for a MailSender-provided service")
+		t.Fatal("LookupServiceAs[MessagingSender] returned false for a MessagingSender-provided service")
 	}
-	if fn, ok := LookupServiceAs[MailSender](nil, ServiceMailSend); ok || fn != nil {
+	if fn, ok := LookupServiceAs[MessagingSender](nil, ServiceMessagingSend); ok || fn != nil {
 		t.Fatalf("LookupServiceAs with nil lookup = (%v, %v), want (nil, false)", fn, ok)
 	}
 }
 
 func TestLookupAsMatchesLookupServiceAs(t *testing.T) {
 	ctx := testContext(NewRegistry())
-	ctx.Provide(ServiceMailSend, MailSender(func(orgID uint, to, subject, htmlBody, textBody string) error {
+	ctx.Provide(ServiceMessagingSend, MessagingSender(func(orgID uint, to, subject, htmlBody, textBody string) error {
 		return nil
 	}))
 
-	if fn, ok := LookupAs[MailSender](ctx, ServiceMailSend); !ok || fn == nil {
-		t.Fatal("LookupAs[MailSender] failed for a MailSender-provided service")
+	if fn, ok := LookupAs[MessagingSender](ctx, ServiceMessagingSend); !ok || fn == nil {
+		t.Fatal("LookupAs[MessagingSender] failed for a MessagingSender-provided service")
 		return
 	}
-	if fn, ok := LookupAs[MailSender](ctx, ServiceMailDispatcher); ok || fn != nil {
+	if fn, ok := LookupAs[MessagingSender](ctx, ServiceEventsDispatch); ok || fn != nil {
 		t.Fatalf("LookupAs for absent service = (%v, %v), want (nil, false)", fn, ok)
 	}
-	if fn, ok := LookupAs[UsageMeter](ctx, ServiceMailSend); ok || fn != nil {
+	if fn, ok := LookupAs[UsageMeter](ctx, ServiceMessagingSend); ok || fn != nil {
 		t.Fatalf("LookupAs with mismatched type = (%v, %v), want (nil, false)", fn, ok)
 	}
 }

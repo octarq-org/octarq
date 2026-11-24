@@ -17,12 +17,12 @@ func originTestServer(t *testing.T, hosts ...models.OrgHost) (http.Handler, *gor
 	h, srv, db := newTestHandlerRaw(t)
 
 	var sent []string
-	send := plugin.SystemMailSender(func(to, subject, htmlBody, textBody string) error {
+	send := plugin.SystemMessagingSender(func(to, subject, htmlBody, textBody string) error {
 		sent = append(sent, textBody)
 		return nil
 	})
 	h.SetServiceLookup(func(name string) (any, bool) {
-		if name == plugin.ServiceMailSendSystem {
+		if name == plugin.ServiceMessagingSendSystem {
 			return send, true
 		}
 		return nil, false

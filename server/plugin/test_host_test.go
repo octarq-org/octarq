@@ -2,6 +2,7 @@ package plugin_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -65,7 +66,7 @@ func TestTestHostAndMocks(t *testing.T) {
 	var nilEvents *plugin.TestEvents
 	nilEvents.PublishEvent(1, "e", nil)
 	nilEvents.RegisterWebhookEvent(plugin.WebhookEventDef{})
-	nilEvents.OnEmail(nil)
+	nilEvents.OnEvent(nil)
 
 	emptyHost := &plugin.TestHost{}
 	if emptyHost.Session() == nil || emptyHost.Settings() == nil || emptyHost.Events() == nil {
@@ -120,7 +121,7 @@ func TestTestHostAndMocks(t *testing.T) {
 	emptyEvents := &plugin.TestEvents{}
 	emptyEvents.PublishEvent(1, "ev", nil)
 	emptyEvents.RegisterWebhookEvent(plugin.WebhookEventDef{})
-	emptyEvents.OnEmail(nil)
+	emptyEvents.OnEvent(nil)
 
 	configuredCrypto := &plugin.TestCrypto{
 		EncryptWithAADFn: func(p, a []byte) (string, error) { return "aad:" + string(p) + "/" + string(a), nil },
@@ -173,7 +174,7 @@ func TestTestHostAndMocks(t *testing.T) {
 			RegisterWebhookEventFn: func(def plugin.WebhookEventDef) {
 				calledWebhook = true
 			},
-			OnEmailFn: func(fn func(plugin.EmailEvent)) {
+			OnEventFn: func(fn func(string, json.RawMessage)) {
 				calledEmail = true
 			},
 		},
@@ -208,7 +209,7 @@ func TestTestHostAndMocks(t *testing.T) {
 
 	th.Events().PublishEvent(1, "test", nil)
 	th.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "test"})
-	th.Events().OnEmail(func(e plugin.EmailEvent) {})
+	th.Events().OnEvent(func(topic string, payload json.RawMessage) {})
 	if !calledEvent || !calledWebhook || !calledEmail {
 		t.Fatal("expected event spine callbacks to have run")
 	}

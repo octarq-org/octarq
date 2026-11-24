@@ -63,8 +63,8 @@ func TestInstanceMailTestValidationAndSenderScenarios(t *testing.T) {
 
 	t.Run("failed delivery returns 400", func(t *testing.T) {
 		h.SetServiceLookup(func(name string) (any, bool) {
-			if name == plugin.ServiceMailSendSystem {
-				return plugin.SystemMailSender(func(to, subject, htmlBody, textBody string) error {
+			if name == plugin.ServiceMessagingSendSystem {
+				return plugin.SystemMessagingSender(func(to, subject, htmlBody, textBody string) error {
 					return errors.New("smtp relay connection refused")
 				}), true
 			}
@@ -80,8 +80,8 @@ func TestInstanceMailTestValidationAndSenderScenarios(t *testing.T) {
 		sentTo := ""
 		sentSubj := ""
 		h.SetServiceLookup(func(name string) (any, bool) {
-			if name == plugin.ServiceMailSendSystem {
-				return plugin.SystemMailSender(func(to, subject, htmlBody, textBody string) error {
+			if name == plugin.ServiceMessagingSendSystem {
+				return plugin.SystemMessagingSender(func(to, subject, htmlBody, textBody string) error {
 					sentTo = to
 					sentSubj = subject
 					return nil

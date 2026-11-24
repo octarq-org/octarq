@@ -41,7 +41,7 @@ func TestAppMethodsAndLazyDNS(t *testing.T) {
 	}
 
 	a.services = plugin.NewRegistry()
-	a.services.Provide(plugin.ServiceMailSend, plugin.MailSender(func(orgID uint, to, subject, html, text string) error {
+	a.services.Provide(plugin.ServiceMessagingSend, plugin.MessagingSender(func(orgID uint, to, subject, html, text string) error {
 		return nil
 	}))
 	if err := a.sendMail(1, "to@example.com", "sub", "<p>hi</p>", "hi"); err != nil {

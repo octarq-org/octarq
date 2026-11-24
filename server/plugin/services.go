@@ -2,16 +2,17 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 )
 
-const ServiceMailSend = "mail.send"
+const ServiceMessagingSend = "messaging.send"
 
-const ServiceMailReady = "mail.ready"
+const ServiceMessagingReady = "messaging.ready"
 
-const ServiceMailSendSystem = "mail.send.system"
+const ServiceMessagingSendSystem = "messaging.send.system"
 
-const ServiceMailDispatcher = "mail.dispatcher"
+const ServiceEventsDispatch = "events.dispatch"
 
 const ServiceCloudUsage = "cloud.usage"
 
@@ -53,13 +54,13 @@ func OverviewServiceName(pluginName string) string {
 	return pluginName + ".overview"
 }
 
-type MailSender func(orgID uint, to, subject, htmlBody, textBody string) error
+type MessagingSender func(orgID uint, to, subject, htmlBody, textBody string) error
 
-type SystemMailSender func(to, subject, htmlBody, textBody string) error
+type SystemMessagingSender func(to, subject, htmlBody, textBody string) error
 
-type MailReady func() bool
+type MessagingReady func() bool
 
-type EmailDispatcher func(handler func(EmailEvent))
+type EventDispatcher func(handler func(topic string, payload json.RawMessage))
 
 type UsageMeter func(orgID uint, metric string, n int64)
 

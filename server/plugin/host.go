@@ -40,7 +40,7 @@ type WorkspaceSettings = SettingsStore
 type EventSpine interface {
 	PublishEvent(orgID uint, event string, data any)
 	RegisterWebhookEvent(def WebhookEventDef)
-	OnEmail(handler func(EmailEvent))
+	OnEvent(handler func(topic string, payload json.RawMessage))
 }
 
 type Host interface {

@@ -51,7 +51,7 @@ func (h *Handler) testInstanceMail(ctx context.Context, input *TestInstanceMailI
 		return nil, huma.Error400BadRequest("Valid recipient email address required; enter an address in the form user@example.com")
 	}
 
-	fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem)
+	fn, ok := plugin.LookupServiceAs[plugin.SystemMessagingSender](h.LookupService, plugin.ServiceMessagingSendSystem)
 	if !ok {
 		return nil, huma.Error503ServiceUnavailable("System mail sender is not configured; set up an SMTP sender in instance settings")
 	}

@@ -82,7 +82,7 @@ var _ plugin.SettingsStore = (*mockSettingsStore)(nil)
 type mockEventSpine struct {
 	published []string
 	events    []plugin.WebhookEventDef
-	handlers  []func(plugin.EmailEvent)
+	handlers  []func(string, json.RawMessage)
 }
 
 func (m *mockEventSpine) PublishEvent(orgID uint, event string, data any) {
@@ -91,7 +91,7 @@ func (m *mockEventSpine) PublishEvent(orgID uint, event string, data any) {
 func (m *mockEventSpine) RegisterWebhookEvent(def plugin.WebhookEventDef) {
 	m.events = append(m.events, def)
 }
-func (m *mockEventSpine) OnEmail(handler func(plugin.EmailEvent)) {
+func (m *mockEventSpine) OnEvent(handler func(string, json.RawMessage)) {
 	m.handlers = append(m.handlers, handler)
 }
 
