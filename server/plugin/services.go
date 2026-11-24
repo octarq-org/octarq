@@ -15,7 +15,6 @@ const ServiceMailDispatcher = "mail.dispatcher"
 
 const ServiceCloudUsage = "cloud.usage"
 
-
 const ServiceStorage = "storage.service"
 
 const ServiceCredentialResolver = "credential.resolver"
@@ -78,7 +77,6 @@ type ExportFunc func(orgID uint) map[string]any
 type PurgeFunc func(orgID uint) error
 
 type OverviewFunc func(orgID uint) map[string]any
-
 
 type MCPExporter func(ctx context.Context, orgID uint) (any, error)
 
