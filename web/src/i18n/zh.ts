@@ -167,7 +167,6 @@ export const zh: Resources = {
     mail: "邮件",
     inbox: "站内信",
     domains: "DNS",
-    abuse: "滥用举报",
     "hello-instance": "实例示例",
     general: "通用",
     gateway: "模型网关",

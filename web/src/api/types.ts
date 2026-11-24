@@ -129,16 +129,6 @@ export interface ListAuditLogsParams {
   offset?: number;
 }
 
-export interface AbuseReport {
-  id: number;
-  slug: string;
-  target: string;
-  reason: string;
-  description: string;
-  reporterIp: string;
-  status: string;
-  createdAt: string;
-}
 
 export function effectiveLinkHosts(d: Domain): string[] {
   return (d.linkHosts ?? []).filter((h) => h.enabled).map((h) => h.host);

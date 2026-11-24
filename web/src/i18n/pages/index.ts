@@ -2,7 +2,6 @@ import { overview } from "./overview";
 import { personal } from "./personal";
 import { settings } from "./settings";
 import { instance } from "./instance";
-import { abuse } from "./abuse";
 import { appearance } from "./appearance";
 import { audit } from "./audit";
 import { invite } from "./invite";
@@ -19,7 +18,6 @@ const NS = {
   personal,
   settings,
   instance,
-  abuse,
   audit,
   invite,
   uiCommon,

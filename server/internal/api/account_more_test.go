@@ -74,7 +74,6 @@ func TestAccountMore(t *testing.T) {
 	db.Create(&models.PluginSetting{OrgID: purgeOrg.ID, Plugin: "links", Enabled: true})
 	db.Create(&models.AuditLog{OrgID: purgeOrg.ID, Action: "purge.test"})
 	db.Create(&models.Webhook{OrgID: purgeOrg.ID, Name: "wh", URL: "https://example.com/wh"})
-	db.Create(&models.AbuseReport{OrgID: purgeOrg.ID, Slug: "abuse-slug"})
 	db.Create(&models.Setting{Key: fmt.Sprintf("org_%d.stripe_key", purgeOrg.ID), Value: "sk_test_123"})
 
 	purgeCookies := sessionCookies(t, purgeOwner.ID, purgeOrg.ID)

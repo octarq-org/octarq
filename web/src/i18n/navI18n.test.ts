@@ -13,7 +13,6 @@ import { pt } from "./pt";
 import { ja } from "./ja";
 import { STATIC_AREAS, SETTINGS_AREA } from "../shell/areas";
 import auditPlugin from "../plugins/core/audit";
-import abusePlugin from "../plugins/core/abuse";
 import helpPlugin from "../plugins/core/help";
 
 const LOCALES: Lang[] = ["en", "zh", "es", "pt", "ja"];
@@ -65,7 +64,6 @@ describe("Navigation & Category Group i18n Guard Test", () => {
   beforeEach(() => {
     resetRegistry();
     registerUIPlugin(auditPlugin);
-    registerUIPlugin(abusePlugin);
     registerUIPlugin(helpPlugin);
   });
 

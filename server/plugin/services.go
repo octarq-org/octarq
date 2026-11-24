@@ -15,8 +15,6 @@ const ServiceMailDispatcher = "mail.dispatcher"
 
 const ServiceCloudUsage = "cloud.usage"
 
-const ServiceLinkResolve = "links.resolve"
-
 const ServiceMailEmailGet = "mail.email.get"
 
 const ServiceStorage = "storage.service"
@@ -81,8 +79,6 @@ type ExportFunc func(orgID uint) map[string]any
 type PurgeFunc func(orgID uint) error
 
 type OverviewFunc func(orgID uint) map[string]any
-
-type LinkResolver func(host, slug string) (target string, orgID uint, ok bool)
 
 type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)
 

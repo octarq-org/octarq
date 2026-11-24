@@ -165,7 +165,6 @@ export const en = {
     mail: "Mail",
     inbox: "Inbox",
     domains: "DNS",
-    abuse: "Abuse reports",
     "hello-instance": "Hello (instance)",
     general: "General",
     gateway: "Model Gateway",

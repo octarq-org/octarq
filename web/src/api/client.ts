@@ -7,7 +7,6 @@ import {
   SimpleOKSchema,
 } from "../pages/notifications/schemas";
 import type {
-  AbuseReport,
   Action,
   AuditLog,
   Domain,
@@ -235,8 +234,6 @@ export const api = {
     return req<AuditLog[]>("GET", `/api/audit${query ? "?" + query : ""}`);
   },
 
-  abuseReports: (status?: string) => req<AbuseReport[]>("GET", `/api/abuse${status ? `?status=${status}` : ""}`),
-  updateAbuseReport: (id: number, status: string) => req<AbuseReport>("PUT", `/api/abuse/${id}`, { status }),
 
   orgs: () => req<Org[]>("GET", "/api/orgs"),
   createOrg: (d: { name: string }) => req<Org>("POST", "/api/orgs", d),

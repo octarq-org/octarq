@@ -233,18 +233,6 @@ type AuditLog struct {
 	CreatedAt  time.Time `gorm:"index" json:"createdAt"`
 }
 
-type AbuseReport struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	OrgID       uint      `gorm:"index;default:1;column:owner_id" json:"-"`
-	Slug        string    `gorm:"size:255;index" json:"slug"`
-	Target      string    `gorm:"type:text" json:"target"`
-	Reason      string    `gorm:"size:64" json:"reason"`
-	Description string    `gorm:"type:text" json:"description"`
-	ReporterIP  string    `gorm:"size:64" json:"reporterIp"`
-	Status      string    `gorm:"size:32;default:'open'" json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
-}
-
 type UserSetting struct {
 	UserID    uint      `gorm:"primaryKey" json:"userId"`
 	Key       string    `gorm:"primaryKey;size:64" json:"key"`
@@ -314,7 +302,7 @@ func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserIdentity{}, &UserSetting{}, &PluginSetting{},
 		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
-		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{}, &OrgSlugHistory{},
+		&AuditLog{}, &Webhook{}, &Session{}, &OrgSlugHistory{},
 		&Notification{}, &NotificationPreference{}, &File{}, &OrgHost{},
 		&SchemaMigration{},
 	}

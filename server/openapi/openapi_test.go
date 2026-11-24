@@ -47,7 +47,6 @@ func TestGenerateValidSpec(t *testing.T) {
 		{"/api/notify", "post"},
 		{"/auth/begin/{provider}", "get"},
 		{"/api/mcp/sse", "get"},
-		{"/abuse", "post"},
 	}
 	for _, c := range checks {
 		item, ok := paths[c.path]

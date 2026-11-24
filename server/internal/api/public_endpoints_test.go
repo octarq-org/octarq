@@ -21,8 +21,6 @@ var registeredPublicEndpoints = map[string]string{
 	"GET /api/health": "liveness probe",
 	"GET /api/status": "liveness probe",
 
-	"POST /abuse": "public by design; rate-limited as its own tier",
-
 	"GET /api/files/{id}/download": "session or HMAC-SHA256 signed temporary download token",
 
 	"GET /api/account/export": "session (owner/admin) or HMAC-SHA256 signed temporary download token",
