@@ -12,7 +12,6 @@ import { proTable } from "./proTable";
 import { copilot } from "./copilot";
 import { data } from "./data";
 import { gateway } from "./gateway";
-import { workbench } from "./workbench";
 
 const NS = {
   appearance,
@@ -29,7 +28,6 @@ const NS = {
   copilot,
   data,
   gateway,
-  workbench,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));
