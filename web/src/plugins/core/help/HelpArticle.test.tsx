@@ -115,3 +115,23 @@ describe("HelpArticle component rendering", () => {
     expect(container.querySelector("script")).toBeNull();
   });
 });
+
+describe("HelpArticle server-side highlighting", () => {
+  it("keeps chroma token spans and copies the plain text", () => {
+    vi.useFakeTimers();
+    const html = `<pre class="chroma"><code><span class="line"><span class="cl"><span class="k">go</span> build ./...</span></span></code></pre>`;
+    const { container } = render(
+      <I18nProvider>
+        <MemoryRouter>
+          <HelpArticle title="Build" html={html} slug="build" lang="en" />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    const keyword = container.querySelector(".chroma .k");
+    expect(keyword?.textContent).toBe("go");
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("go build ./...");
+  });
+});

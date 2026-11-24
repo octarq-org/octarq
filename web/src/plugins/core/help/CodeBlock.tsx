@@ -1,14 +1,24 @@
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Check, Copy } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 
-export function CodeBlock({ code, language }: { code: string; language?: string }) {
+export function CodeBlock({
+  children,
+  code,
+  language,
+}: {
+  children: ReactNode;
+  code: string;
+  language?: string;
+}) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const codeRef = useRef<HTMLElement>(null);
   const label = language ? language.toUpperCase() : "CODE";
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(code);
+    const text = codeRef.current?.textContent ?? code;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -28,7 +38,12 @@ export function CodeBlock({ code, language }: { code: string; language?: string 
         </button>
       </div>
       <pre>
-        <code className={language ? `language-${language}` : undefined}>{code}</code>
+        <code
+          ref={codeRef}
+          className={language ? `chroma language-${language}` : "chroma"}
+        >
+          {children}
+        </code>
       </pre>
     </div>
   );
