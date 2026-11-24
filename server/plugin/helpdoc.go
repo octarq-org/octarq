@@ -118,18 +118,36 @@ func CompareHelpDocs(a, b HelpDoc) bool {
 	return a.Title < b.Title
 }
 
+var helpPlaceholderKeys = []string{"app_name", "domain", "org_slug"}
+
+func HelpPlaceholders() []string {
+	return append([]string(nil), helpPlaceholderKeys...)
+}
+
+func IsHelpPlaceholder(key string) bool {
+	for _, k := range helpPlaceholderKeys {
+		if k == key {
+			return true
+		}
+	}
+	return false
+}
+
 type HelpDocTranslation struct {
-	Title    string `yaml:"title" json:"title,omitempty"`
-	Category string `yaml:"category" json:"category,omitempty"`
-	Markdown string `yaml:"markdown" json:"markdown,omitempty"`
+	Title       string `yaml:"title" json:"title,omitempty"`
+	Description string `yaml:"description" json:"description,omitempty"`
+	Category    string `yaml:"category" json:"category,omitempty"`
+	Markdown    string `yaml:"markdown" json:"markdown,omitempty"`
 }
 
 type HelpDoc struct {
 	Slug         string                        `yaml:"slug" json:"slug"`
 	Title        string                        `yaml:"title" json:"title"`
+	Description  string                        `yaml:"description" json:"description,omitempty"`
 	Category     string                        `yaml:"category" json:"category"`
 	Order        int                           `yaml:"order" json:"order"`
 	Feature      string                        `yaml:"feature" json:"feature,omitempty"`
+	Routes       []string                      `yaml:"routes" json:"routes,omitempty"`
 	Markdown     string                        `yaml:"-" json:"markdown"`
 	Translations map[string]HelpDocTranslation `yaml:"translations" json:"translations,omitempty"`
 }
@@ -140,9 +158,12 @@ func (h HelpDoc) WithTranslation(lang, raw string) HelpDoc {
 	}
 	trDoc, err := ParseHelpDoc(raw)
 	tr := h.Translations[lang]
-	if err == nil && (trDoc.Title != "" || trDoc.Category != "" || trDoc.Markdown != "") {
+	if err == nil && (trDoc.Title != "" || trDoc.Description != "" || trDoc.Category != "" || trDoc.Markdown != "") {
 		if trDoc.Title != "" {
 			tr.Title = trDoc.Title
+		}
+		if trDoc.Description != "" {
+			tr.Description = trDoc.Description
 		}
 		if trDoc.Category != "" {
 			tr.Category = trDoc.Category
@@ -209,20 +230,19 @@ func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	case "getting-started", "start", "general", "platform", "core":
 		h.Category = "start"
 	case "access", "security", "identity":
-		h.Category = "access"
+		h.Category = "settings"
 	case "automation", "api", "apis":
-		h.Category = "automation"
+		h.Category = "operations"
 	case "services", "infrastructure", "dns", "ddns", "short-links", "links", "mail", "messaging", "marketing":
-		h.Category = "services"
+		h.Category = "infrastructure"
 	case "commerce", "billing", "finance":
 		h.Category = "commerce"
 	case "licensing", "editions":
 		h.Category = "licensing"
+	case "settings", "operations":
 	default:
-		if _, ok := helpCategoryMap[h.Category]; !ok {
-			log.Printf("[help] warning: doc %q from plugin %q has unknown category %q, falling back to 'services'", h.Slug, pluginName, h.Category)
-			h.Category = "services"
-		}
+		log.Printf("[help] warning: doc %q from plugin %q has unknown category %q, falling back to 'start'", h.Slug, pluginName, h.Category)
+		h.Category = "start"
 	}
 }
 

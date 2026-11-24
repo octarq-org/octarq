@@ -56,10 +56,12 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 }
 
 type DocMeta struct {
-	Slug     string `json:"slug"`
-	Title    string `json:"title"`
-	Category string `json:"category"`
-	Order    int    `json:"order"`
+	Slug        string   `json:"slug"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Category    string   `json:"category"`
+	Order       int      `json:"order"`
+	Routes      []string `json:"routes,omitempty"`
 }
 
 type ListDocsInput struct {
@@ -93,10 +95,12 @@ func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsO
 	out := make([]DocMeta, 0, len(allDocs))
 	for _, d := range allDocs {
 		out = append(out, DocMeta{
-			Slug:     d.Slug,
-			Title:    d.Title,
-			Category: d.Category,
-			Order:    d.Order,
+			Slug:        d.Slug,
+			Title:       d.Title,
+			Description: d.Description,
+			Category:    d.Category,
+			Order:       d.Order,
+			Routes:      d.Routes,
 		})
 	}
 	return &ListDocsOutput{Body: out}, nil
@@ -232,6 +236,9 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 						tr := d.Translations[matchedKey]
 						if tr.Title != "" {
 							d.Title = tr.Title
+						}
+						if tr.Description != "" {
+							d.Description = tr.Description
 						}
 						if tr.Category != "" {
 							d.Category = tr.Category
