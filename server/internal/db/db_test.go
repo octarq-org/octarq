@@ -136,6 +136,14 @@ func findOrgHost(t *testing.T, gdb *gorm.DB, host, source string) *models.OrgHos
 	return &row
 }
 
+type domainProbeRow struct {
+	ID      uint   `gorm:"primaryKey"`
+	OwnerID uint   `gorm:"column:owner_id"`
+	Name    string `gorm:"column:name"`
+}
+
+func (domainProbeRow) TableName() string { return "domains" }
+
 func TestBackfillOrgHosts(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -176,10 +184,17 @@ func TestBackfillOrgHosts(t *testing.T) {
 	if count != 1 {
 		t.Errorf("backfill is not idempotent: %d rows for the tenant host", count)
 	}
-	var pluginRows int64
-	gdb.Model(&models.OrgHost{}).Where("source LIKE ?", "dns.%").Count(&pluginRows)
-	if pluginRows != 0 {
-		t.Error("core must not invent host bindings for plugin-owned domains")
+	if err := gdb.Migrator().CreateTable(&domainProbeRow{}); err != nil {
+		t.Fatalf("create domains: %v", err)
+	}
+	gdb.Create(&domainProbeRow{OwnerID: 1, Name: "legacy.example.com"})
+	if err := backfillOrgHosts(gdb); err != nil {
+		t.Fatalf("backfill with a domains table: %v", err)
+	}
+	var pluginOwned int64
+	gdb.Model(&models.OrgHost{}).Where("host = ?", "legacy.example.com").Count(&pluginOwned)
+	if pluginOwned != 0 {
+		t.Error("core must not bind hosts from the plugin-owned domains table")
 	}
 }
 
