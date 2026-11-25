@@ -72,6 +72,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	}
 	services.Provide(plugin.ServiceExportSignedURL, plugin.ExportSignedURLFunc(apiHandler.GenerateExportSignedURL))
 	cronEngine := cron.New(a.cfg.RedisURL)
+	cronEngine.SetStore(cronSettingsStore{db: a.gdb})
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
 	var eventMu sync.Mutex
@@ -224,6 +225,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	services.Provide(plugin.ServiceExportSignedURL, plugin.ExportSignedURLFunc(apiHandler.GenerateExportSignedURL))
 	cronEngine := cron.New(a.cfg.RedisURL)
+	cronEngine.SetStore(cronSettingsStore{db: a.gdb})
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
 	var rootHandler http.Handler

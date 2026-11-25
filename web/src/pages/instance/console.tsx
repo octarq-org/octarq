@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { Menu } from "@base-ui/react/menu";
-import { ArrowLeft, Globe, KeyRound, LayoutDashboard, Moon, Puzzle, Server, Sun } from "lucide-react";
+import { ArrowLeft, CalendarClock, Globe, KeyRound, LayoutDashboard, Moon, Puzzle, Server, Sun } from "lucide-react";
 import { uiInstanceRoutes, Button, PageCard, RouteFallback, cn } from "@octarq/plugin-sdk";
 import { api, type MenuItem } from "../../api";
 import { BrandMark } from "../../shell/BrandMark";
@@ -18,12 +18,14 @@ import { ConsoleHome } from "./home";
 const InstanceSettings = lazy(() => import("./settings").then((m) => ({ default: m.InstanceSettings })));
 const AuthenticationSettings = lazy(() => import("./auth").then((m) => ({ default: m.AuthenticationSettings })));
 const InstancePluginsSettings = lazy(() => import("./plugins").then((m) => ({ default: m.InstancePluginsSettings })));
+const ScheduledJobsSettings = lazy(() => import("./jobs").then((m) => ({ default: m.ScheduledJobsSettings })));
 
 const RAIL: { id: string; label: string; path: string; Icon: React.ElementType }[] = [
   { id: "console-overview", label: "Overview", path: "/", Icon: LayoutDashboard },
   { id: "console-settings", label: "Instance Settings", path: "/settings", Icon: Server },
   { id: "console-auth", label: "Authentication", path: "/auth", Icon: KeyRound },
   { id: "console-plugins", label: "Installed plugins", path: "/plugins", Icon: Puzzle },
+  { id: "console-jobs", label: "Scheduled tasks", path: "/jobs", Icon: CalendarClock },
 ];
 
 export default function InstanceConsole() {
@@ -237,6 +239,7 @@ function ConsoleShell() {
                 <Route path="/settings" element={<InstanceSettings />} />
                 <Route path="/auth" element={<AuthenticationSettings />} />
                 <Route path="/plugins" element={<InstancePluginsSettings />} />
+                <Route path="/jobs" element={<ScheduledJobsSettings />} />
                 {instanceRoutes.map((route) => (
                   <Route key={route.path} path={route.path} element={<route.Component />} />
                 ))}

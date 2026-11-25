@@ -185,6 +185,7 @@ export const ja = {
     "console-settings": "インスタンス設定",
     "console-auth": "認証",
     "console-plugins": "インストール済みプラグイン",
+    "console-jobs": "スケジュールタスク",
     "instance-console": "インスタンス管理",
     help: "利用ガイド",
   },

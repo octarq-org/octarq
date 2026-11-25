@@ -15,18 +15,28 @@ import (
 var _ plugin.CronService = (*Engine)(nil)
 
 type jobEntry struct {
-	name     string
-	spec     string
-	schedule Schedule
-	handler  func(ctx context.Context) error
-	lastRun  time.Time
-	nextRun  time.Time
-	status   string
-	lastErr  string
+	name        string
+	spec        string
+	defaultSpec string
+	schedule    Schedule
+	handler     func(ctx context.Context) error
+	enabled     bool
+	lastRun     time.Time
+	nextRun     time.Time
+	status      string
+	lastErr     string
 }
+
+type SettingsStore interface {
+	Get(key string) (string, bool)
+	Set(key string, value string) error
+}
+
+const jobRunTTL = 10 * time.Minute
 
 type Engine struct {
 	guard   Guard
+	store   SettingsStore
 	mu      sync.RWMutex
 	jobs    map[string]*jobEntry
 	running bool
@@ -48,6 +58,12 @@ func NewEngine(guard Guard) *Engine {
 	}
 }
 
+func (e *Engine) SetStore(store SettingsStore) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.store = store
+}
+
 func (e *Engine) Register(name string, spec string, handler func(ctx context.Context) error) error {
 	if name == "" {
 		return errors.New("cron: job name cannot be empty")
@@ -56,28 +72,45 @@ func (e *Engine) Register(name string, spec string, handler func(ctx context.Con
 		return errors.New("cron: handler cannot be nil")
 	}
 
-	sched, err := ParseStandard(spec)
-	if err != nil {
-		return fmt.Errorf("cron: parse spec %q: %w", spec, err)
-	}
-
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	now := time.Now()
-	next := sched.Next(now)
-
-	e.jobs[name] = &jobEntry{
-		name:     name,
-		spec:     spec,
-		schedule: sched,
-		handler:  handler,
-		nextRun:  next,
-		status:   "idle",
+	entry := &jobEntry{
+		name:        name,
+		spec:        spec,
+		defaultSpec: spec,
+		handler:     handler,
+		enabled:     true,
+		status:      "idle",
 	}
+	e.applyStoredSettings(entry)
+	sched, err := ParseStandard(entry.spec)
+	if err != nil {
+		return fmt.Errorf("cron: parse spec %q: %w", entry.spec, err)
+	}
+	entry.schedule = sched
+	entry.nextRun = sched.Next(time.Now())
+	e.jobs[name] = entry
 
 	return nil
 }
+
+func (e *Engine) applyStoredSettings(entry *jobEntry) {
+	if e.store == nil {
+		return
+	}
+	if stored, ok := e.store.Get(specKey(entry.name)); ok && stored != "" {
+		if _, err := ParseStandard(stored); err == nil {
+			entry.spec = stored
+		}
+	}
+	if stored, ok := e.store.Get(enabledKey(entry.name)); ok {
+		entry.enabled = stored != "false"
+	}
+}
+
+func specKey(name string) string    { return "cron." + name + ".spec" }
+func enabledKey(name string) string { return "cron." + name + ".enabled" }
 
 func (e *Engine) Unregister(name string) error {
 	e.mu.Lock()
@@ -97,12 +130,14 @@ func (e *Engine) List() []plugin.CronJob {
 	result := make([]plugin.CronJob, 0, len(e.jobs))
 	for _, j := range e.jobs {
 		result = append(result, plugin.CronJob{
-			Name:    j.name,
-			Spec:    j.spec,
-			LastRun: j.lastRun,
-			NextRun: j.nextRun,
-			Status:  j.status,
-			LastErr: j.lastErr,
+			Name:        j.name,
+			Spec:        j.spec,
+			DefaultSpec: j.defaultSpec,
+			Enabled:     j.enabled,
+			LastRun:     j.lastRun,
+			NextRun:     j.nextRun,
+			Status:      j.status,
+			LastErr:     j.lastErr,
 		})
 	}
 
@@ -148,6 +183,9 @@ func (e *Engine) checkAndRun(ctx context.Context) {
 	var toRun []*jobEntry
 
 	for _, j := range e.jobs {
+		if !j.enabled {
+			continue
+		}
 		if !j.nextRun.IsZero() && (now.Equal(j.nextRun) || now.After(j.nextRun)) {
 			j.nextRun = j.schedule.Next(now)
 			toRun = append(toRun, j)
@@ -164,21 +202,31 @@ func (e *Engine) checkAndRun(ctx context.Context) {
 	}
 }
 
-func (e *Engine) executeJob(ctx context.Context, j *jobEntry) {
-	release, ok, err := e.guard.Acquire(ctx, j.name, 10*time.Minute)
+func (e *Engine) executeJob(ctx context.Context, j *jobEntry) error {
+	release, ok, err := e.guard.Acquire(ctx, j.name, jobRunTTL)
 	if err != nil {
 		e.mu.Lock()
 		j.status = "error"
 		j.lastErr = err.Error()
 		e.mu.Unlock()
 		slog.Error("cron: guard acquire failed", "job", j.name, "err", err)
-		return
+		return err
 	}
 	if !ok {
-		return
+		return plugin.ErrJobBusy
 	}
 	defer release()
 
+	e.runHandler(ctx, j)
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if j.lastErr != "" {
+		return errors.New(j.lastErr)
+	}
+	return nil
+}
+
+func (e *Engine) runHandler(ctx context.Context, j *jobEntry) {
 	e.mu.Lock()
 	j.status = "running"
 	j.lastRun = time.Now()
@@ -214,15 +262,92 @@ func (e *Engine) RunJob(ctx context.Context, name string) error {
 	e.mu.RUnlock()
 
 	if !exists {
-		return fmt.Errorf("cron: job %q not found", name)
+		return fmt.Errorf("%w: %q", plugin.ErrJobNotFound, name)
+	}
+	return e.executeJob(ctx, j)
+}
+
+func (e *Engine) StartJob(name string) error {
+	e.mu.RLock()
+	j, exists := e.jobs[name]
+	running := e.running
+	e.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("%w: %q", plugin.ErrJobNotFound, name)
+	}
+	if !running {
+		return errors.New("cron: engine is not running")
 	}
 
-	e.executeJob(ctx, j)
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	if j.lastErr != "" {
-		return errors.New(j.lastErr)
+	ctx, cancel := context.WithTimeout(context.Background(), jobRunTTL)
+	release, ok, err := e.guard.Acquire(ctx, name, jobRunTTL)
+	if err != nil {
+		cancel()
+		return err
 	}
+	if !ok {
+		cancel()
+		return fmt.Errorf("%w: %q", plugin.ErrJobBusy, name)
+	}
+
+	e.wg.Add(1)
+	go func() {
+		defer e.wg.Done()
+		defer cancel()
+		defer release()
+		e.runHandler(ctx, j)
+	}()
+	return nil
+}
+
+func (e *Engine) SetEnabled(name string, enabled bool) error {
+	if e.store == nil {
+		return errors.New("cron: settings store is not configured")
+	}
+	value := "true"
+	if !enabled {
+		value = "false"
+	}
+	if err := e.store.Set(enabledKey(name), value); err != nil {
+		return err
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	j, exists := e.jobs[name]
+	if !exists {
+		return fmt.Errorf("%w: %q", plugin.ErrJobNotFound, name)
+	}
+	j.enabled = enabled
+	return nil
+}
+
+func (e *Engine) SetSpec(name string, spec string) error {
+	sched, err := ParseStandard(spec)
+	if err != nil {
+		return fmt.Errorf("cron: parse spec %q: %w", spec, err)
+	}
+	if e.store == nil {
+		return errors.New("cron: settings store is not configured")
+	}
+
+	e.mu.Lock()
+	j, exists := e.jobs[name]
+	e.mu.Unlock()
+	if !exists {
+		return fmt.Errorf("%w: %q", plugin.ErrJobNotFound, name)
+	}
+
+	if err := e.store.Set(specKey(name), spec); err != nil {
+		return err
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	j.spec = spec
+	j.schedule = sched
+	j.nextRun = sched.Next(time.Now())
 	return nil
 }
 

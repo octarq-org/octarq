@@ -14,6 +14,7 @@ import type {
   HelpDocContent,
   HelpDocMeta,
   HelpSearchResponse,
+  CronJobInfo,
   InstancePluginInfo,
   InstanceSettings,
   LinkedIdentity,
@@ -72,6 +73,18 @@ export const api = {
 
   instanceBuild: () =>
     req<{ version: string; commit: string; builtAt: string }>("GET", "/api/instance/build"),
+
+  cronJobs: () => req<CronJobInfo[]>("GET", "/api/cron/jobs"),
+
+  runCronJob: (name: string) =>
+    req<{ name: string; started: boolean }>("POST", `/api/cron/jobs/${encodeURIComponent(name)}/run`, {}),
+
+  updateCronJob: (name: string, body: { enabled?: boolean; spec?: string }) =>
+    req<{ name: string; spec: string; defaultSpec: string; enabled: boolean }>(
+      "PATCH",
+      `/api/cron/jobs/${encodeURIComponent(name)}`,
+      body,
+    ),
 
   overview: () => req<Overview>("GET", "/api/overview"),
 

@@ -17,6 +17,7 @@ func (m *mockCronService) Register(name string, spec string, handler func(ctx co
 	m.jobs = append(m.jobs, plugin.CronJob{
 		Name:    name,
 		Spec:    spec,
+		Enabled: true,
 		Status:  "idle",
 		NextRun: time.Now().Add(time.Hour),
 	})
@@ -35,6 +36,35 @@ func (m *mockCronService) Unregister(name string) error {
 
 func (m *mockCronService) List() []plugin.CronJob {
 	return m.jobs
+}
+
+func (m *mockCronService) StartJob(name string) error {
+	for _, j := range m.jobs {
+		if j.Name == name {
+			return nil
+		}
+	}
+	return plugin.ErrJobNotFound
+}
+
+func (m *mockCronService) SetEnabled(name string, enabled bool) error {
+	for i, j := range m.jobs {
+		if j.Name == name {
+			m.jobs[i].Enabled = enabled
+			return nil
+		}
+	}
+	return plugin.ErrJobNotFound
+}
+
+func (m *mockCronService) SetSpec(name string, spec string) error {
+	for i, j := range m.jobs {
+		if j.Name == name {
+			m.jobs[i].Spec = spec
+			return nil
+		}
+	}
+	return plugin.ErrJobNotFound
 }
 
 var _ plugin.CronService = (*mockCronService)(nil)
