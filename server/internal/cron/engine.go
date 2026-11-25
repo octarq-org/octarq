@@ -305,6 +305,14 @@ func (e *Engine) SetEnabled(name string, enabled bool) error {
 	if e.store == nil {
 		return errors.New("cron: settings store is not configured")
 	}
+
+	e.mu.Lock()
+	j, exists := e.jobs[name]
+	e.mu.Unlock()
+	if !exists {
+		return fmt.Errorf("%w: %q", plugin.ErrJobNotFound, name)
+	}
+
 	value := "true"
 	if !enabled {
 		value = "false"
@@ -315,10 +323,6 @@ func (e *Engine) SetEnabled(name string, enabled bool) error {
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	j, exists := e.jobs[name]
-	if !exists {
-		return fmt.Errorf("%w: %q", plugin.ErrJobNotFound, name)
-	}
 	j.enabled = enabled
 	return nil
 }
