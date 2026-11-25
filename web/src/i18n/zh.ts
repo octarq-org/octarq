@@ -187,6 +187,7 @@ export const zh: Resources = {
     "console-settings": "实例设置",
     "console-auth": "身份验证",
     "console-plugins": "已安装插件",
+    "console-jobs": "定时任务",
     "instance-console": "实例管理",
     help: "使用指南",
   },

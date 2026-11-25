@@ -11,6 +11,7 @@ import { proTable } from "./proTable";
 import { copilot } from "./copilot";
 import { data } from "./data";
 import { gateway } from "./gateway";
+import { jobs } from "./jobs";
 
 const NS = {
   appearance,
@@ -26,6 +27,7 @@ const NS = {
   copilot,
   data,
   gateway,
+  jobs,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));

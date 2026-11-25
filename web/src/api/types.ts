@@ -304,6 +304,17 @@ export interface Action {
   requiredRole?: string;
 }
 
+export interface CronJobInfo {
+  name: string;
+  spec: string;
+  defaultSpec: string;
+  enabled: boolean;
+  lastRun: string;
+  nextRun: string;
+  status: string;
+  lastErr: string;
+}
+
 export interface InstancePluginInfo {
   name: string;
   featureKey: string;
