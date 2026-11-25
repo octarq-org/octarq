@@ -459,8 +459,10 @@ function Shell({
               </div>
             ) : (
               <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-                <div key={orgEpoch} className="px-4 py-6 sm:px-8 sm:py-8">
-                  <AppRoutes pluginGateCtxValue={pluginGateCtxValue} />
+                <div key={orgEpoch} className="flex min-h-full flex-col px-4 py-6 sm:px-8 sm:py-8">
+                  <div className="flex-1">
+                    <AppRoutes pluginGateCtxValue={pluginGateCtxValue} />
+                  </div>
                   <ShellFooter />
                 </div>
               </div>
