@@ -23,6 +23,14 @@ import { Play, RotateCw, ShieldAlert } from "lucide-react";
 import { api, ApiError, type CronJobInfo } from "../../api";
 import { useTranslation } from "../../i18n";
 
+function hasRun(ts: string): boolean {
+  return Boolean(ts) && !ts.startsWith("0001-01-01");
+}
+
+function formatNextRun(ts: string): string {
+  return new Date(ts).toLocaleString();
+}
+
 function statusTone(status: string): { tone: StatusTone; key: string; fallback: string } {
   switch (status) {
     case "running":
@@ -207,9 +215,9 @@ export function ScheduledJobsSettings() {
                         </div>
                       ) : null}
                     </TD>
-                    <TD className="text-xs text-muted-foreground">{job.lastRun ? timeAgo(job.lastRun) : t("jobs.never", "Never")}</TD>
+                    <TD className="text-xs text-muted-foreground">{hasRun(job.lastRun) ? timeAgo(job.lastRun) : t("jobs.never", "Never")}</TD>
                     <TD className="text-xs text-muted-foreground">
-                      {job.enabled && job.nextRun ? timeAgo(job.nextRun) : t("jobs.never", "Never")}
+                      {job.enabled && hasRun(job.nextRun) ? formatNextRun(job.nextRun) : t("jobs.never", "Never")}
                     </TD>
                     <TD className="text-right">
                       <Button size="sm" variant="secondary" onClick={() => void runNow(job)} disabled={busyName === job.name}>
