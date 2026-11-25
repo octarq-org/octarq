@@ -170,6 +170,26 @@ func (h *Handler) Routes() *http.ServeMux {
 		Errors:      []int{401},
 	}, h.listCronJobs)
 
+	huma.Register(api, huma.Operation{
+		OperationID: "runCronJob",
+		Method:      "POST",
+		Path:        "/api/cron/jobs/{name}/run",
+		Summary:     "Run Cron Job",
+		Description: "Starts a registered scheduled task immediately. Instance administrators only. A locked task returns 409.",
+		Tags:        []string{"Cron"},
+		Errors:      []int{401, 403, 404, 409, 503},
+	}, h.runCronJob)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "updateCronJob",
+		Method:      "PATCH",
+		Path:        "/api/cron/jobs/{name}",
+		Summary:     "Update Cron Job",
+		Description: "Enables or disables a scheduled task, or replaces its cron expression. Instance administrators only.",
+		Tags:        []string{"Cron"},
+		Errors:      []int{401, 403, 404, 422, 503},
+	}, h.updateCronJob)
+
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks", Summary: "List Webhooks", Tags: []string{"Webhooks"}}, h.listWebhooks)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks/events", Summary: "List Webhook Event Types", Tags: []string{"Webhooks"}}, h.listWebhookEvents)
 	huma.Register(api, huma.Operation{

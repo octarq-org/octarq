@@ -185,6 +185,7 @@ export const es = {
     "console-settings": "Configuración de instancia",
     "console-auth": "Autenticación",
     "console-plugins": "Complementos instalados",
+    "console-jobs": "Tareas programadas",
     "instance-console": "Gestión de instancia",
     help: "Manual de uso",
   },

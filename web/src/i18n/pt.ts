@@ -185,6 +185,7 @@ export const pt = {
     "console-settings": "Configurações da instância",
     "console-auth": "Autenticação",
     "console-plugins": "Plugins instalados",
+    "console-jobs": "Tarefas agendadas",
     "instance-console": "Gerenciamento da instância",
     help: "Manual de uso",
   },

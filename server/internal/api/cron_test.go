@@ -8,11 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
 type testMockCronService struct {
 	jobs []plugin.CronJob
+	run  func(name string) error
+	set  func(name string, enabled bool) error
+	spec func(name string, spec string) error
 }
 
 func (m *testMockCronService) Register(name string, spec string, handler func(ctx context.Context) error) error {
@@ -25,6 +29,27 @@ func (m *testMockCronService) Unregister(name string) error {
 
 func (m *testMockCronService) List() []plugin.CronJob {
 	return m.jobs
+}
+
+func (m *testMockCronService) StartJob(name string) error {
+	if m.run != nil {
+		return m.run(name)
+	}
+	return nil
+}
+
+func (m *testMockCronService) SetEnabled(name string, enabled bool) error {
+	if m.set != nil {
+		return m.set(name, enabled)
+	}
+	return nil
+}
+
+func (m *testMockCronService) SetSpec(name string, spec string) error {
+	if m.spec != nil {
+		return m.spec(name, spec)
+	}
+	return nil
 }
 
 func TestListCronJobs_Unauthenticated(t *testing.T) {
@@ -158,5 +183,79 @@ func TestListCronJobs_NilContext(t *testing.T) {
 	errs := input.Resolve(nil)
 	if len(errs) != 0 {
 		t.Fatalf("expected empty resolve errs, got %v", errs)
+	}
+}
+
+func TestRunCronJob_RequiresInstanceAdmin(t *testing.T) {
+	_, srv, db := newTestHandlerRaw(t)
+	cookies := loginCookies(t, srv)
+	if err := db.Model(&models.User{}).Where("1 = 1").Update("is_instance_admin", false).Error; err != nil {
+		t.Fatalf("demote admin: %v", err)
+	}
+	rec := do(srv, "POST", "/api/cron/jobs/session_cleanup/run", cookies, "")
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRunCronJob_StartsJob(t *testing.T) {
+	h, srv, _ := newTestHandlerRaw(t)
+	cookies := loginCookies(t, srv)
+	ran := ""
+	h.SetCronService(&testMockCronService{run: func(name string) error {
+		ran = name
+		return nil
+	}})
+
+	rec := do(srv, "POST", "/api/cron/jobs/session_cleanup/run", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if ran != "session_cleanup" {
+		t.Fatalf("job was not started: %q", ran)
+	}
+}
+
+func TestRunCronJob_Errors(t *testing.T) {
+	h, srv, _ := newTestHandlerRaw(t)
+	cookies := loginCookies(t, srv)
+
+	h.SetCronService(&testMockCronService{run: func(name string) error { return plugin.ErrJobBusy }})
+	rec := do(srv, "POST", "/api/cron/jobs/session_cleanup/run", cookies, "")
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("busy job: expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	h.SetCronService(&testMockCronService{run: func(name string) error { return plugin.ErrJobNotFound }})
+	rec = do(srv, "POST", "/api/cron/jobs/missing/run", cookies, "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("missing job: expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateCronJob_ValidatesAndApplies(t *testing.T) {
+	h, srv, _ := newTestHandlerRaw(t)
+	cookies := loginCookies(t, srv)
+	mock := &testMockCronService{
+		jobs: []plugin.CronJob{{Name: "pt.tick", Spec: "*/5 * * * *", DefaultSpec: "*/5 * * * *", Enabled: true}},
+	}
+	h.SetCronService(mock)
+
+	rec := do(srv, "PATCH", "/api/cron/jobs/pt.tick", cookies, `{"spec":"not a cron"}`)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid spec: expected 422, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var enabled bool
+	mock.set = func(name string, value bool) error {
+		enabled = value
+		return nil
+	}
+	rec = do(srv, "PATCH", "/api/cron/jobs/pt.tick", cookies, `{"enabled":false}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("disable: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if enabled {
+		t.Fatal("expected enabled=false to reach the service")
 	}
 }

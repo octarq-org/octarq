@@ -185,6 +185,7 @@ export const en = {
     "console-settings": "Instance settings",
     "console-auth": "Authentication",
     "console-plugins": "Installed plugins",
+    "console-jobs": "Scheduled tasks",
     "instance-console": "Instance management",
     help: "User manual",
   },
