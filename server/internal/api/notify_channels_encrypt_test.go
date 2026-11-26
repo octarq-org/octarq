@@ -9,27 +9,8 @@ import (
 
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/notification"
-	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/internal/notify"
 )
-
-type configCaptureChannel struct {
-	send func(cfgJSON string)
-}
-
-func (c *configCaptureChannel) Name() string                  { return "custom" }
-func (c *configCaptureChannel) DisplayName() string           { return "Custom" }
-func (c *configCaptureChannel) ConfigSchema() json.RawMessage { return nil }
-
-func (c *configCaptureChannel) Send(_ context.Context, recipient plugin.NotificationRecipient, _ plugin.NotificationPayload) error {
-	cfgJSON := "{}"
-	if recipient.Config != nil {
-		if raw, ok := recipient.Config["_raw_config"].(string); ok && strings.TrimSpace(raw) != "" {
-			cfgJSON = raw
-		}
-	}
-	c.send(cfgJSON)
-	return nil
-}
 
 func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
@@ -70,20 +51,17 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 	}
 
 	var receivedConfig string
-	if err := notification.DefaultRouter().RegisterChannel(&configCaptureChannel{
-		send: func(cfgJSON string) {
-			receivedConfig = cfgJSON
-		},
-	}); err != nil {
-		t.Fatalf("register custom channel: %v", err)
-	}
+	notify.Register("custom", func(ctx context.Context, cfgJSON, text string) error {
+		receivedConfig = cfgJSON
+		return nil
+	})
 
 	resolvedJSON, err := notification.ResolveChannelConfigJSON(context.Background(), h.vault(), storedCh)
 	if err != nil {
 		t.Fatalf("ResolveChannelConfigJSON failed: %v", err)
 	}
-	if err := notification.DefaultRouter().SendDirect(context.Background(), "custom", resolvedJSON, "hello test"); err != nil {
-		t.Fatalf("SendDirect failed: %v", err)
+	if err := notify.Send(context.Background(), "custom", resolvedJSON, "hello test"); err != nil {
+		t.Fatalf("notify.Send failed: %v", err)
 	}
 	var gotMap, wantMap map[string]any
 	if err := json.Unmarshal([]byte(receivedConfig), &gotMap); err != nil {

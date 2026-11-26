@@ -13,7 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/help"
@@ -68,7 +67,8 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 
 	p.present("Guard", ctx.Guard != nil)
 	p.present("Audit", ctx.Audit != nil)
-	p.present("RegisterNotificationChannel", ctx.RegisterNotificationChannel != nil)
+	p.present("Notify", ctx.Notify != nil)
+	p.present("RegisterNotifier", ctx.RegisterNotifier != nil)
 	p.present("RecordUsage", ctx.RecordUsage != nil)
 	p.present("SetLLMResolverForOrg", ctx.SetLLMResolverForOrg != nil)
 	p.present("LLMProviderForOrg", ctx.LLMProviderForOrg != nil)
@@ -148,22 +148,19 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 
 	var gotText string
-	chName := "cov.notify." + p.name
-	ctx.RegisterNotificationChannel(&stubNotificationChannel{
-		name: chName,
-		send: func(_ context.Context, text string) error {
-			gotText = text
-			return nil
-		},
+	ctx.RegisterNotifier("cov.notify."+p.name, func(_ context.Context, _, text string) error {
+		gotText = text
+		return nil
 	})
-	if err := notification.DefaultRouter().SendDirect(context.Background(), chName, `{}`, "hello "+p.name); err != nil {
-		t.Fatalf("SendDirect: %v", err)
+	cfg := `{}`
+	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, cfg, "hello "+p.name); err != nil {
+		t.Fatalf("Notify: %v", err)
 	}
 	if gotText != "hello "+p.name {
 		t.Errorf("notifier received %q, want %q", gotText, "hello "+p.name)
 	}
-	if err := notification.DefaultRouter().SendDirect(context.Background(), chName, "undecryptable-garbage", "hello"); err == nil {
-		t.Errorf("expected channel send error on invalid config JSON, got nil")
+	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, "undecryptable-garbage", "hello"); err == nil {
+		t.Errorf("expected ctx.Notify error on invalid config JSON, got nil")
 	}
 
 	ck := "cov:cache:" + p.name
