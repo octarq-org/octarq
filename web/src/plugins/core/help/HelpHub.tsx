@@ -87,77 +87,85 @@ export default function HelpHub() {
     category.labels[lang] || category.labels.en || category.key;
 
   return (
-    <PageShell
-      title={t("help.hub_title", "Documentation")}
-      description={t("help.hub_subtitle", "Browse guides, references, and answers for this workspace.")}
-    >
-      {status === "loading" ? (
-        <PageCard className="mt-0 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          {t("help.loading", "Loading documentation…")}
-        </PageCard>
-      ) : status === "error" ? (
-        <PageCard className="mt-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-fg" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("help.hub_error_title", "Could not load the documentation")}
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {t("help.hub_error_body", "Check your connection, then try again.")}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setRetryNonce((value) => value + 1)}
-          >
-            {t("help.error_retry", "Retry")}
-          </Button>
-        </PageCard>
-      ) : docs.length === 0 ? (
-        <PageEmpty
-          icon={<BookOpen />}
-          title={t("help.hub_empty_title", "No documentation is installed")}
-          detail={t("help.hub_empty_body", "This edition has no help docs yet.")}
-        />
-      ) : (
-        <>
-          <HelpSearch categories={categories} />
-
-          {quickstart.length > 0 ? (
-            <PageSection
-              title={t("help.hub_quickstart", "Quickstart")}
-              description={t("help.hub_quickstart_hint", "Start here if you are new.")}
-            >
-              <div
-                className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-                data-testid="help-quickstart"
-              >
-                {quickstart.map((doc) => (
-                  <DocCard key={doc.slug} doc={doc} />
-                ))}
+    <div className="h-full overflow-y-auto [scrollbar-gutter:stable]" data-testid="help-hub-scroll">
+      <div className="flex min-h-full flex-col px-4 py-6 sm:px-8 sm:py-8">
+        <PageShell
+          title={t("help.hub_title", "Documentation")}
+          description={t("help.hub_subtitle", "Browse guides, references, and answers for this workspace.")}
+        >
+          {status === "loading" ? (
+            <PageCard className="mt-0 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              {t("help.loading", "Loading documentation…")}
+            </PageCard>
+          ) : status === "error" ? (
+            <PageCard className="mt-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-fg" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("help.hub_error_title", "Could not load the documentation")}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {t("help.hub_error_body", "Check your connection, then try again.")}
+                  </p>
+                </div>
               </div>
-            </PageSection>
-          ) : null}
-
-          {groups.map((group) => (
-            <PageSection key={group.category.key} id={`help-category-${group.category.key}`} title={categoryLabel(group.category)}>
-              <div
-                className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-                data-testid={`help-category-${group.category.key}`}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setRetryNonce((value) => value + 1)}
               >
-                {group.docs.map((doc) => (
-                  <DocCard key={doc.slug} doc={doc} />
-                ))}
-              </div>
-            </PageSection>
-          ))}
-        </>
-      )}
-    </PageShell>
+                {t("help.error_retry", "Retry")}
+              </Button>
+            </PageCard>
+          ) : docs.length === 0 ? (
+            <PageEmpty
+              icon={<BookOpen />}
+              title={t("help.hub_empty_title", "No documentation is installed")}
+              detail={t("help.hub_empty_body", "This edition has no help docs yet.")}
+            />
+          ) : (
+            <>
+              <HelpSearch categories={categories} />
+
+              {quickstart.length > 0 ? (
+                <PageSection
+                  title={t("help.hub_quickstart", "Quickstart")}
+                  description={t("help.hub_quickstart_hint", "Start here if you are new.")}
+                >
+                  <div
+                    className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                    data-testid="help-quickstart"
+                  >
+                    {quickstart.map((doc) => (
+                      <DocCard key={doc.slug} doc={doc} />
+                    ))}
+                  </div>
+                </PageSection>
+              ) : null}
+
+              {groups.map((group) => (
+                <PageSection
+                  key={group.category.key}
+                  id={`help-category-${group.category.key}`}
+                  title={categoryLabel(group.category)}
+                >
+                  <div
+                    className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                    data-testid={`help-category-${group.category.key}`}
+                  >
+                    {group.docs.map((doc) => (
+                      <DocCard key={doc.slug} doc={doc} />
+                    ))}
+                  </div>
+                </PageSection>
+              ))}
+            </>
+          )}
+        </PageShell>
+      </div>
+    </div>
   );
 }
