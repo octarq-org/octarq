@@ -135,6 +135,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 				}
 			}
 		}
+		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
+			pctxCopy.RegisterNotificationChannel(notification.NewLegacyNotifierAdapter(typ, pInfo.Title, send))
+		}
 		thirdParty := pluginIsThirdParty(p)
 		recorder := &recordingMux{real: throwaway, routes: routes, plugin: pName, thirdParty: thirdParty}
 		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
@@ -301,6 +304,9 @@ func (a *App) Run(ctx context.Context) error {
 					slog.Warn("app: failed to register notification channel with descriptor", "plugin", pName, "error", err)
 				}
 			}
+		}
+		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
+			pctxCopy.RegisterNotificationChannel(notification.NewLegacyNotifierAdapter(typ, pInfo.Title, send))
 		}
 		thirdParty := pluginIsThirdParty(p)
 		recorder := &recordingMux{real: mux, routes: routes, plugin: pName, thirdParty: thirdParty}
