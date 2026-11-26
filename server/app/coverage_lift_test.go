@@ -14,7 +14,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/notification"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -148,7 +147,7 @@ func TestCoverageLift_BuiltinCron_Handlers(t *testing.T) {
 		},
 	}
 
-	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, queue.New(""))
+	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, testQueue())
 	a.setupBuiltinCron(pctx, apiHandler)
 
 	ctx := context.Background()

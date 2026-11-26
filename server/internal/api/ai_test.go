@@ -11,7 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
@@ -25,7 +24,7 @@ func newAITestHandler(t *testing.T) http.Handler {
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 	return h.Routes()
 }
 

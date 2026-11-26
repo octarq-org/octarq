@@ -8,7 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/queue"
 )
 
 func TestHandlerReportsAnUnreachableCounterStore(t *testing.T) {
@@ -19,7 +18,7 @@ func TestHandlerReportsAnUnreachableCounterStore(t *testing.T) {
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	h := New(broken, db, cipher, auth.New(broken, cipher).WithDB(db), mustGeo(t), queue.New(""))
+	h := New(broken, db, cipher, auth.New(broken, cipher).WithDB(db), mustGeo(t), testQueue())
 	err := h.InitErr()
 	if err == nil {
 		t.Fatal("unreachable Redis: want an init error, got nil")
@@ -32,7 +31,7 @@ func TestHandlerReportsAnUnreachableCounterStore(t *testing.T) {
 	}
 
 	healthy := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
-	if err := New(healthy, db, cipher, auth.New(healthy, cipher).WithDB(db), mustGeo(t), queue.New("")).InitErr(); err != nil {
+	if err := New(healthy, db, cipher, auth.New(healthy, cipher).WithDB(db), mustGeo(t), testQueue()).InitErr(); err != nil {
 		t.Fatalf("no Redis configured: want nil, got %v", err)
 	}
 }

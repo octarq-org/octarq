@@ -10,7 +10,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"gorm.io/gorm"
 )
 
@@ -21,7 +20,7 @@ func newHandlerForAdminTest(t *testing.T) (*Handler, *gorm.DB) {
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 	return h, db
 }
 

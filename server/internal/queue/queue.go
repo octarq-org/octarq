@@ -90,16 +90,15 @@ func runHandlerWithTelemetry(taskType string, h Handler, raw []byte) error {
 	return err
 }
 
-func New(redisURL string) Queue {
+func New(redisURL string) (Queue, error) {
 	if redisURL == "" {
 		log.Println("queue: Redis URL is empty. Using in-memory task queue.")
-		return newInMemoryQueue()
+		return newInMemoryQueue(), nil
 	}
 
 	redisOpt, err := asynq.ParseRedisURI(redisURL)
 	if err != nil {
-		log.Printf("queue: failed to parse redis URL %q: %v. Falling back to in-memory queue.", redisURL, err)
-		return newInMemoryQueue()
+		return nil, fmt.Errorf("queue: parse redis URL: %w", err)
 	}
 
 	log.Printf("queue: initialized Asynq task queue with Redis")
@@ -107,7 +106,7 @@ func New(redisURL string) Queue {
 		redisOpt: redisOpt,
 		client:   asynq.NewClient(redisOpt),
 		handlers: make(map[string]Handler),
-	}
+	}, nil
 }
 
 type task struct {
