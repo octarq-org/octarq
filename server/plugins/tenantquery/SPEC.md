@@ -83,7 +83,7 @@ Both endpoints are registered via `plugin.RegisterEndpoint` with full Huma OpenA
 
 ### 4.1 SQL AST Validation & Mutation Prevention
 - **Strict Read-Only Enforcement**: Only `SELECT` statements are permitted. Statements attempting mutations (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `ATTACH`, `DETACH`, `PRAGMA`, etc.) are rejected during AST parsing before reaching the database engine.
-- **Allowed Table Whitelist**: Queries may only reference virtual views registered in `tenantsql.Registry` (e.g. `tenant_links`, `tenant_clicks`, `tenant_domains`, `tenant_mailboxes`). Direct access to raw physical tables (such as `users`, `settings`, `sessions`, `api_keys`, or credentials) is strictly rejected with a fail-closed error listing all permitted views.
+- **Allowed Table Whitelist**: Queries may only reference virtual views registered in `tenantsql.Registry`. Core starts with an empty registry; each plugin registers its own `tenant_*` views during `Mount` (for example, a short-link plugin could register `tenant_links` and `tenant_clicks`, and a mail plugin `tenant_mailboxes`). Direct access to raw physical tables (such as `users`, `settings`, `sessions`, `api_keys`, or credentials) is strictly rejected with a fail-closed error listing all permitted views.
 
 ### 4.2 Multi-Tenant Boundary Isolation
 - **Tenant Context Assertion**: The execution layer derives the authenticated organization ID from the request context (`plugin.OrgIDFromContext(ctx)` or session context).

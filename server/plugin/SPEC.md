@@ -7,7 +7,7 @@
 Key responsibilities:
 - **Plugin Lifecycle Orchestration**: Models declaration, atomic database migration, synchronous mounting, and asynchronous daemon startup.
 - **Service Registry**: Inter-plugin decoupled service provision and dependency lookup via type-safe generics (`LookupAs[T]`).
-- **Context Capability Injection**: Controlled, tenant-aware access to database, routing (`Huma`), authentication, notification, DNS, audit, and storage.
+- **Context Capability Injection**: Controlled, tenant-aware access to database, routing (`Huma`), authentication, notification, audit, and storage.
 - **Event Bus (`TypedBus`)**: In-memory strongly-typed publish/subscribe messaging with panic recovery and operational logging.
 - **Documentation Contract (`HelpDocsFS`)**: Declarative in-app documentation provider conventions.
 

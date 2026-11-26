@@ -70,7 +70,7 @@ Open your browser and navigate to `http://localhost:8080`:
 <Aside type="tip" title="Success check">
 Upon successful authentication:
 - You are redirected to the `/admin` shell.
-- The **Overview** page renders with metric summary cards (Short Links, Mailboxes, Domains, System Health).
+- The **Overview** page renders the setup checklist, system health, and recent activity.
 - The sidebar displays active workspace areas and configured plugins without 404 or 403 errors in the browser console.
 </Aside>
 
