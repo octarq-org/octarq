@@ -176,16 +176,7 @@ func (q *InMemoryQueue) Enqueue(ctx context.Context, taskType string, payload []
 	case q.ch <- task{Type: taskType, Payload: wrapped}:
 		return nil
 	default:
-		h, exists := q.handler(taskType)
-		if !exists {
-			return fmt.Errorf("queue: full and no handler registered for %q", taskType)
-		}
-		go func() {
-			if err := runHandlerWithTelemetry(taskType, h, wrapped); err != nil {
-				log.Printf("queue: fallback instant execution of %q failed: %v", taskType, err)
-			}
-		}()
-		return nil
+		return fmt.Errorf("queue: full with %d buffered tasks; rejected task %q", cap(q.ch), taskType)
 	}
 }
 
@@ -206,21 +197,8 @@ func (q *AsynqQueue) Register(taskType string, h Handler) {
 func (q *AsynqQueue) Enqueue(ctx context.Context, taskType string, payload []byte) error {
 	wrapped := wrapPayload(ctx, payload)
 	t := asynq.NewTask(taskType, wrapped)
-	_, err := q.client.EnqueueContext(ctx, t)
-	if err != nil {
-		log.Printf("queue: asynq Enqueue failed: %v. Falling back to instant execution.", err)
-		q.mu.Lock()
-		h, exists := q.handlers[taskType]
-		q.mu.Unlock()
-		if exists {
-			go func() {
-				if err := runHandlerWithTelemetry(taskType, h, wrapped); err != nil {
-					log.Printf("queue: fallback instant execution of %q failed: %v", taskType, err)
-				}
-			}()
-			return nil
-		}
-		return err
+	if _, err := q.client.EnqueueContext(ctx, t); err != nil {
+		return fmt.Errorf("queue: enqueue task %q in Redis: %w", taskType, err)
 	}
 	return nil
 }

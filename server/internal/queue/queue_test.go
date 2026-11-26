@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -84,91 +85,72 @@ func TestInMemoryQueue_Execution(t *testing.T) {
 	}
 }
 
-func TestInMemoryQueue_FullFallback(t *testing.T) {
+func TestInMemoryQueue_FullRejects(t *testing.T) {
 	q := newInMemoryQueue()
-	for i := 0; i < 1000; i++ {
-		_ = q.Enqueue(context.Background(), "unregistered", []byte("fill"))
-	}
-	err := q.Enqueue(context.Background(), "unregistered", []byte("overflow"))
-	if err == nil {
-		t.Errorf("expected error when queue full and no handler registered")
+	for i := 0; i < cap(q.ch); i++ {
+		if err := q.Enqueue(context.Background(), "unregistered", []byte("fill")); err != nil {
+			t.Fatalf("fill enqueue failed at %d: %v", i, err)
+		}
 	}
 
-	ranCh := make(chan struct{})
+	ranCh := make(chan struct{}, 1)
 	q.Register("overflow_task", func(ctx context.Context, payload []byte) error {
-		close(ranCh)
+		ranCh <- struct{}{}
 		return nil
 	})
-	err = q.Enqueue(context.Background(), "overflow_task", []byte("overflow"))
-	if err != nil {
-		t.Errorf("expected no error when fallback instant execution succeeds, got %v", err)
+
+	err := q.Enqueue(context.Background(), "overflow_task", []byte("overflow"))
+	if err == nil {
+		t.Fatal("expected an error when the buffer is full")
+	}
+	if !strings.Contains(err.Error(), "queue: full") {
+		t.Fatalf("expected error containing 'queue: full', got %v", err)
 	}
 
 	select {
 	case <-ranCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("timed out waiting for fallback task execution")
-	}
-
-	ranFailCh := make(chan struct{})
-	q.Register("overflow_fail_task", func(ctx context.Context, payload []byte) error {
-		close(ranFailCh)
-		return errors.New("fallback error")
-	})
-	err = q.Enqueue(context.Background(), "overflow_fail_task", []byte("overflow_fail"))
-	if err != nil {
-		t.Errorf("expected no error from Enqueue even when fallback handler errors, got %v", err)
-	}
-
-	select {
-	case <-ranFailCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("timed out waiting for fallback failure task")
+		t.Fatal("handler ran inline; a full buffer must not execute the task")
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
-func TestAsynqQueue_Fallback(t *testing.T) {
+func TestAsynqQueue_EnqueueFailureIsReturned(t *testing.T) {
 	q := New("redis://127.0.0.1:58999/0")
 	asynqQ, ok := q.(*AsynqQueue)
 	if !ok {
 		t.Fatalf("expected *AsynqQueue")
 	}
 
-	err := asynqQ.Enqueue(context.Background(), "task1", []byte("p1"))
-	if err == nil {
-		t.Errorf("expected error when redis down and no handler registered")
-	}
-
-	ranCh := make(chan struct{})
+	ranCh := make(chan struct{}, 1)
 	asynqQ.Register("task1", func(ctx context.Context, payload []byte) error {
-		close(ranCh)
+		ranCh <- struct{}{}
 		return nil
 	})
 
-	err = asynqQ.Enqueue(context.Background(), "task1", []byte("p1"))
-	if err != nil {
-		t.Errorf("expected fallback success when handler registered, got %v", err)
+	err := asynqQ.Enqueue(context.Background(), "task1", []byte("p1"))
+	if err == nil {
+		t.Fatal("expected an error when Redis is unreachable")
+	}
+	if !strings.Contains(err.Error(), "Redis") {
+		t.Fatalf("expected error naming Redis, got %v", err)
 	}
 
 	select {
 	case <-ranCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("timed out waiting for fallback execution")
+		t.Fatal("handler ran inline; a failed Redis enqueue must surface the error")
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+func TestAsynqQueue_EnqueueWithoutHandlerStillFails(t *testing.T) {
+	q := New("redis://127.0.0.1:58999/0")
+	asynqQ, ok := q.(*AsynqQueue)
+	if !ok {
+		t.Fatalf("expected *AsynqQueue")
 	}
 
-	ranFailCh := make(chan struct{})
-	asynqQ.Register("task_fail", func(ctx context.Context, payload []byte) error {
-		close(ranFailCh)
-		return errors.New("asynq fallback handler error")
-	})
-	err = asynqQ.Enqueue(context.Background(), "task_fail", []byte("p_fail"))
-	if err != nil {
-		t.Errorf("expected no enqueue error for fallback task, got %v", err)
-	}
-	select {
-	case <-ranFailCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("timed out waiting for asynq fallback error execution")
+	if err := asynqQ.Enqueue(context.Background(), "unregistered", []byte("p1")); err == nil {
+		t.Fatal("expected an error when Redis is unreachable")
 	}
 }
 
