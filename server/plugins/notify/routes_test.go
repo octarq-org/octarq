@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -13,6 +14,29 @@ import (
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
+
+type testChannel struct {
+	name string
+	send func(ctx context.Context, cfgJSON, text string) error
+}
+
+func (c *testChannel) Name() string                  { return c.name }
+func (c *testChannel) DisplayName() string           { return c.name }
+func (c *testChannel) ConfigSchema() json.RawMessage { return nil }
+
+func (c *testChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
+	cfgJSON := "{}"
+	if recipient.Config != nil {
+		if raw, ok := recipient.Config["_raw_config"].(string); ok && strings.TrimSpace(raw) != "" {
+			cfgJSON = raw
+		}
+	}
+	text := payload.Body
+	if text == "" {
+		text = payload.Title
+	}
+	return c.send(ctx, cfgJSON, text)
+}
 
 func openTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -62,8 +86,8 @@ func TestNotify_ChannelFilter(t *testing.T) {
 	db := openTestDB(t)
 
 	var a, b int
-	mustRegister := func(name string, fn notification.LegacyProviderFunc) {
-		if err := notification.DefaultRouter().RegisterChannel(notification.NewLegacyNotifierAdapter(name, "", fn)); err != nil {
+	mustRegister := func(name string, fn func(ctx context.Context, cfgJSON, text string) error) {
+		if err := notification.DefaultRouter().RegisterChannel(&testChannel{name: name, send: fn}); err != nil {
 			t.Fatalf("register %s: %v", name, err)
 		}
 	}
@@ -111,9 +135,9 @@ func TestNotify_DecryptFailureIsReported(t *testing.T) {
 func TestNotify_DeliveryFailureIsReported(t *testing.T) {
 	db := openTestDB(t)
 	if err := notification.DefaultRouter().RegisterChannel(
-		notification.NewLegacyNotifierAdapter("failchan", "", func(context.Context, string, string) error {
+		&testChannel{name: "failchan", send: func(context.Context, string, string) error {
 			return errors.New("boom")
-		}),
+		}},
 	); err != nil {
 		t.Fatalf("register channel: %v", err)
 	}
@@ -146,10 +170,10 @@ func TestNotify_DeliversToEnabledChannel(t *testing.T) {
 
 	var got string
 	if err := notification.DefaultRouter().RegisterChannel(
-		notification.NewLegacyNotifierAdapter("testnotify", "", func(_ context.Context, _, text string) error {
+		&testChannel{name: "testnotify", send: func(_ context.Context, _, text string) error {
 			got = text
 			return nil
-		}),
+		}},
 	); err != nil {
 		t.Fatalf("register test channel: %v", err)
 	}
