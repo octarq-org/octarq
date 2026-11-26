@@ -11,7 +11,7 @@ export const helloPlugin: UIPlugin = {
   ],
   i18n: {
     en: {
-      _shared: { nav: { hello: "Hello" } },
+      _shared: { nav: { hello: "Hello", "hello-instance": "Hello (instance)" } },
       pageTitle: "Hello Plugin",
       pageDesc: "A minimal full-stack example plugin.",
       feature: "Hello Plugin",
@@ -19,7 +19,7 @@ export const helloPlugin: UIPlugin = {
       loading: "Loading…",
     },
     zh: {
-      _shared: { nav: { hello: "示例" } },
+      _shared: { nav: { hello: "示例", "hello-instance": "实例示例" } },
       pageTitle: "示例插件",
       pageDesc: "一个最小的全栈示例插件。",
       feature: "示例插件",
@@ -27,7 +27,7 @@ export const helloPlugin: UIPlugin = {
       loading: "加载中…",
     },
     es: {
-      _shared: { nav: { hello: "Hola" } },
+      _shared: { nav: { hello: "Hola", "hello-instance": "Hola (instancia)" } },
       pageTitle: "Complemento Hola",
       pageDesc: "Un complemento de ejemplo full-stack mínimo.",
       feature: "Complemento Hola",
@@ -35,7 +35,7 @@ export const helloPlugin: UIPlugin = {
       loading: "Cargando…",
     },
     pt: {
-      _shared: { nav: { hello: "Olá" } },
+      _shared: { nav: { hello: "Olá", "hello-instance": "Olá (instância)" } },
       pageTitle: "Plugin Olá",
       pageDesc: "Um plugin de exemplo full-stack mínimo.",
       feature: "Plugin Olá",
@@ -43,7 +43,7 @@ export const helloPlugin: UIPlugin = {
       loading: "Carregando…",
     },
     ja: {
-      _shared: { nav: { hello: "ハロー" } },
+      _shared: { nav: { hello: "ハロー", "hello-instance": "ハロー（インスタンス）" } },
       pageTitle: "Hello プラグイン",
       pageDesc: "最小構成のフルスタック・サンプルプラグイン。",
       feature: "Hello プラグイン",

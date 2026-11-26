@@ -6,7 +6,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "settings.githubClientSecret",
   "settings.telegramChatId",
 
-  "nav.domains",
   "nav.webhooks",
   "settings.webhooksTitle",
   "settings.customHttpTargetUrl",
@@ -24,7 +23,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
 
   "groups.Marketing",
   "settings.pluginCategory.marketing",
-  "nav.links",
   "settings.instancePluginName",
   "settings.buildTitle",
   "settings.buildCommit",
