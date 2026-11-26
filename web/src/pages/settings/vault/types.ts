@@ -5,7 +5,7 @@ export type VaultTab = "all" | "integrations" | "secrets" | "logins" | "tokens";
 export const VAULT_ENVIRONMENTS = ["default", "prod", "staging", "dev"] as const;
 export type VaultEnvironment = (typeof VAULT_ENVIRONMENTS)[number];
 
-export const INTEGRATION_CATEGORIES = ["llm", "payment", "storage", "communication"] as const;
+export const INTEGRATION_CATEGORIES = ["llm", "payment", "storage", "communication", "dns"] as const;
 export type IntegrationCategory = (typeof INTEGRATION_CATEGORIES)[number];
 
 export const SECRET_ITEM_TYPES = new Set([

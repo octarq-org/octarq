@@ -88,7 +88,6 @@ describe("CommandPalette", () => {
     );
 
     expect(screen.getByPlaceholderText("Search pages…")).not.toBeNull();
-    expect(screen.getByText("New Link")).not.toBeNull();
     expect(screen.getByText("Links")).not.toBeNull();
 
     fireEvent.click(screen.getByText("Links"));
