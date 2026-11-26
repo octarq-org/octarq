@@ -53,7 +53,7 @@ export const es = {
     emailSent: "Correo enviado.",
     sending: "Enviando…",
     verificationSent: "Correo de verificación enviado.",
-    verificationMailNotConfigured: "El servicio de correo no está configurado en esta instancia. Contacta al administrador.",
+    verificationMailNotConfigured: "El envío de correo no está configurado en esta instancia. Contacta al administrador.",
     registerVerifyTitle: "Revise su correo para continuar",
     registerVerifyNotice: "Enviamos un enlace a {{email}}.",
     registerMailUnavailable: "Esta instancia aún no puede enviar correos, por lo que no acepta registros. Pida a un administrador que configure un remitente SMTP o que use una invitación.",
@@ -105,8 +105,6 @@ export const es = {
     emptyTitle: "Ninguna página ni acción coincide",
     emptyHint: "⌘K abre páginas; no puede crear nada. Prueba una de estas áreas: {{areas}}.",
     action: {
-      newLink: "Crear enlace corto",
-      newDomain: "Añadir dominio",
       exportData: "Exportar datos del espacio de trabajo",
       askCopilot: "Abrir Copiloto IA",
     },

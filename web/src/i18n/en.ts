@@ -53,7 +53,7 @@ export const en = {
     emailSent: "Email sent.",
     sending: "Sending…",
     verificationSent: "Verification email sent.",
-    verificationMailNotConfigured: "Mail service is not configured on this instance. Contact an administrator.",
+    verificationMailNotConfigured: "Email delivery is not configured on this instance. Contact an administrator.",
     registerVerifyTitle: "Check your email to continue",
     registerVerifyNotice: "We sent a link to {{email}}.",
     registerMailUnavailable: "This instance cannot send email yet, so it cannot accept sign-ups. Ask an administrator to configure an SMTP sender or use an invitation.",
@@ -105,8 +105,6 @@ export const en = {
     emptyTitle: "No page or action matches",
     emptyHint: "⌘K opens pages — it can't create anything. Try one of: {{areas}}.",
     action: {
-      newLink: "Create short link",
-      newDomain: "Add domain",
       exportData: "Export workspace data",
       askCopilot: "Open AI Copilot",
     },
