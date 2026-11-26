@@ -89,7 +89,7 @@ To avoid SQL keyword collisions and maintain clear domain naming, specific model
 | `File` | `files` | Storage metadata table. |
 
 ### 3.2 Closed Model Registry (`AllModels`)
-All database tables must be enumerated in `AllModels() []any` to ensure deterministic migration via `db.AutoMigrate(AllModels()...)`. The registry contains exactly 18 core models:
+All database tables must be enumerated in `AllModels() []any` to ensure deterministic migration via `db.AutoMigrate(AllModels()...)`. The registry contains exactly 19 core models:
 1. `Org`
 2. `User`
 3. `OrgMember`
@@ -100,14 +100,15 @@ All database tables must be enumerated in `AllModels() []any` to ensure determin
 8. `Setting`
 9. `WorkspaceSetting`
 10. `NotificationChannel`
-11. `AbuseReport`
-12. `AuditLog`
-13. `Webhook`
-14. `Session`
-15. `OrgSlugHistory`
-16. `Notification`
-17. `NotificationPreference`
-18. `File`
+11. `AuditLog`
+12. `Webhook`
+13. `Session`
+14. `OrgSlugHistory`
+15. `Notification`
+16. `NotificationPreference`
+17. `File`
+18. `OrgHost`
+19. `SchemaMigration`
 
 ---
 
@@ -133,6 +134,6 @@ All database tables must be enumerated in `AllModels() []any` to ensure determin
 
 ## 5. Verification & Testing Standards
 
-- **Characterization Lock**: `models_characterization_test.go` enforces the 18-model registry, table name mappings, slug availability states, and precedence rules.
+- **Characterization Lock**: `models_characterization_test.go` enforces the 19-model registry, table name mappings, slug availability states, and precedence rules.
 - **Race Safety**: Verified via `go test -race ./internal/models/...`.
 - **Database Portability**: Tested against in-memory SQLite and Postgres-compatible GORM drivers.

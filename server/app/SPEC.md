@@ -8,7 +8,7 @@ It defines and provisions the Host SPI (`plugin.Host`) that enables external ext
 - **Key Responsibilities**:
   - Composition root: `New()` opens configuration and database without migrating; `Run()` and `RunMCP()` execute unified migrations and launch runtimes.
   - Preflight validations: verifies no name collisions (`preflightNameCollisions`), missing dependencies (`preflightDependencies`), or table conflicts (`preflightTableCollisions`) prior to execution.
-  - Unified plugin context creation (`buildPluginContext`): injects `plugin.Host`, `TenantDB`, `Guard`, `Cache`, `DNS`, `Crypto`, `EventSpine`, and logging into every mounted plugin.
+  - Unified plugin context creation (`buildPluginContext`): injects `plugin.Host`, `TenantDB`, `Guard`, `Cache`, `Crypto`, `EventSpine`, and logging into every mounted plugin.
   - Fail-closed route gating (`pluginGate`, `gatedMux`, `gatedAPI`): returns 404 Fail-Closed when a tenant workspace does not have an optional plugin enabled.
   - MCP Server lifecycle (`RunMCP`): provisions the same plugin dependencies over standard I/O for AI agent tooling.
 - **Entitlement Tier**: Core OSS Infrastructure.

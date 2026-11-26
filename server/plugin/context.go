@@ -147,15 +147,13 @@ func parseAllowedTools(raw string) []string {
 }
 
 type Context struct {
-	Huma             huma.API
-	DB               *gorm.DB
-	Guard            func(http.Handler) http.Handler
-	Notify           func(ctx context.Context, typ, cfgJSON, text string) error
-	Emit             func(ctx context.Context, payload NotificationPayload) error
-	EmitTo           func(ctx context.Context, recipient NotificationRecipient, payload NotificationPayload) error
-	RegisterNotifier func(typ string, send func(ctx context.Context, cfgJSON, text string) error)
-	FeatureActive    func(orgID uint, featureKey string) bool
-	PersonalOrgID    func(userID uint) uint
+	Huma          huma.API
+	DB            *gorm.DB
+	Guard         func(http.Handler) http.Handler
+	Emit          func(ctx context.Context, payload NotificationPayload) error
+	EmitTo        func(ctx context.Context, recipient NotificationRecipient, payload NotificationPayload) error
+	FeatureActive func(orgID uint, featureKey string) bool
+	PersonalOrgID func(userID uint) uint
 
 	LoginByEmail                func(w http.ResponseWriter, r *http.Request, email string) (userID uint, err error)
 	LoginByIdentity             func(w http.ResponseWriter, r *http.Request, id ExternalIdentity) (userID uint, err error)

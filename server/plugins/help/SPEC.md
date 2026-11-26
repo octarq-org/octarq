@@ -166,7 +166,7 @@ The platform enforces a closed set of 6 standard categories:
 5. `settings` (Order: 50, Icon: `"settings"`): "Settings" / "设置"
 6. `licensing` (Order: 60, Icon: `"key"`): "Editions & licensing" / "版本与授权"
 
-`FillDefaults` automatically remaps legacy categories (`getting-started` -> `start`, `links`/`mail`/`dns` -> `services` -> fallback to `operations`/`infrastructure`).
+`FillDefaults` maps legacy and feature categories directly into the closed set: `getting-started` -> `start`, `links`/`mail`/`dns` -> `infrastructure`, `billing` -> `commerce`, and `security` -> `settings`. An unknown category logs a warning and falls back to `start`.
 
 ---
 
