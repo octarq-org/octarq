@@ -20,7 +20,7 @@ func (d *dummyDescriberPlugin) Name() string { return "dummy" }
 func (d *dummyDescriberPlugin) Describe() plugin.Info {
 	return plugin.Info{
 		Title:    "Dummy",
-		Category: "services",
+		Category: plugin.CategoryInfrastructure,
 	}
 }
 

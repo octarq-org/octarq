@@ -253,8 +253,8 @@ func TestHelpDocFillDefaultsAndSorting(t *testing.T) {
 		Category: "",
 	}
 	doc2.FillDefaults("myplugin", "messaging")
-	if doc2.Category != "infrastructure" {
-		t.Errorf("Category = %q, want infrastructure", doc2.Category)
+	if doc2.Category != "operations" {
+		t.Errorf("Category = %q, want operations", doc2.Category)
 	}
 
 	docUnknown := plugin.HelpDoc{

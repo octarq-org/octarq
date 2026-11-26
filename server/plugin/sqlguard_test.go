@@ -128,16 +128,67 @@ func TestContainsWordBoundary(t *testing.T) {
 	}
 }
 
-func TestValidateReadOnlyQueryBlocksMailAndOTPIdentifiers(t *testing.T) {
+func TestValidateReadOnlyQueryBlocksSensitiveColumns(t *testing.T) {
 	t.Parallel()
 
 	for _, q := range []string{
-		"SELECT otp, subject FROM email_ais",
-		"SELECT * FROM email_ais",
-		"SELECT otp FROM links",
+		"SELECT otp, subject FROM links",
+		"SELECT * FROM links WHERE otp = '1'",
 	} {
 		if _, err := ValidateReadOnlyQuery(q); err == nil {
 			t.Errorf("expected reject for %q, got nil error", q)
+		}
+	}
+}
+
+func TestRegisterBannedIdentifiersExtendsTheGuard(t *testing.T) {
+	t.Parallel()
+
+	RegisterBannedIdentifiers("plugin_owned_table")
+
+	if _, err := ValidateReadOnlyQuery("SELECT * FROM plugin_owned_table"); err == nil {
+		t.Error("expected reject for a registered plugin identifier")
+	}
+	if _, err := ValidateReadOnlyQuery("SELECT * FROM plugin_owned_table_extra"); err != nil {
+		t.Errorf("expected a word-boundary mismatch to pass, got %v", err)
+	}
+}
+
+func TestRegisterBannedIdentifiersRejectsInvalidIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, bad := range []string{"", "   ", "issued licenses", "issued.licenses"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("expected panic for identifier %q", bad)
+				}
+			}()
+			RegisterBannedIdentifiers(bad)
+		}()
+	}
+
+	if _, err := ValidateReadOnlyQuery("SELECT 1"); err != nil {
+		t.Errorf("invalid registration must not poison later validation: %v", err)
+	}
+}
+
+func TestRegisterBannedIdentifiersNormalisesInput(t *testing.T) {
+	t.Parallel()
+
+	RegisterBannedIdentifiers("  Plugin_Owned_Normalised  ")
+	if _, err := ValidateReadOnlyQuery("SELECT * FROM plugin_owned_normalised"); err == nil {
+		t.Error("expected reject for a whitespace-and-case normalised identifier")
+	}
+}
+
+func TestCoreBannedIdentifiersCarryNoProductTables(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range BannedIdentifiers {
+		switch id {
+		case "product_keys", "issued_licenses", "license_devices", "email_ais":
+			t.Fatalf("core banned identifiers must not hardcode product table %q", id)
 		}
 	}
 }

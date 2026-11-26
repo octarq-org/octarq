@@ -96,20 +96,38 @@ func TestFillDefaultsFallsBackToClosedSet(t *testing.T) {
 	}
 }
 
-func TestFillDefaultsMapsLegacyCategories(t *testing.T) {
+func TestFillDefaultsKeepsDeclaredClosedSetCategory(t *testing.T) {
+	for _, key := range []string{"start", "operations", "infrastructure", "commerce", "settings", "licensing"} {
+		doc := HelpDoc{Slug: "doc", Category: key}
+		doc.FillDefaults("plugin", "")
+		if doc.Category != key {
+			t.Errorf("category %q: expected %q, got %q", key, key, doc.Category)
+		}
+	}
+}
+
+func TestFillDefaultsDerivesFromPluginCategory(t *testing.T) {
 	cases := map[string]string{
-		"services":        "infrastructure",
-		"security":        "settings",
-		"api":             "operations",
-		"billing":         "commerce",
-		"getting-started": "start",
+		CategoryInfrastructure: "infrastructure",
+		CategorySecurity:       "settings",
+		CategoryCommerce:       "commerce",
+		CategoryMarketing:      "operations",
+		CategoryMessaging:      "operations",
+		CategoryAI:             "operations",
+		CategoryUtilities:      "operations",
 	}
 	for in, want := range cases {
-		doc := HelpDoc{Slug: "doc", Category: in}
-		doc.FillDefaults("plugin", "")
+		doc := HelpDoc{Slug: "doc"}
+		doc.FillDefaults("plugin", in)
 		if doc.Category != want {
-			t.Errorf("category %q: expected %q, got %q", in, want, doc.Category)
+			t.Errorf("plugin category %q: expected %q, got %q", in, want, doc.Category)
 		}
+	}
+
+	doc := HelpDoc{Slug: "doc"}
+	doc.FillDefaults("custom-plugin", "")
+	if doc.Category != "start" {
+		t.Errorf("missing plugin category: expected start, got %q", doc.Category)
 	}
 }
 
