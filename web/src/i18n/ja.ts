@@ -53,7 +53,7 @@ export const ja = {
     emailSent: "メールを送信しました。",
     sending: "送信中…",
     verificationSent: "検証メールを送信しました。",
-    verificationMailNotConfigured: "このインスタンスではメールサービスが設定されていません。管理者に連絡してください。",
+    verificationMailNotConfigured: "このインスタンスではメール送信が設定されていません。管理者に連絡してください。",
     registerVerifyTitle: "メールを確認して続行してください",
     registerVerifyNotice: "{{email}} にリンクを送信しました。",
     registerMailUnavailable: "このインスタンスはまだメールを送信できないため、登録を受け付けられません。管理者に SMTP 送信者の設定、または招待による登録を依頼してください。",
@@ -105,8 +105,6 @@ export const ja = {
     emptyTitle: "一致するページやアクションはありません",
     emptyHint: "⌘K はページを開くだけです（作成はできません）。次のエリアを試してください: {{areas}}。",
     action: {
-      newLink: "短縮URLを作成",
-      newDomain: "ドメインを追加",
       exportData: "ワークスペースデータをエクスポート",
       askCopilot: "AI コパイロットを開く",
     },

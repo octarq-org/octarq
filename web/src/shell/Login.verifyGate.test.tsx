@@ -72,7 +72,7 @@ describe("sign-up when the instance requires a verified email", () => {
     await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
 
     expect(screen.queryByText(/email sent/i)).toBeNull();
-    expect(await screen.findByText(/mail service is not configured/i)).toBeTruthy();
+    expect(await screen.findByText(/email delivery is not configured/i)).toBeTruthy();
   });
 
   it("renders success notice when resendVerification returns mailConfigured: true", async () => {
@@ -94,6 +94,6 @@ describe("sign-up when the instance requires a verified email", () => {
     await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
 
     expect(await screen.findByText(/email sent/i)).toBeTruthy();
-    expect(screen.queryByText(/mail service is not configured/i)).toBeNull();
+    expect(screen.queryByText(/email delivery is not configured/i)).toBeNull();
   });
 });

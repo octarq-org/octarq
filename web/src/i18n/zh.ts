@@ -55,7 +55,7 @@ export const zh: Resources = {
     emailSent: "邮件已发送。",
     sending: "发送中…",
     verificationSent: "验证邮件已发送。",
-    verificationMailNotConfigured: "本实例尚未配置邮件服务，联系管理员处理。",
+    verificationMailNotConfigured: "本实例尚未配置邮件发送，联系管理员处理。",
     registerVerifyTitle: "请查收邮件以继续",
     registerVerifyNotice: "已向 {{email}} 发送了链接。",
     registerMailUnavailable: "本实例尚无法发送邮件，因此无法接受注册。请联系管理员配置 SMTP 发送器，或改用邀请注册。",
@@ -107,8 +107,6 @@ export const zh: Resources = {
     emptyTitle: "没有页面或操作匹配",
     emptyHint: "⌘K 只能跳转页面，不能创建内容。试试这些区域：{{areas}}。",
     action: {
-      newLink: "新建短链",
-      newDomain: "绑定域名",
       exportData: "导出工作区数据",
       askCopilot: "打开 AI 智能副驾",
     },
