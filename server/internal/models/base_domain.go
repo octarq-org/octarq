@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const BaseDomainSetting = "base_domain"
@@ -17,6 +18,12 @@ func BaseDomain(db *gorm.DB) string {
 		if err := db.Where("key = ?", BaseDomainSetting).Limit(1).Find(&s).Error; err == nil && s.Key != "" {
 			return normalizeBaseDomain(s.Value)
 		}
+		env := normalizeBaseDomain(os.Getenv(BaseDomainEnv))
+		if env == "" {
+			return ""
+		}
+		db.Clauses(clause.OnConflict{DoNothing: true}).Create(&Setting{Key: BaseDomainSetting, Value: env})
+		return env
 	}
 	return normalizeBaseDomain(os.Getenv(BaseDomainEnv))
 }

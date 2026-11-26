@@ -24,19 +24,23 @@ func TestBaseDomain(t *testing.T) {
 	}
 
 	if got := models.BaseDomain(db); got != "tenants.example.com" {
-		t.Fatalf("expected fallback to env when setting absent, got %q", got)
+		t.Fatalf("expected the env base domain, got %q", got)
 	}
 
-	s := models.Setting{Key: models.BaseDomainSetting, Value: " Custom.Domain.Org. "}
-	if err := db.Create(&s).Error; err != nil {
-		t.Fatalf("create setting: %v", err)
+	var seeded models.Setting
+	if err := db.Where("key = ?", models.BaseDomainSetting).First(&seeded).Error; err != nil {
+		t.Fatalf("expected the env base domain to be persisted as the setting: %v", err)
+	}
+
+	if err := db.Model(&models.Setting{}).Where("key = ?", models.BaseDomainSetting).Update("value", " Custom.Domain.Org. ").Error; err != nil {
+		t.Fatalf("update setting: %v", err)
 	}
 
 	if got := models.BaseDomain(db); got != "custom.domain.org" {
 		t.Fatalf("expected custom.domain.org from db setting, got %q", got)
 	}
 
-	db.Model(&s).Update("value", "")
+	db.Model(&models.Setting{}).Where("key = ?", models.BaseDomainSetting).Update("value", "")
 	if got := models.BaseDomain(db); got != "" {
 		t.Fatalf("expected empty string when db setting is empty, got %q", got)
 	}
