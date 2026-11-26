@@ -20,7 +20,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/notification"
-	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/llmprovider"
@@ -232,12 +231,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		Huma:     apiHuma,
 		DB:       db,
 		Guard:    authGuard,
-		Notify: func(ctx context.Context, typ, cfgJSON, text string) error {
-			if params.notifRouter != nil {
-				return params.notifRouter.SendDirect(ctx, typ, cfgJSON, text)
-			}
-			return notification.DefaultRouter().SendDirect(ctx, typ, cfgJSON, text)
-		},
 		Emit: func(ctx context.Context, payload plugin.NotificationPayload) error {
 			if params.notifRouter != nil {
 				return params.notifRouter.Emit(ctx, payload)
@@ -255,15 +248,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				if err := params.notifRouter.RegisterChannel(ch); err != nil {
 					slog.Warn("failed to register notification channel", "err", err)
 				}
-			}
-		},
-		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
-			if params.notifRouter != nil {
-				if err := params.notifRouter.RegisterChannel(notification.NewLegacyNotifierAdapter(typ, "", send)); err != nil {
-					slog.Warn("failed to register legacy notifier adapter", "type", typ, "err", err)
-				}
-			} else {
-				notify.Register(typ, send)
 			}
 		},
 		LoginByEmail:        loginByEmail,

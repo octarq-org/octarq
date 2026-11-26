@@ -28,7 +28,7 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 	if err := r.RegisterChannel(nil); err == nil {
 		t.Error("expected error for nil channel, got nil")
 	}
-	emptyCh := NewLegacyNotifierAdapter("", "", nil)
+	emptyCh := &mockChannel{}
 	if err := r.RegisterChannel(emptyCh); err == nil {
 		t.Error("expected error for empty channel name, got nil")
 	}
@@ -39,9 +39,7 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Error("expected error for empty name in RegisterChannelWithDescriptor, got nil")
 	}
 
-	customCh := NewLegacyNotifierAdapter("sms", "SMS Service", func(ctx context.Context, cfgJSON, text string) error {
-		return nil
-	})
+	customCh := &mockChannel{name: "sms", disp: "SMS Service"}
 	customDesc := Descriptor{
 		Type:        "sms",
 		Title:       "SMS Gateway",
@@ -58,9 +56,7 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Errorf("unexpected custom descriptor: %+v", descAfter)
 	}
 
-	pushCh := NewLegacyNotifierAdapter("push", "Push Notification", func(ctx context.Context, cfgJSON, text string) error {
-		return nil
-	})
+	pushCh := &mockChannel{name: "push", disp: "Push Notification"}
 	if err := r.RegisterChannel(pushCh); err != nil {
 		t.Fatalf("RegisterChannel failed: %v", err)
 	}
@@ -76,9 +72,7 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Errorf("expected unknown type error, got %v", err)
 	}
 
-	replacementEmail := NewLegacyNotifierAdapter("email", "Updated Email Service", func(ctx context.Context, cfgJSON, text string) error {
-		return nil
-	})
+	replacementEmail := &mockChannel{name: "email", disp: "Updated Email Service"}
 	if err := r.RegisterChannel(replacementEmail); err != nil {
 		t.Fatalf("RegisterChannel returned error: %v", err)
 	}

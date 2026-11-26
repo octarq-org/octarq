@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/notify"
+	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 	"gorm.io/gorm"
@@ -255,6 +256,23 @@ func TestLoginDelegates(t *testing.T) {
 	})
 }
 
+type stubNotificationChannel struct {
+	name string
+	send func(ctx context.Context, text string) error
+}
+
+func (c *stubNotificationChannel) Name() string                  { return c.name }
+func (c *stubNotificationChannel) DisplayName() string           { return c.name }
+func (c *stubNotificationChannel) ConfigSchema() json.RawMessage { return nil }
+
+func (c *stubNotificationChannel) Send(ctx context.Context, _ plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
+	text := payload.Body
+	if text == "" {
+		text = payload.Title
+	}
+	return c.send(ctx, text)
+}
+
 func TestAppNotify(t *testing.T) {
 	a := &App{}
 	ctx := context.Background()
@@ -265,10 +283,15 @@ func TestAppNotify(t *testing.T) {
 	}
 
 	var gotText string
-	notify.Register("apptest-chan", func(_ context.Context, _, text string) error {
-		gotText = text
-		return nil
-	})
+	if err := notification.DefaultRouter().RegisterChannel(&stubNotificationChannel{
+		name: "apptest-chan",
+		send: func(_ context.Context, text string) error {
+			gotText = text
+			return nil
+		},
+	}); err != nil {
+		t.Fatalf("register channel: %v", err)
+	}
 	if err := a.Notify(ctx, "apptest-chan", "garbled", "hi"); err == nil {
 		t.Fatal("expected error on invalid config JSON, got nil")
 	}
