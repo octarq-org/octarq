@@ -203,7 +203,9 @@ func TestBaseDomainEnvIsBootstrapFallbackOnly(t *testing.T) {
 		t.Fatalf("BaseDomain with no setting row = %q, want the env fallback", got)
 	}
 
-	setBase(t, db, "")
+	if err := db.Model(&models.Setting{}).Where("key = ?", models.BaseDomainSetting).Update("value", "").Error; err != nil {
+		t.Fatalf("clear the seeded base domain: %v", err)
+	}
 	if got := models.BaseDomain(db); got != "" {
 		t.Fatalf("BaseDomain with an explicit empty setting = %q, want \"\" (setting governs once present)", got)
 	}

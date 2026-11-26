@@ -46,7 +46,13 @@ func TestSharedHosts(t *testing.T) {
 			t.Errorf("SharedHosts(db) before insert = %v, want [env.example.com]", got)
 		}
 
-		db.Create(&Setting{Key: SharedHostsSetting, Value: "db1.example.com\ndb2.example.com"})
+		var seeded Setting
+		if err := db.Where("key = ?", SharedHostsSetting).First(&seeded).Error; err != nil {
+			t.Fatalf("expected the env hosts to be persisted as the setting: %v", err)
+		}
+		if err := db.Model(&Setting{}).Where("key = ?", SharedHostsSetting).Update("value", "db1.example.com\ndb2.example.com").Error; err != nil {
+			t.Fatalf("update setting: %v", err)
+		}
 		got := SharedHosts(db)
 		if len(got) != 2 || got[0] != "db1.example.com" || got[1] != "db2.example.com" {
 			t.Errorf("SharedHosts(db) after insert = %v, want [db1.example.com, db2.example.com]", got)

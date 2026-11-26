@@ -124,8 +124,8 @@ func TestCharacterization_BaseDomainAndSharedHostsPrecedence(t *testing.T) {
 		t.Errorf("SharedHosts(env) = %v, want [app.example.com, api.example.com]", shared)
 	}
 
-	db.Create(&Setting{Key: BaseDomainSetting, Value: "Db.Example.Org."})
-	db.Create(&Setting{Key: SharedHostsSetting, Value: "hub.example.org:443"})
+	db.Model(&Setting{}).Where("key = ?", BaseDomainSetting).Update("value", "Db.Example.Org.")
+	db.Model(&Setting{}).Where("key = ?", SharedHostsSetting).Update("value", "hub.example.org:443")
 
 	if got := BaseDomain(db); got != "db.example.org" {
 		t.Errorf("BaseDomain(db) = %q, want db.example.org", got)
