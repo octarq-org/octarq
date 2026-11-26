@@ -9,7 +9,7 @@ The module manages:
 - **Tenant & Workspace Scoping**: Org membership, role hierarchies (`owner` > `admin` > `member`), workspace switching, and isolated data queries.
 - **Settings & Dynamic Toggles**: Global instance settings, workspace settings, white-label branding, and plugin feature gates.
 - **Notification Routing**: In-app notifications, user delivery preferences, and outbound channel management (Email, Webhook, Chatbot).
-- **Abuse Reporting & Audit Logging**: Cryptographically verifiable audit trails and rate-limited abuse ingress.
+- **Audit Logging**: Cryptographically verifiable audit trails.
 
 ---
 
@@ -42,9 +42,8 @@ To prevent Denial of Service and credential stuffing, rate limits are enforced v
 2. **Login Account Budget (`loginAccountLimiter`)**: 10 failed login attempts per 15 minutes per account (the submitted email, case-folded). Failures are charged to both login budgets and a successful sign-in clears both, so a pool of client addresses cannot turn one account into an unlimited guessing target while a single bad typist is not locked out. A blank email is never used as a key — it would make one shared bucket that any anonymous caller could exhaust.
 3. **Recovery Budget (`recoveryLimiter`)**: 5 reset/verification requests per 15 minutes per IP (deliberately independent of login).
 4. **Register Budget (`registerLimiter`)**: 5 public sign-ups per hour per IP.
-5. **Abuse Budget (`abuseLimiter`)**: 5 abuse reports per hour per IP.
-6. **Send Budget (`sendLimiter`)**: 100 outbound emails per organization per hour.
-7. **Subsystem Status Budget (`statusLimiter`)**: 60 status checks per minute per IP.
+5. **Send Budget (`sendLimiter`)**: 100 outbound emails per organization per hour.
+6. **Subsystem Status Budget (`statusLimiter`)**: 60 status checks per minute per IP.
 
 **Fail-Closed Counter Store**: a budget either counts in the configured store or the boot stops. When `OCTARQ_REDIS_URL` is set and the server cannot be reached, `newRateLimiter` returns an error, the handler records it in `InitErr`, and the app refuses to serve. Falling back to per-process counters would multiply every budget by the replica count and hide a broken deployment. Without a Redis URL the counters live in this process, which is exact for a single instance.
 

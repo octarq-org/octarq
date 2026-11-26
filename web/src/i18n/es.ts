@@ -206,7 +206,7 @@ export const es = {
   },
   export: {
     title: "Exportar datos del espacio de trabajo",
-    desc: "Descargue todos los datos del espacio de trabajo en un archivo ZIP. El archivo contiene enlaces cortos, registros DNS, enrutamiento de correo y registros de auditoría.",
+    desc: "Descargue todos los datos del espacio de trabajo en un archivo ZIP. El archivo contiene exportaciones de plugins y registros de auditoría.",
     button: "Exportar todos los datos (.zip)",
     downloading: "Empaquetando ZIP…",
   },

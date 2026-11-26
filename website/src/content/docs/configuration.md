@@ -39,7 +39,7 @@ Instance administrators can configure deployment-wide settings live via the UI (
 | `app_name` | Product name | Brand/Product name displayed across the UI (empty = default `octarq`). |
 | `base_domain` | Tenant base domain | Automatic tenant subdomain base (`<slug>.<base>`). |
 | `shared_hosts` | Shared hosts | Trusted hostnames for public origin derivation. |
-| `data_retention_days` | Keep click history for (days) | Auto-cleanup retention period for short link clicks (0 = keep forever). |
+| `data_retention_days` | Audit log retention (days) | Deletes audit logs older than this many days. The cleanup job also purges expired sessions. Set 0 to keep audit logs forever. |
 | `public_cors_origins` | Public CORS Origins | Comma/newline-separated allowlist of exact origins for public GET endpoints. |
 | `metrics_token` | Metrics token | Bearer token required for `/metrics` endpoint (empty = loopback only). |
 | `ratelimit_auth_rpm` | Auth RPM / IP | Per-IP rate limit for authentication endpoints (default 60). |
