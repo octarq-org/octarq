@@ -106,7 +106,7 @@ func TestMCPRemountUsesMinimalContext(t *testing.T) {
 		return
 	}
 	for _, name := range []string{
-		"Guard", "RegisterNotificationChannel",
+		"Guard", "Notify", "RegisterNotifier",
 		"CacheSet", "CacheGet", "DeleteCache", "LoginByEmail", "LoginByIdentity", "BindIdentity",
 		"RecordUsage", "PluginActive", "FeatureActive", "ActivePlugins",
 		"RegisterAuthMethod", "Audit", "ParseUA",

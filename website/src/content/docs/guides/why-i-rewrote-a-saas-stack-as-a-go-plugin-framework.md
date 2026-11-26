@@ -49,8 +49,10 @@ The `*plugin.Context` provides safe, isolated primitives:
 Because core features (like `links`, `mail`, and `dns`) use the exact same seam interfaces as custom extensions (`telegram`, `webhook`, `audit`), there are no "hidden internal APIs". A plugin can register custom notification handlers, custom role permissions, or custom UI menus:
 
 ```go
-// Registering a Slack notification channel from a plugin
-pctx.RegisterNotificationChannel(slack.New())
+// Registering a Slack notification provider from a plugin
+pctx.RegisterNotifier("slack", func(ctx context.Context, cfgJSON, text string) error {
+    return slack.Send(ctx, cfgJSON, text)
+})
 ```
 
 ---
