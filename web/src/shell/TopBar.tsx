@@ -189,12 +189,12 @@ export function TopBar({
 
       <NotificationBell />
 
-      {help.match && (
+      {!help.onHelpPage && (
         <button
           type="button"
           onClick={() => (help.isOpen ? help.close() : help.openForCurrentPage())}
           aria-label={t("help.open", "Open help")}
-          title={t("help.open_hint", "Open help for this page (F1)")}
+          title={t("help.open_hint", "Open help (F1)")}
           aria-pressed={help.isOpen}
           data-testid="help-drawer-trigger"
           className={cn(ACTION_BUTTON, "tap-expand flex h-8 w-8 items-center justify-center")}

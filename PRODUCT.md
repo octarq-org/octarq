@@ -41,7 +41,8 @@ Octarq Core is a self-hosted, single-binary operational back office for indie fo
 
 ## Help center
 
-- Admins can open `/admin/help` to browse documentation by category, or use the search box to find a paragraph and jump straight to its anchor.
-- On any page mapped to a doc, the help button or `F1` opens a side drawer without leaving the form; `?help=<slug>` links share that state.
+- The drawer is the main way to read docs. The book button, `F1`, or `?` opens it on any page. On a page mapped to a doc it shows that doc. On any other page it shows the search box and the doc list, and the reader stays on the current page.
+- `/admin/help` is the fallback directory. It lists every doc by category, and its article links (`/admin/help/<category>/<slug>`) are shareable.
+- `?help=<slug>` links share the open doc and reopen the drawer on load.
 - Docs show the workspace's real name and domain where configured, and say "(not configured)" when a value is missing.
 - When the workspace has an AI provider configured, "Ask AI" answers questions about the current doc; when it does not, the entry point is hidden.
