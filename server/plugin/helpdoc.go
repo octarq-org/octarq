@@ -229,7 +229,7 @@ var helpCategoryForPluginCategory = map[string]string{
 
 func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	if h.Category == "" {
-		h.Category = helpCategoryForPluginCategory[pluginCategory]
+		h.Category = helpCategoryForPluginCategory[strings.ToLower(pluginCategory)]
 	}
 	h.Category = strings.ToLower(h.Category)
 	if _, ok := helpCategoryMap[h.Category]; !ok {

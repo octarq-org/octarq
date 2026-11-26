@@ -128,7 +128,7 @@ func TestContainsWordBoundary(t *testing.T) {
 	}
 }
 
-func TestValidateReadOnlyQueryBlocksMailAndOTPIdentifiers(t *testing.T) {
+func TestValidateReadOnlyQueryBlocksSensitiveColumns(t *testing.T) {
 	t.Parallel()
 
 	for _, q := range []string{
@@ -151,6 +151,34 @@ func TestRegisterBannedIdentifiersExtendsTheGuard(t *testing.T) {
 	}
 	if _, err := ValidateReadOnlyQuery("SELECT * FROM plugin_owned_table_extra"); err != nil {
 		t.Errorf("expected a word-boundary mismatch to pass, got %v", err)
+	}
+}
+
+func TestRegisterBannedIdentifiersRejectsInvalidIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, bad := range []string{"", "   ", "issued licenses", "issued.licenses"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("expected panic for identifier %q", bad)
+				}
+			}()
+			RegisterBannedIdentifiers(bad)
+		}()
+	}
+
+	if _, err := ValidateReadOnlyQuery("SELECT 1"); err != nil {
+		t.Errorf("invalid registration must not poison later validation: %v", err)
+	}
+}
+
+func TestRegisterBannedIdentifiersNormalisesInput(t *testing.T) {
+	t.Parallel()
+
+	RegisterBannedIdentifiers("  Plugin_Owned_Normalised  ")
+	if _, err := ValidateReadOnlyQuery("SELECT * FROM plugin_owned_normalised"); err == nil {
+		t.Error("expected reject for a whitespace-and-case normalised identifier")
 	}
 }
 

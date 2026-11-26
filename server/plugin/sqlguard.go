@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -47,15 +48,29 @@ var BannedIdentifiers = []string{
 var bannedRegistry struct {
 	sync.RWMutex
 	identifiers []string
+	seen        map[string]bool
 }
 
 func RegisterBannedIdentifiers(ids ...string) {
 	bannedRegistry.Lock()
 	defer bannedRegistry.Unlock()
-	for _, id := range ids {
-		bannedRegistry.identifiers = append(bannedRegistry.identifiers, strings.ToLower(id))
+	if bannedRegistry.seen == nil {
+		bannedRegistry.seen = make(map[string]bool)
+	}
+	for _, raw := range ids {
+		id := strings.ToLower(strings.TrimSpace(raw))
+		if id == "" || !identifierPattern.MatchString(id) {
+			panic(fmt.Sprintf("plugin.RegisterBannedIdentifiers: invalid SQL identifier %q", raw))
+		}
+		if bannedRegistry.seen[id] {
+			continue
+		}
+		bannedRegistry.seen[id] = true
+		bannedRegistry.identifiers = append(bannedRegistry.identifiers, id)
 	}
 }
+
+var identifierPattern = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 func bannedIdentifiers() []string {
 	bannedRegistry.RLock()
