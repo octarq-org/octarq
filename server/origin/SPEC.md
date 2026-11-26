@@ -27,7 +27,7 @@ The `origin` package derives the absolute origin (`https://<host>`) for outbound
         |                                 |
         v                                 v
    OwnedHost?                        SharedHost?
-  (domains table)                  (config/env)
+  (org_hosts table)                (config/env)
    YES: https://host                YES: https://host
         |                                 |
         +----------------+----------------+

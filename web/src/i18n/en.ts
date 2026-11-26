@@ -195,7 +195,7 @@ export const en = {
   },
   export: {
     title: "Export workspace data",
-    desc: "Download all workspace data as one ZIP file. The file holds short links, DNS records, mail routing, and audit logs.",
+    desc: "Download all workspace data as one ZIP file. The file holds plugin exports and audit logs.",
     button: "Export all data (.zip)",
     downloading: "Packaging ZIP…",
   },

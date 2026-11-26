@@ -118,8 +118,9 @@ needs host-side `pg_dump`) are documented in
 - [ ] **Email verification**: on by default. Leaving it on requires working
       outbound mail — otherwise nobody can complete sign-up. Configure mail
       first, or turn verification off deliberately.
-- [ ] **Reserved slugs/mailboxes**: reserve the names you do not want a user to
-      take (`admin`, `support`, `billing`, your brand).
+- [ ] **Reserved slugs**: core blocks system names such as `admin`, `api`,
+      `auth`, `login`, and `billing`. Users cannot claim these as workspace
+      slugs.
 - [ ] **Rate limits**: auth / API / redirect limits have defaults
       (60 / 600 / 6000 per minute per IP). Confirm they suit your traffic
       before a launch spike rather than during one.

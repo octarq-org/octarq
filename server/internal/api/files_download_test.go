@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
@@ -180,5 +181,46 @@ func TestFiles_Download_And_TempToken(t *testing.T) {
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-org get file metadata, got %d", rec.Code)
+	}
+}
+
+func TestFiles_Download_DeniesUnresolvedOrg(t *testing.T) {
+	h, srv, _ := newTestHandlerRaw(t)
+	_, org1ID := createTestUserAndOrg(t, h)
+
+	tmpDir := t.TempDir()
+	storage, err := plugin.NewLocalStorageService(tmpDir, []byte("test-secret-key"), "")
+	if err != nil {
+		t.Fatalf("create storage: %v", err)
+	}
+	h.SetStorage(storage)
+
+	ctx := context.Background()
+	content := []byte("owner-only")
+	key, hash, size, _, err := storage.PutObjectByHash(ctx, bytes.NewReader(content), ".txt")
+	if err != nil {
+		t.Fatalf("put object: %v", err)
+	}
+	file := models.File{OrgID: org1ID, Name: "doc.txt", Size: size, ContentType: "text/plain", MD5: hash, Path: key}
+	if err := h.db.Create(&file).Error; err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+
+	user := models.User{Email: "unresolved@example.com", PasswordHash: "pw"}
+	if err := h.db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	sessionToken := "unresolved-org-session"
+	sess := models.Session{UserID: user.ID, OrgID: 0, Token: models.HashToken(sessionToken), ExpiresAt: time.Now().Add(time.Hour)}
+	if err := h.db.Create(&sess).Error; err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/files/%d/download", file.ID), nil)
+	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: sessionToken})
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("an unresolved-workspace session must not download another workspace's file, got %d", rec.Code)
 	}
 }

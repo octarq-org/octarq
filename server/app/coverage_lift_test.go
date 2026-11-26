@@ -72,11 +72,9 @@ func TestCoverageLift_PluginContext_Branches(t *testing.T) {
 
 	ctx := context.Background()
 
-	_ = pctx.Notify(ctx, "email", "pt", "txt")
 	_ = pctx.Emit(ctx, plugin.NotificationPayload{})
 	_ = pctx.EmitTo(ctx, plugin.NotificationRecipient{}, plugin.NotificationPayload{})
 	pctx.RegisterNotificationChannel(nil)
-	pctx.RegisterNotifier("typ", nil)
 
 	pctx.SetLLMResolverForOrg(nil)
 	if err := pctx.Enqueue(ctx, "t", nil); err == nil {

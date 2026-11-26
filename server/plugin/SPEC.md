@@ -7,7 +7,7 @@
 Key responsibilities:
 - **Plugin Lifecycle Orchestration**: Models declaration, atomic database migration, synchronous mounting, and asynchronous daemon startup.
 - **Service Registry**: Inter-plugin decoupled service provision and dependency lookup via type-safe generics (`LookupAs[T]`).
-- **Context Capability Injection**: Controlled, tenant-aware access to database, routing (`Huma`), authentication, notification, DNS, audit, and storage.
+- **Context Capability Injection**: Controlled, tenant-aware access to database, routing (`Huma`), authentication, notification, audit, and storage.
 - **Event Bus (`TypedBus`)**: In-memory strongly-typed publish/subscribe messaging with panic recovery and operational logging.
 - **Documentation Contract (`HelpDocsFS`)**: Declarative in-app documentation provider conventions.
 
@@ -98,4 +98,4 @@ order does not matter and core never imports the feature plugin.
 | **Duplicate Service Registration** | Overwriting existing service in registry | Startup failure; register error in `Registry.Err()` to block boot. |
 | **TypedBus Async Panic** | Silent process termination or swallowed error | Catch via `recover()`, record panic details & stack trace in server logs. |
 | **Storage Path Traversal** | Accessing files outside configured base directory | Path clean & prefix check; return `os.ErrPermission` immediately. |
-| **HelpDoc Missing Category** | Unknown frontmatter category | Normalize to taxonomy whitelist; log warning fallback to `"services"`. |
+| **HelpDoc Missing Category** | Unknown frontmatter category | Normalize to taxonomy whitelist; log warning fallback to `"start"`. |

@@ -197,7 +197,7 @@ export const zh: Resources = {
   },
   export: {
     title: "导出工作区数据",
-    desc: "将全部工作区数据下载为单个 ZIP 文件。文件包含短链、DNS 记录、邮件路由和审计日志。",
+    desc: "将全部工作区数据下载为单个 ZIP 文件。文件包含插件导出和审计日志。",
     button: "导出全部数据 (.zip)",
     downloading: "正在打包 ZIP…",
   },
