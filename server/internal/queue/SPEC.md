@@ -3,9 +3,9 @@
 ## 1. Overview & Architecture
 `server/internal/queue` provides asynchronous background task processing for Octarq Core.
 - Provides a unified `Queue` interface supporting both local in-memory buffered workers and distributed Redis-backed `asynq` workers.
-- Automatically initializes `InMemoryQueue` if Redis is unconfigured or unavailable.
+- Uses `InMemoryQueue` only when `OCTARQ_REDIS_URL` is unset.
 - Integrates OpenTelemetry distributed tracing and metrics (`queue.process`, `QueueTasksInFlight`, execution duration).
-- Backpressure handling: when in-memory buffer (1000 tasks) is exhausted, it attempts immediate fallback execution if a handler is registered, or returns a fail-closed error if unregistered.
+- Fail-closed enqueue: a failed Redis enqueue returns an error to the caller, and a full in-memory buffer returns an error. Neither case runs the task inline on the enqueueing instance.
 
 ## 2. Exported Contracts & Types
 - `Queue`: Interface declaring:
@@ -20,7 +20,8 @@
 ## 3. Reliability & Invariant Guarantees
 - **Trace Context Propagation**: OpenTelemetry trace context is injected into a `taskEnvelope` carrier during `Enqueue` and extracted during worker execution.
 - **Graceful Shutdown**: Shuts down consumers cleanly when context is canceled, closing the client connection without leaking resources.
-- **Backpressure Protection**: Buffer limit enforcement prevents unbounded memory growth.
+- **No Inline Execution on Enqueue Failure**: when Redis is configured, `AsynqQueue.Enqueue` wraps and returns the Redis error. The enqueueing instance never runs the handler inline, because a broken Redis deployment must stay visible to the caller.
+- **Backpressure Protection**: `InMemoryQueue.Enqueue` returns a `queue: full` error once the 1000-task buffer is exhausted. It never blocks and never runs the handler inline.
 
 ## 4. File Layout
 - `queue.go`: `Queue` interface, `InMemoryQueue`, `AsynqQueue`, telemetry instrumentation, and lifecycle.
