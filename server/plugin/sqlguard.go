@@ -3,6 +3,7 @@ package plugin
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 const MaxRows = 200
@@ -36,12 +37,33 @@ var BannedKeywords = []string{
 
 var BannedIdentifiers = []string{
 	"users", "user_sessions", "tokens", "provider_accounts", "settings",
-	"workspace_settings", "org_members", "orgs", "product_keys",
-	"issued_licenses", "license_devices", "webhooks", "email_ais",
+	"workspace_settings", "org_members", "orgs", "webhooks",
 	"password", "password_hash", "passwordhash", "hash", "secret",
 	"private_key", "privatekey", "private_key_enc", "token",
 	"access_token", "refresh_token", "totp_secret", "recovery_codes",
 	"inbound_token", "invite_token", "otp",
+}
+
+var bannedRegistry struct {
+	sync.RWMutex
+	identifiers []string
+}
+
+func RegisterBannedIdentifiers(ids ...string) {
+	bannedRegistry.Lock()
+	defer bannedRegistry.Unlock()
+	for _, id := range ids {
+		bannedRegistry.identifiers = append(bannedRegistry.identifiers, strings.ToLower(id))
+	}
+}
+
+func bannedIdentifiers() []string {
+	bannedRegistry.RLock()
+	defer bannedRegistry.RUnlock()
+	out := make([]string, 0, len(BannedIdentifiers)+len(bannedRegistry.identifiers))
+	out = append(out, BannedIdentifiers...)
+	out = append(out, bannedRegistry.identifiers...)
+	return out
 }
 
 func ValidateReadOnlyQuery(query string) (string, error) {
@@ -68,7 +90,7 @@ func ValidateReadOnlyQuery(query string) (string, error) {
 		}
 	}
 
-	for _, id := range BannedIdentifiers {
+	for _, id := range bannedIdentifiers() {
 		if ContainsWord(lower, id) {
 			return "", fmt.Errorf("disallowed table/column %q in a read-only query", id)
 		}

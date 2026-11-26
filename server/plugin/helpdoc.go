@@ -217,31 +217,22 @@ func ParseHelpDocSafe(content string) HelpDoc {
 	return doc
 }
 
+var helpCategoryForPluginCategory = map[string]string{
+	CategoryInfrastructure: "infrastructure",
+	CategorySecurity:       "settings",
+	CategoryCommerce:       "commerce",
+	CategoryMarketing:      "operations",
+	CategoryMessaging:      "operations",
+	CategoryAI:             "operations",
+	CategoryUtilities:      "operations",
+}
+
 func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	if h.Category == "" {
-		if pluginCategory != "" {
-			h.Category = pluginCategory
-		} else {
-			h.Category = pluginName
-		}
+		h.Category = helpCategoryForPluginCategory[pluginCategory]
 	}
 	h.Category = strings.ToLower(h.Category)
-
-	switch h.Category {
-	case "getting-started", "start", "general", "platform", "core":
-		h.Category = "start"
-	case "access", "security", "identity":
-		h.Category = "settings"
-	case "automation", "api", "apis":
-		h.Category = "operations"
-	case "services", "infrastructure", "dns", "ddns", "short-links", "links", "mail", "messaging", "marketing":
-		h.Category = "infrastructure"
-	case "commerce", "billing", "finance":
-		h.Category = "commerce"
-	case "licensing", "editions":
-		h.Category = "licensing"
-	case "settings", "operations":
-	default:
+	if _, ok := helpCategoryMap[h.Category]; !ok {
 		log.Printf("[help] warning: doc %q from plugin %q has unknown category %q, falling back to 'start'", h.Slug, pluginName, h.Category)
 		h.Category = "start"
 	}
