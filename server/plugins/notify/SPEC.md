@@ -40,7 +40,7 @@ configuration surface.
 2. Load `notification_channels` where `owner_id = org AND enabled = true`
    (narrowed by `type = channel` when `channel` is given).
 3. For each channel, decrypt the stored config with
-   `notification.ConfigPlaintext` (same decryptor the host's `ctx.Notify`
+   `notification.ConfigPlaintext` (same decryptor the notification router
    uses — a build without a registered decryptor is an error, not a passthrough)
    and deliver via `notification.SendDirectWithTenant`.
 4. `title` is prefixed to the body as `"<title> — <message>"`.

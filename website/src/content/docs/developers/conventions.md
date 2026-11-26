@@ -109,7 +109,7 @@ func (p *Plugin) Start(ctx context.Context) { /* ... */ }
   - `ctx.Guard`: Standard authentication and tenant verification middleware.
   - `ctx.Encrypt` / `ctx.Decrypt`: AES-256-GCM authenticated encryption for sensitive settings.
   - `ctx.Audit`: Structured audit logging.
-  - `ctx.Notify`: Notification dispatching to tenant users and instance admins.
+  - `ctx.RegisterNotificationChannel`: Register an outbound notification channel (chat, webhook, email) for alerts and events.
   - `messaging.send` / the event spine (`Host.Events().OnEvent`): outbound messages and inbound event topics, provided by plugins.
   - `dns.manager` (`github.com/octarq-org/octarq-plugins/dns/contract`): programmatic DNS zone and record management.
   - `ctx.UserID(r)` / `ctx.OrgID(r)`: Request-scoped user and organization identifiers.
