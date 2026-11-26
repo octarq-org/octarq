@@ -142,6 +142,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 			pctxCopy.RegisterNotificationChannel(notification.NewLegacyNotifierAdapter(typ, pInfo.Title, send))
 		}
 		thirdParty := pluginIsThirdParty(p)
+		if thirdParty {
+			pctxCopy.DB = nil
+		}
 		recorder := &recordingMux{real: throwaway, routes: routes, plugin: pName, thirdParty: thirdParty}
 		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
 			pctxCopy.Huma = &recordingAPI{
@@ -315,6 +318,9 @@ func (a *App) Run(ctx context.Context) error {
 			pctxCopy.RegisterNotificationChannel(notification.NewLegacyNotifierAdapter(typ, pInfo.Title, send))
 		}
 		thirdParty := pluginIsThirdParty(p)
+		if thirdParty {
+			pctxCopy.DB = nil
+		}
 		recorder := &recordingMux{real: mux, routes: routes, plugin: pName, thirdParty: thirdParty}
 		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
 			pctxCopy.Huma = &recordingAPI{
