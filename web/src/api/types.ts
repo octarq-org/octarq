@@ -269,6 +269,17 @@ export interface PluginInfo {
   requiredBy?: string[];
 }
 
+export interface PluginCategoryInfo {
+  key: string;
+  tone: string;
+  labels: Record<string, string>;
+}
+
+export interface PluginsResponse {
+  plugins: PluginInfo[];
+  categories: PluginCategoryInfo[];
+}
+
 export interface Webhook {
   id: number;
   name: string;

@@ -152,8 +152,13 @@ func (i *ListPluginsInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type pluginsOutputBody struct {
+	Plugins    []featureOut          `json:"plugins"`
+	Categories []plugin.CategoryInfo `json:"categories"`
+}
+
 type ListPluginsOutput struct {
-	Body []featureOut
+	Body pluginsOutputBody
 }
 
 func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*ListPluginsOutput, error) {
@@ -299,7 +304,7 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 		out = append(out, *f)
 	}
-	return &ListPluginsOutput{Body: out}, nil
+	return &ListPluginsOutput{Body: pluginsOutputBody{Plugins: out, Categories: plugin.PluginCategories()}}, nil
 }
 
 type UpdatePluginInputBody struct {

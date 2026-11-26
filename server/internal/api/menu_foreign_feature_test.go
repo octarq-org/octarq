@@ -89,15 +89,18 @@ func TestThePluginManagerShowsAPageOnItsOwnersCard(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list features: got %d (%s)", rec.Code, rec.Body.String())
 	}
-	var feats []struct {
-		Key   string `json:"key"`
-		Menus []struct {
-			Path string `json:"path"`
-		} `json:"menus"`
+	var body struct {
+		Plugins []struct {
+			Key   string `json:"key"`
+			Menus []struct {
+				Path string `json:"path"`
+			} `json:"menus"`
+		} `json:"plugins"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &feats); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode features: %v (%s)", err, rec.Body.String())
 	}
+	feats := body.Plugins
 
 	paths := map[string][]string{}
 	for _, f := range feats {

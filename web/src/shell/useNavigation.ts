@@ -90,7 +90,7 @@ export function useNavigation({
   const refreshNav = useCallback(() => {
     Promise.all([
       api.menus().catch(() => []),
-      api.plugins().catch(() => []),
+      api.plugins().then((res) => res.plugins).catch(() => []),
       api.actions().catch(() => []),
     ])
       .then(([menus, plugins, actions]) => {

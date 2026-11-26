@@ -1,20 +1,28 @@
-import { Switch, PageShell, PageCard, PageEmpty, Badge, Alert, Tooltip, confirmDialog, Input, TabBar } from "@octarq/plugin-sdk";
+import { Switch, PageShell, PageCard, PageEmpty, Badge, Alert, Tooltip, confirmDialog, Input, TabBar, type BadgeTone } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
-import { api, ApiError, PluginInfo } from "../../api";
+import { api, ApiError, PluginCategoryInfo, PluginInfo } from "../../api";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
 import { useSettingsData } from "./shared";
 
-const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
-  marketing: { labelKey: "settings.pluginCategory.marketing", tone: "indigo" },
-  messaging: { labelKey: "settings.pluginCategory.messaging", tone: "cyan" },
-  infrastructure: { labelKey: "settings.pluginCategory.infrastructure", tone: "violet" },
-  security: { labelKey: "settings.pluginCategory.security", tone: "amber" },
-  commerce: { labelKey: "settings.pluginCategory.commerce", tone: "green" },
-  ai: { labelKey: "settings.pluginCategory.ai", tone: "indigo" },
-  utilities: { labelKey: "settings.pluginCategory.utilities", tone: "neutral" },
-};
+const BADGE_TONES = new Set<BadgeTone>([
+  "default",
+  "info",
+  "success",
+  "warning",
+  "danger",
+  "review",
+  "secondary",
+  "outline",
+  "indigo",
+  "violet",
+  "green",
+  "amber",
+  "red",
+  "cyan",
+  "neutral",
+]);
 
 function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIcon?: string }) {
   const { t } = useTranslation();
@@ -41,15 +49,31 @@ function lockedBy(p: PluginInfo): string[] {
 
 export function PluginsSettings() {
   const { s: settings } = useSettingsData();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [plugins, setPlugins] = useState<PluginInfo[] | null>(null);
+  const [categories, setCategories] = useState<PluginCategoryInfo[]>([]);
   const [err, setErr] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "enabled" | "disabled">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  const categoryMap: Record<string, PluginCategoryInfo> = {};
+  for (const c of categories) {
+    categoryMap[c.key] = c;
+  }
+  const categoryLabel = (key: string) => categoryMap[key]?.labels?.[lang] || key;
+  const categoryTone = (key: string): BadgeTone => {
+    const tone = categoryMap[key]?.tone as BadgeTone | undefined;
+    return tone && BADGE_TONES.has(tone) ? tone : "neutral";
+  };
+
   function load() {
-    api.plugins().then(setPlugins).catch((e: ApiError) => setErr(e.message || t("settings.failedLoadPlugins")));
+    api.plugins()
+      .then((res) => {
+        setPlugins(res.plugins);
+        setCategories(res.categories ?? []);
+      })
+      .catch((e: ApiError) => setErr(e.message || t("settings.failedLoadPlugins")));
   }
   useEffect(load, []);
 
@@ -153,11 +177,10 @@ export function PluginsSettings() {
                   count: plugins.length,
                 },
                 ...availableCategories.map((c) => {
-                  const meta = CATEGORIES[c] || { labelKey: "settings.pluginCategory." + c, tone: "neutral" };
                   const count = (plugins ?? []).filter((p) => (p.category || "utilities") === c).length;
                   return {
                     value: c,
-                    label: <span className="capitalize">{t(meta.labelKey)}</span>,
+                    label: <span className="capitalize">{categoryLabel(c)}</span>,
                     count,
                   };
                 }),
@@ -203,7 +226,7 @@ export function PluginsSettings() {
           {filteredPlugins.map((p) => {
             const description = t("settings.pluginDesc." + p.key, p.description || "");
             const firstMenuIcon = p.menus?.[0]?.icon;
-            const categoryMeta = CATEGORIES[p.category || "utilities"] || { labelKey: "settings.pluginCategory." + (p.category || "utilities"), tone: "neutral" };
+            const catKey = p.category || "utilities";
 
             return (
               <PageCard
@@ -249,8 +272,8 @@ export function PluginsSettings() {
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <Badge tone={categoryMeta.tone} className="text-[10px] uppercase tracking-wider font-semibold">
-                      {t(categoryMeta.labelKey)}
+                    <Badge tone={categoryTone(catKey)} className="text-[10px] uppercase tracking-wider font-semibold">
+                      {categoryLabel(catKey)}
                     </Badge>
                     {p.tags && p.tags.map((tag) => (
                       <span
