@@ -52,6 +52,73 @@ test.describe("Help center", () => {
     guard.assertClean();
   });
 
+  test("hub scrolls to the last category and keeps page margins on desktop", async ({ page }) => {
+    mkdirSync(ARTIFACT_DIR, { recursive: true });
+    const guard = attachPageGuards(page);
+    await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/admin/help");
+    await page.waitForLoadState("networkidle");
+
+    const title = page.getByRole("heading", { name: "Documentation", exact: true });
+    await expect(title).toBeVisible();
+    const titleBox = await title.boundingBox();
+    const mainBox = await page.locator("#main-content").boundingBox();
+    expect(titleBox).not.toBeNull();
+    expect(mainBox).not.toBeNull();
+    expect(titleBox!.x).toBeGreaterThanOrEqual(16);
+    expect(titleBox!.x - mainBox!.x).toBeGreaterThanOrEqual(16);
+
+    const scroll = page.getByTestId("help-hub-scroll");
+    const before = await scroll.evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+      scrollTop: el.scrollTop,
+    }));
+    expect(before.scrollHeight).toBeGreaterThan(before.clientHeight);
+    expect(before.scrollTop).toBe(0);
+
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, "hub-desktop-top.png"),
+    });
+
+    const scrollBox = await scroll.boundingBox();
+    expect(scrollBox).not.toBeNull();
+    await page.mouse.move(scrollBox!.x + scrollBox!.width / 2, scrollBox!.y + scrollBox!.height / 2);
+    await page.mouse.wheel(0, 600);
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(0);
+
+    const lastHeading = page
+      .locator('section[id^="help-category-"]')
+      .last()
+      .getByRole("heading", { level: 2 });
+    await lastHeading.scrollIntoViewIfNeeded();
+    await expect(lastHeading).toBeVisible();
+    const headingBox = await lastHeading.boundingBox();
+    expect(headingBox).not.toBeNull();
+    expect(headingBox!.y).toBeGreaterThanOrEqual(0);
+    expect(headingBox!.y + headingBox!.height).toBeLessThanOrEqual(900);
+
+    const lastDoc = page.locator('[data-testid^="help-doc-"]').last();
+    await lastDoc.scrollIntoViewIfNeeded();
+    await expect(lastDoc).toBeVisible();
+    const lastDocBox = await lastDoc.boundingBox();
+    expect(lastDocBox).not.toBeNull();
+    expect(lastDocBox!.y).toBeGreaterThanOrEqual(0);
+    expect(lastDocBox!.y + lastDocBox!.height).toBeLessThanOrEqual(900);
+
+    const after = await scroll.evaluate((el) => el.scrollTop);
+    expect(after).toBeGreaterThan(0);
+
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, "hub-scrolled-desktop.png"),
+    });
+
+    guard.assertClean();
+  });
+
   test("mobile readers reach the table of contents from the sticky pill", async ({ page }) => {
     const guard = attachPageGuards(page);
     await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
