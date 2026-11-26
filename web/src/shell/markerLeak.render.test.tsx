@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-// A `/* ui-color-ok */` marker written after a closed tag (`<div /> /* ... */`)
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
