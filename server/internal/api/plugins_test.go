@@ -49,16 +49,19 @@ func TestPluginGroupingAndCore(t *testing.T) {
 	cookies := loginCookies(t, srv)
 
 	rec := do(srv, "GET", "/api/plugins", cookies, "")
-	var feats []struct {
-		Key     string `json:"key"`
-		Title   string `json:"title"`
-		Enabled bool   `json:"enabled"`
-		Core    bool   `json:"core"`
-		Menus   []struct {
-			Path string `json:"path"`
-		} `json:"menus"`
+	var body struct {
+		Plugins []struct {
+			Key     string `json:"key"`
+			Title   string `json:"title"`
+			Enabled bool   `json:"enabled"`
+			Core    bool   `json:"core"`
+			Menus   []struct {
+				Path string `json:"path"`
+			} `json:"menus"`
+		} `json:"plugins"`
 	}
-	_ = json.Unmarshal(rec.Body.Bytes(), &feats)
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	feats := body.Plugins
 	byKey := map[string]int{}
 	for i, f := range feats {
 		byKey[f.Key] = i
@@ -186,14 +189,17 @@ func TestCoreIsStickyAcrossFeatureHalves(t *testing.T) {
 	cookies := loginCookies(t, srv)
 
 	rec := do(srv, "GET", "/api/plugins", cookies, "")
-	var feats []struct {
-		Key     string `json:"key"`
-		Enabled bool   `json:"enabled"`
-		Core    bool   `json:"core"`
+	var body struct {
+		Plugins []struct {
+			Key     string `json:"key"`
+			Enabled bool   `json:"enabled"`
+			Core    bool   `json:"core"`
+		} `json:"plugins"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &feats); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode plugins: %v", err)
 	}
+	feats := body.Plugins
 	found := false
 	for _, f := range feats {
 		if f.Key != "help" {
@@ -222,13 +228,16 @@ func pluginEnabled(t *testing.T, srv http.Handler, cookies []*http.Cookie, name 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list plugins: got %d", rec.Code)
 	}
-	var list []struct {
-		Key     string `json:"key"`
-		Enabled bool   `json:"enabled"`
+	var body struct {
+		Plugins []struct {
+			Key     string `json:"key"`
+			Enabled bool   `json:"enabled"`
+		} `json:"plugins"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode plugins: %v", err)
 	}
+	list := body.Plugins
 	for _, p := range list {
 		if p.Key == name {
 			return p.Enabled

@@ -26,7 +26,7 @@ vi.mock("./api", () => {
       orgs: vi.fn().mockResolvedValue([]),
       settings: vi.fn().mockResolvedValue({ isInstanceAdmin: true }),
       menus: vi.fn().mockResolvedValue([]),
-      plugins: vi.fn().mockResolvedValue([]),
+      plugins: vi.fn().mockResolvedValue({ plugins: [], categories: [] }),
       actions: vi.fn().mockResolvedValue([]),
       helpIndex: vi.fn().mockResolvedValue([]),
       helpCategories: vi.fn().mockResolvedValue([]),

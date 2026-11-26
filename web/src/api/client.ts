@@ -28,7 +28,7 @@ import type {
   OrgMember,
   OrgSlug,
   Overview,
-  PluginInfo,
+  PluginsResponse,
   ReadinessCheck,
   DiscoverModelsInput,
   LLMModel,
@@ -236,7 +236,7 @@ export const api = {
 
   menus: () => req<MenuItem[]>("GET", "/api/menus"),
   actions: () => req<Action[]>("GET", "/api/actions"),
-  plugins: () => req<PluginInfo[]>("GET", "/api/plugins"),
+  plugins: () => req<PluginsResponse>("GET", "/api/plugins"),
   updatePlugin: (key: string, enabled: boolean) =>
     req<{ ok: boolean }>("PUT", `/api/plugins/${key}`, { enabled }),
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),

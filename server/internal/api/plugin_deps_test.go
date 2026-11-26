@@ -40,16 +40,18 @@ func feature(t *testing.T, srv http.Handler, cookies []*http.Cookie, key string)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /api/plugins: got %d", rec.Code)
 	}
-	var feats []featureView
-	if err := json.Unmarshal(rec.Body.Bytes(), &feats); err != nil {
+	var body struct {
+		Plugins []featureView `json:"plugins"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode features: %v", err)
 	}
-	for _, f := range feats {
+	for _, f := range body.Plugins {
 		if f.Key == key {
 			return f
 		}
 	}
-	t.Fatalf("feature %q not in %+v", key, feats)
+	t.Fatalf("feature %q not in %+v", key, body.Plugins)
 	return featureView{}
 }
 

@@ -48,7 +48,6 @@ import { ListSkeleton } from "../../../components/ListSkeleton";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 import {
-  INTEGRATION_CATEGORIES,
   findSchemaForItem,
   itemMatchesTab,
   resolveTabFromCategory,
@@ -189,13 +188,18 @@ export function IntegrationsVaultPage() {
     }
   };
 
-  const categoryLabels: Record<string, string> = {
-    llm: t("vault.categoryLlm"),
-    payment: t("vault.categoryPayment"),
-    storage: t("vault.categoryStorage"),
-    communication: t("vault.categoryCommunication"),
-    dns: t("vault.categoryDns"),
-  };
+  const categoryLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const schema of schemas) {
+      labels[schema.key] = schema.label;
+    }
+    return labels;
+  }, [schemas]);
+
+  const integrationCategories = useMemo(
+    () => schemas.filter((schema) => schema.itemType === "integration").map((schema) => schema.key),
+    [schemas],
+  );
 
   const collectionOptions = [
     { value: "", label: t("vault.allCollections") },
@@ -335,7 +339,7 @@ export function IntegrationsVaultPage() {
                   >
                     {t("vault.categoryAll")}
                   </Button>
-                  {INTEGRATION_CATEGORIES.map((cat) => (
+                  {integrationCategories.map((cat) => (
                     <Button
                       key={cat}
                       type="button"

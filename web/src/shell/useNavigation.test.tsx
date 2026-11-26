@@ -13,7 +13,7 @@ vi.mock("../api", () => ({
       { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
       { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network", area: "assets" },
     ]),
-    plugins: vi.fn().mockResolvedValue([]),
+    plugins: vi.fn().mockResolvedValue({ plugins: [], categories: [] }),
     actions: vi.fn().mockResolvedValue([]),
     helpCategories: vi.fn().mockResolvedValue([]),
     helpIndex: vi.fn().mockResolvedValue([]),

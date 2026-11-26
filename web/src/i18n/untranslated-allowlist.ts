@@ -9,7 +9,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "nav.webhooks",
   "settings.webhooksTitle",
   "settings.customHttpTargetUrl",
-  "settings.pluginCategory.ai",
   "settings.instanceRlAuth",
   "settings.instanceRlApi",
   "personal.tokenScopeAdmin",
@@ -21,7 +20,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "settings.apiKeysPlaceholderNew",
   "settings.botAuthToken",
 
-  "settings.pluginCategory.marketing",
   "settings.instancePluginName",
   "settings.buildTitle",
   "settings.buildCommit",
@@ -49,8 +47,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
 
   "data.no",
 
-  "vault.categoryDns",
-  "vault.categoryLlm",
   "vault.versionBadge",
   "vault.folderPathPlaceholder",
   "vault.importPlaceholderEnv",
