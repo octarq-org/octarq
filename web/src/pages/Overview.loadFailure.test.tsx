@@ -35,21 +35,6 @@ function renderPage() {
 
 const emptyOverview = {
   tokens: 1,
-  links: 2,
-  activeLinks: 1,
-  domains: 1,
-  mailboxes: 1,
-  emails: 0,
-  unread: 0,
-  totalClicks: 10,
-  clicks7d: 5,
-  clicks30d: 8,
-  series: [],
-  topLinks: [],
-  devices: [],
-  countries: [],
-  cities: [],
-  recentEmails: [],
 };
 
 describe("Overview — failed load", () => {

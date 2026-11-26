@@ -9,55 +9,6 @@ export interface StatKV {
   count: number;
 }
 
-export interface Domain {
-  id: number;
-  name: string;
-  providerAccountId: number;
-  zoneId: string;
-  note: string;
-  forMail: boolean;
-  forLink: boolean;
-  linkHosts: HostEntry[] | null;
-  mailHosts: HostEntry[] | null;
-  createdAt: string;
-}
-
-export interface ProviderAccount {
-  id: number;
-  name: string;
-  type: string;
-  config: Record<string, unknown>;
-  hasCredentials: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ProviderAccountInput {
-  name: string;
-  type: string;
-  config?: Record<string, unknown>;
-}
-
-export interface SMTPSender {
-  id: number;
-  name: string;
-  host: string;
-  port: number;
-  user: string;
-  fromEmail: string;
-  passSet: boolean;
-  createdAt: string;
-}
-
-export interface SMTPSenderInput {
-  name: string;
-  host: string;
-  port: number;
-  user: string;
-  fromEmail: string;
-  pass?: string;
-}
-
 export interface NotificationChannel {
   id: number;
   name: string;
@@ -129,14 +80,6 @@ export interface ListAuditLogsParams {
   offset?: number;
 }
 
-
-export function effectiveLinkHosts(d: Domain): string[] {
-  return (d.linkHosts ?? []).filter((h) => h.enabled).map((h) => h.host);
-}
-
-export function effectiveMailHosts(d: Domain): string[] {
-  return (d.mailHosts ?? []).filter((h) => h.enabled).map((h) => h.host);
-}
 
 export interface ApiToken {
   id: number;
@@ -218,20 +161,6 @@ export interface SubsystemStatusResponse {
 
 export interface Overview extends Record<string, unknown> {
   tokens?: number;
-  links?: number;
-  activeLinks?: number;
-  domains?: number;
-  linkDomains?: number;
-  mailDomains?: number;
-  mailboxes?: number;
-  emails?: number;
-  unread?: number;
-  totalClicks?: number;
-  clicks7d?: number;
-  clicks30d?: number;
-  botClicks7d?: number;
-  botClicks30d?: number;
-  series?: StatKV[] | null;
 }
 
 export interface Settings {

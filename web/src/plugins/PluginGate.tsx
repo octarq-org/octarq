@@ -26,10 +26,7 @@ export function usePluginGate(): PluginRouteGateContextValue {
 }
 
 function isPluginDisabled(disabledPlugins: Set<string>, plugin: UIPlugin): boolean {
-  return (
-    disabledPlugins.has(plugin.name) ||
-    (plugin.name === "domains" && disabledPlugins.has("dns"))
-  );
+  return disabledPlugins.has(plugin.name);
 }
 
 function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) {

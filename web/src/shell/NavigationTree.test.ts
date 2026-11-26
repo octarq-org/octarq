@@ -320,7 +320,7 @@ describe("NavigationTree domain model", () => {
 
     it("enforces declared group order within areas", () => {
       const menus: MenuItem[] = [
-        { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
+        { id: "security-audit", label: "Security audit", path: "/security/audit", icon: "scroll-text", category: "Security" },
         { id: "audit", label: "Audit", path: "/audit", icon: "scroll-text", category: "System" },
         { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
       ];
@@ -333,8 +333,8 @@ describe("NavigationTree domain model", () => {
 
       const ops = tree.findArea("operations")!;
       const groupLabels = ops.groups.map((g) => g.label);
-      expect(groupLabels.indexOf("Workspace")).toBeLessThan(groupLabels.indexOf("Marketing"));
-      expect(groupLabels.indexOf("Marketing")).toBeLessThan(groupLabels.indexOf("System"));
+      expect(groupLabels.indexOf("Workspace")).toBeLessThan(groupLabels.indexOf("Security"));
+      expect(groupLabels.indexOf("Security")).toBeLessThan(groupLabels.indexOf("System"));
 
       expect(BUILTIN_AREA_GROUPS.settings).toEqual([
         "Instance",

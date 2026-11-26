@@ -194,7 +194,6 @@ export function IntegrationsVaultPage() {
     payment: t("vault.categoryPayment"),
     storage: t("vault.categoryStorage"),
     communication: t("vault.categoryCommunication"),
-    dns: t("vault.categoryDns"),
   };
 
   const collectionOptions = [

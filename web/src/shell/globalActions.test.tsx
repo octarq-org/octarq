@@ -103,19 +103,17 @@ describe("Global Actions pure helpers", () => {
       onOpenCopilot,
     });
 
-    expect(merged).toHaveLength(5);
+    expect(merged).toHaveLength(3);
     expect(merged.map((m) => m.id)).toEqual([
-      "action.new_link",
-      "action.new_domain",
       "action.export_data",
       "action.ask_copilot",
       "/overview",
     ]);
 
-    const newLink = merged.find((m) => m.id === "action.new_link");
-    expect(newLink?.actionType).toBe("create_link");
-    expect(newLink?.shortcut).toBe("⌘N");
-    expect(typeof newLink?.actionHandler).toBe("function");
+    const exportAction = merged.find((m) => m.id === "action.export_data");
+    expect(exportAction?.actionType).toBe("export_data");
+    expect(exportAction?.shortcut).toBe("⌘E");
+    expect(typeof exportAction?.actionHandler).toBe("function");
 
     const copilotAction = merged.find((m) => m.id === "action.ask_copilot");
     expect(copilotAction?.actionType).toBe("open_ai_chat");

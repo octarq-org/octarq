@@ -36,7 +36,6 @@ vi.mock("../../api", () => {
     exportWorkspaceData: vi.fn(async () => ({})),
     purgeWorkspaceData: vi.fn(async () => ({ ok: true })),
     instanceBuild: vi.fn(async () => ({ version: "dev", commit: "unknown", builtAt: "unknown" })),
-    smtpSenders: vi.fn(async () => []),
   };
   return { api };
 });

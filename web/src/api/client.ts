@@ -9,7 +9,6 @@ import {
 import type {
   Action,
   AuditLog,
-  Domain,
   HelpCategory,
   HelpDocContent,
   HelpDocMeta,
@@ -30,8 +29,6 @@ import type {
   OrgSlug,
   Overview,
   PluginInfo,
-  ProviderAccount,
-  ProviderAccountInput,
   ReadinessCheck,
   DiscoverModelsInput,
   LLMModel,
@@ -41,8 +38,6 @@ import type {
   RegisteredChannel,
   SessionRecord,
   Settings,
-  SMTPSender,
-  SMTPSenderInput,
   SubsystemStatusResponse,
   Token,
   VaultCategorySchema,
@@ -147,27 +142,6 @@ export const api = {
     req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
   aiAssistStatus: () => req<{ configured: boolean; provider: string }>("GET", "/api/ai/assist/status"),
-
-  dnsProviders: () => req<string[]>("GET", "/api/dns/providers"),
-  providerAccounts: () => req<ProviderAccount[]>("GET", "/api/provider-accounts"),
-  createProviderAccount: (p: ProviderAccountInput) => req<ProviderAccount>("POST", "/api/provider-accounts", p),
-  updateProviderAccount: (id: number, p: Partial<ProviderAccountInput>) => req<ProviderAccount>("PUT", `/api/provider-accounts/${id}`, p),
-  deleteProviderAccount: (id: number) => req<void>("DELETE", `/api/provider-accounts/${id}`),
-
-  smtpSenders: () => req<SMTPSender[]>("GET", "/api/smtp-senders"),
-  createSMTPSender: (s: SMTPSenderInput) => req<SMTPSender>("POST", "/api/smtp-senders", s),
-  updateSMTPSender: (id: number, s: Partial<SMTPSenderInput>) => req<SMTPSender>("PUT", `/api/smtp-senders/${id}`, s),
-  deleteSMTPSender: (id: number) => req<void>("DELETE", `/api/smtp-senders/${id}`),
-  testSMTPSender: (id: number) => req<{ ok: boolean }>("POST", `/api/smtp-senders/${id}/test`),
-
-  domains: (q?: { q?: string; limit?: number; offset?: number }) => {
-    const params = new URLSearchParams();
-    if (q?.q) params.set("q", q.q);
-    if (q?.limit) params.set("limit", q.limit.toString());
-    if (q?.offset) params.set("offset", q.offset.toString());
-    const query = params.toString();
-    return req<Domain[]>("GET", `/api/domains${query ? "?" + query : ""}`);
-  },
 
   tokens: () => req<Token[]>("GET", "/api/tokens"),
   createToken: (d: { name: string; note?: string; role?: "member" | "admin" | "owner"; expiresInDays?: number }) =>
