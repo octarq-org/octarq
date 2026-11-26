@@ -21,7 +21,6 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "settings.apiKeysPlaceholderNew",
   "settings.botAuthToken",
 
-  "groups.Marketing",
   "settings.pluginCategory.marketing",
   "settings.instancePluginName",
   "settings.buildTitle",

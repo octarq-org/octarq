@@ -144,15 +144,8 @@ export const ja = {
   groups: {
     Workspace: "ワークスペース",
     Integrations: "外部連携",
-    Marketing: "マーケティング",
     Messaging: "メッセージング",
-    Network: "ネットワーク",
-    Hosting: "ホスティング",
-    "Storage & Databases": "ストレージ＆データベース",
-    Security: "セキュリティ",
-    System: "システム",
     Account: "アカウント",
-    Personal: "個人",
     Instance: "インスタンス",
   },
   nav: {

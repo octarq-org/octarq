@@ -144,15 +144,8 @@ export const pt = {
   groups: {
     Workspace: "Espaço de trabalho",
     Integrations: "Integrações",
-    Marketing: "Marketing",
     Messaging: "Mensageria",
-    Network: "Rede",
-    Hosting: "Hospedagem",
-    "Storage & Databases": "Armazenamento e bancos de dados",
-    Security: "Segurança",
-    System: "Sistema",
     Account: "Conta",
-    Personal: "Pessoal",
     Instance: "Instância",
   },
   nav: {
