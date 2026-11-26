@@ -36,19 +36,18 @@ describe("NavigationTree domain model", () => {
       expect(NavigationTree.resolveCategoryToArea("Storefront", [custom])).not.toBe("commerce");
     });
 
-    it("matches built-in areas deterministically by id or declared group label", () => {
+    it("matches built-in areas deterministically by id and routes plugin groups by declaration", () => {
       expect(NavigationTree.resolveCategoryToArea("assets")).toBe("assets");
       expect(NavigationTree.resolveCategoryToArea("infrastructure")).toBe("assets");
-      expect(NavigationTree.resolveCategoryToArea("Network")).toBe("assets");
-      expect(NavigationTree.resolveCategoryToArea("hosting")).toBe("assets");
-      expect(NavigationTree.resolveCategoryToArea("Storage & Databases")).toBe("assets");
-
       expect(NavigationTree.resolveCategoryToArea("operations")).toBe("operations");
+
+      const shipped: UIArea = { id: "assets", title: "Infrastructure", groups: ["Network", "Hosting"] };
+      expect(NavigationTree.resolveCategoryToArea("Network", [shipped])).toBe("assets");
+      expect(NavigationTree.resolveCategoryToArea("hosting", [shipped])).toBe("assets");
+      expect(NavigationTree.resolveCategoryToArea("Storage & Databases", [shipped])).toBe("operations");
+
       expect(NavigationTree.resolveCategoryToArea("Workspace")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("Marketing")).toBe("operations");
-      expect(NavigationTree.resolveCategoryToArea("messaging")).toBe("operations");
-      expect(NavigationTree.resolveCategoryToArea("Security")).toBe("operations");
-      expect(NavigationTree.resolveCategoryToArea("System")).toBe("operations");
     });
 
     it("eliminates keyword fuzzy substring heuristics and plugin category hardcoding", () => {
@@ -138,6 +137,20 @@ describe("NavigationTree domain model", () => {
     });
 
     it("falls back to category resolution when area metadata is omitted", () => {
+      const assetsArea: UIArea = { id: "assets", title: "Infrastructure", groups: ["Network"] };
+      expect(
+        NavigationTree.resolveMenuToArea(
+          {
+            id: "domains",
+            label: "DNS",
+            path: "/domains",
+            icon: "globe",
+            category: "Network",
+          },
+          [assetsArea],
+        ),
+      ).toBe("assets");
+
       expect(
         NavigationTree.resolveMenuToArea({
           id: "domains",
@@ -146,7 +159,7 @@ describe("NavigationTree domain model", () => {
           icon: "globe",
           category: "Network",
         }),
-      ).toBe("assets");
+      ).toBe("operations");
 
       expect(
         NavigationTree.resolveMenuToArea({
@@ -208,7 +221,7 @@ describe("NavigationTree domain model", () => {
       const menus: MenuItem[] = [
         { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
         { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
-        { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network" },
+        { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network", area: "assets" },
         { id: "help", label: "Help", path: "/help", icon: "book", category: "footer" },
       ];
 
@@ -319,6 +332,11 @@ describe("NavigationTree domain model", () => {
     });
 
     it("enforces declared group order within areas", () => {
+      const pluginArea: UIArea = {
+        id: "operations",
+        title: "Operations",
+        groups: ["Workspace", "Security", "System"],
+      };
       const menus: MenuItem[] = [
         { id: "security-audit", label: "Security audit", path: "/security/audit", icon: "scroll-text", category: "Security" },
         { id: "audit", label: "Audit", path: "/audit", icon: "scroll-text", category: "System" },
@@ -328,6 +346,7 @@ describe("NavigationTree domain model", () => {
       const tree = NavigationTree.build({
         menus,
         plugins: [],
+        pluginAreas: [pluginArea],
         backendLoaded: true,
       });
 
@@ -435,7 +454,7 @@ describe("NavigationTree domain model", () => {
     const menus: MenuItem[] = [
       { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
       { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
-      { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network" },
+      { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network", area: "assets" },
     ];
 
     const tree = NavigationTree.build({ menus });

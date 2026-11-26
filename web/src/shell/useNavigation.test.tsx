@@ -11,7 +11,7 @@ vi.mock("../api", () => ({
     menus: vi.fn().mockResolvedValue([
       { id: "overview", label: "Overview", path: "/overview", icon: "layout-dashboard", category: "Workspace" },
       { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" },
-      { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network" },
+      { id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network", area: "assets" },
     ]),
     plugins: vi.fn().mockResolvedValue([]),
     actions: vi.fn().mockResolvedValue([]),

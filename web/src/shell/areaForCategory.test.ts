@@ -39,10 +39,15 @@ describe("areaForCategory", () => {
     expect(areaForCategory("Account", [COMMERCE])).toBe("settings");
   });
 
-  it("falls back to keyword routing for an unclaimed category", () => {
-    expect(areaForCategory("Storage & Databases", [COMMERCE])).toBe("assets");
+  it("routes an unclaimed category to operations", () => {
+    expect(areaForCategory("Storage & Databases", [COMMERCE])).toBe("operations");
     expect(areaForCategory("Messaging", [COMMERCE])).toBe("operations");
     expect(areaForCategory(undefined, [COMMERCE])).toBe("operations");
+  });
+
+  it("routes a category a plugin area declares", () => {
+    const assets: UIArea = { id: "assets", title: "Infrastructure", groups: ["Storage & Databases"] };
+    expect(areaForCategory("Storage & Databases", [COMMERCE, assets])).toBe("assets");
   });
 
   it("uses deterministic group matching and eliminates fuzzy substring heuristics", () => {

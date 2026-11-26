@@ -5,8 +5,6 @@ import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PL
 import { roleSatisfies } from "./role";
 
 export const BUILTIN_AREA_GROUPS: Record<string, string[]> = {
-  operations: ["Workspace", "Security", "System"],
-  assets: ["Network", "Hosting", "Storage & Databases"],
   settings: ["Instance", "Workspace", "Integrations", "Account"],
 };
 
@@ -73,19 +71,8 @@ export class NavigationTree {
     );
     if (pluginHit) return pluginHit.id;
 
-    if (
-      c === "assets" ||
-      c === "infrastructure" ||
-      BUILTIN_AREA_GROUPS.assets.some((g) => g.toLowerCase() === c)
-    ) {
+    if (c === "assets" || c === "infrastructure") {
       return "assets";
-    }
-
-    if (
-      c === "operations" ||
-      BUILTIN_AREA_GROUPS.operations.some((g) => g.toLowerCase() === c)
-    ) {
-      return "operations";
     }
 
     return "operations";
