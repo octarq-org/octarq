@@ -144,15 +144,8 @@ export const es = {
   groups: {
     Workspace: "Espacio de trabajo",
     Integrations: "Integraciones",
-    Marketing: "Marketing",
     Messaging: "Mensajería",
-    Network: "Red",
-    Hosting: "Alojamiento",
-    "Storage & Databases": "Almacenamiento y bases de datos",
-    Security: "Seguridad",
-    System: "Sistema",
     Account: "Cuenta",
-    Personal: "Personal",
     Instance: "Instancia",
   },
   nav: {

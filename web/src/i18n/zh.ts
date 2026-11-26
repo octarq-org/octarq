@@ -146,15 +146,8 @@ export const zh: Resources = {
   groups: {
     Workspace: "工作区",
     Integrations: "外部集成",
-    Marketing: "营销",
     Messaging: "消息",
-    Network: "网络",
-    Hosting: "托管",
-    "Storage & Databases": "存储与数据库",
-    Security: "安全",
-    System: "系统",
     Account: "账户",
-    Personal: "个人",
     Instance: "实例",
   },
   nav: {
