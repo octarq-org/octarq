@@ -36,6 +36,7 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 	r, _ := humago.Unwrap(input.Ctx)
 
 	var authedOrgID uint
+	instanceAdmin := false
 	hasValidToken := false
 	idStr := strconv.FormatUint(uint64(input.ID), 10)
 
@@ -53,6 +54,7 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 			return nil, huma.Error401Unauthorized("Authentication required; provide a valid session or download token")
 		}
 		authedOrgID = h.auth.OrgID(r2)
+		instanceAdmin = h.IsInstanceAdmin(r2)
 	}
 
 	var file models.File
@@ -63,7 +65,7 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 		return nil, huma.Error500InternalServerError("Could not load file information; retry the request")
 	}
 
-	if !hasValidToken && authedOrgID != 0 && file.OrgID != authedOrgID {
+	if !hasValidToken && !instanceAdmin && file.OrgID != authedOrgID {
 		return nil, huma.Error403Forbidden("Workspace permission denied; this file belongs to another workspace")
 	}
 
