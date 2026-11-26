@@ -8,7 +8,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -28,7 +27,7 @@ func TestLoginLimitersTakeTheConfiguredBudget(t *testing.T) {
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(gdb)
 	geoResolver, _ := geo.Open("")
-	handler := New(cfg, gdb, cipher, authMgr, geoResolver, queue.New(""))
+	handler := New(cfg, gdb, cipher, authMgr, geoResolver, testQueue())
 	handler.SetPlugins([]plugin.Plugin{dummyPlugin{}})
 
 	if got := handler.loginLimiter.rate; got.Limit != 7 || got.Period != 2*time.Minute {

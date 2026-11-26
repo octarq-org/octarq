@@ -11,7 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/vault"
 	"gorm.io/gorm"
@@ -30,7 +29,7 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 	reg := plugin.NewRegistry()
 	h.SetServiceLookup(reg.Lookup)
 	vp := vault.New()

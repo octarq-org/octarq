@@ -10,7 +10,10 @@ import (
 )
 
 func TestNew_InMemory(t *testing.T) {
-	q := New("")
+	q, err := New("")
+	if err != nil {
+		t.Fatalf("New(\"\") = %v", err)
+	}
 	if q == nil {
 		t.Fatal("expected non-nil Queue")
 		return
@@ -22,14 +25,8 @@ func TestNew_InMemory(t *testing.T) {
 }
 
 func TestNew_InvalidRedisURL(t *testing.T) {
-	q := New("::invalid-url::")
-	if q == nil {
-		t.Fatal("expected non-nil Queue")
-		return
-	}
-	_, ok := q.(*InMemoryQueue)
-	if !ok {
-		t.Errorf("expected *InMemoryQueue fallback for invalid redis URL")
+	if _, err := New("::invalid-url::"); err == nil {
+		t.Fatal("an invalid redis URL must return an error, not an in-memory queue")
 	}
 }
 
@@ -115,7 +112,10 @@ func TestInMemoryQueue_FullRejects(t *testing.T) {
 }
 
 func TestAsynqQueue_EnqueueFailureIsReturned(t *testing.T) {
-	q := New("redis://127.0.0.1:58999/0")
+	q, err := New("redis://127.0.0.1:58999/0")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 	asynqQ, ok := q.(*AsynqQueue)
 	if !ok {
 		t.Fatalf("expected *AsynqQueue")
@@ -127,7 +127,7 @@ func TestAsynqQueue_EnqueueFailureIsReturned(t *testing.T) {
 		return nil
 	})
 
-	err := asynqQ.Enqueue(context.Background(), "task1", []byte("p1"))
+	err = asynqQ.Enqueue(context.Background(), "task1", []byte("p1"))
 	if err == nil {
 		t.Fatal("expected an error when Redis is unreachable")
 	}
@@ -143,7 +143,10 @@ func TestAsynqQueue_EnqueueFailureIsReturned(t *testing.T) {
 }
 
 func TestAsynqQueue_EnqueueWithoutHandlerStillFails(t *testing.T) {
-	q := New("redis://127.0.0.1:58999/0")
+	q, err := New("redis://127.0.0.1:58999/0")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 	asynqQ, ok := q.(*AsynqQueue)
 	if !ok {
 		t.Fatalf("expected *AsynqQueue")
@@ -155,7 +158,10 @@ func TestAsynqQueue_EnqueueWithoutHandlerStillFails(t *testing.T) {
 }
 
 func TestAsynqQueue_StartAndShutdown(t *testing.T) {
-	q := New("redis://127.0.0.1:58999/0")
+	q, err := New("redis://127.0.0.1:58999/0")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 	asynqQ, ok := q.(*AsynqQueue)
 	if !ok {
 		t.Fatalf("expected *AsynqQueue")
