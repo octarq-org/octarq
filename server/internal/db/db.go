@@ -22,6 +22,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 	"gorm.io/plugin/opentelemetry/tracing"
 )
@@ -225,6 +226,8 @@ func OpenDualPool(cfg *config.Config) (writeDB *gorm.DB, readDB *gorm.DB, err er
 	}
 }
 
+const legacyDataSetting = "legacy_data_migrated"
+
 func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	all := append(models.AllModels(), extraModels...)
 	if err := gdb.AutoMigrate(all...); err != nil {
@@ -248,18 +251,23 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 
 	gdb.Model(&models.User{}).Where("is_instance_admin = ? AND email_verified = ?", true, false).Update("email_verified", true)
 
-	gdb.Where("org_id = 0").Delete(&models.Session{})
+	var legacyRan int64
+	gdb.Model(&models.Setting{}).Where("key = ?", legacyDataSetting).Count(&legacyRan)
+	if legacyRan == 0 {
+		gdb.Where("org_id = 0").Delete(&models.Session{})
 
-	m := gdb.Migrator()
-	if tables, err := m.GetTables(); err == nil {
-		gdb.Transaction(func(tx *gorm.DB) error {
-			for _, table := range []string{"tokens", "user_tokens", "webhooks", "notification_channels"} {
-				if slices.Contains(tables, table) && tx.Migrator().HasColumn(table, "owner_id") {
-					tx.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+		m := gdb.Migrator()
+		if tables, err := m.GetTables(); err == nil {
+			gdb.Transaction(func(tx *gorm.DB) error {
+				for _, table := range []string{"tokens", "user_tokens", "webhooks", "notification_channels"} {
+					if slices.Contains(tables, table) && tx.Migrator().HasColumn(table, "owner_id") {
+						tx.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+					}
 				}
-			}
-			return nil
-		})
+				return nil
+			})
+		}
+		gdb.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.Setting{Key: legacyDataSetting, Value: "1"})
 	}
 
 	if err := backfillOrgHosts(gdb); err != nil {

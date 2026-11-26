@@ -56,7 +56,10 @@ func (a *App) RunMCP(ctx context.Context) error {
 		return err
 	}
 
-	taskQueue := queue.New(a.cfg.RedisURL)
+	taskQueue, err := queue.New(a.cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("task queue: %w", err)
+	}
 	go taskQueue.Start(ctx)
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	if err := apiHandler.InitErr(); err != nil {
@@ -208,7 +211,10 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	auth.InitGothStore(a.cfg.SecretKey)
-	taskQueue := queue.New(a.cfg.RedisURL)
+	taskQueue, err := queue.New(a.cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("task queue: %w", err)
+	}
 	go func() {
 		if err := taskQueue.Start(ctx); err != nil {
 			slog.Error("queue start failed", "err", err)

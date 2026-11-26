@@ -14,7 +14,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
@@ -80,7 +79,7 @@ func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harnes
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 	h.SetHost(&plugin.TestHost{})
 	if p != nil {
 		h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) { return p, nil })

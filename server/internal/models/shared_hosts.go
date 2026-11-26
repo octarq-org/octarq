@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const SharedHostsSetting = "shared_hosts"
@@ -18,8 +19,13 @@ func SharedHosts(db *gorm.DB) []string {
 		if err := db.Where("key = ?", SharedHostsSetting).Limit(1).Find(&s).Error; err == nil && s.Key != "" {
 			raw = s.Value
 		}
-	}
-	if strings.TrimSpace(raw) == "" {
+		if strings.TrimSpace(raw) == "" {
+			raw = os.Getenv(SharedHostsEnv)
+			if strings.TrimSpace(raw) != "" {
+				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&Setting{Key: SharedHostsSetting, Value: raw})
+			}
+		}
+	} else {
 		raw = os.Getenv(SharedHostsEnv)
 	}
 	if strings.TrimSpace(raw) == "" {
