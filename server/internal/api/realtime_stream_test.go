@@ -17,7 +17,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"gorm.io/gorm"
 )
 
@@ -32,7 +31,7 @@ func newRealtimeStreamTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 
 	return h.Routes(), db
 }

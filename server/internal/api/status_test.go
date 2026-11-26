@@ -13,7 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"gorm.io/gorm"
 )
 
@@ -28,7 +27,7 @@ func newTestStatusHandler(t *testing.T) (*Handler, http.Handler) {
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 	srv := h.Routes()
 	return h, srv
 }

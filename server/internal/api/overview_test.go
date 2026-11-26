@@ -11,7 +11,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -34,7 +33,7 @@ func TestOverviewPluginAbsent(t *testing.T) {
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(gdb)
 	geoResolver, _ := geo.Open("")
-	taskQueue := queue.New("")
+	taskQueue := testQueue()
 
 	handler := New(cfg, gdb, cipher, authMgr, geoResolver, taskQueue)
 	handler.SetPlugins([]plugin.Plugin{dummyPlugin{}})
@@ -87,7 +86,7 @@ func TestOverviewPluginDisabled(t *testing.T) {
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(gdb)
 	geoResolver, _ := geo.Open("")
-	taskQueue := queue.New("")
+	taskQueue := testQueue()
 
 	handler := New(cfg, gdb, cipher, authMgr, geoResolver, taskQueue)
 	lp := linksPlugin{}

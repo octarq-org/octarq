@@ -9,7 +9,10 @@ import (
 )
 
 func TestCharacterization_MemoryQueueProcessing(t *testing.T) {
-	q := New("")
+	q, err := New("")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 
 	var processed int32
 	q.Register("test_task", func(ctx context.Context, payload []byte) error {

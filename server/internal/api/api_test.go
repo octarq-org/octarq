@@ -21,7 +21,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/notification"
-	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
 	"github.com/octarq-org/octarq/server/plugins/vault"
@@ -148,7 +147,7 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	h := New(cfg, db, cipher, authMgr, g, testQueue())
 
 	h.SetHost(&plugin.TestHost{})
 
