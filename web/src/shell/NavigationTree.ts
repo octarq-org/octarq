@@ -5,7 +5,7 @@ import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PL
 import { roleSatisfies } from "./role";
 
 export const BUILTIN_AREA_GROUPS: Record<string, string[]> = {
-  operations: ["Workspace", "Marketing", "Messaging", "Security", "System"],
+  operations: ["Workspace", "Security", "System"],
   assets: ["Network", "Hosting", "Storage & Databases"],
   settings: ["Instance", "Workspace", "Integrations", "Account"],
 };

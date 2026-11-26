@@ -88,7 +88,6 @@ describe("CommandPalette", () => {
     );
 
     expect(screen.getByPlaceholderText("Search pages…")).not.toBeNull();
-    expect(screen.getByText("New link")).not.toBeNull();
     expect(screen.getByText("Links")).not.toBeNull();
 
     fireEvent.click(screen.getByText("Links"));
@@ -287,9 +286,9 @@ describe("CommandPalette", () => {
     const onNavigate = vi.fn();
     const onClose = vi.fn();
 
-    const openLinkSpy = vi.fn();
-    const customListener = () => openLinkSpy();
-    window.addEventListener("octarq:open-new-link", customListener);
+    const exportSpy = vi.fn();
+    const customListener = () => exportSpy();
+    window.addEventListener("octarq:export-data", customListener);
 
     render(
       <I18nProvider>
@@ -305,14 +304,14 @@ describe("CommandPalette", () => {
     );
 
     const input = screen.getByPlaceholderText("Search pages…");
-    fireEvent.change(input, { target: { value: "Create short link" } });
+    fireEvent.change(input, { target: { value: "Export workspace data" } });
 
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(openLinkSpy).toHaveBeenCalled();
+    expect(exportSpy).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
 
-    window.removeEventListener("octarq:open-new-link", customListener);
+    window.removeEventListener("octarq:export-data", customListener);
   });
 
   it("8. executes actionHandler on click for quick action items", () => {
@@ -461,7 +460,7 @@ describe("CommandPalette", () => {
     expect(quickGroup.getAttribute("aria-expanded")).toBe("false");
     expect(opsGroup.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("Links")).toBeNull();
-    expect(screen.queryByText("Create short link")).toBeNull();
+    expect(screen.queryByText("Export workspace data")).toBeNull();
     expect(screen.getByText("My profile")).not.toBeNull();
 
     const input = screen.getByPlaceholderText("Search pages…");
