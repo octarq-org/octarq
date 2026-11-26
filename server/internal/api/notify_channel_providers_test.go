@@ -9,32 +9,9 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/notification"
+	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/plugin"
 )
-
-type mockNotifyChannel struct {
-	name string
-	send func(cfgJSON, text string) error
-}
-
-func (c *mockNotifyChannel) Name() string                  { return c.name }
-func (c *mockNotifyChannel) DisplayName() string           { return c.name }
-func (c *mockNotifyChannel) ConfigSchema() json.RawMessage { return nil }
-
-func (c *mockNotifyChannel) Send(_ context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
-	cfgJSON := "{}"
-	if recipient.Config != nil {
-		if raw, ok := recipient.Config["_raw_config"].(string); ok && strings.TrimSpace(raw) != "" {
-			cfgJSON = raw
-		}
-	}
-	text := payload.Body
-	if text == "" {
-		text = payload.Title
-	}
-	return c.send(cfgJSON, text)
-}
 
 type mockPlugin struct {
 	name     string
@@ -55,15 +32,12 @@ func (m *mockPlugin) Describe() plugin.Info {
 }
 func (m *mockPlugin) Models() []any { return nil }
 func (m *mockPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
-	if ctx.RegisterNotificationChannel != nil {
-		ctx.RegisterNotificationChannel(&mockNotifyChannel{
-			name: m.name,
-			send: func(cfgJSON, text string) error {
-				if strings.Contains(cfgJSON, "fail_test") {
-					return fmt.Errorf("mock delivery failure")
-				}
-				return nil
-			},
+	if ctx.RegisterNotifier != nil {
+		ctx.RegisterNotifier(m.name, func(c context.Context, cfgJSON, text string) error {
+			if strings.Contains(cfgJSON, "fail_test") {
+				return fmt.Errorf("mock delivery failure")
+			}
+			return nil
 		})
 	}
 }
@@ -77,20 +51,15 @@ func TestNotificationChannelTypes_FilteringAndSecrets(t *testing.T) {
 		category: plugin.CategoryMessaging,
 	}
 
-	if err := notification.DefaultRouter().RegisterChannelWithDescriptor(&mockNotifyChannel{
-		name: p.name,
-		send: func(cfgJSON, text string) error {
-			return nil
-		},
-	}, notification.Descriptor{
+	notify.RegisterWithDescriptor(notify.Descriptor{
 		Type:        p.name,
 		Title:       p.title,
 		Description: p.desc,
 		Icon:        p.icon,
 		PluginName:  p.name,
-	}); err != nil {
-		t.Fatalf("register mock channel: %v", err)
-	}
+	}, func(c context.Context, cfgJSON, text string) error {
+		return nil
+	})
 
 	h, srv, db := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{p})
