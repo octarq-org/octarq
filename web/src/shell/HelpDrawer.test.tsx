@@ -25,6 +25,7 @@ function resetDrawer() {
     anchor: null,
     docs: [],
     docsKey: null,
+    categories: [],
   });
   window.history.replaceState(null, "", "/");
 }
@@ -43,6 +44,9 @@ beforeEach(() => {
   resetDrawer();
   clearHelpDocsCache();
   vi.spyOn(api, "helpIndex").mockResolvedValue(DOCS);
+  vi.spyOn(api, "helpCategories").mockResolvedValue([
+    { key: "services", order: 40, icon: "boxes", labels: { en: "Services" } },
+  ]);
   vi.spyOn(api, "helpPage").mockImplementation(async (slug: string) => ({
     title: slug === "domains" ? "Domains" : "Mail Setup",
     html: '<p>Manage your domains here.</p><h2 id="records">Records</h2><p>Add a record.</p>',
@@ -132,6 +136,25 @@ describe("HelpDrawer", () => {
     expect(useHelpDrawerStore.getState().slug).toBe("domains");
   });
 
+  it("opens the documentation browser when the page has no doc", async () => {
+    renderDrawer("/unrelated");
+
+    await waitFor(() => expect(useHelpDrawerStore.getState().docs).toHaveLength(2));
+
+    fireEvent.keyDown(window, { key: "F1" });
+
+    await waitFor(() => expect(useHelpDrawerStore.getState().isOpen).toBe(true));
+    expect(useHelpDrawerStore.getState().slug).toBeNull();
+    expect(await screen.findByTestId("help-browser")).not.toBeNull();
+    expect(screen.getByText("Services")).not.toBeNull();
+
+    fireEvent.click(screen.getByTestId("help-browser-doc-domains"));
+
+    await waitFor(() => expect(useHelpDrawerStore.getState().slug).toBe("domains"));
+    expect(await screen.findByText("Manage your domains here.")).not.toBeNull();
+    expect(window.location.search).toContain("help=domains");
+  });
+
   it("does not hijack the question mark key while typing in an input", async () => {
     renderDrawer();
 
@@ -174,10 +197,10 @@ describe("TopBar help entry", () => {
     activeOrgId: 1,
   };
 
-  it("shows the help trigger only when the current route maps to a doc", async () => {
+  it("shows the help trigger on every page that is not a help page", async () => {
     const first = render(
       <I18nProvider>
-        <MemoryRouter initialEntries={["/domains"]}>
+        <MemoryRouter initialEntries={["/unrelated"]}>
           <TopBar {...baseProps} />
         </MemoryRouter>
       </I18nProvider>,
@@ -188,13 +211,13 @@ describe("TopBar help entry", () => {
 
     render(
       <I18nProvider>
-        <MemoryRouter initialEntries={["/unrelated"]}>
+        <MemoryRouter initialEntries={["/domains"]}>
           <TopBar {...baseProps} />
         </MemoryRouter>
       </I18nProvider>,
     );
 
-    await waitFor(() => expect(screen.queryByTestId("help-drawer-trigger")).toBeNull());
+    expect(await screen.findByTestId("help-drawer-trigger")).not.toBeNull();
   });
 
   it("never shows the help trigger on help pages", async () => {

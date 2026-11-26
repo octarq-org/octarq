@@ -49,6 +49,34 @@ test.describe("Ambient help drawer", () => {
     guard.assertClean();
   });
 
+  test("opens the documentation browser on a page without a doc", async ({ page }) => {
+    mkdirSync(ARTIFACT_DIR, { recursive: true });
+    const guard = attachPageGuards(page);
+
+    await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
+    await page.goto("/admin/notifications");
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("button", { name: "Open help" }).click();
+    const drawer = page.getByTestId("help-drawer");
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole("heading", { name: "Browse documentation" })).toBeVisible();
+    await expect(drawer.getByPlaceholder("Search the documentation")).toBeVisible();
+
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, "drawer-browse-desktop.png"),
+      fullPage: false,
+    });
+
+    await drawer.getByTestId("help-browser-doc-quickstart").click();
+    await expect(drawer.getByRole("heading", { level: 1 })).not.toBeEmpty();
+    const url = new URL(page.url());
+    expect(url.pathname).toBe("/admin/notifications");
+    expect(url.searchParams.get("help")).toBe("quickstart");
+
+    guard.assertClean();
+  });
+
   test("deep links open the drawer directly and survive reload", async ({ page }) => {
     const guard = attachPageGuards(page);
     await signIn(page, ADMIN_USER, ADMIN_PASSWORD);

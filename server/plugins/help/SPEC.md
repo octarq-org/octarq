@@ -293,3 +293,9 @@ The `help` module anchors and coordinates core developer extension surfaces:
 - Each doc may declare `routes:` (SPA paths) and `actions:` (ids from `/api/actions`), exposed on `GET /api/help/docs`.
 - The shell derives page→doc matching from routes with longest-prefix wins; unknown action ids are ignored client-side.
 - `Action` gains an optional `description` used by doc action cards.
+
+### 8.5 Drawer-First Reading Contract (shell)
+- The drawer is the primary documentation surface. The TopBar entry, `F1`, and `?` open it on every page except the help pages themselves.
+- A mapped route opens that page's doc. A route with no mapping opens the in-drawer browser: the search field plus every installed doc grouped by category. Selecting a result or a row loads the doc in the same drawer; the underlying page does not change.
+- `?help=<slug>` continues to describe the open doc and to reproduce the drawer on load. Browser mode carries no `help` param and clears it.
+- `/help` stays the fallback directory and the target for shareable article links (`/help/<category>/<slug>`). The drawer reuses `HelpArticle`, so the two surfaces cannot render differently.

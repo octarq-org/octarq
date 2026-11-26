@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, BookOpen, ExternalLink, X } from "lucide-react";
+import { AlertTriangle, BookOpen, ExternalLink, List, X } from "lucide-react";
+import { Skeleton } from "@octarq/plugin-sdk";
 import { api, type HelpDocContent } from "../api";
 import { useTranslation } from "../i18n";
 import { HelpArticle } from "../plugins/core/help/HelpArticle";
+import HelpBrowser from "../plugins/core/help/HelpBrowser";
 import {
   isHelpPath,
   parseHelpDeepLink,
@@ -43,10 +45,10 @@ export function HelpDrawer({ activeOrgId }: { activeOrgId?: number }) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isOpen, slug, anchor, docs, open, close, openForCurrentPage } = useHelpDrawer(activeOrgId);
+  const { isOpen, slug, anchor, docs, categories, open, browse, close, openForCurrentPage } =
+    useHelpDrawer(activeOrgId);
 
   const [content, setContent] = useState<HelpDocContent | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -91,7 +93,6 @@ export function HelpDrawer({ activeOrgId }: { activeOrgId?: number }) {
     }
     let cancelled = false;
     setContent(null);
-    setLoading(true);
     setError(null);
     api
       .helpPage(slug, lang)
@@ -100,9 +101,6 @@ export function HelpDrawer({ activeOrgId }: { activeOrgId?: number }) {
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -182,7 +180,7 @@ export function HelpDrawer({ activeOrgId }: { activeOrgId?: number }) {
     [docs],
   );
 
-  const browseAll = () => {
+  const openDirectory = () => {
     close();
     navigate("/help");
   };
@@ -222,15 +220,29 @@ export function HelpDrawer({ activeOrgId }: { activeOrgId?: number }) {
           </div>
 
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={browseAll}
-              aria-label={t("help.drawer_browse", "Browse all help")}
-              title={t("help.drawer_browse", "Browse all help")}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </button>
+            {slug ? (
+              <button
+                type="button"
+                onClick={browse}
+                aria-label={t("help.drawer_browse", "Browse all help")}
+                title={t("help.drawer_browse", "Browse all help")}
+                data-testid="help-drawer-browse"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+              >
+                <List className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openDirectory}
+                aria-label={t("help.drawer_open_directory", "Open the full directory")}
+                title={t("help.drawer_open_directory", "Open the full directory")}
+                data-testid="help-drawer-directory"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
             <button
               type="button"
               onClick={close}
@@ -275,21 +287,20 @@ export function HelpDrawer({ activeOrgId }: { activeOrgId?: number }) {
               onNavigate={handleNavigate}
               resolveDocPath={resolveDocPath}
             />
-          ) : loading || slug ? (
-            <p className="text-xs text-muted-foreground">{t("help.loading", "Loading documentation…")}</p>
-          ) : (
-            <div className="space-y-3 rounded-lg border border-border p-5">
-              <p className="text-sm text-muted-foreground">
-                {t("help.drawer_empty", "No help page matches this address.")}
-              </p>
-              <button
-                type="button"
-                onClick={browseAll}
-                className="text-sm font-semibold text-accent-fg hover:underline"
-              >
-                {t("help.drawer_browse", "Browse all help")}
-              </button>
+          ) : slug ? (
+            <div className="space-y-3" data-testid="help-drawer-loading">
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3.5 w-11/12" />
+              <Skeleton className="h-3.5 w-4/5" />
             </div>
+          ) : (
+            <HelpBrowser
+              docs={docs}
+              categories={categories}
+              autoFocus
+              onSelect={(nextSlug, nextAnchor) => open(nextSlug, nextAnchor)}
+            />
           )}
         </div>
       </div>

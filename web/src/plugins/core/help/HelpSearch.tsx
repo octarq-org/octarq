@@ -14,6 +14,7 @@ type Status = "idle" | "loading" | "ready" | "error" | "unavailable";
 interface HelpSearchProps {
   categories: HelpCategory[];
   autoFocus?: boolean;
+  onSelect?: (url: string) => void;
 }
 
 function HighlightedSnippet({ snippet }: { snippet: HelpSearchSnippet }) {
@@ -42,7 +43,7 @@ function HighlightedSnippet({ snippet }: { snippet: HelpSearchSnippet }) {
   return <>{parts}</>;
 }
 
-export default function HelpSearch({ categories, autoFocus }: HelpSearchProps) {
+export default function HelpSearch({ categories, autoFocus, onSelect }: HelpSearchProps) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const listId = `help-search-list-${useId().replace(/:/g, "")}`;
@@ -95,6 +96,10 @@ export default function HelpSearch({ categories, autoFocus }: HelpSearchProps) {
   const activeHit = activeIndex >= 0 ? hits[activeIndex] : undefined;
 
   const goTo = (hit: HelpSearchHit) => {
+    if (onSelect) {
+      onSelect(hit.url);
+      return;
+    }
     navigate(hit.url);
   };
 
